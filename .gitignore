@@ -1,0 +1,19 @@
+
+# project-init managed
+.notes/
+.scratch/
+.archived/
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# environment
+.env
+
+# node
+node_modules/
+dist/

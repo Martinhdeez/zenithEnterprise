@@ -1,0 +1,43 @@
+.PHONY: up down logs migrate revision test lint format types licenses check
+
+COMPOSE := docker compose -f docker/docker-compose.yml
+UV := cd backend && uv run
+
+up:
+	$(COMPOSE) up -d db
+	@echo "Postgres up. Models: make up-models"
+
+up-models:
+	$(COMPOSE) up -d tei-embed tei-rerank
+
+down:
+	$(COMPOSE) down
+
+logs:
+	$(COMPOSE) logs -f
+
+migrate:
+	$(UV) alembic upgrade head
+
+revision:
+	$(UV) alembic revision --autogenerate -m "$(m)"
+
+test:
+	$(UV) pytest
+
+lint:
+	$(UV) ruff check .
+
+format:
+	$(UV) ruff format .
+
+types:
+	$(UV) pyright
+
+licenses:
+	$(UV) pip-licenses --fail-on="GNU General Public License v3 (GPLv3);\
+GNU Affero General Public License v3;GNU Affero General Public License v3 or later (AGPLv3+);\
+GNU General Public License v2 (GPLv2);Other/Proprietary License"
+
+# What has to pass before every commit.
+check: lint types test licenses
