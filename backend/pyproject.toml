@@ -32,6 +32,7 @@ dev = [
     "ruff>=0.8",
     "pyright>=1.1.390",
     "pip-licenses>=5.0",
+    "sentence-transformers>=5.6.1",
 ]
 
 [tool.ruff]
