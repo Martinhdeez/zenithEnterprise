@@ -15,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from testcontainers.community.postgres import PostgresContainer
 
-BACKEND_DIR = Path(__file__).resolve().parent.parent
+BACKEND_DIR = Path(__file__).resolve().parent
 IMAGE = "paradedb/paradedb:0.15.26-pg17"
 APP_PASSWORD = "app-test"
 
@@ -80,6 +80,21 @@ async def owner_engine(migrated: str, owner_url: str) -> AsyncIterator[AsyncEngi
 
 
 @pytest.fixture
-async def owner_session(owner_engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
+async def seed_session(owner_engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
     async with AsyncSession(owner_engine) as session:
         yield session
+
+
+@pytest.fixture
+def configured_engines(migrated: str, owner_url: str) -> Iterator[None]:
+    """Point the application's own engines at the test container.
+
+    Anything exercising `tenant_session` or `owner_session` goes through the module
+    level factories, so they have to be redirected or the test would talk to
+    whatever `.env` happens to say.
+    """
+    from app.core.database import configure_engine, configure_owner_engine
+
+    configure_engine(migrated)
+    configure_owner_engine(owner_url)
+    yield

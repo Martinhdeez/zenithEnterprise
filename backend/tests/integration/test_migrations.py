@@ -15,7 +15,7 @@ from sqlalchemy import Connection, create_engine, text
 from testcontainers.community.postgres import PostgresContainer
 
 from app.models import Base
-from tests.conftest import BACKEND_DIR, IMAGE
+from conftest import BACKEND_DIR, IMAGE
 
 
 @pytest.fixture(scope="module")
