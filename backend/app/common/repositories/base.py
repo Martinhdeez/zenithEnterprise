@@ -1,4 +1,4 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy import Select, select
@@ -7,26 +7,37 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.exceptions import MissingTenantContextError
 from app.core.database import Base
 
+if TYPE_CHECKING:
+    from app.features.tenancy.context import TenantContext
 
-class TenantRepository[ModelT: Base]:
+
+class ScopedRepository[ModelT: Base]:
     """Base repository for tables holding customer data.
 
     It exists for one reason: to guarantee that no query runs without an RLS context.
     Postgres policies already close the door, but with no context they silently
     return zero rows, and a silent zero is hard to debug. Here it fails loudly, in
     the right place.
+
+    Named for what it does — scoping to a context — rather than for the tenancy
+    feature, so `TenantRepository` can mean the repository of tenants and nothing
+    else.
     """
 
     model: type[ModelT]
 
     def __init__(self, session: AsyncSession) -> None:
-        if "tenant_id" not in session.info:
+        if "context" not in session.info:
             raise MissingTenantContextError("session has no RLS context: use `tenant_session`")
         self.session = session
 
     @property
+    def context(self) -> "TenantContext":
+        return self.session.info["context"]
+
+    @property
     def tenant_id(self) -> UUID:
-        return self.session.info["tenant_id"]
+        return self.context.tenant_id
 
     def query(self) -> Select[tuple[ModelT]]:
         return select(self.model)
