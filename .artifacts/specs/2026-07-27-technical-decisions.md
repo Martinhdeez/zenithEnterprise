@@ -237,6 +237,26 @@ Does the page have an extractable text layer?
 
 `pdfplumber` (MIT) determines both cheaply before deciding.
 
+### A document that yields no text must fail, never succeed quietly
+
+**`status = 'ready'` with zero chunks is forbidden.** If extraction produces nothing — no
+text layer and OCR also returns nothing, or OCR is unavailable — the document ends in
+`failed` with a `status_detail` an operator can act on.
+
+This is not defensive coding. Without it, an image-only PDF ingests *successfully*: no
+exception, no failed status, nothing in any log. The document appears in the list, someone
+asks a question about it, and the system answers from a different document entirely. There
+is no symptom until a customer notices, and by then they have stopped trusting the answers.
+
+It is the same failure shape as a silent data leak, and it gets the same treatment: the
+system refuses rather than proceeds.
+
+Every scan we could find in public archives had already been OCR'd by its publisher — NASA,
+Wikimedia and the Library of Congress all run OCR before serving — so the case had to be
+constructed to be tested at all. `eval/fixtures.py` builds a PDF with exactly zero
+extractable characters by rasterising real pages, which is how a large share of enterprise
+scans are produced in the first place.
+
 ### Coordinate extraction — mandatory
 
 Both parsers must return, alongside the text, the **bounding boxes** of every chunk. They are what makes highlighting a citation in the PDF viewer reliable; the alternative, matching character offsets against pdf.js's text layer, is fragile and produces misaligned highlights (see `mvp.md` §2.9).

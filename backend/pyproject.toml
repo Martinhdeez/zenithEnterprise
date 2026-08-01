@@ -48,7 +48,7 @@ pythonVersion = "3.12"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["app", "tests"]
+testpaths = ["app", "eval", "tests"]
 
 [build-system]
 requires = ["hatchling"]
