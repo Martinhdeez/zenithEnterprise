@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Format
+        run: uv run ruff format --check .
+
+      - name: Types
+        run: uv run pyright
+
+      # Tests spin up real Postgres via testcontainers: SQLite has no pgvector, no
+      # RLS and no tsvector, and those are exactly what is under test here.
+      - name: Tests
+        run: uv run pytest
+
+      # NFR: no dependency under a copyleft or non-commercial licence.
+      # This fails the build rather than warning: an AGPL package slipping into the
+      # tree is a legal problem, not a style nit.
+      - name: Licenses
+        run: |
+          uv run pip-licenses --fail-on="GNU General Public License v3 (GPLv3);\
+          GNU Affero General Public License v3;\
+          GNU Affero General Public License v3 or later (AGPLv3+);\
+          GNU General Public License v2 (GPLv2);\
+          Other/Proprietary License"

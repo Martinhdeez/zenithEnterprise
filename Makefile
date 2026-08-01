@@ -1,4 +1,4 @@
-.PHONY: up down logs migrate revision test lint format types licenses check
+.PHONY: up up-models down logs migrate revision test lint format format-check types licenses check
 
 COMPOSE := docker compose -f docker/docker-compose.yml
 UV := cd backend && uv run
@@ -31,6 +31,9 @@ lint:
 format:
 	$(UV) ruff format .
 
+format-check:
+	$(UV) ruff format --check .
+
 types:
 	$(UV) pyright
 
@@ -39,5 +42,6 @@ licenses:
 GNU Affero General Public License v3;GNU Affero General Public License v3 or later (AGPLv3+);\
 GNU General Public License v2 (GPLv2);Other/Proprietary License"
 
-# What has to pass before every commit.
-check: lint types test licenses
+# What has to pass before every commit. Mirrors the CI job exactly, so a green
+# `check` locally means a green pipeline.
+check: lint format-check types test licenses
