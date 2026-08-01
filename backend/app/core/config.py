@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     max_pages_per_document: int = 3_000
     max_queries_per_minute_user: int = 30
     max_queries_per_minute_tenant: int = 120
+    # Login is the expensive unauthenticated endpoint: argon2 costs real CPU and RAM
+    # per attempt, by design. See `features/auth/throttle.py`.
+    login_attempts_per_minute: int = 10
+    password_hash_concurrency: int = 4
 
     # Separate pools: the query path must not compete with ingestion.
     api_pool_size: int = 10
