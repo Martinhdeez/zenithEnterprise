@@ -84,6 +84,58 @@ needs a corpus two orders of magnitude larger. `project-state.md` §7 stays open
 
 ---
 
+## 2b. How badly naive extraction actually breaks
+
+Measured per document. English words average about five characters, so mean token length is
+a cheap proxy for whether word boundaries survived.
+
+| Document | chars/page | mean word | tokens >20 chars | Lexical search |
+|---|---|---|---|---|
+| attention-is-all-you-need | 2,368 | **12.4** | **17.6%** | **dead** |
+| rag-paper | 3,295 | **11.1** | **15.2%** | **dead** |
+| bert-paper | 3,844 | 6.4 | 4.2% | degraded |
+| nasa-technical-report | 2,020 | 5.7 | 0.7% | ok |
+| eu-digital-services-act | 4,128 | 5.4 | 0.0% | ok |
+| gdpr | 4,043 | 5.3 | 0.0% | ok |
+| eu-ai-act | 4,137 | 5.3 | 0.0% | ok |
+| infrastructure-act | 2,689 | 5.2 | 0.1% | ok |
+| boe-monetary-policy | 2,096 | 5.1 | 0.0% | ok |
+| irs-pub-15 | 5,345 | 4.7 | 0.0% | ok |
+| irs-1040-instructions | 5,002 | 4.4 | 0.0% | ok |
+| irs-form-1040 | 5,076 | 4.4 | 0.0% | ok |
+| nasa-scanned-report | **925** | 4.1 | 0.0% | ok |
+
+**Three distinct failures, not one.** They need different fixes, and lumping them together
+as "bad extraction" would send F5 after the wrong one.
+
+**1. Garbled — the arXiv papers.** Text is present and unusable for lexical search: 17.6% of
+tokens are over twenty characters, because the words are run together. BM25 tokenises
+`densevectorindexofWikipedia` into a single term nobody will ever query. Two of thirteen
+documents are effectively invisible to half the search stack, and it shows in the results —
+both arXiv misses were found by the dense half alone.
+
+**2. Missing — the newer NASA scan.** 925 characters per page against 4,000-5,000 for
+born-digital. The text that *is* there is clean; roughly three quarters of it never made it
+through OCR. Nothing is garbled, so no quality metric on the extracted text can detect
+this — only comparing against the page image would.
+
+**3. Scrambled — the IRS instructions.** Two columns interleave mid-sentence, producing
+*"al's 2025 a return for someone who died before you take the standard deduction or if
+income tax return"*. **Every word-level metric says this document is fine** — mean token
+length 4.4, no long tokens. The damage is at sentence level, and the table above is blind to
+it.
+
+That third row is the important one for F5: **the cheapest signals cannot see the failure
+that most affects meaning.** Routing pages to Docling on "has a table or has no text layer",
+as `technical-decisions.md` §7 currently specifies, would not catch column interleaving at
+all. Detecting it needs layout analysis, which means running the expensive parser to decide
+whether to run the expensive parser.
+
+Worth stating plainly: **the per-page routing rule in §7 is currently incomplete**, and M0
+found that without needing to build it.
+
+---
+
 ## 3. The finding that changes an architectural assumption
 
 | | Count |
