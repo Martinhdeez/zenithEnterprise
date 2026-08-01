@@ -17,6 +17,7 @@ dependencies = [
     "cryptography>=44.0",
     "structlog>=24.4",
     "typer>=0.15",
+    "pydantic[email]>=2.13.4",
 ]
 
 [project.scripts]
