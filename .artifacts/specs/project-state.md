@@ -19,8 +19,10 @@ first — then the three specs, then the code.
 | `CONTRIBUTING.md` | Merged, PR #1 |
 | **F1 — Tenancy** | **Done.** Merged, PR #2, CI green |
 | **F2 — Auth** | **Done.** Merged, PR #3, CI green |
-| **F2 hardening** | **In progress**, branch `fix/f2-hardening` |
-| F3 onwards | Not started |
+| **F2 hardening** | **Done.** Merged, PR #4, CI green |
+| **F3 — Labels** | **Done.** Merged, PR #5, CI green |
+| **M0 — Retrieval baseline** | **In progress**, branch `feat/m0-baseline`. Resequenced ahead of F4 — see §3c |
+| F4 onwards | Not started |
 
 ### What F0 actually delivered, verified
 
@@ -45,7 +47,7 @@ Each feature retires the next dependency, not the flashiest UI.
 | F0 | Foundations — schema, RLS, CI | **Done** |
 | F1 | `tenancy` — context and session contract | **Done** |
 | F2 | `auth` — users, roles, permissions, login | **Done** |
-| F3 | `labels` — access labels, the second RLS level | |
+| F3 | `labels` — access labels, the second RLS level | **Done** |
 | F4 | `documents` — upload, deduplication, deletion | |
 | F5 | `ingestion` — per-page parsing, chunking, bboxes | |
 | F6 | `embeddings` — TEI, vector spaces, reindexing | |
