@@ -1,0 +1,68 @@
+name: zenith
+
+services:
+  db:
+    # ParadeDB ships pgvector and pg_search in one image: both halves of hybrid
+    # search without adding another service to the deployment.
+    image: paradedb/paradedb:0.15.26-pg17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-zenith}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zenith}
+      POSTGRES_DB: ${POSTGRES_DB:-zenith}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zenith}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  tei-embed:
+    image: ${TEI_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.8}
+    command: ["--model-id", "BAAI/bge-m3", "--auto-truncate"]
+    ports:
+      - "${TEI_EMBED_PORT:-8081}:80"
+    volumes:
+      - hf_cache:/data
+
+  tei-rerank:
+    image: ${TEI_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.8}
+    command: ["--model-id", "BAAI/bge-reranker-v2-m3", "--auto-truncate"]
+    ports:
+      - "${TEI_RERANK_PORT:-8082}:80"
+    volumes:
+      - hf_cache:/data
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    env_file: [../.env]
+    environment:
+      ZENITH_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-zenith}:${POSTGRES_PASSWORD:-zenith}@db:5432/${POSTGRES_DB:-zenith}
+      ZENITH_TEI_EMBED_URL: http://tei-embed:80
+      ZENITH_TEI_RERANK_URL: http://tei-rerank:80
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db: {condition: service_healthy}
+
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    command: ["procrastinate", "--app=app.ingestion.tasks.app", "worker"]
+    env_file: [../.env]
+    environment:
+      ZENITH_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-zenith}:${POSTGRES_PASSWORD:-zenith}@db:5432/${POSTGRES_DB:-zenith}
+      ZENITH_TEI_EMBED_URL: http://tei-embed:80
+      ZENITH_TEI_RERANK_URL: http://tei-rerank:80
+    depends_on:
+      db: {condition: service_healthy}
+
+volumes:
+  db_data:
+  hf_cache:

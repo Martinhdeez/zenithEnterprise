@@ -1,0 +1,22 @@
+# Overlay for machines with an NVIDIA GPU.
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
+services:
+  tei-embed:
+    image: ghcr.io/huggingface/text-embeddings-inference:1.8
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  tei-rerank:
+    image: ghcr.io/huggingface/text-embeddings-inference:1.8
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
