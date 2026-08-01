@@ -16,9 +16,10 @@ first — then the three specs, then the code.
 | Repository | `github.com/Martinhdeez/zenithEnterprise` (private) |
 | **F0 — Foundations** | **Done.** 6 commits on `main`, CI green |
 | Specs translated to English | Done, `db4d762` |
-| PR #1 — `CONTRIBUTING.md` | **Open, awaiting merge** |
-| **F1 — Tenancy** | **In progress**, branch `feat/f1-tenancy` |
-| F2 onwards | Not started |
+| `CONTRIBUTING.md` | Merged, PR #1 |
+| **F1 — Tenancy** | **Done.** Merged, PR #2, CI green |
+| **F2 — Auth** | **In progress**, branch `feat/f2-auth` |
+| F3 onwards | Not started |
 
 ### What F0 actually delivered, verified
 
@@ -41,8 +42,8 @@ Each feature retires the next dependency, not the flashiest UI.
 | # | Feature | Status |
 |---|---|---|
 | F0 | Foundations — schema, RLS, CI | **Done** |
-| F1 | `tenancy` — context and session contract | **In progress** |
-| F2 | `auth` — users, roles, permissions, login | |
+| F1 | `tenancy` — context and session contract | **Done** |
+| F2 | `auth` — users, roles, permissions, login | **In progress** |
 | F3 | `labels` — access labels, the second RLS level | |
 | F4 | `documents` — upload, deduplication, deletion | |
 | F5 | `ingestion` — per-page parsing, chunking, bboxes | |
@@ -53,26 +54,27 @@ Each feature retires the next dependency, not the flashiest UI.
 
 ---
 
-## 3. F1 — current position
+## 3. F1 — delivered
 
-**Written:**
-- `app/features/tenancy/context.py` — `TenantContext`, frozen, `label_ids` as a tuple.
-- `app/core/database.py` — reworked: `tenant_session(context)` is the only supported
-  entry point; `owner_session()` is the named, greppable RLS bypass;
-  `verify_rls_active` documented as required in every process, not just the API.
+`TenantContext` (frozen, labels as a tuple), `tenant_session(context)` as the only
+supported entry point, `owner_session()` as the named and greppable RLS bypass,
+`TenantService` for the cold-start path, and `ScopedRepository` as the base class.
 
-**Still to write:**
-- `app/features/tenancy/repository.py`
-- `app/features/tenancy/service.py` — tenant creation via the owner connection
-- `app/features/tenancy/tests/`
-- `tests/integration/` — the context-isolation-under-pooling test
+27 tests, up from 12. Full record in `.artifacts/to-test/2026-08-01-f1-tenancy.md`.
 
-**The test that matters in F1:** two concurrent sessions with different contexts must
-not see each other's rows. `set_config(..., true)` is transaction-scoped, but if it
-were connection-scoped, a pooled connection would carry one tenant's context into the
-next tenant's request. That is the worst bug this system can have.
+**Proven, not assumed:** `set_config(..., true)` is transaction-local under a real
+connection pool. Three tests cover concurrent contexts, sequential requests forced
+onto one connection, and a context-less session following one that had a context.
 
-Full plan: `.artifacts/in-progress/2026-08-01-f1-tenancy.md`.
+**Two defects found and fixed**, both of the same class — a green suite that is not
+running your tests looks identical to one that is:
+
+- The repository guard looked for `tenant_id` while the session recorded `context`,
+  so it would have rejected every *valid* session. No test built a repository, so the
+  suite was green on both sides of the bug.
+- Feature tests under `app/features/` were never collected: `testpaths` was `["tests"]`
+  and fixtures lived in `tests/conftest.py`. Every feature test from F2 onwards would
+  have silently not existed.
 
 ---
 
