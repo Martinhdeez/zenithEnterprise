@@ -17,6 +17,17 @@ UNSAFE_SECRETS = frozenset(
 
 MINIMUM_SECRET_BYTES = 32
 
+# Deliberately not "run `zenith generate-secret`", even though that command exists.
+# `Settings` is constructed when `app.core.config` is imported, and every CLI command
+# imports it — so the command whose entire purpose is to produce the missing secret cannot
+# start without it. An operator installing the product hits that immediately, and being
+# told to run something that cannot run is worse than no advice at all.
+#
+# This one-liner needs nothing but a Python interpreter, which they already have.
+HOW_TO_GENERATE = (
+    '\n  Generate one with:  python -c "import secrets; print(secrets.token_urlsafe(48))"'
+)
+
 
 def generate_secret() -> str:
     """A secret nobody has to think about.
@@ -38,8 +49,10 @@ class Settings(BaseSettings):
     tei_embed_url: str = "http://localhost:8081"
     tei_rerank_url: str = "http://localhost:8082"
 
-    # No default, deliberately. See the validator below.
-    jwt_secret: str
+    # Empty is not a usable default — the validator rejects it. It exists only so the
+    # failure is *our* message rather than Pydantic's "Field required", because the person
+    # reading it is installing the product and needs to be told what to do about it.
+    jwt_secret: str = ""
     access_token_minutes: int = 15
     refresh_token_days: int = 14
     # Fernet key protecting customer API keys at rest. Still optional because nothing
@@ -77,15 +90,16 @@ class Settings(BaseSettings):
         `verify_rls_active` refuses to serve. Raising here means Pydantic fails during
         settings construction, the process exits non-zero, and the port never opens.
         """
+        if not value:
+            raise ValueError(f"ZENITH_JWT_SECRET is not set.{HOW_TO_GENERATE}")
         if value.strip().lower() in UNSAFE_SECRETS:
             raise ValueError(
-                f"ZENITH_JWT_SECRET is set to the placeholder {value!r}. "
-                "Generate one with `zenith generate-secret`."
+                f"ZENITH_JWT_SECRET is set to the placeholder {value!r}.{HOW_TO_GENERATE}"
             )
         if len(value.encode()) < MINIMUM_SECRET_BYTES:
             raise ValueError(
                 f"ZENITH_JWT_SECRET must be at least {MINIMUM_SECRET_BYTES} bytes "
-                f"(got {len(value.encode())}). Generate one with `zenith generate-secret`."
+                f"(got {len(value.encode())}).{HOW_TO_GENERATE}"
             )
         return value
 

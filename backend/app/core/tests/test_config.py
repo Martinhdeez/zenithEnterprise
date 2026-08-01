@@ -55,11 +55,28 @@ def test_length_is_counted_in_bytes_not_characters() -> None:
     assert _settings("é" * 16).jwt_secret  # 16 characters, 32 bytes
 
 
-def test_the_error_says_how_to_fix_it() -> None:
-    """The person hitting this is installing the product, not developing it. An error
-    that only says "invalid" makes them guess, and guessing here produces a weak secret."""
-    with pytest.raises(ValidationError, match="zenith generate-secret"):
+def test_an_empty_secret_is_refused_with_our_own_message() -> None:
+    """Not Pydantic's "Field required".
+
+    The person reading this is installing the product. `jwt_secret` carries an empty
+    default purely so the failure is a sentence they can act on.
+    """
+    with pytest.raises(ValidationError, match="is not set"):
+        _settings("")
+
+
+def test_the_error_says_how_to_fix_it_without_needing_the_CLI() -> None:
+    """The advice must not be "run `zenith generate-secret`".
+
+    `Settings` is built when `app.core.config` is imported and every CLI command imports
+    it, so that command cannot start without the value it exists to produce. Telling an
+    operator to run something that cannot run is worse than saying nothing.
+    """
+    with pytest.raises(ValidationError, match="import secrets"):
         _settings("too-short")
+
+    with pytest.raises(ValidationError, match="import secrets"):
+        _settings("")
 
 
 def test_generated_secrets_are_not_predictable() -> None:
