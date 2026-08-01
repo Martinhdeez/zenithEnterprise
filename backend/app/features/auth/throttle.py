@@ -50,6 +50,15 @@ class SlidingWindowLimiter:
         self._clock = clock
         self._hits: dict[str, deque[float]] = {}
 
+    def reset(self) -> None:
+        """Forget every caller.
+
+        For tests, which share one process and would otherwise exhaust a single shared
+        allowance between them — an ordering dependency that turns a green suite red the
+        moment somebody adds a test that logs in.
+        """
+        self._hits.clear()
+
     @property
     def tracked_keys(self) -> int:
         """How many callers are being remembered. Exposed because the bound on it is a

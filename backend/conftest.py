@@ -112,6 +112,20 @@ def configured_engines(migrated: str, owner_url: str) -> Iterator[None]:
     yield
 
 
+@pytest.fixture(autouse=True)
+def fresh_login_allowance() -> None:
+    """Reset the login rate limiter before every test.
+
+    It is process-wide state deliberately — one limiter per worker is the design — but in
+    a test run every case shares it, and every case that logs in spends from the same
+    allowance. Without this, the suite passes until it crosses ten logins and then fails
+    in whichever test happens to run eleventh, which looks like a bug in that test.
+    """
+    from app.features.auth.throttle import login_limiter
+
+    login_limiter.reset()
+
+
 # --- A provisioned tenant -----------------------------------------------------------
 #
 # Lives here rather than in the auth feature because both the feature tests and the
@@ -176,6 +190,49 @@ async def account(configured_engines: None) -> Account:
         )
 
     return account
+
+
+@pytest.fixture
+async def finance_label(account: Account) -> UUID:
+    return account.finance_label
+
+
+@pytest.fixture
+async def labelled_document(account: Account) -> UUID:
+    """A document carrying the Finance label, with two chunks.
+
+    Inserted through the owner connection rather than through an upload, because upload is
+    F4 and the sync behaviour is F3's to guarantee. The chunks matter: they carry their own
+    copy of the labels, and a chunk that disagrees with its document is a passage
+    retrievable by someone who cannot open the file it came from.
+    """
+    from sqlalchemy import text
+
+    from app.core.database import owner_session
+
+    async with owner_session() as session:
+        document_id = await session.scalar(
+            text(
+                "INSERT INTO documents (tenant_id, filename, sha256, size_bytes) "
+                "VALUES (:t, 'labelled.pdf', :sha, 1024) RETURNING id"
+            ),
+            {"t": account.tenant_id, "sha": str(uuid4())},
+        )
+        await session.execute(
+            text("INSERT INTO document_labels (document_id, label_id) VALUES (:d, :l)"),
+            {"d": document_id, "l": account.finance_label},
+        )
+        for page in (1, 2):
+            await session.execute(
+                text(
+                    "INSERT INTO chunks (document_id, tenant_id, page_num, char_start, "
+                    "char_end, text) VALUES (:d, :t, :p, 0, 10, 'chunk text')"
+                ),
+                {"d": document_id, "t": account.tenant_id, "p": page},
+            )
+
+    assert isinstance(document_id, UUID)
+    return document_id
 
 
 @pytest.fixture
