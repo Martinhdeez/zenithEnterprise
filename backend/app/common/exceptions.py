@@ -14,9 +14,25 @@ class NotFoundError(ZenithError):
     code = "not_found"
 
 
+class AuthenticationError(ZenithError):
+    """Credentials missing, malformed, expired or wrong.
+
+    Deliberately one error for all of those: telling the caller which one it was is
+    what turns a login form into an account-enumeration tool.
+    """
+
+    status_code = 401
+    code = "authentication_failed"
+
+
 class PermissionDeniedError(ZenithError):
     status_code = 403
     code = "permission_denied"
+
+
+class RateLimitedError(ZenithError):
+    status_code = 429
+    code = "rate_limited"
 
 
 class ConflictError(ZenithError):

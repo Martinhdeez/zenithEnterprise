@@ -151,6 +151,25 @@ async def tenant_session(context: "TenantContext") -> AsyncGenerator[AsyncSessio
 
 
 @asynccontextmanager
+async def unscoped_session() -> AsyncGenerator[AsyncSession]:
+    """Application session with no RLS context.
+
+    Not a bypass: it connects as `zenith_app`, so every policy still applies and every
+    table with RLS returns nothing. It exists for the one query that cannot have a
+    context because it is the query establishing it — the login lookup, which reaches
+    `users` through a `SECURITY DEFINER` function rather than through a policy.
+
+    Anything else that needs this is a design error. If you want a context, you have
+    one: use `tenant_session`.
+    """
+    async with get_session_factory()() as session, session.begin():
+        await session.execute(
+            text(f"SET LOCAL statement_timeout = {settings.statement_timeout_ms}")
+        )
+        yield session
+
+
+@asynccontextmanager
 async def owner_session() -> AsyncGenerator[AsyncSession]:
     """Session as the schema owner. **Bypasses RLS entirely.**
 

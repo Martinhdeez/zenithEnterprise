@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.common.exceptions import ConflictError, NotFoundError
 from app.core.database import owner_session
+from app.features.auth.provisioning import seed_system_roles
 from app.features.tenancy.context import TenantContext
 from app.features.tenancy.model import Tenant
 
@@ -22,6 +23,12 @@ class TenantService:
     """
 
     async def create(self, name: str) -> Tenant:
+        """Create a tenant with its two system roles.
+
+        The roles are seeded in the same transaction on purpose: a tenant that exists
+        without them is a tenant nobody can administer, and leaving that window open
+        means a failure halfway through produces exactly that.
+        """
         async with owner_session() as session:
             tenant = Tenant(name=name)
             session.add(tenant)
@@ -31,6 +38,7 @@ class TenantService:
                 # UNIQUE(name). Surfaced as a domain error so the CLI can print
                 # something a person understands instead of a driver traceback.
                 raise ConflictError(f"a tenant named {name!r} already exists") from exc
+            await seed_system_roles(session, tenant.id)
             await session.refresh(tenant)
             return tenant
 
