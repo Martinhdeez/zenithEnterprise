@@ -50,10 +50,20 @@ _session_factory: async_sessionmaker[AsyncSession] | None = None
 _owner_engine: AsyncEngine | None = None
 _owner_session_factory: async_sessionmaker[AsyncSession] | None = None
 
+# The configuration is remembered separately from the engines built from it, so that
+# connections can be dropped without losing where they pointed. `dispose_engines` needs
+# that: an async engine is bound to the event loop that created it, and a process which
+# runs more than one loop — the CLI, where every command is its own `asyncio.run` — must
+# rebuild them per loop while keeping the same target.
+_url: str | None = None
+_pool_size: int | None = None
+_owner_url: str | None = None
+
 
 def configure_engine(url: str, pool_size: int | None = None) -> None:
     """Set the application engine. Tests point this at their throwaway container."""
-    global _engine, _session_factory
+    global _engine, _session_factory, _url, _pool_size
+    _url, _pool_size = url, pool_size
     if _engine is not None:
         _engine.sync_engine.dispose()
     _engine = create_async_engine(
@@ -66,7 +76,8 @@ def configure_engine(url: str, pool_size: int | None = None) -> None:
 
 
 def configure_owner_engine(url: str) -> None:
-    global _owner_engine, _owner_session_factory
+    global _owner_engine, _owner_session_factory, _owner_url
+    _owner_url = url
     if _owner_engine is not None:
         _owner_engine.sync_engine.dispose()
     # Small pool on purpose: this connection bypasses RLS, and the operations that
@@ -77,23 +88,40 @@ def configure_owner_engine(url: str) -> None:
 
 def get_engine() -> AsyncEngine:
     if _engine is None:
-        configure_engine(settings.database_url)
+        configure_engine(_url or settings.database_url, _pool_size)
     assert _engine is not None
     return _engine
 
 
 def get_session_factory() -> async_sessionmaker[AsyncSession]:
     if _session_factory is None:
-        configure_engine(settings.database_url)
+        configure_engine(_url or settings.database_url, _pool_size)
     assert _session_factory is not None
     return _session_factory
 
 
 def get_owner_session_factory() -> async_sessionmaker[AsyncSession]:
     if _owner_session_factory is None:
-        configure_owner_engine(settings.database_owner_url)
+        configure_owner_engine(_owner_url or settings.database_owner_url)
     assert _owner_session_factory is not None
     return _owner_session_factory
+
+
+async def dispose_engines() -> None:
+    """Close every pooled connection, keeping the configuration.
+
+    A short-lived process has to do this before its event loop ends, or it exits with
+    connections still open on the server and SQLAlchemy complaining about a loop that is
+    already gone. The next call rebuilds the engines against the same URLs, which is
+    what makes one process able to run several commands, each in its own loop.
+    """
+    global _engine, _session_factory, _owner_engine, _owner_session_factory
+    if _engine is not None:
+        await _engine.dispose()
+    if _owner_engine is not None:
+        await _owner_engine.dispose()
+    _engine = _session_factory = None
+    _owner_engine = _owner_session_factory = None
 
 
 async def set_rls_context(session: AsyncSession, context: "TenantContext") -> None:
