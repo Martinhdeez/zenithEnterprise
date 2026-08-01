@@ -164,7 +164,8 @@ this measurement rather than results:**
 
 **So this is a gap in the question set, not a verdict on hybrid search.** Action: add
 identifier-lookup questions before M0 is used to justify anything about the lexical half.
-Recorded as the first item in §5.
+
+**Done — and it reversed the finding entirely. See §8.**
 
 ---
 
@@ -299,3 +300,93 @@ already applies it.
 
 None of these would have appeared in a design review, and all three would have appeared at
 a customer.
+
+---
+
+## 8. The identifier questions, and the bug that nearly cost us ParadeDB
+
+Six questions added for the case §6 of `technical-decisions.md` says the lexical half exists
+for: exact strings. `Catalog Number 10000W`, `OMB No. 1545-0074`, `Regulation (EU) 2016/679`,
+`L 119/33`, `23 U.S.C. 101` — the public equivalents of `FAC-2026-99`.
+
+### First result: the lexical half found 1 of 6
+
+Which, taken at face value, was damning. The one query shape the lexical half is *for*, and
+it was worse there than on semantic questions.
+
+**It was a bug in twenty lines of my own code.**
+
+The chunks were tokenised by `to_tsvector`, which preserves identifiers sensibly:
+
+```
+'1545-0074'  ->  '1545'  '-0074'
+'L 119/33'   ->  'l'  '119/33'
+'2016/679'   ->  '2016/679'
+```
+
+The *query* was tokenised by `re.findall(r"[A-Za-z0-9']+", question)` — a regex that splits
+on exactly the punctuation that makes an identifier an identifier. `119/33` became `119`.
+`1545-0074` became `1545` and `0074`, neither of which is `-0074`.
+
+**The corpus side preserved them and the query side destroyed them.** The lexical half could
+not match an exact reference even in principle.
+
+The fix is not a cleverer heuristic — it is running the question through `to_tsvector` too,
+so both sides tokenise identically by construction.
+
+### Second result, after the fix
+
+| | Before | After |
+|---|---|---|
+| Identifiers found by lexical | 1 / 6 | **4 / 6** |
+| **Found by lexical *only*** | **0** | **2** |
+
+`L 119/33` and `23 U.S.C. 101` are retrieved **only** by the lexical half. The dense half
+misses both completely — a vector search asked for `L 119/33` returns the *concept* of an
+Official Journal citation, which is precisely the failure §6 predicted in the abstract and
+this now demonstrates concretely.
+
+**Hybrid search earns its complexity.** ParadeDB stays.
+
+### What this cost, and what it says about the method
+
+§3 of this document was one measurement away from arguing we could drop a dependency the
+architecture depends on. The evidence was real; the instrument was broken.
+
+Two guards would have caught it earlier, and both are cheap:
+
+- **A test that the lexical half can find an exact string it was given.** Trivial, and it
+  would have failed immediately.
+- **Suspicion when a component scores worst at its own speciality.** That is not a result,
+  it is a smell.
+
+The headline is unchanged at **75%** — the fix moved one question between halves without
+changing whether it was found, which is the right kind of no-op.
+
+### Still open: identifier lookup does not work end to end
+
+Recall@8 for identifiers is **0%**. Recall@50 is 83%. Every one was found at rank 13–70.
+
+So the passages are retrievable and the ranking is wrong, which is the same shape as §1 —
+and the same instrument fixes it. But it is worse here, and worth stating plainly:
+**someone searching for an invoice number today would get nothing useful in the top 8.**
+That is a product-level defect, recorded for F7 with a measured target.
+
+---
+
+## 9. M0 is closed
+
+| Question M0 was run to answer | Answer |
+|---|---|
+| Does hybrid retrieval work? | **Yes — 75% @8, 95% @50, 100% at document level** |
+| Where is the effort best spent? | **Ranking (reranker), worth up to 20 points** |
+| Does the lexical half earn its place? | **Yes — 2 questions are lexical-only** |
+| Is table extraction worth Docling? | **Unanswerable by recall. Moves to F9** |
+| What hardware does a customer need? | **8 GB RAM, ~5 min/100 pages, ~5 MB/100 pages** |
+| Should we partition `chunk_embeddings`? | **Still unknown — corpus too small. Stays open** |
+
+Six defects found that would otherwise have reached a customer: the OOM, the 413, the TEI
+queue panic, the manifest corruption, the silent zero-chunk ingestion path, and the query
+tokeniser.
+
+**F4 begins.**

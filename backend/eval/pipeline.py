@@ -17,13 +17,13 @@ This file is disposable. The corpus, the questions and the measurement are not.
 """
 
 import os
-import re
 from dataclasses import dataclass
 
 import psycopg
 from pgvector.psycopg import register_vector
 
 from eval.corpus import load_manifest
+from eval.embedder import DIMENSION, MODEL  # noqa: F401  (re-exported for callers)
 from eval.text import extract, normalise
 
 # The owner connection, because this is a laboratory: no tenant context, no policies, no
@@ -34,9 +34,6 @@ DSN = os.environ.get("ZENITH_EVAL_DSN", "postgresql://zenith:zenith@localhost:54
 # measure the architecture, not to tune chunking. Tuning happens in F5 against this number.
 CHUNK_CHARS = 1200
 OVERLAP = 200
-
-MODEL = "BAAI/bge-m3"
-DIMENSION = 1024
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,23 +68,10 @@ def chunk_document(document_id: str) -> list[Chunk]:
 
 
 def embed(texts: list[str], batch: int = 16) -> list[list[float]]:
-    """BGE-M3 through sentence-transformers rather than TEI.
+    """Whichever backend this host is configured for — see `eval.embedder`."""
+    from eval.embedder import get_embedder
 
-    TEI publishes `linux/amd64` only, so on Apple Silicon it runs under emulation — several
-    times slower, and misleading if anyone timed it. The weights are identical either way,
-    so the same text produces the same vector and the same ranking: quality measurements
-    are unaffected by which process computed the embedding. Resource measurements are not,
-    which is why those run on the VPS instead (M0 plan §3.3, §6).
-    """
-    import torch
-    from sentence_transformers import SentenceTransformer
-
-    device = "mps" if torch.backends.mps.is_available() else "cpu"
-    model = SentenceTransformer(MODEL, device=device)
-    vectors = model.encode(
-        texts, batch_size=batch, normalize_embeddings=True, show_progress_bar=True
-    )
-    return [vector.tolist() for vector in vectors]
+    return get_embedder().encode(texts, batch=batch)
 
 
 def reset_schema(connection: psycopg.Connection) -> None:
@@ -133,23 +117,39 @@ def index_all(
     connection.commit()
 
 
-def _to_tsquery(question: str) -> str:
-    """A bag of OR'd words.
+def _to_tsquery(connection: psycopg.Connection, question: str) -> str:
+    """OR'd lexemes, tokenised by Postgres itself rather than by a regex here.
 
-    `plainto_tsquery` ANDs every term, so one word absent from a chunk excludes it — which
-    for a natural-language question means almost everything is excluded. OR with ranking is
-    what BM25-style retrieval actually wants.
+    **The first version used `re.findall(r"[A-Za-z0-9\']+", ...)`, and that was a bug that
+    invalidated a conclusion.** It splits on exactly the punctuation that makes an
+    identifier an identifier: `1545-0074` became `1545` and `0074`, and `119/33` became
+    `119`. Meanwhile `to_tsvector` had stored those as the single lexemes `1545`, `-0074`
+    and `119/33`. The corpus side preserved them and the query side destroyed them, so the
+    lexical half could not match an exact reference even in principle — and M0's first pass
+    read that as "the lexical half contributes nothing".
+
+    Running the question through `to_tsvector` guarantees both sides tokenise identically,
+    which is the property that was missing rather than a cleverer heuristic.
+
+    Still OR rather than AND: `plainto_tsquery` requires every term, so one word absent from
+    a chunk excludes it, and for a natural-language question that excludes nearly everything.
     """
-    words = [word for word in re.findall(r"[A-Za-z0-9']+", question) if len(word) > 2]
-    return " | ".join(words) or "the"
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT array_to_string(tsvector_to_array(to_tsvector('english', %s)), ' | ')",
+            (question,),
+        )
+        row = cursor.fetchone()
+    return row[0] if row and row[0] else "the"
 
 
 def search_lexical(connection: psycopg.Connection, question: str, limit: int) -> list[int]:
+    query = _to_tsquery(connection, question)
     with connection.cursor() as cursor:
         cursor.execute(
             "SELECT id FROM eval_chunks WHERE tsv @@ to_tsquery('english', %s) "
             "ORDER BY ts_rank_cd(tsv, to_tsquery('english', %s)) DESC LIMIT %s",
-            (_to_tsquery(question), _to_tsquery(question), limit),
+            (query, query, limit),
         )
         return [row[0] for row in cursor.fetchall()]
 

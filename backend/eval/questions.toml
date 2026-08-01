@@ -282,6 +282,66 @@ anchor = "Filing Status"
 pages = [1]
 
 [[question]]
+id = "identifier-catalog-number"
+type = "identifier"
+question = "What is Catalog Number 10000W?"
+documents = ["irs-pub-15"]
+[[question.source]]
+document = "irs-pub-15"
+anchor = "10000W"
+pages = [1]
+
+[[question]]
+id = "identifier-omb-number"
+type = "identifier"
+question = "Which form carries OMB No. 1545-0074?"
+documents = ["irs-form-1040"]
+[[question.source]]
+document = "irs-form-1040"
+anchor = "1545-0074"
+pages = [1]
+
+[[question]]
+id = "identifier-regulation-2016-679"
+type = "identifier"
+question = "What is Regulation (EU) 2016/679?"
+documents = ["gdpr"]
+[[question.source]]
+document = "gdpr"
+anchor = "2016/679"
+pages = [1]
+
+[[question]]
+id = "identifier-regulation-2022-2065"
+type = "identifier"
+question = "What is Regulation (EU) 2022/2065?"
+documents = ["eu-digital-services-act"]
+[[question.source]]
+document = "eu-digital-services-act"
+anchor = "2022/2065"
+pages = [1, 100]
+
+[[question]]
+id = "identifier-oj-page"
+type = "identifier"
+question = "What is on Official Journal page L 119/33?"
+documents = ["gdpr"]
+[[question.source]]
+document = "gdpr"
+anchor = "L 119/33"
+pages = [33]
+
+[[question]]
+id = "identifier-usc-citation"
+type = "identifier"
+question = "What does the citation 23 U.S.C. 101 refer to?"
+documents = ["infrastructure-act"]
+[[question.source]]
+document = "infrastructure-act"
+anchor = "23 U.S.C. 101"
+pages = [78, 104, 387]
+
+[[question]]
 id = "unanswerable-pricing"
 type = "unanswerable"
 question = "How much does a Zenith Enterprise licence cost per seat?"

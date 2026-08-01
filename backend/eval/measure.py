@@ -194,6 +194,16 @@ def run() -> dict[str, object]:
             "both": sum(o.lexical_found and o.dense_found for o in headline),
             "neither": sum(not o.lexical_found and not o.dense_found for o in headline),
         },
+        # The diagnostic the first pass could not run, because it had no identifier
+        # questions: does the lexical half earn its place on exact strings?
+        "halves_on_identifiers": {
+            "lexical_found": sum(o.lexical_found for o in by_type.get("identifier", [])),
+            "dense_found": sum(o.dense_found for o in by_type.get("identifier", [])),
+            "lexical_only": sum(
+                o.lexical_found and not o.dense_found for o in by_type.get("identifier", [])
+            ),
+            "questions": len(by_type.get("identifier", [])),
+        },
         "latency_ms": {
             "median": statistics.median(o.elapsed_ms for o in outcomes),
             "note": "Apple M4 Pro, 24 GB — NOT customer hardware. Not a gate. See M0 plan §3.4.",

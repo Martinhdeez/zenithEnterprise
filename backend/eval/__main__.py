@@ -39,13 +39,13 @@ def fetch(record: bool) -> int:
             print(f"got  {document.id:<28} {pages} pages, {size / 1_048_576:.1f} MB")
 
     if record and updates:
-        _record(updates)
+        record_checksums(updates)
         print(f"\nRecorded {len(updates)} checksum(s) in the manifest.")
 
     return 1 if failures else 0
 
 
-def _record(updates: dict[str, tuple[str, int, int]]) -> None:
+def record_checksums(updates: dict[str, tuple[str, int, int]]) -> None:
     """Write checksums back into the manifest.
 
     Edited as text rather than re-serialised, because `tomllib` reads but does not write,
@@ -54,23 +54,34 @@ def _record(updates: dict[str, tuple[str, int, int]]) -> None:
     """
     from eval.corpus import MANIFEST
 
-    lines = MANIFEST.read_text().splitlines()
+    recorded = ("sha256 = ", "pages = ", "bytes = ")
     output: list[str] = []
     current: str | None = None
+    written = False
 
-    for line in lines:
+    for line in MANIFEST.read_text().splitlines():
         if line.startswith("id = "):
             current = line.split("=", 1)[1].strip().strip('"')
-        # `why` is the last key of every entry, so appending after its closing delimiter
-        # keeps the recorded facts together and below the prose.
-        if line == '"""' and current in updates:
-            digest, pages, size = updates[current]
-            output.append(line)
-            output.append(f'sha256 = "{digest}"')
-            output.append(f"pages = {pages}")
-            output.append(f"bytes = {size}")
-            current = None
+            written = False
+
+        # Drop values recorded by a previous run for this document. Without this the file
+        # gains duplicate TOML keys, and duplicates are not merely untidy: parsing fails
+        # with "Cannot overwrite a value" and the corpus becomes unloadable.
+        #
+        # `current` deliberately stays set after the insertion below. The first attempt at
+        # this fix cleared it there, which switched the skip off for exactly the lines it
+        # was meant to remove — so a second run was clean and a third was corrupt again.
+        if current in updates and line.startswith(recorded):
             continue
+
+        # `why` is the last key of every entry, so inserting after its closing delimiter
+        # keeps the recorded facts together and below the prose.
+        if line == '"""' and current in updates and not written:
+            digest, pages, size = updates[current]
+            output.extend([line, f'sha256 = "{digest}"', f"pages = {pages}", f"bytes = {size}"])
+            written = True
+            continue
+
         output.append(line)
 
     MANIFEST.write_text("\n".join(output) + "\n")

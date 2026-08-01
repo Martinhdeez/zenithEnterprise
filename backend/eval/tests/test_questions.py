@@ -24,10 +24,10 @@ needs_corpus = pytest.mark.skipif(
 )
 
 
-def test_there_are_thirty_questions() -> None:
-    """Thirty verified beats fifty assumed. The count is pinned because the temptation
-    under time pressure is to add unverified ones."""
-    assert len(load_questions()) == 30
+def test_the_question_count_is_pinned() -> None:
+    """Verified beats numerous. The count is pinned because the temptation under time
+    pressure is to add unverified questions."""
+    assert len(load_questions()) == 36
 
 
 def test_ids_are_unique() -> None:
@@ -45,6 +45,9 @@ def test_every_type_is_represented() -> None:
 
     assert counts["factual"] >= 12
     assert counts["cross-document"] >= 5
+    # The case the lexical half exists for. M0's first pass omitted it entirely and then
+    # nearly concluded that half was worthless.
+    assert counts["identifier"] >= 5
     assert counts["table"] >= 5
     assert counts["unanswerable"] >= 5
 

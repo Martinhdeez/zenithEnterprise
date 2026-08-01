@@ -80,3 +80,35 @@ def test_the_image_only_fixture_has_no_extractable_text() -> None:
     from eval.fixtures import build, extractable_characters
 
     assert extractable_characters(build(force=True)) == 0
+
+
+def test_recording_checksums_is_idempotent() -> None:
+    """Running `fetch --record` twice must not corrupt the manifest.
+
+    It did. The second run appended a second set of `sha256`/`pages`/`bytes` keys to every
+    entry, and duplicate keys are not untidy — TOML parsing fails outright with "Cannot
+    overwrite a value" and the corpus becomes unloadable. Found by fetching onto a second
+    machine, which is the ordinary case rather than an exotic one.
+
+    The first attempt at the fix was also wrong, in a way only repetition exposed: it
+    cleared the current-document marker immediately after inserting, which switched the
+    de-duplication off for exactly the lines it was meant to remove. Two runs looked clean;
+    three were corrupt. Hence four here.
+    """
+    from eval.__main__ import record_checksums
+    from eval.corpus import MANIFEST
+
+    original = MANIFEST.read_text()
+    try:
+        updates = {
+            document.id: (document.sha256 or "x", document.pages or 1, document.bytes or 1)
+            for document in load_manifest()
+        }
+        written: set[str] = set()
+        for _ in range(4):
+            record_checksums(updates)
+            written.add(MANIFEST.read_text())
+            assert len(load_manifest()) == len(updates)
+        assert len(written) == 1, "recording is not idempotent"
+    finally:
+        MANIFEST.write_text(original)

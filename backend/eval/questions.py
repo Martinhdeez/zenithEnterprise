@@ -16,9 +16,14 @@ from typing import Any, Literal
 
 QUESTIONS = Path(__file__).resolve().parent / "questions.toml"
 
-QuestionType = Literal["factual", "cross-document", "table", "unanswerable"]
+QuestionType = Literal["factual", "cross-document", "identifier", "table", "unanswerable"]
 
 # The headline number is computed over these two only.
+#
+# `identifier` is excluded too, and for a different reason: it is a *diagnostic* on the
+# lexical half rather than a measure of overall quality. Folding it into the headline would
+# make the headline move whenever the lexical implementation changed, which is the opposite
+# of a stable baseline.
 #
 # `table` is expected to score near zero: the tracer bullet runs pdfplumber with no Docling
 # routing, so tables are flattened by design. `unanswerable` has no correct passage at all,
