@@ -243,6 +243,37 @@ Both parsers must return, alongside the text, the **bounding boxes** of every ch
 
 They are stored as an array of boxes — a chunk spans several lines and can cross pages — with **coordinates normalised to page size**, so they survive zoom and viewer scaling.
 
+### Table structure is preserved, not flattened
+
+Docling is routed to a page *because* it detected a table, and it returns that table's
+structure. Flattening it back into running prose throws away the only reason we paid for
+the expensive parser.
+
+**Tables are written into the chunk text as Markdown.** A model reading
+
+```
+| Quarter | Revenue |
+|---------|---------|
+| Q1      | 1.2M    |
+| Q2      | 1.5M    |
+```
+
+can answer "what was Q2 revenue?" from the structure. The same table flattened —
+`Quarter Revenue Q1 1.2M Q2 1.5M` — leaves it guessing which number belongs to which
+row, and the guess is confident and wrong. Contracts, budgets and financial reports are
+where the figures people actually ask about live (see the opening of this section), so
+this is not an edge case.
+
+**Scope boundary.** This is a formatting decision at ingestion: no new service, no new
+dependency, and it uses structure the parser already produced. Letting a model *execute
+code* over those tables for exact arithmetic is a different feature with a sandboxing
+problem, and it is out of the MVP — see
+`.artifacts/ideas/2026-08-01-tables-and-audit.md`.
+
+M0 measures table questions separately for exactly this reason: it records how badly
+flattened tables perform, so the improvement here has a baseline to beat instead of an
+anecdote.
+
 This data is only available during parsing: omitting it forces a **re-parse** of the whole corpus, not just a re-embed.
 
 ### Licence warning
