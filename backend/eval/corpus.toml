@@ -1,0 +1,219 @@
+# The M0 evaluation corpus.
+#
+# Public documents only. Design partners are still TBD, and RNF-07 forbids using a
+# customer's documents with cloud APIs even once one exists — so the corpus is built from
+# material that resembles enterprise documentation in structure without belonging to
+# anyone.
+#
+# Chosen for difficulty, not convenience. The rule is **harder than what a customer will
+# upload**: a pipeline that survives a 1970s scan survives a clean contract, and the
+# reverse is not true.
+#
+# `sha256` and `pages` are filled in by `python -m eval fetch --record`, so a document
+# silently replaced at its URL fails the checksum rather than quietly changing what the
+# baseline was measured against.
+#
+# **Size is a selection criterion, not an accident.** The 1994 Congressional Record (562 MB)
+# and the Statutes at Large (78 MB) were both dropped after being measured: they are scans,
+# which the corpus needs, but a single document that dwarfs the other twelve combined makes
+# every M0 iteration slow without making it more representative. Nobody uploads a bound
+# annual volume. The scanned category is covered by two NASA reports at 4.6 and 1.2 MB,
+# which fail extraction in exactly the same way for a fraction of the wall clock.
+#
+# **Known gap: no document without a text layer at all.** Both scans turned out to be
+# pre-OCR'd by their publishers — degraded text rather than none. That is the common
+# enterprise case and worth having, but the *dangerous* case is different: a PDF with no
+# text layer ingests successfully, produces zero chunks, and retrieves nothing, with no
+# error anywhere. Nothing here currently exercises that path. Recorded rather than papered
+# over; it needs a genuinely image-only document, and F5 must fail loudly on one.
+#
+# **The corpus also has to be big enough to be a fair test.** Retrieval on five documents is
+# easy because there is nothing to confuse it with; the distractors are what make Recall@8
+# mean something. Thirteen documents across seven categories, several plausibly relevant to
+# the same question, is the minimum that seemed honest.
+
+[[document]]
+id = "gdpr"
+url = "https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=CELEX:32016R0679"
+category = "regulation"
+difficulty = ["dense", "cross-referential", "numbered-articles"]
+why = """
+The closest public analogue to a corporate policy document: numbered articles that refer
+to each other constantly, so the right answer is often one clause among many that look
+alike. Also the case where lexical search earns its place — "Article 17" is an exact
+string a vector search will happily approximate.
+"""
+sha256 = "bd84e63f5b622b739a83389afc3b30d240f792bb88d8eb03a816c9a82b0c2499"
+pages = 88
+bytes = 982296
+
+[[document]]
+id = "boe-monetary-policy"
+url = "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-report/2024/february/monetary-policy-report-february-2024.pdf"
+category = "financial-report"
+difficulty = ["tables", "charts", "multi-column"]
+why = """
+Financial reporting with real tables and chart annotations. This is where the flattening
+problem lives: a table turned into a run of numbers loses which figure belongs to which
+row, and the model answers confidently anyway.
+"""
+sha256 = "83a7c1ee5e3cf597a8ddc28dc99857615c0a916696ad5381d4b69fc10c328619"
+pages = 92
+bytes = 6426091
+
+[[document]]
+id = "irs-1040-instructions"
+url = "https://www.irs.gov/pub/irs-pdf/i1040gi.pdf"
+category = "manual"
+difficulty = ["tables", "long", "multi-column", "worksheets"]
+why = """
+Over a hundred pages of instructions, worksheets and tax tables in two columns. Long
+enough that chunking strategy starts to matter, and structured enough that bad extraction
+is obvious.
+"""
+sha256 = "482e9c487c608f1bbeaceef35bc3c0933e8b35443cfff447e4279d590468364a"
+pages = 126
+bytes = 4434643
+
+[[document]]
+id = "irs-form-1040"
+url = "https://www.irs.gov/pub/irs-pdf/f1040.pdf"
+category = "form"
+difficulty = ["tables", "form-fields", "sparse-text"]
+why = """
+A form, not prose. Almost no running text, and the meaning lives entirely in the layout —
+line numbers beside labels beside boxes. The pathological case for a naive text extractor
+and a fair test of whether we can answer anything about structured documents at all.
+"""
+sha256 = "3d31c226df0d189ced80e039d01cf0f8820c1019681a0f0ca6264de277b7e982"
+pages = 2
+bytes = 220237
+
+[[document]]
+id = "attention-is-all-you-need"
+url = "https://arxiv.org/pdf/1706.03762"
+category = "technical-paper"
+difficulty = ["two-column", "tables", "equations"]
+why = """
+Two-column layout: naive extraction interleaves the columns and produces text that reads
+like two people talking over each other. Cheap to include and it fails loudly when the
+parser is wrong.
+"""
+sha256 = "bdfaa68d8984f0dc02beaca527b76f207d99b666d31d1da728ee0728182df697"
+pages = 15
+bytes = 2215244
+
+[[document]]
+id = "rag-paper"
+url = "https://arxiv.org/pdf/2005.11401"
+category = "technical-paper"
+difficulty = ["two-column", "tables"]
+why = """
+A second two-column paper on an adjacent topic, so cross-document questions have somewhere
+to go. Two documents that could plausibly both answer a question is what tests fusion
+rather than ranking.
+"""
+sha256 = "23e3249e9a1e75418d82efecab0ea8c4d033b89c93742f63208d47ce01f21233"
+pages = 19
+bytes = 885323
+
+[[document]]
+id = "infrastructure-act"
+url = "https://www.govinfo.gov/content/pkg/BILLS-117hr3684enr/pdf/BILLS-117hr3684enr.pdf"
+category = "legislation"
+difficulty = ["very-long", "cross-referential", "nested-structure"]
+why = """
+Over a thousand pages. The scale case: whether retrieval still finds one specific clause
+when the corpus is dominated by a single enormous document, and whether ingestion survives
+it at all.
+"""
+sha256 = "60477c5964b398ec6b5569e245848650124682f75349d363eb96ff2fda8aa728"
+pages = 1039
+bytes = 2416174
+
+[[document]]
+id = "nasa-technical-report"
+url = "https://ntrs.nasa.gov/api/citations/19720005243/downloads/19720005243.pdf"
+category = "scanned"
+difficulty = ["scanned", "tables", "engineering-notation"]
+why = """
+A 1970s engineering report: scanned, full of tables and notation. The closest public thing
+to the equipment manuals a manufacturing customer would bring.
+
+Measured after downloading: it does carry a text layer, but a thin one — around 330
+characters per page against 3,000-5,000 for a born-digital document. NTRS has OCR'd it,
+badly. That is the realistic enterprise scan: not absent text, but degraded text, which is
+harder to notice because nothing looks broken.
+"""
+sha256 = "03fc440b16cd62fa2f8b339e0d85a01ddf77109a23452a1e9c4603bab76a79b6"
+pages = 86
+bytes = 4797664
+
+[[document]]
+id = "nasa-scanned-report"
+url = "https://ntrs.nasa.gov/api/citations/19760020204/downloads/19760020204.pdf"
+category = "scanned"
+difficulty = ["scanned", "ocr-required"]
+why = """
+A second scan, so degraded extraction is a category result rather than one document's
+quirk. Around 660 characters per page — better OCR than the 1972 report, still well below
+born-digital.
+"""
+sha256 = "c01463ba9a606700fcb31df9785b1d644c8ac540b2e1328d74388143aaefe374"
+pages = 54
+bytes = 1289168
+
+[[document]]
+id = "eu-ai-act"
+url = "https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=CELEX:32024R1689"
+category = "regulation"
+difficulty = ["dense", "cross-referential", "numbered-articles", "annexes"]
+why = """
+A second regulation from the same publisher, with the same structure and vocabulary as the
+GDPR. Deliberately confusable: a question about one must not retrieve the other, and that
+is far harder than distinguishing a regulation from a physics paper.
+"""
+sha256 = "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+pages = 144
+bytes = 2583319
+
+[[document]]
+id = "eu-digital-services-act"
+url = "https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=CELEX:32022R2065"
+category = "regulation"
+difficulty = ["dense", "cross-referential", "numbered-articles"]
+why = """
+A third regulation, for the same reason. Three near-identical documents are what turn
+"find the right article" into a real ranking problem instead of a lookup.
+"""
+sha256 = "04b688f2ea13fc0f0e0f615b6835608405ee848b17892d26a1b69dcf1bae71a0"
+pages = 102
+bytes = 1677234
+
+[[document]]
+id = "irs-pub-15"
+url = "https://www.irs.gov/pub/irs-pdf/p15.pdf"
+category = "manual"
+difficulty = ["tables", "multi-column", "cross-referential"]
+why = """
+The employer's tax guide: procedural instructions with tables and thresholds, structurally
+close to an internal HR or payroll policy — which is exactly the kind of document a first
+customer will bring.
+"""
+sha256 = "b46c3622439d8521e3a0faca4cd5b5ece3451b526f65f06a5e38d5c9f804c88b"
+pages = 59
+bytes = 1713916
+
+[[document]]
+id = "bert-paper"
+url = "https://arxiv.org/pdf/1810.04805"
+category = "technical-paper"
+difficulty = ["two-column", "tables"]
+why = """
+A third two-column paper on an adjacent topic. Same reasoning as the regulations: three
+documents that could each plausibly answer a question about language models is what tests
+fusion rather than lookup.
+"""
+sha256 = "5692a5514787a8c6727b4ff3b726a3385798bc68e12138d1d4af83947e2acf6e"
+pages = 16
+bytes = 775166
