@@ -1,0 +1,312 @@
+# The M0 question set — 30 questions, every page resolved from the extracted text.
+#
+# `anchor` is a phrase that genuinely appears in the document; `pages` is every page
+# containing it, looked up rather than typed. `test_questions.py` re-derives both, so
+# "hand-verified" is a property the suite re-checks rather than a claim in a commit.
+#
+# A question may legitimately be answered from more than one page — a regulation states
+# a rule in a recital and again in an article — so `pages` is a list and retrieval is
+# credited for finding any of them.
+#
+# `unanswerable` questions carry no document: the corpus does not contain the answer.
+# They measure abstention, not recall, and recall is undefined for them.
+
+[[question]]
+id = "gdpr-breach-deadline"
+type = "factual"
+question = "How quickly must a controller notify a personal data breach to the supervisory authority?"
+documents = ["gdpr"]
+[[question.source]]
+document = "gdpr"
+anchor = "72 hours after having become aware"
+pages = [17, 52]
+
+[[question]]
+id = "gdpr-right-to-erasure"
+type = "factual"
+question = "Which GDPR article establishes the right to be forgotten?"
+documents = ["gdpr"]
+[[question.source]]
+document = "gdpr"
+anchor = "Right to erasure"
+pages = [13, 43]
+
+[[question]]
+id = "gdpr-personal-data-definition"
+type = "factual"
+question = "How does the GDPR define personal data?"
+documents = ["gdpr"]
+[[question.source]]
+document = "gdpr"
+anchor = "‘personal data’ means"
+pages = [33]
+
+[[question]]
+id = "gdpr-data-portability"
+type = "factual"
+question = "Which GDPR right lets someone receive their data in a machine-readable format?"
+documents = ["gdpr"]
+[[question.source]]
+document = "gdpr"
+anchor = "Right to data portability"
+pages = [14, 41, 42, 45]
+
+[[question]]
+id = "gdpr-dpo"
+type = "factual"
+question = "What role must certain controllers and processors designate under the GDPR?"
+documents = ["gdpr"]
+[[question.source]]
+document = "gdpr"
+anchor = "Designation of the data protection officer"
+pages = [55]
+
+[[question]]
+id = "aiact-social-scoring"
+type = "factual"
+question = "Does the EU AI Act restrict social scoring of individuals?"
+documents = ["eu-ai-act"]
+[[question.source]]
+document = "eu-ai-act"
+anchor = "social scoring"
+pages = [9]
+
+[[question]]
+id = "aiact-prohibited-practices"
+type = "factual"
+question = "Which AI practices does the EU AI Act prohibit outright?"
+documents = ["eu-ai-act"]
+[[question.source]]
+document = "eu-ai-act"
+anchor = "shall be prohibited"
+pages = [51]
+
+[[question]]
+id = "dsa-trusted-flaggers"
+type = "factual"
+question = "What status does the Digital Services Act create for entities whose notices get priority?"
+documents = ["eu-digital-services-act"]
+[[question.source]]
+document = "eu-digital-services-act"
+anchor = "status of trusted flagger"
+pages = [16, 57]
+
+[[question]]
+id = "attention-optimizer"
+type = "factual"
+question = "Which optimizer was used to train the Transformer, and with what beta values?"
+documents = ["attention-is-all-you-need"]
+[[question.source]]
+document = "attention-is-all-you-need"
+anchor = "Adamoptimizer"
+pages = [7]
+
+[[question]]
+id = "attention-multihead"
+type = "factual"
+question = "What does the Transformer use in place of a single attention function?"
+documents = ["attention-is-all-you-need"]
+[[question.source]]
+document = "attention-is-all-you-need"
+anchor = "MultiHead"
+pages = [5]
+
+[[question]]
+id = "bert-pretraining"
+type = "factual"
+question = "What pre-training objective lets BERT condition on both left and right context?"
+documents = ["bert-paper"]
+[[question.source]]
+document = "bert-paper"
+anchor = "masked language model"
+pages = [2, 16]
+
+[[question]]
+id = "rag-knowledge-source"
+type = "factual"
+question = "What does the RAG paper use as its non-parametric knowledge source?"
+documents = ["rag-paper"]
+[[question.source]]
+document = "rag-paper"
+anchor = "vectorindexofWikipedia"
+pages = [1, 2]
+
+[[question]]
+id = "rag-retriever"
+type = "factual"
+question = "Which dense retriever does the RAG paper build on?"
+documents = ["rag-paper"]
+[[question.source]]
+document = "rag-paper"
+anchor = "DensePassageRetriever"
+pages = [2]
+
+[[question]]
+id = "irs-social-security-rate"
+type = "factual"
+question = "What is the employee social security tax rate on taxable wages?"
+documents = ["irs-pub-15"]
+[[question.source]]
+document = "irs-pub-15"
+anchor = "6.2%"
+pages = [1, 15, 29, 39, 40]
+
+[[question]]
+id = "boe-bank-rate"
+type = "factual"
+question = "What is Bank Rate?"
+documents = ["boe-monetary-policy"]
+[[question.source]]
+document = "boe-monetary-policy"
+anchor = "this is Bank Rate"
+pages = [2]
+
+[[question]]
+id = "cross-eu-extraterritorial"
+type = "cross-document"
+question = "Do EU rules in this corpus reach organisations that are not established in the Union?"
+documents = ["gdpr", "eu-ai-act"]
+[[question.source]]
+document = "gdpr"
+anchor = "controller not established in the Union"
+pages = [5, 33]
+[[question.source]]
+document = "eu-ai-act"
+anchor = "located in a third country"
+pages = [45]
+
+[[question]]
+id = "cross-transformer-lineage"
+type = "cross-document"
+question = "Which paper introduced the Transformer, and which built a bidirectional encoder on it?"
+documents = ["attention-is-all-you-need", "bert-paper"]
+[[question.source]]
+document = "attention-is-all-you-need"
+anchor = "MultiHead"
+pages = [5]
+[[question.source]]
+document = "bert-paper"
+anchor = "deep bidirectional Transformer"
+pages = [1, 2]
+
+[[question]]
+id = "cross-retrieval-vs-pretraining"
+type = "cross-document"
+question = "Which paper augments generation with a retriever, and which relies on pre-training alone?"
+documents = ["rag-paper", "bert-paper"]
+[[question.source]]
+document = "rag-paper"
+anchor = "DensePassageRetriever"
+pages = [2]
+[[question.source]]
+document = "bert-paper"
+anchor = "Bidirectional Encoder Representations"
+pages = [1]
+
+[[question]]
+id = "cross-platform-obligations"
+type = "cross-document"
+question = "Which EU regulations here impose duties specifically on online platforms?"
+documents = ["eu-digital-services-act", "eu-ai-act"]
+[[question.source]]
+document = "eu-digital-services-act"
+anchor = "status of trusted flagger"
+pages = [16, 57]
+[[question.source]]
+document = "eu-ai-act"
+anchor = "provider of a high-risk AI system"
+pages = [23, 67, 72]
+
+[[question]]
+id = "cross-payroll-and-return"
+type = "cross-document"
+question = "Which document states employer withholding rates, and which explains the individual return?"
+documents = ["irs-pub-15", "irs-1040-instructions"]
+[[question.source]]
+document = "irs-pub-15"
+anchor = "6.2%"
+pages = [1, 15, 29, 39, 40]
+[[question.source]]
+document = "irs-1040-instructions"
+anchor = "Standard Deduction Worksheet"
+pages = [34, 35]
+
+[[question]]
+id = "table-attention-bleu"
+type = "table"
+question = "What BLEU score did the big Transformer reach on English-to-German?"
+documents = ["attention-is-all-you-need"]
+[[question.source]]
+document = "attention-is-all-you-need"
+anchor = "28.4"
+pages = [1, 8]
+
+[[question]]
+id = "table-attention-training-cost"
+type = "table"
+question = "How does the Transformer's training cost compare with GNMT+RL?"
+documents = ["attention-is-all-you-need"]
+[[question.source]]
+document = "attention-is-all-you-need"
+anchor = "GNMT"
+pages = [8]
+
+[[question]]
+id = "table-irs-medicare"
+type = "table"
+question = "What is the Medicare tax rate on wages?"
+documents = ["irs-pub-15"]
+[[question.source]]
+document = "irs-pub-15"
+anchor = "1.45%"
+pages = [2, 15, 29, 40]
+
+[[question]]
+id = "table-boe-cpi"
+type = "table"
+question = "What does the report project for CPI inflation?"
+documents = ["boe-monetary-policy"]
+[[question.source]]
+document = "boe-monetary-policy"
+anchor = "CPI inflation is projected"
+pages = [5, 7, 19, 52, 53]
+
+[[question]]
+id = "table-form-1040-status"
+type = "table"
+question = "What filing statuses does Form 1040 offer?"
+documents = ["irs-form-1040"]
+[[question.source]]
+document = "irs-form-1040"
+anchor = "Filing Status"
+pages = [1]
+
+[[question]]
+id = "unanswerable-pricing"
+type = "unanswerable"
+question = "How much does a Zenith Enterprise licence cost per seat?"
+documents = []
+
+[[question]]
+id = "unanswerable-future-rate"
+type = "unanswerable"
+question = "What Bank Rate did the Monetary Policy Committee set in February 2027?"
+documents = []
+
+[[question]]
+id = "unanswerable-quantum"
+type = "unanswerable"
+question = "Which GDPR article governs quantum computing?"
+documents = []
+
+[[question]]
+id = "unanswerable-tungsten"
+type = "unanswerable"
+question = "What is the melting point of tungsten in degrees Celsius?"
+documents = []
+
+[[question]]
+id = "unanswerable-headcount"
+type = "unanswerable"
+question = "How many people does the company that published the RAG paper employ today?"
+documents = []
