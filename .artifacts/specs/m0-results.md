@@ -212,3 +212,90 @@ design review:
 - Proof that the lexical half is untested for its actual purpose.
 - A demonstration that the table argument needs generation to make, which moves that
   evidence from F5 to F9.
+
+---
+
+## 7. Resource measurements — x86_64 Linux, the real TEI image
+
+**Host:** 4 × Intel Haswell, 7.6 GB total (~5 GB free), no GPU, Ubuntu 25.04.
+**Serving:** `text-embeddings-inference:cpu-1.8`, BGE-M3, ONNX CPU backend.
+**Subset:** GDPR, BoE report, Attention paper, NASA scan — **249 pages, 713 chunks.**
+
+Measured here rather than on the development machine because TEI publishes `linux/amd64`
+only; numbers taken under emulation would be wrong in a way no correction factor repairs.
+
+### Per 100 pages
+
+| | Value |
+|---|---|
+| Chunks produced | 286 |
+| Parse + chunk | **3.4 s** |
+| **Embed** | **297.7 s** |
+| Index + HNSW build | **1.3 s** |
+| **Total** | **302 s (5 minutes)** |
+| Disk, table + indexes | **4.8 MB** |
+| of which HNSW | 2.2 MB |
+
+**Embedding is 98% of the wall clock.** Parsing and indexing are noise. Every future
+optimisation argument should start there, and the hardware profile matters for exactly one
+reason: it decides how fast the embedder runs.
+
+### Peak memory
+
+| Container | Peak |
+|---|---|
+| `tei-embed` | **2.88 GB** |
+| `db` (Postgres) | 71 MB |
+
+Postgres is irrelevant at this scale. **The embedding model is the entire memory budget.**
+
+### The minimum hardware statement
+
+For an installation ingesting **N pages** on CPU:
+
+- **RAM: 8 GB minimum**, of which ~3 GB is the embedder alone and ~4 GB must be free at
+  start-up. Below that it does not run at all — see §7.1.
+- **Time: ~5 minutes per 100 pages**, single-threaded on 4 cores of a 2013 microarchitecture.
+  A 10,000-page corpus is **≈ 8 hours** of one-off ingestion. That is a number to tell a
+  customer before they start, not after.
+- **Disk: ~5 MB per 100 pages** in Postgres, so 10,000 pages ≈ 500 MB. Reindexing to a
+  second vector space roughly doubles the vector portion while both exist.
+
+**A GPU changes only the middle row, and it changes it by a lot.** The same corpus embedded
+on the M4 Pro through PyTorch/MPS ran at **0.04 s/chunk against 1.04 s/chunk here — 26×**.
+That is the honest argument for the `gpu` profile, and it is about ingestion time, not
+quality.
+
+### 7.1 Three failures on the way, all of them findings
+
+**1. Default settings do not fit — killed at 6.59 GB.** TEI with default batching was
+OOM-killed by the kernel during *warm-up*, before processing a single document:
+
+```
+Out of memory: Killed process (text-embeddings) anon-rss:6587220kB
+```
+
+With `--max-batch-tokens 2048 --max-client-batch-size 4` the same model loads and serves at
+2.9 GB. **The difference between "does not run" and "runs" is two flags**, which is the
+entire justification for the `low-spec` profile in `technical-decisions.md` §11b.
+
+**2. The client batch must match TEI's token budget.** A batch of 8 chunks at ~350 tokens
+each is 2,800 tokens against a 2,048 limit, and every request returns `413 Payload Too
+Large`. The two numbers are one setting expressed in two places — precisely the pair a
+profile exists to keep together.
+
+**3. `--max-concurrent-requests 4` crashes TEI.** After 16 successful requests it panicked
+in its own queue:
+
+```
+thread 'tokio-runtime-worker' panicked at core/src/queue.rs:87:
+Queue background task dropped the receiver or the receiver is too behind. This is a bug.
+```
+
+Exit 139. Removing the flag made the run complete: 179 requests, no crash. **Recorded as a
+deployment constraint: do not set `--max-concurrent-requests` on the CPU image at 1.8.**
+Back-pressure has to come from the client instead, which is where the ingestion queue
+already applies it.
+
+None of these would have appeared in a design review, and all three would have appeared at
+a customer.
