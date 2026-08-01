@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base, uuid_col, uuid_pk
@@ -12,11 +12,27 @@ class AccessLabel(Base):
     """
 
     __tablename__ = "access_labels"
-    __table_args__ = (UniqueConstraint("tenant_id", "name"),)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "name"),
+        # At most one default per tenant, enforced by the database. The alternative —
+        # application code clearing the old default before setting a new one — is correct
+        # until the first path that forgets, and then a tenant has two defaults and
+        # uploads land wherever the query planner felt like ordering them.
+        Index(
+            "uq_access_labels_one_default_per_tenant",
+            "tenant_id",
+            unique=True,
+            postgresql_where=text("is_default"),
+        ),
+    )
 
     id: Mapped[uuid_pk]
     tenant_id: Mapped[uuid_col] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
     name: Mapped[str]
+    # Applied when an upload names no label (mvp.md §2.2). Lives here rather than as
+    # `tenants.default_label_id` because that column would close a foreign-key cycle
+    # between the two tables.
+    is_default: Mapped[bool] = mapped_column(default=False, server_default="false")
 
 
 class RoleLabel(Base):
