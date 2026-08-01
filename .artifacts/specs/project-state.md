@@ -1,7 +1,7 @@
 # Project state — Zenith Enterprise
 
 **Living document. Updated at the end of every feature.**
-Last updated: 2026-08-01
+Last updated: 2026-08-01 (F2 + hardening)
 
 This file exists so that no context lives only in a conversation. If you come back
 to this project in three months, or a new person joins, this is the file to read
@@ -18,7 +18,8 @@ first — then the three specs, then the code.
 | Specs translated to English | Done, `db4d762` |
 | `CONTRIBUTING.md` | Merged, PR #1 |
 | **F1 — Tenancy** | **Done.** Merged, PR #2, CI green |
-| **F2 — Auth** | **In progress**, branch `feat/f2-auth` |
+| **F2 — Auth** | **Done.** Merged, PR #3, CI green |
+| **F2 hardening** | **In progress**, branch `fix/f2-hardening` |
 | F3 onwards | Not started |
 
 ### What F0 actually delivered, verified
@@ -43,7 +44,7 @@ Each feature retires the next dependency, not the flashiest UI.
 |---|---|---|
 | F0 | Foundations — schema, RLS, CI | **Done** |
 | F1 | `tenancy` — context and session contract | **Done** |
-| F2 | `auth` — users, roles, permissions, login | **In progress** |
+| F2 | `auth` — users, roles, permissions, login | **Done** |
 | F3 | `labels` — access labels, the second RLS level | |
 | F4 | `documents` — upload, deduplication, deletion | |
 | F5 | `ingestion` — per-page parsing, chunking, bboxes | |
@@ -78,6 +79,42 @@ running your tests looks identical to one that is:
 
 ---
 
+## 3b. F2 — delivered
+
+Login, refresh, `/auth/me`, the permission catalogue in migration `0002`, and
+`requires(...)` as a dependency rather than a check inside handlers.
+
+78 tests, up from 27. Full record in `.artifacts/to-test/2026-08-02-f2-auth.md`.
+
+**The assertion that matters:** the context built from a token carries exactly the
+labels of the user's roles. RLS enforces whatever context it is handed, so a correct
+policy fed a wrong context produces a confident, silent leak. Verified by sabotage —
+widening the resolution to every label in the tenant fails two tests; removing the
+permission check fails a third.
+
+**Scope pulled forward on review.** Login rate limiting moved from M4 into F2: argon2
+is expensive by design and login deliberately hashes even for unknown addresses, so
+without a limit the two combine into a denial of service anyone can trigger. Hashing
+also moved off the event loop.
+
+**Three problems found after F2 was already green**, all of the class "the tests pass
+and the product still cannot be installed":
+
+- `ZENITH_JWT_SECRET` had a working default and nothing refused to start with it. A
+  forged token defeats every guarantee F1 and F2 built. Now no default, with a
+  validator and `zenith generate-secret`.
+- `pyproject.toml` declared `zenith = "app.cli:app"` and `app/cli.py` did not exist.
+  F2 had shipped a login for users that nothing could create.
+- `zenith_authenticate_lookup` — a new RLS bypass surface — reached only the feature
+  note, not `technical-decisions.md`. Now recorded in §5.1 with the complete list of
+  the three bypass routes.
+
+The CLI also exposed a real defect: engines were never disposed, so a process running
+more than one event loop inherited connections bound to a loop that no longer existed.
+`dispose_engines()` fixes it.
+
+---
+
 ## 4. Decisions that are settled
 
 Recorded so they are not relitigated. Full reasoning lives in the three specs.
@@ -92,6 +129,9 @@ Recorded so they are not relitigated. Full reasoning lives in the three specs.
 - **Hot reindexing from day one** (RNF-08): several vector spaces coexist, so changing
   the embedding model costs GPU hours instead of a rewrite.
 - **Bounding boxes, not character offsets**, for citation highlighting.
+- **The RLS bypass surface is three named routes** and no more: `owner_session()`,
+  `zenith_authenticate_lookup`, and the owner's credentials. See technical-decisions §5.1.
+- **Secrets have no defaults.** The process refuses to start rather than warn.
 
 ### Product
 
@@ -131,12 +171,17 @@ Recorded so they are not relitigated. Full reasoning lives in the three specs.
 
 | Item | Lands in |
 |---|---|
-| Seed the `permissions` catalogue | F2 |
+| ~~Seed the `permissions` catalogue~~ | Done in F2, migration `0002` |
 | Keep `documents.label_ids` / `chunks.label_ids` in sync with `document_labels` | F3 |
 | `pg_search` BM25 index over `chunks` | F7 |
 | Wire `verify_rls_active` into the worker entrypoint | F5 (worker does not exist yet) |
 | **Partitioning `chunk_embeddings` by `tenant_id` — measure in M0** | F8, see §7 |
-| `zenith` CLI (`create-tenant`, `invite`, `reset-password`) | M3 |
+| ~~`zenith` CLI~~ | Done in F2 hardening, earlier than planned |
+| Anti-lockout guard (three routes, including deleting the last admin) | M3, with role/user management |
+| Immediate revocation cache (`LISTEN`/`NOTIFY`) | M4, once a logout flow exists to trigger it |
+| Rate limiter shared across processes and nodes | M4, with the §2.12 limits |
+| Startup guard for `ZENITH_ENCRYPTION_KEY` | F9, when the connector reads it |
+| Per-device session revocation (sessions table) | Not scheduled — see F2 §2.4 |
 | Upgrade `actions/checkout@v4` and `setup-uv@v5` (Node 20 deprecation warning) | Any chore branch |
 
 ---

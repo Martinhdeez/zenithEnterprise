@@ -163,6 +163,22 @@ Implementation: the session sets `SET LOCAL app.tenant_id` and the reachable lab
 
 They are the answer we show when a corporate customer asks about isolation.
 
+### 5.1 The bypass surface
+
+RLS is only a structural guarantee if the ways around it are few, named, and known. There are exactly **three**, and this list is the complete one. Anything added to it is an architectural change, not an implementation detail.
+
+| Route | Why it exists | Who may use it |
+|---|---|---|
+| `owner_session()` | Creating the first tenant, and migrations. No context exists yet, so the operation cannot be scoped by one. | The install CLI and Alembic. **Never** a request handler. |
+| `zenith_authenticate_lookup(email)` | Login must find a user before a tenant context exists — the context is what the login is establishing. | `AuthService._lookup`, and nothing else. |
+| The schema owner's credentials | Postgres never applies policies to a table's owner. | Nobody: the application connects as `zenith_app`. |
+
+**The schema deliberately does not use `FORCE ROW LEVEL SECURITY`,** because the owner has to create the first tenant before any context exists. The risk that opens — pointing the application at the owner's credentials disables isolation with no symptom at all — is closed by `verify_rls_active()`, which refuses to serve if `tenants` returns anything with no context set.
+
+**On `zenith_authenticate_lookup` (added in F2).** It is a `SECURITY DEFINER` function, the only one in the schema. The alternative was an `owner_session()` inside an unauthenticated HTTP handler, and the owner connection can read every row in the installation; this returns four fields — user id, tenant id, password hash, token version — for one address, and cannot be coaxed into reading anything else. `search_path` is pinned to `public, pg_temp`, because a `SECURITY DEFINER` function without that can be hijacked by a caller-controlled schema.
+
+Auditing the bypass surface is therefore two greps: `owner_session` and `SECURITY DEFINER`.
+
 ---
 
 ## 6. Hybrid search: RRF fusion
