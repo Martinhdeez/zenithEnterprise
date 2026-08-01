@@ -66,6 +66,47 @@ def test_upgrade_downgrade_upgrade_cycle(own_container: PostgresContainer) -> No
     engine.dispose()
 
 
+def test_downgrade_works_with_permissions_already_granted(
+    own_container: PostgresContainer,
+) -> None:
+    """Migration 0002 seeds `permissions`, and its downgrade deletes those rows.
+
+    By the time anyone downgrades, real roles reference them through `role_permissions`,
+    so the delete is only safe because that foreign key cascades. If it did not, a
+    rollback would abort halfway on a foreign-key violation — in the one situation where
+    everything is already going badly. The cascade is asserted here rather than assumed
+    from reading the DDL.
+    """
+    url = _url(own_container)
+    _alembic("upgrade head", url)
+
+    engine = create_engine(url)
+    with engine.begin() as conn:
+        conn.execute(text("INSERT INTO tenants (name) VALUES ('Downgrade')"))
+        conn.execute(
+            text(
+                "INSERT INTO roles (tenant_id, name) "
+                "SELECT id, 'referencing' FROM tenants WHERE name = 'Downgrade'"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO role_permissions (role_id, permission_code) "
+                "SELECT id, 'query.execute' FROM roles WHERE name = 'referencing'"
+            )
+        )
+
+    _alembic("downgrade 0001", url)
+
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT count(*) FROM permissions")).scalar() == 0
+        # The grant went with it rather than blocking the rollback.
+        assert conn.execute(text("SELECT count(*) FROM role_permissions")).scalar() == 0
+
+    _alembic("upgrade head", url)
+    engine.dispose()
+
+
 def test_schema_matches_models(own_container: PostgresContainer) -> None:
     """Models and database describe the same thing.
 
