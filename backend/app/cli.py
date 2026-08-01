@@ -18,6 +18,7 @@ it safe:
 """
 
 import asyncio
+import json
 import secrets
 import string
 from collections.abc import Coroutine
@@ -29,6 +30,7 @@ from sqlalchemy import select
 from app.common.exceptions import ConflictError, NotFoundError
 from app.core.config import generate_secret
 from app.core.database import dispose_engines, owner_session
+from app.core.diagnostics import run_diagnostics
 from app.features.auth.model import Role, User
 from app.features.auth.provisioning import create_user
 from app.features.auth.service import normalise_email
@@ -196,6 +198,42 @@ def list_tenants() -> None:
                 )
                 typer.echo(f"{tenant.name}  ({users} users)")
                 typer.echo(f"  roles: {', '.join(roles) or 'none'}")
+
+    _execute(run())
+
+
+@app.command()
+def diagnose(
+    as_json: Annotated[
+        bool, typer.Option("--json", help="Machine-readable output, for attaching to a ticket.")
+    ] = False,
+) -> None:
+    """Report the health of this installation.
+
+    Built to be run by an operator we cannot reach and pasted into an email. It never
+    prints a secret — connection strings are redacted — and it never aborts on a failed
+    check, because the checks most worth running are the ones that fail.
+
+    Exit code is 1 if anything failed, so it also works as a smoke test after an install.
+    """
+
+    async def run() -> None:
+        checks = await run_diagnostics()
+
+        if as_json:
+            typer.echo(json.dumps({"checks": [check.as_dict() for check in checks]}, indent=2))
+        else:
+            colours = {
+                "ok": typer.colors.GREEN,
+                "warn": typer.colors.YELLOW,
+                "fail": typer.colors.RED,
+            }
+            for check in checks:
+                typer.secho(f"  {check.status.upper():<5}", fg=colours[check.status], nl=False)
+                typer.echo(f"{check.name:<28} {check.detail}  ({check.elapsed_ms:.0f}ms)")
+
+        if any(check.status == "fail" for check in checks):
+            raise typer.Exit(1)
 
     _execute(run())
 
