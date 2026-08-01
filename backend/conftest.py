@@ -6,7 +6,13 @@ nothing about the only things that have to be guaranteed here.
 
 import asyncio
 import os
-import subprocess
+
+# Set before anything imports `app`, because `Settings` is constructed at import time and
+# now refuses to build without a real secret. Tests supply their own rather than relying
+# on a default, which is the whole point: there is no default any more, on any machine.
+os.environ.setdefault("ZENITH_JWT_SECRET", "test-secret-" + "x" * 32)
+
+import subprocess  # noqa: E402
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass
 from pathlib import Path

@@ -1,4 +1,31 @@
+import secrets
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Values that must never reach an installation. Kept as data rather than as a single
+# string comparison because the list only grows: every placeholder that ever appears in
+# a README or a docker-compose example belongs here.
+UNSAFE_SECRETS = frozenset(
+    {
+        "dev-only-change-me",
+        "change-me",
+        "changeme",
+        "secret",
+    }
+)
+
+MINIMUM_SECRET_BYTES = 32
+
+
+def generate_secret() -> str:
+    """A secret nobody has to think about.
+
+    The validator below catches carelessness, not bad judgement: 32 identical characters
+    pass every check it can make. The real answer is that the operator never chooses the
+    value at all, which is what `zenith generate-secret` is for.
+    """
+    return secrets.token_urlsafe(48)
 
 
 class Settings(BaseSettings):
@@ -11,10 +38,13 @@ class Settings(BaseSettings):
     tei_embed_url: str = "http://localhost:8081"
     tei_rerank_url: str = "http://localhost:8082"
 
-    jwt_secret: str = "dev-only-change-me"
+    # No default, deliberately. See the validator below.
+    jwt_secret: str
     access_token_minutes: int = 15
     refresh_token_days: int = 14
-    # Fernet key protecting customer API keys at rest.
+    # Fernet key protecting customer API keys at rest. Still optional because nothing
+    # reads it yet; it gets the same guard as `jwt_secret` when the generation connector
+    # is built, and refusing to start over a feature that does not exist would be theatre.
     encryption_key: str = ""
 
     # Limits from mvp.md 2.12
@@ -33,5 +63,31 @@ class Settings(BaseSettings):
     worker_pool_size: int = 5
     statement_timeout_ms: int = 10_000
 
+    @field_validator("jwt_secret")
+    @classmethod
+    def secret_must_be_real(cls, value: str) -> str:
+        """Refuse to start rather than warn.
 
-settings = Settings()
+        This signs every access token. With a known or guessable value, anyone can mint
+        a token for any user of any tenant, and RLS will enforce the forged context with
+        complete confidence — every guarantee F1 and F2 built, defeated by one unset
+        environment variable on someone else's server.
+
+        A silent security failure is worse than none, which is the same reason
+        `verify_rls_active` refuses to serve. Raising here means Pydantic fails during
+        settings construction, the process exits non-zero, and the port never opens.
+        """
+        if value.strip().lower() in UNSAFE_SECRETS:
+            raise ValueError(
+                f"ZENITH_JWT_SECRET is set to the placeholder {value!r}. "
+                "Generate one with `zenith generate-secret`."
+            )
+        if len(value.encode()) < MINIMUM_SECRET_BYTES:
+            raise ValueError(
+                f"ZENITH_JWT_SECRET must be at least {MINIMUM_SECRET_BYTES} bytes "
+                f"(got {len(value.encode())}). Generate one with `zenith generate-secret`."
+            )
+        return value
+
+
+settings = Settings()  # type: ignore[call-arg]  # values come from the environment
