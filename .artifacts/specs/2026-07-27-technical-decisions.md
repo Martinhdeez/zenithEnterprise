@@ -171,11 +171,16 @@ RLS is only a structural guarantee if the ways around it are few, named, and kno
 |---|---|---|
 | `owner_session()` | Creating the first tenant, and migrations. No context exists yet, so the operation cannot be scoped by one. | The install CLI and Alembic. **Never** a request handler. |
 | `zenith_authenticate_lookup(email)` | Login must find a user before a tenant context exists — the context is what the login is establishing. | `AuthService._lookup`, and nothing else. |
+| The three label-sync triggers | They maintain a derived value, not an access decision. | Postgres itself, on write. Not callable from application code. |
 | The schema owner's credentials | Postgres never applies policies to a table's owner. | Nobody: the application connects as `zenith_app`. |
 
 **The schema deliberately does not use `FORCE ROW LEVEL SECURITY`,** because the owner has to create the first tenant before any context exists. The risk that opens — pointing the application at the owner's credentials disables isolation with no symptom at all — is closed by `verify_rls_active()`, which refuses to serve if `tenants` returns anything with no context set.
 
 **On `zenith_authenticate_lookup` (added in F2).** It is a `SECURITY DEFINER` function, the only one in the schema. The alternative was an `owner_session()` inside an unauthenticated HTTP handler, and the owner connection can read every row in the installation; this returns four fields — user id, tenant id, password hash, token version — for one address, and cannot be coaxed into reading anything else. `search_path` is pinned to `public, pg_temp`, because a `SECURITY DEFINER` function without that can be hijacked by a caller-controlled schema.
+
+**On the label-sync triggers (added in F3).** `documents.label_ids` and `chunks.label_ids` are copies of `document_labels`, and they exist because the direct version does not run — a policy on `documents` reading `document_labels`, whose own policy reads `documents`, makes Postgres abort on mutual recursion. Three triggers keep the copies correct: one recomputes the document array from the join table, one propagates it to the chunks, and one fills a chunk's array from its document at insert time, because ingestion creates chunks minutes after the document was labelled and an empty array means visible to the whole tenant.
+
+They are `SECURITY DEFINER` because the `WITH CHECK` on `documents` would otherwise block an administrator holding `labels.manage` from removing a label they do not personally reach — an error about a row they never mentioned. The trigger is not deciding access; the access decision is made where the user acts, by RLS on `document_labels` and by `requires("labels.manage")` on the endpoint. Deciding it twice, in the place with the least information, is not a second layer of defence.
 
 Auditing the bypass surface is therefore two greps: `owner_session` and `SECURITY DEFINER`.
 
