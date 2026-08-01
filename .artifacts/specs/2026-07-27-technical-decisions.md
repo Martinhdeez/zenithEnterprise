@@ -354,6 +354,76 @@ With those bounds, consumption stays flat and predictable.
 
 ---
 
+## 11b. Hardware profiles: one codebase, three deployments
+
+**Decision:** a single environment variable, `ZENITH_HARDWARE`, selects a **profile** — a
+named set of values — and nothing else in the system branches on hardware.
+
+```
+ZENITH_HARDWARE = gpu | cpu | low-spec
+```
+
+We sell on-premise. A customer with an A100 and a customer with a 4-core VPS get the same
+artifact, and maintaining a branch per customer server is how a product becomes
+unsupportable. But the two cannot run the same batch sizes, and finding that out in
+production is expensive.
+
+### Why a profile rather than a flag
+
+A boolean spreads. `if gpu:` appears in the compose file, then in the worker, then in the
+reranker client, and each site drifts. A profile is a table read in one place:
+
+| | `gpu` | `cpu` | `low-spec` |
+|---|---|---|---|
+| TEI image | `:cuda-*` | `:cpu-*` | `:cpu-*` |
+| GPU devices mounted | yes | no | no |
+| `--max-batch-tokens` | 16384 (default) | 8192 | **2048** |
+| `--max-client-batch-size` | 32 | 16 | **4** |
+| Ingestion embed batch | 256 | 32 | 8 |
+| Reranker container | on | on | **off** |
+| Concurrent ingestions/tenant | 4 | 1 | 1 |
+
+### The numbers are measured, not guessed
+
+The `low-spec` column exists because **M0 measured it the hard way**. On the development
+VPS — 4 cores, 7.6 GB total, ~5 GB free — TEI serving BGE-M3 with **default batch settings
+was killed by the kernel at 6.59 GB RSS, during warm-up, before processing a single
+document**:
+
+```
+Out of memory: Killed process (text-embeddings) anon-rss:6587220kB
+```
+
+With `--max-batch-tokens 2048 --max-client-batch-size 4` the same model loads and serves at
+**3.71 GB**. The difference between "does not run at all" and "runs" is two flags, and no
+amount of design review would have produced them.
+
+### Rules the flag must obey
+
+**It may change performance. It must never change semantics.** Same corpus, same query,
+same documents retrieved — RLS, label filtering, deduplication and idempotency are
+identical on every profile. A flag that quietly changes what a user can see is a flag that
+causes a leak.
+
+**Degradations must be visible, never silent.** `low-spec` turns the reranker off, and M0
+measured what that costs: Recall@8 of 75% against a Recall@50 ceiling of 95%, so the
+reranker is worth up to 20 points. A customer running without it is getting a materially
+worse product and has to be able to tell. `zenith diagnose` reports the active profile and
+names every component the profile disabled.
+
+**Unknown values fail at startup**, like every other setting (§ `mvp.md` cold start). An
+operator who types `ZENITH_HARDWARE=CPU2` gets an error, not a silent fallback to defaults
+that will OOM at 3am.
+
+**`gpu` is not yet measured.** The table's GPU column is inherited from TEI's defaults and
+carries no evidence behind it. It gets numbers when there is a GPU to measure on, and until
+then it is marked as such rather than presented as a finding.
+
+Consumed by: `docker/docker-compose.yml` (image and device selection), F5 ingestion (batch
+sizes), F6 embeddings, and `zenith diagnose` (reporting).
+
+---
+
 ## 12. Engineering standards
 
 What separates this product from the hackathon prototype. It is not a matter of taste: these are requirements of selling B2B on-premise, because when something fails at the customer's site there is no way to connect and look.
