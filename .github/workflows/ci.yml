@@ -40,4 +40,6 @@ jobs:
       # This fails the build rather than warning: an AGPL package slipping into the
       # tree is a legal problem, not a style nit.
       - name: Licenses
-        run: ./scripts/check-licences.sh
+        # The job runs from `backend/`; the script lives at the repository root and
+        # re-enters `backend/` itself, so it is reached by going up one level.
+        run: ../scripts/check-licences.sh
