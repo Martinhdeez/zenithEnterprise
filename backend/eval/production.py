@@ -31,6 +31,8 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import text
 
+from app.features.retrieval.reranker import Scored
+
 REPORT = Path(__file__).resolve().parent / "production-recall.json"
 
 # Embedding the whole corpus takes tens of minutes on this laptop. The cache is keyed on the
@@ -96,9 +98,7 @@ class LocalReranker:
 
         self.model = CrossEncoder(MODEL)
 
-    async def rank(self, question: str, passages: list[str]) -> list[object]:
-        from app.features.retrieval.reranker import Scored
-
+    async def rank(self, question: str, passages: list[str]) -> list["Scored"]:
         scores = self.model.predict([(question, passage) for passage in passages])
         ranked = [Scored(index=index, score=float(score)) for index, score in enumerate(scores)]
         return sorted(ranked, key=lambda item: (-item.score, item.index))
