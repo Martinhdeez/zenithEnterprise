@@ -33,6 +33,7 @@ from app.features.documents.model import DOCUMENT_STATUSES, Document
 from app.features.documents.pagination import Cursor, clamp
 from app.features.documents.repository import DocumentRepository
 from app.features.documents.storage import DocumentStorage, Staged
+from app.features.ingestion.enqueue import enqueue_ingestion
 from app.features.labels.repository import LabelRepository
 
 PDF_MAGIC = b"%PDF-"
@@ -82,6 +83,16 @@ class DocumentService:
         # worst case is a row whose file is missing, which is visible in the status column
         # and repairable by re-uploading.
         await self.storage.commit(staged, self.context.tenant_id)
+
+        # Enqueued after the file is in place, so a worker that starts immediately finds
+        # something to read. A deduplicated upload is not re-ingested: the bytes are
+        # identical, and the only thing that changed is which labels reach them.
+        if not result.deduplicated:
+            await enqueue_ingestion(
+                tenant_id=self.context.tenant_id,
+                document_id=result.document.id,
+                label_ids=result.labels,
+            )
         return result
 
     async def _record(self, filename: str, staged: Staged, requested: list[UUID] | None) -> Upload:

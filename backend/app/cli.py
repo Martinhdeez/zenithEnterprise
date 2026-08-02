@@ -238,6 +238,28 @@ def diagnose(
     _execute(run())
 
 
+@app.command("install-queue")
+def install_queue() -> None:
+    """Create the job-queue tables. Run once, after `alembic upgrade head`.
+
+    Procrastinate owns its own schema and manages it itself, so it is not part of our
+    migrations: mixing the two would mean our `downgrade` had opinions about a library's
+    tables. Separate command, run at install time, and the worker refuses to start without
+    it — which is the loud failure we want rather than jobs vanishing into a missing table.
+    """
+    import asyncio
+
+    from app.features.ingestion.tasks import build_app
+
+    async def apply() -> None:
+        queue = build_app()
+        async with queue.open_async():
+            await queue.schema_manager.apply_schema_async()
+
+    asyncio.run(apply())
+    typer.echo("Job-queue schema installed.")
+
+
 @app.command("generate-secret")
 def generate_jwt_secret() -> None:
     """Print a secret suitable for ZENITH_JWT_SECRET.

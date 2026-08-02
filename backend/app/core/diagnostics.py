@@ -212,6 +212,27 @@ def _model_service(name: str, url: str) -> Callable[[], Awaitable[tuple[Status, 
     return check
 
 
+async def _hardware() -> tuple[Status, str]:
+    """The active profile, and everything it turned off.
+
+    Degradations must be visible. `low-spec` runs without the reranker, and M0 measured
+    that at up to 20 points of Recall@8 — a customer should learn that from a diagnostic
+    they can run, not by inferring it from answers that are quietly worse.
+    """
+    from app.core.hardware import UNMEASURED, active
+
+    profile = active()
+    detail = f"profile {profile.name!r}, embed batch budget {profile.max_batch_tokens} tokens"
+    if profile.name in UNMEASURED:
+        detail += " (these values are inherited from upstream defaults, not measured here)"
+    if not profile.disabled:
+        return "ok", detail
+    # A warning, not a failure: the installation works, and it works less well. Reporting
+    # it as `ok` would hide the trade; reporting it as `fail` would cry wolf on a profile
+    # somebody chose on purpose.
+    return "warn", f"{detail} — disabled: {'; '.join(profile.disabled)}"
+
+
 async def _storage() -> tuple[Status, str]:
     """Can we write documents, and is there room for them?
 
@@ -268,6 +289,7 @@ async def run_diagnostics() -> list[Check]:
         await _timed("extensions", _extensions),
         await _timed("content", _content),
         await _timed("document storage", _storage),
+        await _timed("hardware profile", _hardware),
         await _timed("vector space", _vector_space),
         await _timed("embedding service", _model_service("embed", settings.tei_embed_url)),
         await _timed("reranking service", _model_service("rerank", settings.tei_rerank_url)),

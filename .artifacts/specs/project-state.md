@@ -24,10 +24,10 @@ first — then the three specs, then the code.
 | **`zenith diagnose`** | **Done.** Merged, PR #6, CI green |
 | **M0 — Retrieval baseline** | **Done.** Merged, PR #7, CI green — see §3d |
 | **F4 — Documents** | **Done.** Merged, PR #8, CI green |
-| **F5 — Ingestion** | **Next.** Plan in `.artifacts/todo/2026-08-02-f5-ingestion.md` |
+| **F5 — Ingestion** | **In progress.** Branch `feat/f5-ingestion`: profiles, parser, chunker, TEI client, worker |
 | F5 onwards | Not started |
 
-**170 tests, `make check` green.** That command runs the exact CI job.
+**211 tests, `make check` green.** That command runs the exact CI job.
 
 ### What F0 actually delivered, verified
 
@@ -54,7 +54,7 @@ Each feature retires the next dependency, not the flashiest UI.
 | F2 | `auth` — users, roles, permissions, login | **Done** |
 | F3 | `labels` — access labels, the second RLS level | **Done** |
 | F4 | `documents` — upload, deduplication, deletion | **Done** |
-| F5 | `ingestion` — per-page parsing, chunking, bboxes | |
+| F5 | `ingestion` — per-page parsing, chunking, bboxes | **In progress** |
 | F6 | `embeddings` — TEI, vector spaces, reindexing | |
 | F7 | `retrieval` — BM25 + vector + RRF + re-ranking | |
 | F8 | `eval` — **the M0 baseline is measured here** | |

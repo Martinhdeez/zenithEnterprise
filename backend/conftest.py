@@ -11,6 +11,9 @@ import os
 # now refuses to build without a real secret. Tests supply their own rather than relying
 # on a default, which is the whole point: there is no default any more, on any machine.
 os.environ.setdefault("ZENITH_JWT_SECRET", "test-secret-" + "x" * 32)
+# Ingestion is a background concern with its own tests. An upload test must not need a
+# worker process and a running embedding service to store a file.
+os.environ.setdefault("ZENITH_DISABLE_INGESTION_QUEUE", "1")
 
 import subprocess  # noqa: E402
 from collections.abc import AsyncIterator, Iterator

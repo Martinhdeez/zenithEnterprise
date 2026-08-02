@@ -61,6 +61,11 @@ class Settings(BaseSettings):
     # is built, and refusing to start over a feature that does not exist would be theatre.
     encryption_key: str = ""
 
+    # Selects a profile in `app/core/hardware.py`: gpu | cpu | low-spec. Not validated
+    # here, because the profile table is what knows the valid names and importing it from
+    # this module would be a cycle. `verify_hardware_profile()` runs at startup.
+    hardware: str = "cpu"
+
     # Where uploaded documents are stored, content-addressed. Absolute on purpose: a
     # relative path would resolve against the working directory, so a service restarted
     # from somewhere else would find an empty corpus and report no data loss at all.

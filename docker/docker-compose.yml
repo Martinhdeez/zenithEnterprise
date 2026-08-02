@@ -21,7 +21,23 @@ services:
 
   tei-embed:
     image: ${TEI_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.8}
-    command: ["--model-id", "BAAI/bge-m3", "--auto-truncate"]
+    # These two numbers must agree with the ZENITH_HARDWARE profile the application runs
+    # with — see `app/core/hardware.py`. They are the difference between an installation
+    # that serves and one the kernel kills: with TEI's defaults, M0 watched this container
+    # reach 6.59 GB RSS during warm-up on a 7.6 GB machine and get OOM-killed before it had
+    # processed a single document. With the values below it loads and serves at 3.71 GB.
+    #
+    # `--max-concurrent-requests` is deliberately absent. Passing it panics cpu-1.8 outright
+    # ("Queue background task dropped the receiver... This is a bug", exit 139). Concurrency
+    # is limited on our side instead, by the worker.
+    command:
+      - "--model-id"
+      - "BAAI/bge-m3"
+      - "--auto-truncate"
+      - "--max-batch-tokens"
+      - "${TEI_MAX_BATCH_TOKENS:-2048}"
+      - "--max-client-batch-size"
+      - "${TEI_MAX_CLIENT_BATCH_SIZE:-4}"
     ports:
       - "${TEI_EMBED_PORT:-8081}:80"
     volumes:
@@ -54,7 +70,15 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.backend
-    command: ["procrastinate", "--app=app.ingestion.tasks.app", "worker"]
+    # One document at a time by default. On `low-spec` that is not a preference: the
+    # parser's memory and the embedder's must not overlap on a machine M0 already pushed
+    # into an out-of-memory kill.
+    command:
+      - "procrastinate"
+      - "--app=app.features.ingestion.tasks.app"
+      - "worker"
+      - "--concurrency"
+      - "${ZENITH_WORKER_CONCURRENCY:-1}"
     env_file: [../.env]
     environment:
       ZENITH_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-zenith}:${POSTGRES_PASSWORD:-zenith}@db:5432/${POSTGRES_DB:-zenith}

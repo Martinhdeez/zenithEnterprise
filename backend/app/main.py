@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 from app.common.exceptions import ZenithError
 from app.core.database import verify_rls_active
+from app.core.hardware import active as active_profile
 from app.core.logging import configure_logging
 from app.features.auth.router import router as auth_router
 from app.features.documents.router import router as documents_router
@@ -18,6 +19,9 @@ configure_logging()
 async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
     # If RLS does not apply to this connection, the process must not serve traffic.
     await verify_rls_active()
+    # And if the hardware profile is not one we know, fail here rather than at the first
+    # embedding request, at three in the morning, on a customer's server.
+    active_profile()
     yield
 
 
