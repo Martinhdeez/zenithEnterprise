@@ -38,9 +38,7 @@ types:
 	$(UV) pyright
 
 licenses:
-	$(UV) pip-licenses --fail-on="GNU General Public License v3 (GPLv3);\
-GNU Affero General Public License v3;GNU Affero General Public License v3 or later (AGPLv3+);\
-GNU General Public License v2 (GPLv2);Other/Proprietary License"
+	./scripts/check-licences.sh
 
 # What has to pass before every commit. Mirrors the CI job exactly, so a green
 # `check` locally means a green pipeline.
