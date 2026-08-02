@@ -47,6 +47,17 @@ class LimitExceededError(ZenithError):
     code = "limit_exceeded"
 
 
+class UnsupportedFileError(ZenithError):
+    """Not a file this system can ingest.
+
+    Judged on the bytes, never on the declared content type: the header is a claim the
+    client makes, and F5's parser routing assumes what it is handed is really a PDF.
+    """
+
+    status_code = 415
+    code = "unsupported_file"
+
+
 class MissingTenantContextError(ZenithError):
     """A session tried to query without an RLS context set.
 

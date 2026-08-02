@@ -177,10 +177,12 @@ async def test_label_listing_hides_what_the_caller_cannot_reach(
         "/labels", headers={"Authorization": f"Bearer {await _token(client, account.admin_email)}"}
     )
 
-    assert member.json() == []
+    # The member reaches the tenant default and nothing else: not Finance, and not the
+    # secret label just created.
+    assert [label["id"] for label in member.json()] == [str(account.default_label)]
     # The administrator holds `labels.manage`: managing a set you cannot enumerate is not
-    # management.
-    assert len(admin.json()) == 2
+    # management. Three labels now — the default, Finance, and the secret one.
+    assert len(admin.json()) == 3
 
 
 async def test_label_management_requires_the_permission(

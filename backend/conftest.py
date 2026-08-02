@@ -156,6 +156,9 @@ class Account:
     member_id: UUID
     member_email: str
     finance_label: UUID
+    # Seeded by tenant provisioning, reachable by both system roles. Uploads with no
+    # label specified land here — see `labels/provisioning.py`.
+    default_label: UUID
 
 
 @pytest.fixture
@@ -183,6 +186,11 @@ async def account(configured_engines: None) -> Account:
             role.name: role
             for role in await session.scalars(select(Role).where(Role.tenant_id == tenant.id))
         }
+        default_label = await session.scalar(
+            select(AccessLabel.id).where(AccessLabel.tenant_id == tenant.id, AccessLabel.is_default)
+        )
+        assert default_label is not None, "provisioning must seed a default label"
+
         finance = AccessLabel(tenant_id=tenant.id, name="Finance")
         session.add(finance)
         await session.flush()
@@ -200,6 +208,7 @@ async def account(configured_engines: None) -> Account:
             member_id=member.id,
             member_email=member_email,
             finance_label=finance.id,
+            default_label=default_label,
         )
 
     return account

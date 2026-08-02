@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from app.common.exceptions import ConflictError, NotFoundError
 from app.core.database import owner_session
 from app.features.auth.provisioning import seed_system_roles
+from app.features.labels.provisioning import seed_default_label
 from app.features.tenancy.context import TenantContext
 from app.features.tenancy.model import Tenant
 
@@ -38,7 +39,8 @@ class TenantService:
                 # UNIQUE(name). Surfaced as a domain error so the CLI can print
                 # something a person understands instead of a driver traceback.
                 raise ConflictError(f"a tenant named {name!r} already exists") from exc
-            await seed_system_roles(session, tenant.id)
+            roles = await seed_system_roles(session, tenant.id)
+            await seed_default_label(session, tenant.id, list(roles.values()))
             await session.refresh(tenant)
             return tenant
 

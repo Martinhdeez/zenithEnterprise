@@ -81,7 +81,7 @@ async def test_me_reports_what_the_caller_reaches(client: AsyncClient, account: 
     body = response.json()
     assert body["user_id"] == str(account.admin_id)
     assert body["tenant_id"] == str(account.tenant_id)
-    assert body["label_ids"] == [str(account.finance_label)]
+    assert set(body["label_ids"]) == {str(account.finance_label), str(account.default_label)}
     assert "documents.upload" in body["permissions"]
 
 
