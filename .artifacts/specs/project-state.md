@@ -25,10 +25,11 @@ first — then the three specs, then the code.
 | **M0 — Retrieval baseline** | **Done.** Merged, PR #7, CI green — see §3d |
 | **F4 — Documents** | **Done.** Merged, PR #8, CI green |
 | **F5 — Ingestion** | **Done.** Merged, PR #9, CI green — validated on real hardware, see `2026-08-02-f5-validation.md` |
-| **F6 — Search** | **Done.** PR #10 — Recall@8 **80%** through production code, see `2026-08-03-f6-recall.md` |
+| **F6 — Search** | **Done.** Merged, PR #10 — Recall@8 **80%** through production code |
+| **F7 — Reranker** | **In progress.** Branch `feat/f7-rerank`: Recall@8 **95%**, at the ceiling |
 | F5 onwards | Not started |
 
-**233 tests, `make check` green.** That command runs the exact CI job.
+**243 tests, `make check` green.** That command runs the exact CI job.
 
 ### What F0 actually delivered, verified
 
@@ -57,7 +58,7 @@ Each feature retires the next dependency, not the flashiest UI.
 | F4 | `documents` — upload, deduplication, deletion | **Done** |
 | F5 | `ingestion` — per-page parsing, chunking, bboxes | **Done** |
 | F6 | `embeddings` — TEI, vector spaces, reindexing | |
-| F7 | `retrieval` — BM25 + vector + RRF + re-ranking | **In progress (F6 branch)** |
+| F7 | `retrieval` — BM25 + vector + RRF + re-ranking | **In progress** |
 | F8 | `eval` — **the M0 baseline is measured here** | |
 | F9 | `generation` + `query` — connector, citations | |
 

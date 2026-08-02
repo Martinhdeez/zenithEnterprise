@@ -77,6 +77,33 @@ class LocalQueryEmbedder:
         return self.model.encode([question], batch=1)[0]
 
 
+class LocalReranker:
+    """The cross-encoder through PyTorch, for the harness only.
+
+    Same reason as `LocalQueryEmbedder`: TEI publishes `linux/amd64`, and `docker compose up
+    tei-rerank` on Apple Silicon fails outright with "no matching manifest for
+    linux/arm64/v8". The weights are identical, so the pair scores and therefore the final
+    order are identical — which is exactly the split M0 established.
+
+    It matches `TeiReranker.rank`'s shape rather than inheriting it, so the production class
+    keeps no knowledge that a laboratory variant exists.
+    """
+
+    def __init__(self) -> None:
+        from sentence_transformers import CrossEncoder
+
+        from app.features.retrieval.reranker import MODEL
+
+        self.model = CrossEncoder(MODEL)
+
+    async def rank(self, question: str, passages: list[str]) -> list[object]:
+        from app.features.retrieval.reranker import Scored
+
+        scores = self.model.predict([(question, passage) for passage in passages])
+        ranked = [Scored(index=index, score=float(score)) for index, score in enumerate(scores)]
+        return sorted(ranked, key=lambda item: (-item.score, item.index))
+
+
 async def provision() -> Corpus:
     """A tenant to hold the corpus, seeded the way the install CLI would."""
     from app.core.database import owner_session
@@ -234,7 +261,23 @@ async def measure(corpus: Corpus) -> list[Outcome]:
         context=TenantContext.for_tenant(corpus.tenant_id, [corpus.label_id]),
         permissions=frozenset(CATALOGUE),
     )
-    service = SearchService(profile, embedder=LocalQueryEmbedder())  # type: ignore[arg-type]
+    import os
+
+    hardware = None
+    reranker = None
+    if os.environ.get("ZENITH_EVAL_RERANK"):
+        from app.core.hardware import PROFILES
+
+        hardware = PROFILES["cpu"]
+        reranker = LocalReranker()
+        print("reranking with the local cross-encoder", flush=True)
+
+    service = SearchService(
+        profile,
+        embedder=LocalQueryEmbedder(),  # type: ignore[arg-type]
+        hardware=hardware,
+        reranker=reranker,  # type: ignore[arg-type]
+    )
     by_uuid = {value: key for key, value in corpus.documents.items()}
 
     outcomes: list[Outcome] = []
