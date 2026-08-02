@@ -118,9 +118,11 @@ failure is loud, which is the right direction.
 
 1. **Relabelling does not re-enqueue.** `zenith reingest` recovers a stranded document, but
    only when an operator runs it. Automatic recovery belongs in `LabelService`.
-2. **The two-column detector is unmeasured.** It should be run against M0's corpus before
-   anyone treats its output as trustworthy.
+2. ~~The two-column detector is unmeasured.~~ **Closed.** Measured against the corpus, which
+   showed the shipped version detected nothing at all; the replacement flags 100% of
+   two-column pages at a 1.0% false-positive rate. See `2026-08-02-f5-validation.md`.
 3. **Docling is absent**, so `LAYOUT` is a label rather than a behaviour.
-4. **No end-to-end test with a real TEI.** The pipeline is tested with a stub embedder; the
-   client is tested against a mock transport. Nothing yet proves the two agree with a real
-   server on this hardware — which is precisely where M0 found all three failures.
+4. ~~No end-to-end test with a real TEI.~~ **Closed.** Both documents ingested on the VPS
+   with zero 413s, peak memory 2.67 GiB and one request in flight; the negative control
+   died with exit 139 after three sequential requests. See
+   `2026-08-02-f5-validation.md`.

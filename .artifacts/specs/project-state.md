@@ -198,8 +198,12 @@ lexical search** — `L 119/33` and `23 U.S.C. 101`, both missed entirely by the
 
 **The customer-facing statement, which we could not previously write:**
 
-> **8 GB RAM minimum** (~3 GB embedder, ~4 GB free at start-up). **~5 minutes per 100 pages**
-> on 4 CPU cores — a 10,000-page corpus is **≈ 8 hours** of one-off ingestion. **~5 MB disk
+> **8 GB RAM minimum** (~3 GB embedder, ~4 GB free at start-up). **7–14 minutes per 100
+> pages** on 4 CPU cores, depending on text density — a 10,000-page corpus is **12–22 hours**
+> of one-off ingestion. (M0 estimated 5 min/100 pages from embedding alone; F5's validation
+> measured the whole parse-chunk-embed path on real documents and found the per-page figure
+> varies almost twofold with density. Per *chunk* the rate is stable at ~0.9–1.4 s, which is
+> the honest unit.) **~5 MB disk
 > per 100 pages.** A GPU changes only the time, by **26×**.
 
 ### Six defects found that would otherwise have reached a customer

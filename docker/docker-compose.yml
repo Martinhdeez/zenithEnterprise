@@ -27,9 +27,19 @@ services:
     # reach 6.59 GB RSS during warm-up on a 7.6 GB machine and get OOM-killed before it had
     # processed a single document. With the values below it loads and serves at 3.71 GB.
     #
-    # `--max-concurrent-requests` is deliberately absent. Passing it panics cpu-1.8 outright
-    # ("Queue background task dropped the receiver... This is a bug", exit 139). Concurrency
-    # is limited on our side instead, by the worker.
+    # `--max-concurrent-requests` is deliberately absent, and this is not a precaution.
+    # Measured on this exact image: with the flag set, TEI panics and exits 139 after as few
+    # as **three sequential requests** —
+    #
+    #   thread 'tokio-runtime-worker' panicked at core/src/queue.rs:87:14:
+    #   Queue background task dropped the receiver or the receiver is too behind.
+    #   This is a bug.: "Full(..)"
+    #
+    # Sequential requests are enough to trigger it, so our own sequential worker is no
+    # defence here — it protects against memory, not against this. The count before death
+    # varied between 3 and ~20 across runs, which is what a race in a bounded queue looks
+    # like, and it means a smoke test can pass and production can still die the same day.
+    # See `.artifacts/specs/2026-08-02-f5-validation.md`.
     command:
       - "--model-id"
       - "BAAI/bge-m3"
