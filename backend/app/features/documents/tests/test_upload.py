@@ -280,6 +280,7 @@ async def test_another_tenant_cannot_see_or_delete_the_document(
         permissions=frozenset({"documents.delete.any"}),
     )
 
-    assert await DocumentService(intruder, storage).list() == []
+    visible, _ = await DocumentService(intruder, storage).page()
+    assert visible == []
     with pytest.raises(NotFoundError):
         await DocumentService(intruder, storage).delete(uploaded.document.id)

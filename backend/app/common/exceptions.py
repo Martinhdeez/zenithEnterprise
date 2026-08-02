@@ -47,6 +47,13 @@ class LimitExceededError(ZenithError):
     code = "limit_exceeded"
 
 
+class InvalidCursorError(ZenithError):
+    """A pagination cursor this system did not issue, or one that has been altered."""
+
+    status_code = 400
+    code = "invalid_cursor"
+
+
 class UnsupportedFileError(ZenithError):
     """Not a file this system can ingest.
 

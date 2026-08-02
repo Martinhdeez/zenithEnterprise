@@ -140,7 +140,7 @@ async def test_the_list_shows_only_what_the_caller_reaches(
 
     member = await client.get("/documents", headers=await headers(client, account.member_email))
 
-    assert [document["filename"] for document in member.json()] == ["general.pdf"]
+    assert [document["filename"] for document in member.json()["items"]] == ["general.pdf"]
 
 
 async def test_an_unreachable_document_is_404_not_403(
@@ -189,7 +189,50 @@ async def test_deletion_removes_it_from_the_list(client: AsyncClient, account: A
     deleted = await client.delete(f"/documents/{document_id}", headers=auth)
 
     assert deleted.status_code == 204
-    assert (await client.get("/documents", headers=auth)).json() == []
+    assert (await client.get("/documents", headers=auth)).json()["items"] == []
+
+
+async def test_the_listing_is_paginated_over_http(client: AsyncClient, account: Account) -> None:
+    """The wire contract: an object with `items` and `next_cursor`, never a bare array.
+
+    The shape matters more than the numbers. A flat array is the thing that becomes
+    impossible to change once a frontend depends on it, which is exactly why pagination
+    lands with the endpoint rather than after it.
+    """
+    auth = await headers(client, account.admin_email)
+    for index in range(3):
+        await client.post(
+            "/documents",
+            files={"file": (f"doc-{index}.pdf", PDF + bytes([index]), "application/pdf")},
+            headers=auth,
+        )
+
+    first = await client.get("/documents?limit=2", headers=auth)
+    body = first.json()
+    second = await client.get(f"/documents?limit=2&cursor={body['next_cursor']}", headers=auth)
+
+    assert len(body["items"]) == 2
+    assert body["next_cursor"] is not None
+    assert len(second.json()["items"]) == 1
+    assert second.json()["next_cursor"] is None
+
+
+async def test_a_tampered_cursor_is_a_400(client: AsyncClient, account: Account) -> None:
+    response = await client.get(
+        "/documents?cursor=bm90LWEtY3Vyc29y", headers=await headers(client, account.admin_email)
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "invalid_cursor"
+
+
+async def test_the_limit_is_capped_at_the_boundary(client: AsyncClient, account: Account) -> None:
+    """FastAPI rejects it before the handler runs, so the ceiling is in the schema too."""
+    response = await client.get(
+        "/documents?limit=100000", headers=await headers(client, account.admin_email)
+    )
+
+    assert response.status_code == 422
 
 
 async def test_deleting_requires_one_of_the_two_permissions(

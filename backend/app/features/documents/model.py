@@ -7,6 +7,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
@@ -24,6 +25,11 @@ class Document(Base):
         UniqueConstraint("tenant_id", "sha256"),
         CheckConstraint("status IN " + str(DOCUMENT_STATUSES), name="status_valido"),
         Index("ix_documents_label_ids", "label_ids", postgresql_using="gin"),
+        # The listing order, so keyset pagination walks the index from the cursor instead
+        # of sorting the tenant's whole corpus to return twenty rows. `id` is in it
+        # because `created_at` is not unique: two documents inserted in one transaction
+        # share a timestamp, and a cursor that cannot separate them skips or repeats one.
+        Index("ix_documents_listing", "tenant_id", text("created_at DESC"), text("id DESC")),
     )
 
     id: Mapped[uuid_pk]

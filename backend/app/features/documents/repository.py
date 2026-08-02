@@ -1,9 +1,10 @@
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, tuple_
 
 from app.common.repositories.base import ScopedRepository
 from app.features.documents.model import Document
+from app.features.documents.pagination import Cursor
 from app.features.labels.model import DocumentLabel
 
 
@@ -19,6 +20,35 @@ class DocumentRepository(ScopedRepository[Document]):
         service handles that case explicitly; it is not an oversight here.
         """
         return await self.session.scalar(select(Document).where(Document.sha256 == sha256))
+
+    async def page(
+        self, limit: int, cursor: Cursor | None = None, status: str | None = None
+    ) -> tuple[list[Document], Cursor | None]:
+        """One page, newest first, plus the cursor for the next one.
+
+        `limit + 1` rows are fetched and the extra is discarded. That is how the endpoint
+        knows whether another page exists without running a `COUNT`, which under RLS would
+        evaluate the policy over the whole table to produce a number the caller cannot act
+        on anyway.
+
+        The `WHERE` is a row-value comparison rather than
+        `created_at < :t OR (created_at = :t AND id < :i)`. Postgres treats the tuple form
+        as a single range condition and walks the composite index from that point; the
+        expanded form is the same rows and a scan.
+        """
+        statement = self.query().order_by(Document.created_at.desc(), Document.id.desc())
+        if status is not None:
+            statement = statement.where(Document.status == status)
+        if cursor is not None:
+            statement = statement.where(
+                tuple_(Document.created_at, Document.id) < (cursor.created_at, cursor.id)
+            )
+
+        rows = list(await self.session.scalars(statement.limit(limit + 1)))
+        if len(rows) <= limit:
+            return rows, None
+        page = rows[:limit]
+        return page, Cursor(created_at=page[-1].created_at, id=page[-1].id)
 
     async def count(self) -> int:
         """Documents visible in this context, for the per-tenant limit.

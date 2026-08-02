@@ -18,6 +18,19 @@ class DocumentResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class DocumentPage(BaseModel):
+    """A page of documents and where to resume.
+
+    `next_cursor` is null on the last page, which is the only end-of-list signal: there is
+    no total. Counting under RLS means evaluating the policy over every row in the tenant
+    to produce a number that is stale by the time it is read, and no client behaviour here
+    depends on knowing it.
+    """
+
+    items: list[DocumentResponse]
+    next_cursor: str | None
+
+
 class UploadResponse(BaseModel):
     """The document, plus what the upload actually did.
 

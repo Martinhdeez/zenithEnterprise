@@ -29,7 +29,8 @@ from app.core.config import settings
 from app.core.database import tenant_session
 from app.features.auth.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
-from app.features.documents.model import Document
+from app.features.documents.model import DOCUMENT_STATUSES, Document
+from app.features.documents.pagination import Cursor, clamp
 from app.features.documents.repository import DocumentRepository
 from app.features.documents.storage import DocumentStorage, Staged
 from app.features.labels.repository import LabelRepository
@@ -196,9 +197,24 @@ class DocumentService:
 
         await self.storage.delete(self.context.tenant_id, sha256)
 
-    async def list(self) -> list[Document]:
+    async def page(
+        self, limit: int | None = None, cursor: str | None = None, status: str | None = None
+    ) -> tuple[list[Document], str | None]:
+        """One page of documents, newest first.
+
+        There is no unpaginated variant, deliberately. A tenant may hold five thousand
+        documents, and a method returning all of them would eventually be called by
+        something that only wanted the first twenty.
+        """
+        if status is not None and status not in DOCUMENT_STATUSES:
+            raise NotFoundError(f"no such status: {status!r}")
         async with tenant_session(self.context) as session:
-            return await DocumentRepository(session).list()
+            documents, next_cursor = await DocumentRepository(session).page(
+                limit=clamp(limit),
+                cursor=Cursor.decode(cursor) if cursor else None,
+                status=status,
+            )
+        return documents, next_cursor.encode() if next_cursor else None
 
     async def get(self, document_id: UUID) -> Document:
         async with tenant_session(self.context) as session:

@@ -2,13 +2,14 @@ from collections.abc import AsyncIterator
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, Request, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Query, Request, Response, UploadFile, status
 from fastapi.responses import FileResponse
 
 from app.common.exceptions import LimitExceededError, NotFoundError
 from app.core.config import settings
 from app.features.auth.dependencies import CurrentProfile, requires, requires_any
-from app.features.documents.schemas import DocumentResponse, UploadResponse
+from app.features.documents.pagination import MAX_LIMIT
+from app.features.documents.schemas import DocumentPage, DocumentResponse, UploadResponse
 from app.features.documents.service import DELETE_ANY, DELETE_OWN, UPLOAD, DocumentService
 from app.features.documents.storage import CHUNK_BYTES, DocumentStorage
 
@@ -50,15 +51,29 @@ async def upload_document(
 
 
 @router.get("/documents")
-async def list_documents(profile: CurrentProfile) -> list[DocumentResponse]:
-    """Every document the caller's labels reach.
+async def list_documents(
+    profile: CurrentProfile,
+    limit: Annotated[int | None, Query(ge=1, le=MAX_LIMIT)] = None,
+    cursor: str | None = None,
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
+) -> DocumentPage:
+    """The documents the caller's labels reach, newest first, one page at a time.
 
     No permission gate: reading the corpus is what the product is for, and RLS already
     decides which rows exist for this caller. A gate here would restrict the list without
     restricting retrieval, which is the wrong half.
+
+    Paginated with a cursor rather than an offset. A tenant may hold five thousand
+    documents, and uploads arrive while someone is reading — an offset would show a reader
+    the same row twice each time a document was added above them.
     """
-    documents = await DocumentService(profile).list()
-    return [DocumentResponse.model_validate(document) for document in documents]
+    documents, next_cursor = await DocumentService(profile).page(
+        limit=limit, cursor=cursor, status=status_filter
+    )
+    return DocumentPage(
+        items=[DocumentResponse.model_validate(document) for document in documents],
+        next_cursor=next_cursor,
+    )
 
 
 @router.get("/documents/{document_id}")
