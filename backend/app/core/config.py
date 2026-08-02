@@ -1,4 +1,5 @@
 import secrets
+from pathlib import Path
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -59,6 +60,11 @@ class Settings(BaseSettings):
     # reads it yet; it gets the same guard as `jwt_secret` when the generation connector
     # is built, and refusing to start over a feature that does not exist would be theatre.
     encryption_key: str = ""
+
+    # Where uploaded documents are stored, content-addressed. Absolute on purpose: a
+    # relative path would resolve against the working directory, so a service restarted
+    # from somewhere else would find an empty corpus and report no data loss at all.
+    storage_dir: Path = Path("/var/lib/zenith/documents")
 
     # Limits from mvp.md 2.12
     max_file_bytes: int = 100 * 1024 * 1024

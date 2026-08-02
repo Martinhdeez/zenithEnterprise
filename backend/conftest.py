@@ -113,6 +113,19 @@ def configured_engines(migrated: str, owner_url: str) -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
+def isolated_storage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No test ever writes to the configured storage directory.
+
+    The default is `/var/lib/zenith/documents`, a real path on a real deployment. A test
+    run that reaches it either fails on permissions for reasons unrelated to the test, or
+    succeeds and leaves a developer's machine holding fixture PDFs.
+    """
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "storage_dir", tmp_path / "documents")
+
+
+@pytest.fixture(autouse=True)
 def fresh_login_allowance() -> None:
     """Reset the login rate limiter before every test.
 

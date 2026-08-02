@@ -84,7 +84,7 @@ async def test_every_check_runs_even_when_the_database_is_unreachable() -> None:
 
     checks = await run_diagnostics()
 
-    assert len(checks) == 9
+    assert len(checks) == 10
     assert any(check.status == "fail" for check in checks)
     # And the failure still says nothing it should not.
     assert "nothing" not in " ".join(check.detail for check in checks)

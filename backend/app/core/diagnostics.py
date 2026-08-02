@@ -212,6 +212,34 @@ def _model_service(name: str, url: str) -> Callable[[], Awaitable[tuple[Status, 
     return check
 
 
+async def _storage() -> tuple[Status, str]:
+    """Can we write documents, and is there room for them?
+
+    Both halves matter to an operator. A directory that is not writable turns every upload
+    into a 500 with no clue in it. Running out of space is the slower failure: M0 measured
+    roughly 5 MB of derived data per 100 pages *on top of* the original file, so a corpus
+    the customer thinks of as "a few gigabytes of PDFs" needs meaningfully more than that.
+    """
+    from app.features.documents.storage import DocumentStorage
+
+    storage = DocumentStorage()
+    free_gb = await storage.free_bytes() / 1_073_741_824
+
+    probe = storage.root / ".zenith-write-probe"
+    try:
+        storage.root.mkdir(parents=True, exist_ok=True)
+        probe.write_bytes(b"")
+    except OSError as exc:
+        return "fail", f"{storage.root} is not writable: {exc.strerror}"
+    finally:
+        probe.unlink(missing_ok=True)
+
+    # A number rather than a threshold: how much is enough depends on a corpus size only
+    # the customer knows, and a warning calibrated on a guess is a warning people learn to
+    # ignore.
+    return "ok", f"{storage.root} writable, {free_gb:.1f} GB free"
+
+
 async def _configuration() -> tuple[Status, str]:
     """Configuration, with every secret withheld.
 
@@ -224,6 +252,7 @@ async def _configuration() -> tuple[Status, str]:
         f"owner_db={redact(settings.database_owner_url)}  "
         f"access_token={settings.access_token_minutes}min  "
         f"refresh_token={settings.refresh_token_days}d  "
+        f"storage={settings.storage_dir}  "
         f"pool={settings.api_pool_size}/{settings.worker_pool_size}  "
         f"statement_timeout={settings.statement_timeout_ms}ms"
     )
@@ -238,6 +267,7 @@ async def run_diagnostics() -> list[Check]:
         await _timed("migrations", _migration_state),
         await _timed("extensions", _extensions),
         await _timed("content", _content),
+        await _timed("document storage", _storage),
         await _timed("vector space", _vector_space),
         await _timed("embedding service", _model_service("embed", settings.tei_embed_url)),
         await _timed("reranking service", _model_service("rerank", settings.tei_rerank_url)),
