@@ -23,7 +23,8 @@ first — then the three specs, then the code.
 | **F3 — Labels** | **Done.** Merged, PR #5, CI green |
 | **`zenith diagnose`** | **Done.** Merged, PR #6, CI green |
 | **M0 — Retrieval baseline** | **Done.** Merged, PR #7, CI green — see §3d |
-| **F4 — Documents** | **In progress.** Branch `feat/f4-documents`: storage, service and API done |
+| **F4 — Documents** | **Done.** Merged, PR #8, CI green |
+| **F5 — Ingestion** | **Next.** Plan in `.artifacts/todo/2026-08-02-f5-ingestion.md` |
 | F5 onwards | Not started |
 
 **170 tests, `make check` green.** That command runs the exact CI job.
@@ -52,7 +53,7 @@ Each feature retires the next dependency, not the flashiest UI.
 | F1 | `tenancy` — context and session contract | **Done** |
 | F2 | `auth` — users, roles, permissions, login | **Done** |
 | F3 | `labels` — access labels, the second RLS level | **Done** |
-| F4 | `documents` — upload, deduplication, deletion | **In progress** |
+| F4 | `documents` — upload, deduplication, deletion | **Done** |
 | F5 | `ingestion` — per-page parsing, chunking, bboxes | |
 | F6 | `embeddings` — TEI, vector spaces, reindexing | |
 | F7 | `retrieval` — BM25 + vector + RRF + re-ranking | |
