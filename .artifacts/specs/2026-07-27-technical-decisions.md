@@ -184,6 +184,10 @@ They are `SECURITY DEFINER` because the `WITH CHECK` on `documents` would otherw
 
 Auditing the bypass surface is therefore two greps: `owner_session` and `SECURITY DEFINER`.
 
+**F4 declined to add a fifth route, and the reason generalises.** Unique constraints see every row; RLS does not. So an upload of bytes already held under a label the caller cannot reach finds nothing with `SELECT` and still collides on `UNIQUE (tenant_id, sha256)`. Unioning the labels there — which is what deduplication otherwise does — would require reaching an invisible row, and the only mechanism for that is another `SECURITY DEFINER` function.
+
+The upload is refused instead, with a message that does not confirm a document exists. In a compartmentalised installation, *the fact that Finance holds this particular file* is classified metadata, and an opaque error is better than a metadata leak. The rule this sets: **the bypass surface grows for a security guarantee, never for ergonomics.** The ergonomic answer is `.artifacts/backlog/2026-08-02-request-to-classify.md`, where an administrator who reaches both labels performs the union in their own context, with no bypass at all.
+
 ---
 
 ## 6. Hybrid search: RRF fusion

@@ -22,11 +22,11 @@ first — then the three specs, then the code.
 | **F2 hardening** | **Done.** Merged, PR #4, CI green |
 | **F3 — Labels** | **Done.** Merged, PR #5, CI green |
 | **`zenith diagnose`** | **Done.** Merged, PR #6, CI green |
-| **M0 — Retrieval baseline** | **Measured and closed.** Branch `feat/m0-baseline` — see §3d |
-| **F4 — Documents** | **Next** |
+| **M0 — Retrieval baseline** | **Done.** Merged, PR #7, CI green — see §3d |
+| **F4 — Documents** | **In progress.** Branch `feat/f4-documents`: storage, service and API done |
 | F5 onwards | Not started |
 
-**124 tests, `make check` green.** That command runs the exact CI job.
+**158 tests, `make check` green.** That command runs the exact CI job.
 
 ### What F0 actually delivered, verified
 
@@ -52,7 +52,7 @@ Each feature retires the next dependency, not the flashiest UI.
 | F1 | `tenancy` — context and session contract | **Done** |
 | F2 | `auth` — users, roles, permissions, login | **Done** |
 | F3 | `labels` — access labels, the second RLS level | **Done** |
-| F4 | `documents` — upload, deduplication, deletion | |
+| F4 | `documents` — upload, deduplication, deletion | **In progress** |
 | F5 | `ingestion` — per-page parsing, chunking, bboxes | |
 | F6 | `embeddings` — TEI, vector spaces, reindexing | |
 | F7 | `retrieval` — BM25 + vector + RRF + re-ranking | |

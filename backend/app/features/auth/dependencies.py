@@ -52,3 +52,22 @@ def requires(permission: str) -> Callable[[AccessProfile], Awaitable[AccessProfi
         return profile
 
     return guard
+
+
+def requires_any(*permissions: str) -> Callable[[AccessProfile], Awaitable[AccessProfile]]:
+    """Declare that any one of several permissions opens the endpoint.
+
+    For the pairs that differ in scope rather than in kind — `documents.delete.own` and
+    `documents.delete.any` both permit deletion, and which document is a question the
+    service answers once it can see the row. Splitting them into two endpoints would put
+    the same operation at two URLs and let a client discover ownership by trying both.
+    """
+
+    async def guard(profile: CurrentProfile) -> AccessProfile:
+        if profile.permissions.isdisjoint(permissions):
+            raise PermissionDeniedError(
+                f"this action requires one of: {', '.join(sorted(permissions))}"
+            )
+        return profile
+
+    return guard
