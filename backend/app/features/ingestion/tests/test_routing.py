@@ -18,24 +18,40 @@ def page(text: str, words: tuple[Word, ...] = ()) -> ParsedPage:
     return ParsedPage(page_num=1, text=text, words=words)
 
 
-def columns(gap: tuple[float, float] = (0.42, 0.58)) -> tuple[Word, ...]:
-    """Words in two blocks with a clear gutter — the IRS signature."""
-    left = [
-        Word(f"left{index}", Box(1, 0.10, 0.1 + index * 0.02, gap[0], 0.11 + index * 0.02))
-        for index in range(30)
-    ]
-    right = [
-        Word(f"right{index}", Box(1, gap[1], 0.1 + index * 0.02, 0.90, 0.11 + index * 0.02))
-        for index in range(30)
-    ]
-    return tuple(left + right)
+# Both fixtures are above `MIN_WORDS_FOR_LAYOUT`, which is 250: a sparse page is not judged
+# at all, because empty bins on such a page come from sparsity rather than from layout.
+#
+# The word centres are spread continuously, the way they fall on a real page. An earlier
+# version placed them at five fixed positions per column, which made most bins empty and the
+# median density zero — the fixture failed to look like a page at all, and the detector was
+# right to decline to judge it.
+WORDS = 400
+
+
+def columns() -> tuple[Word, ...]:
+    """Two blocks of text with a gutter between them — the IRS and BERT signature."""
+    words: list[Word] = []
+    for index in range(WORDS):
+        side, position = divmod(index, 40)
+        top = round((index % 45) * 0.018, 4)
+        left = (0.08 if side % 2 else 0.54) + position * 0.0095
+        words.append(
+            Word(f"w{index}", Box(1, round(left, 4), top, round(left + 0.008, 4), top + 0.01))
+        )
+    return tuple(words)
 
 
 def single_column() -> tuple[Word, ...]:
-    return tuple(
-        Word(f"word{index}", Box(1, 0.10, 0.1 + index * 0.01, 0.90, 0.11 + index * 0.01))
-        for index in range(60)
-    )
+    """The same amount of text spread evenly across the full width."""
+    words: list[Word] = []
+    for index in range(WORDS):
+        position = index % 88
+        top = round((index % 45) * 0.018, 4)
+        left = 0.06 + position * 0.0095
+        words.append(
+            Word(f"w{index}", Box(1, round(left, 4), top, round(left + 0.008, 4), top + 0.01))
+        )
+    return tuple(words)
 
 
 def test_a_page_with_no_text_layer_goes_to_ocr() -> None:

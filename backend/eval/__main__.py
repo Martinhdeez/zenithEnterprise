@@ -87,10 +87,32 @@ def record_checksums(updates: dict[str, tuple[str, int, int]]) -> None:
     MANIFEST.write_text("\n".join(output) + "\n")
 
 
+def layout(limit: int | None) -> int:
+    """Score the two-column detector against the corpus.
+
+    Its thresholds were chosen by reasoning rather than by measurement, which is precisely
+    the kind of claim this corpus exists to settle.
+    """
+    from pathlib import Path
+
+    from eval.layout import run, verdict
+
+    reports = run(limit=limit, output=Path(__file__).resolve().parent / "layout-report.json")
+    print()
+    for line in verdict(reports):
+        print(line)
+    return 0
+
+
 def main() -> int:
-    if len(sys.argv) < 2 or sys.argv[1] != "fetch":
-        print("usage: python -m eval fetch [--record]")
+    if len(sys.argv) < 2 or sys.argv[1] not in ("fetch", "layout"):
+        print("usage: python -m eval fetch [--record] | python -m eval layout [--limit N]")
         return 2
+    if sys.argv[1] == "layout":
+        limit = None
+        if "--limit" in sys.argv:
+            limit = int(sys.argv[sys.argv.index("--limit") + 1])
+        return layout(limit)
     return fetch(record="--record" in sys.argv)
 
 
