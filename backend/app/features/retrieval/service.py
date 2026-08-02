@@ -1,0 +1,138 @@
+"""Search, end to end, and the one place it is allowed to return half an answer.
+
+Query embedding is synchronous and in-request. On `low-spec` that means the user waits for
+TEI behind whatever ingestion is doing, and F5 measured ingestion holding TEI for **13.4
+minutes per 100 dense pages**. A second TEI instance for queries would fix it and double the
+memory footprint of a profile defined by not having any, so the MVP answer is different:
+**give the embedding call a short timeout, and if it expires, return the lexical half alone
+and say so.**
+
+Half a search in two seconds beats a whole one in forty, but only if the caller can tell
+which one they got. `degraded` is in the response for that reason — a silently worse answer
+is the failure mode this whole project keeps refusing.
+"""
+
+import time
+from dataclasses import dataclass
+from uuid import UUID
+
+import httpx
+import structlog
+
+from app.common.exceptions import PermissionDeniedError
+from app.core.database import tenant_session
+from app.core.hardware import Profile
+from app.core.hardware import active as active_profile
+from app.features.auth.permissions import CATALOGUE
+from app.features.auth.service import AccessProfile
+from app.features.embeddings.client import MODEL, VERSION, TeiClient
+from app.features.retrieval.search import CANDIDATES, Hit, dense, fuse, hydrate, lexical
+from app.features.tenancy.context import TenantContext
+
+log = structlog.get_logger()
+
+EXECUTE = "query.execute"
+assert EXECUTE in CATALOGUE, "the permission this service is gated on must exist"
+
+DEFAULT_LIMIT = 8
+MAX_LIMIT = 50
+
+# Long enough for a cold TEI to answer one short query, short enough that a user does not
+# sit behind an ingestion batch. Deliberately not configurable yet: the right number is the
+# one a design partner's hardware tells us, and inventing a setting first would just be a
+# knob nobody knows how to turn.
+EMBED_TIMEOUT_SECONDS = 5.0
+
+
+@dataclass(frozen=True, slots=True)
+class SearchResult:
+    hits: list[Hit]
+    degraded: bool
+    reason: str | None
+    took_ms: int
+
+
+class SearchService:
+    def __init__(
+        self,
+        profile: AccessProfile,
+        embedder: TeiClient | None = None,
+        hardware: Profile | None = None,
+    ) -> None:
+        self.profile = profile
+        self.context = profile.context
+        self.hardware = hardware or active_profile()
+        self.embedder = embedder or TeiClient(profile=self.hardware)
+
+    async def search(
+        self, question: str, limit: int = DEFAULT_LIMIT, labels: list[UUID] | None = None
+    ) -> SearchResult:
+        started = time.perf_counter()
+        limit = max(1, min(limit, MAX_LIMIT))
+        context = self._narrowed(labels)
+
+        embedding, degraded_reason = await self._embed(question)
+
+        async with tenant_session(context) as session:
+            lexical_ids = await lexical(session, question, CANDIDATES)
+            dense_ids = (
+                await dense(
+                    session,
+                    embedding,
+                    MODEL,
+                    VERSION,
+                    CANDIDATES,
+                    self.hardware.hnsw_ef_search,
+                )
+                if embedding
+                else []
+            )
+            ranked = fuse(lexical_ids, dense_ids, limit)
+            hits = await hydrate(session, ranked, lexical_ids, dense_ids)
+
+        took = int((time.perf_counter() - started) * 1000)
+        log.info(
+            "search",
+            lexical=len(lexical_ids),
+            dense=len(dense_ids),
+            returned=len(hits),
+            degraded=bool(degraded_reason),
+            took_ms=took,
+        )
+        return SearchResult(
+            hits=hits, degraded=bool(degraded_reason), reason=degraded_reason, took_ms=took
+        )
+
+    async def _embed(self, question: str) -> tuple[list[float], str | None]:
+        """The dense half's input, or an honest admission that we could not get it.
+
+        Every failure here is survivable, because the lexical half still works. What is not
+        survivable is pretending: a search that quietly drops semantic matching returns
+        plausible results and hides that it is doing half its job.
+        """
+        try:
+            client = TeiClient(
+                url=self.embedder.url, profile=self.hardware, transport=self.embedder.transport
+            )
+            async with httpx.AsyncClient(
+                timeout=EMBED_TIMEOUT_SECONDS, transport=client.transport
+            ) as http:
+                vectors = await client.send_batch(http, [question], attempts=1)
+            return vectors[0], None
+        except Exception as exc:  # noqa: BLE001 - degrading is the point
+            log.warning("search_embedding_failed", error=str(exc))
+            return [], f"semantic search unavailable ({type(exc).__name__}); lexical only"
+
+    def _narrowed(self, labels: list[UUID] | None) -> TenantContext:
+        """A caller may filter down to a subset of what they reach. Never up.
+
+        A label the caller does not hold is a 403 rather than an empty result: the request
+        is nonsense rather than unlucky, and answering it with silence would teach a client
+        to retry with other people's labels to see which ones return nothing.
+        """
+        if not labels:
+            return self.context
+        beyond = [str(label) for label in labels if not self.context.reaches(label)]
+        if beyond:
+            raise PermissionDeniedError(f"you do not hold label(s): {', '.join(beyond)}")
+        return TenantContext.for_tenant(self.context.tenant_id, labels)

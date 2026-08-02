@@ -103,9 +103,19 @@ class TeiClient:
         if batch:
             yield batch
 
-    async def send_batch(self, client: httpx.AsyncClient, batch: list[str]) -> list[list[float]]:
+    async def send_batch(
+        self, client: httpx.AsyncClient, batch: list[str], attempts: int = ATTEMPTS
+    ) -> list[list[float]]:
+        """`attempts` is 1 on the interactive path.
+
+        Retrying with backoff is right for ingestion, where a restarting model is worth
+        waiting out and nobody is watching. It is wrong for a query: three attempts at two,
+        four and eight seconds turns a five-second timeout into fourteen seconds of a user
+        staring at a spinner before getting the lexical-only answer they could have had
+        immediately.
+        """
         last: Exception | None = None
-        for attempt in range(ATTEMPTS):
+        for attempt in range(attempts):
             try:
                 response = await client.post(f"{self.url}/embed", json={"inputs": batch})
                 response.raise_for_status()
@@ -125,7 +135,7 @@ class TeiClient:
             await asyncio.sleep(2**attempt)
 
         raise EmbeddingServiceError(
-            f"the embedding service at {self.url} did not respond after {ATTEMPTS} attempts"
+            f"the embedding service at {self.url} did not respond after {attempts} attempt(s)"
         ) from last
 
 

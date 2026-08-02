@@ -47,6 +47,11 @@ class Profile:
     # beside TEI in 8 GB. A scanned document then *fails* — see `ingestion/pipeline.py`.
     ocr: bool
 
+    # How hard the HNSW index works per query. A speed/recall trade, which is exactly what
+    # a profile is for: at pgvector's default the index caps recall below what the data
+    # supports, and raising it costs latency the `low-spec` box does not have to give.
+    hnsw_ef_search: int
+
     # Components this profile disabled, in the words `zenith diagnose` prints. Degradations
     # must be visible; a customer should never have to infer them from a recall number.
     @property
@@ -70,6 +75,7 @@ PROFILES: Final[dict[str, Profile]] = {
         ingestion_concurrency=4,
         reranker=True,
         ocr=True,
+        hnsw_ef_search=200,
     ),
     "cpu": Profile(
         name="cpu",
@@ -78,6 +84,7 @@ PROFILES: Final[dict[str, Profile]] = {
         ingestion_concurrency=1,
         reranker=True,
         ocr=True,
+        hnsw_ef_search=100,
     ),
     # Measured the hard way on a 4-core, 7.6 GB VPS. With these two flags TEI loads and
     # serves at 3.71 GB; with the defaults the kernel kills it at 6.59 GB. The difference
@@ -90,6 +97,7 @@ PROFILES: Final[dict[str, Profile]] = {
         ingestion_concurrency=1,
         reranker=False,
         ocr=False,
+        hnsw_ef_search=40,
     ),
 }
 

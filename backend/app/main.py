@@ -11,6 +11,7 @@ from app.core.logging import configure_logging
 from app.features.auth.router import router as auth_router
 from app.features.documents.router import router as documents_router
 from app.features.labels.router import router as labels_router
+from app.features.retrieval.router import router as search_router
 
 configure_logging()
 
@@ -39,6 +40,7 @@ async def handle_domain_error(_: Request, exc: ZenithError) -> JSONResponse:
 app.include_router(auth_router)
 app.include_router(labels_router)
 app.include_router(documents_router)
+app.include_router(search_router)
 
 
 @app.get("/health")
