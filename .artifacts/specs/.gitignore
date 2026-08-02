@@ -1,0 +1,6 @@
+# Rendered artefacts, not sources. The specifications in this directory are Markdown;
+# anything exported from them — a PDF for a meeting, an HTML page for a browser — is a
+# copy that goes stale the moment the source changes, and a stale copy in version control
+# is worse than none because it looks authoritative.
+*.pdf
+*.html
