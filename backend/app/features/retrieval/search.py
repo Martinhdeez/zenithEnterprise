@@ -106,6 +106,20 @@ async def dense(
     return [row.id for row in rows]
 
 
+def candidates(lexical_ids: list[UUID], dense_ids: list[UUID]) -> list[tuple[UUID, float]]:
+    """Everything either half proposed, in fused order.
+
+    The union rather than the fused top-N, because fusion was doing two jobs and is bad at
+    one of them. Choosing candidates and ordering results are different problems: a passage
+    only the lexical half found is *exactly* the case worth reranking, and it is exactly the
+    case RRF discards.
+
+    Measured: identifier questions scored 0% at rank 8, and two of six were not in the fused
+    top-50 at all — found by the lexical half, ranked out of existence by agreement.
+    """
+    return fuse(lexical_ids, dense_ids, limit=len(lexical_ids) + len(dense_ids))
+
+
 def fuse(lexical_ids: list[UUID], dense_ids: list[UUID], limit: int) -> list[tuple[UUID, float]]:
     """Reciprocal Rank Fusion — positions only, never scores.
 
@@ -113,6 +127,17 @@ def fuse(lexical_ids: list[UUID], dense_ids: list[UUID], limit: int) -> list[tup
     scales that move with the corpus. Normalising them is fragile and needs recalibrating
     whenever the data changes. RRF ignores the magnitudes entirely, which is what makes it
     robust enough to have one parameter.
+
+    **With one correction, measured rather than reasoned.** RRF rewards agreement, and an
+    exact identifier match is by nature a passage only one half can find:
+
+        ranked 1st lexically, absent from dense →  1/61  = 0.0164
+        ranked 5th by both                      →  2/65  = 0.0308   ← wins
+
+    So a passage containing the exact string someone searched for loses to two mediocre
+    agreements. `_promote_leaders` guarantees the top hit of each half a place in the
+    result. Not a weight and not a tuning parameter — a floor, and the smallest change that
+    fixes the case without reintroducing the scale problem RRF was chosen to avoid.
     """
     scores: dict[UUID, float] = {}
     for ranking in (lexical_ids, dense_ids):
@@ -120,7 +145,34 @@ def fuse(lexical_ids: list[UUID], dense_ids: list[UUID], limit: int) -> list[tup
             scores[chunk_id] = scores.get(chunk_id, 0.0) + 1 / (RRF_K + position)
 
     ordered = sorted(scores.items(), key=lambda item: (-item[1], str(item[0])))
-    return ordered[:limit]
+    return _promote_leaders(ordered[:limit], lexical_ids, dense_ids, limit)
+
+
+def _promote_leaders(
+    top: list[tuple[UUID, float]],
+    lexical_ids: list[UUID],
+    dense_ids: list[UUID],
+    limit: int,
+) -> list[tuple[UUID, float]]:
+    """If either half ranked something first, it appears.
+
+    Applied after ordering rather than as a score adjustment, so the fused order is
+    untouched for everything else — the promoted entry takes the last place rather than
+    displacing the top of the list, because being one half's favourite is evidence, not
+    proof.
+    """
+    if not top or limit < 2:
+        return top
+
+    present = {chunk_id for chunk_id, _ in top}
+    leaders = [ranking[0] for ranking in (lexical_ids, dense_ids) if ranking]
+    missing = [leader for leader in leaders if leader not in present]
+    if not missing:
+        return top
+
+    kept = top[: max(1, limit - len(missing))]
+    floor = kept[-1][1] if kept else 0.0
+    return kept + [(leader, floor) for leader in missing]
 
 
 async def hydrate(

@@ -47,6 +47,12 @@ class Profile:
     # beside TEI in 8 GB. A scanned document then *fails* — see `ingestion/pipeline.py`.
     ocr: bool
 
+    # How many candidates the cross-encoder reads. Zero where the reranker is off. The
+    # cost is real and interactive: 50 pairs is 50 forward passes, and on four CPU cores
+    # that is not free — `cpu` reranks half the union and lets the fused order choose which
+    # half, which is the one job RRF keeps.
+    rerank_candidates: int
+
     # How hard the HNSW index works per query. A speed/recall trade, which is exactly what
     # a profile is for: at pgvector's default the index caps recall below what the data
     # supports, and raising it costs latency the `low-spec` box does not have to give.
@@ -76,6 +82,7 @@ PROFILES: Final[dict[str, Profile]] = {
         reranker=True,
         ocr=True,
         hnsw_ef_search=200,
+        rerank_candidates=100,
     ),
     "cpu": Profile(
         name="cpu",
@@ -85,6 +92,7 @@ PROFILES: Final[dict[str, Profile]] = {
         reranker=True,
         ocr=True,
         hnsw_ef_search=100,
+        rerank_candidates=50,
     ),
     # Measured the hard way on a 4-core, 7.6 GB VPS. With these two flags TEI loads and
     # serves at 3.71 GB; with the defaults the kernel kills it at 6.59 GB. The difference
@@ -98,6 +106,7 @@ PROFILES: Final[dict[str, Profile]] = {
         reranker=False,
         ocr=False,
         hnsw_ef_search=40,
+        rerank_candidates=0,
     ),
 }
 

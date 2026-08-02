@@ -25,7 +25,16 @@ from app.core.hardware import active as active_profile
 from app.features.auth.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
 from app.features.embeddings.client import MODEL, VERSION, TeiClient
-from app.features.retrieval.search import CANDIDATES, Hit, dense, fuse, hydrate, lexical
+from app.features.retrieval.reranker import TeiReranker
+from app.features.retrieval.search import (
+    CANDIDATES,
+    Hit,
+    candidates,
+    dense,
+    fuse,
+    hydrate,
+    lexical,
+)
 from app.features.tenancy.context import TenantContext
 
 log = structlog.get_logger()
@@ -51,11 +60,19 @@ class SearchService:
         profile: AccessProfile,
         embedder: TeiClient | None = None,
         hardware: Profile | None = None,
+        reranker: TeiReranker | None = None,
     ) -> None:
         self.profile = profile
         self.context = profile.context
         self.hardware = hardware or active_profile()
         self.embedder = embedder or TeiClient(profile=self.hardware)
+        # `None` where the profile disables it. That is a configured product rather than a
+        # failure, and the two must not report the same way — see `search`.
+        self.reranker = (
+            reranker
+            if reranker is not None
+            else (TeiReranker(profile=self.hardware) if self.hardware.reranker else None)
+        )
 
     async def search(
         self, question: str, limit: int = DEFAULT_LIMIT, labels: list[UUID] | None = None
@@ -80,9 +97,24 @@ class SearchService:
                 if embedding
                 else []
             )
-            ranked = fuse(lexical_ids, dense_ids, limit)
+            # The union goes to the reranker; the fused top-k is what answers without one.
+            # Choosing candidates and ordering results are different jobs, and RRF is only
+            # good at the second.
+            reranking = self.reranker is not None and self.hardware.rerank_candidates > 0
+            ranked = (
+                candidates(lexical_ids, dense_ids)[: self.hardware.rerank_candidates]
+                if reranking
+                else fuse(lexical_ids, dense_ids, limit)
+            )
             hits = await hydrate(session, ranked, lexical_ids, dense_ids)
 
+        rerank_reason: str | None = None
+        if reranking and hits:
+            hits, rerank_reason = await self._rerank(question, hits, limit)
+        else:
+            hits = hits[:limit]
+
+        degraded_reason = degraded_reason or rerank_reason
         took = int((time.perf_counter() - started) * 1000)
         log.info(
             "search",
@@ -95,6 +127,27 @@ class SearchService:
         return SearchResult(
             hits=hits, degraded=bool(degraded_reason), reason=degraded_reason, took_ms=took
         )
+
+    async def _rerank(
+        self, question: str, hits: list[Hit], limit: int
+    ) -> tuple[list[Hit], str | None]:
+        """Reorder by what the cross-encoder read, or say why we could not.
+
+        A reranker that is down must not take a working search away from the customer. The
+        fused order is still a good order — it was the whole product one commit ago — so the
+        answer degrades to it and the response says so.
+        """
+        if self.reranker is None:
+            # Configured off. Not a degradation: the customer chose this profile and
+            # `zenith diagnose` names what it disabled.
+            return hits[:limit], None
+        try:
+            scored = await self.reranker.rank(question, [hit.text for hit in hits])
+        except Exception as exc:  # noqa: BLE001 - degrading is the point
+            log.warning("rerank_failed", error=str(exc))
+            return hits[:limit], f"reranking unavailable ({type(exc).__name__}); fused order"
+
+        return [hits[item.index] for item in scored[:limit]], None
 
     async def _embed(self, question: str) -> tuple[list[float], str | None]:
         """The dense half's input, or an honest admission that we could not get it.
