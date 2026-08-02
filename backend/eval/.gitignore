@@ -1,2 +1,6 @@
 documents/
 .text-cache/
+# Cached query vectors: 26 MB of derived data, rebuilt from the corpus in minutes.
+.vector-cache.npy
+.vector-cache.key
+production-recall.json

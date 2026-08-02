@@ -16,7 +16,6 @@ import time
 from dataclasses import dataclass
 from uuid import UUID
 
-import httpx
 import structlog
 
 from app.common.exceptions import PermissionDeniedError
@@ -36,12 +35,6 @@ assert EXECUTE in CATALOGUE, "the permission this service is gated on must exist
 
 DEFAULT_LIMIT = 8
 MAX_LIMIT = 50
-
-# Long enough for a cold TEI to answer one short query, short enough that a user does not
-# sit behind an ingestion batch. Deliberately not configurable yet: the right number is the
-# one a design partner's hardware tells us, and inventing a setting first would just be a
-# knob nobody knows how to turn.
-EMBED_TIMEOUT_SECONDS = 5.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,14 +104,7 @@ class SearchService:
         plausible results and hides that it is doing half its job.
         """
         try:
-            client = TeiClient(
-                url=self.embedder.url, profile=self.hardware, transport=self.embedder.transport
-            )
-            async with httpx.AsyncClient(
-                timeout=EMBED_TIMEOUT_SECONDS, transport=client.transport
-            ) as http:
-                vectors = await client.send_batch(http, [question], attempts=1)
-            return vectors[0], None
+            return await self.embedder.embed_query(question), None
         except Exception as exc:  # noqa: BLE001 - degrading is the point
             log.warning("search_embedding_failed", error=str(exc))
             return [], f"semantic search unavailable ({type(exc).__name__}); lexical only"

@@ -37,6 +37,11 @@ DIMENSION = 1024
 RETRYABLE = (httpx.TimeoutException, httpx.ConnectError, httpx.ReadError)
 ATTEMPTS = 3
 
+# The interactive budget. Long enough for a warm TEI to answer one short query, short enough
+# that a user does not sit behind an ingestion batch — F5 measured ingestion holding this
+# service for 13.4 minutes per 100 dense pages.
+QUERY_TIMEOUT = 5.0
+
 
 class EmbeddingServiceError(ZenithError):
     """The embedding service could not be reached, or refused the request.
@@ -76,6 +81,26 @@ class TeiClient:
             for batch in self.plan_batches(texts):
                 vectors.extend(await self.send_batch(client, batch))
         return vectors
+
+    async def embed_query(self, question: str) -> list[float]:
+        """One short text, one attempt, a short timeout.
+
+        Separate from `embed` because the two have opposite requirements. Ingestion should
+        wait out a restarting model — nobody is watching, and the alternative is a document
+        stuck in `embedding`. A query cannot: retrying three times with backoff turns a
+        five-second timeout into fourteen seconds of a user staring at a spinner before
+        getting the lexical-only answer that was available immediately.
+
+        It also gives the evaluation harness a seam. The M0 baseline is measured on a Mac
+        through PyTorch, because TEI publishes linux/amd64 only; the weights are identical,
+        so the ranking is identical, and this is the one method that has to be swapped to
+        run the harness against production search.
+        """
+        import httpx as _httpx
+
+        async with _httpx.AsyncClient(timeout=QUERY_TIMEOUT, transport=self.transport) as client:
+            vectors = await self.send_batch(client, [question], attempts=1)
+        return vectors[0]
 
     def plan_batches(self, texts: Sequence[str]) -> Iterator[list[str]]:
         """Accumulate until the token budget or the client batch limit is reached.

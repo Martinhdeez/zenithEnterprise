@@ -25,7 +25,7 @@ first — then the three specs, then the code.
 | **M0 — Retrieval baseline** | **Done.** Merged, PR #7, CI green — see §3d |
 | **F4 — Documents** | **Done.** Merged, PR #8, CI green |
 | **F5 — Ingestion** | **Done.** Merged, PR #9, CI green — validated on real hardware, see `2026-08-02-f5-validation.md` |
-| **F6 — Search** | **In progress.** Branch `feat/f6-search`: hybrid retrieval, RRF, endpoint |
+| **F6 — Search** | **Done.** PR #10 — Recall@8 **80%** through production code, see `2026-08-03-f6-recall.md` |
 | F5 onwards | Not started |
 
 **233 tests, `make check` green.** That command runs the exact CI job.
