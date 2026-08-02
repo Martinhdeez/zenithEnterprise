@@ -238,6 +238,45 @@ def diagnose(
     _execute(run())
 
 
+@app.command()
+def reingest(
+    tenant: Annotated[str | None, typer.Option(help="Limit to one tenant, by name.")] = None,
+    status: Annotated[str | None, typer.Option(help="Only this status: pending or failed.")] = None,
+    apply: Annotated[
+        bool, typer.Option("--apply", help="Actually enqueue. Without it, only report.")
+    ] = False,
+) -> None:
+    """Put stranded documents back in the ingestion queue.
+
+    Two paths leave a document with no job behind it, both deliberate: a failed enqueue does
+    not fail the upload, and a document relabelled after enqueue strands its own job because
+    the payload carries the labels captured at upload. This is the fix for both.
+
+    Reports by default. Enqueuing a thousand documents on a machine sized for one at a time
+    is an operator's decision, not a side effect of asking what is stuck.
+    """
+    from app.features.ingestion.requeue import find_stranded, requeue
+
+    async def run() -> None:
+        tenant_id = (await TenantService().by_name(tenant)).id if tenant else None
+        stranded = await find_stranded(tenant_id, status)
+        if not stranded:
+            typer.echo("Nothing stranded.")
+            return
+
+        for document in stranded:
+            labels = "no labels — will be skipped" if not document.label_ids else ""
+            typer.echo(f"{document.status:<8} {document.filename}  {labels}")
+
+        if not apply:
+            typer.echo(f"\n{len(stranded)} document(s). Re-run with --apply to enqueue.")
+            return
+
+        typer.echo(f"\nEnqueued {await requeue(stranded)} document(s).")
+
+    _execute(run())
+
+
 @app.command("install-queue")
 def install_queue() -> None:
     """Create the job-queue tables. Run once, after `alembic upgrade head`.

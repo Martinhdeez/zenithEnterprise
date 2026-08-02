@@ -27,7 +27,7 @@ first — then the three specs, then the code.
 | **F5 — Ingestion** | **In progress.** Branch `feat/f5-ingestion`: profiles, parser, chunker, TEI client, worker |
 | F5 onwards | Not started |
 
-**211 tests, `make check` green.** That command runs the exact CI job.
+**215 tests, `make check` green.** That command runs the exact CI job.
 
 ### What F0 actually delivered, verified
 

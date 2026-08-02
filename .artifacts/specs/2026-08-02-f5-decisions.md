@@ -22,9 +22,15 @@ forbids for convenience.
 worker cannot see it, reports `unknown`, and does nothing. **Nothing currently re-enqueues
 it**, which means such a document sits in `pending` until someone notices.
 
-**What would change it.** The relabel operation should re-enqueue. That is a small change
-in `LabelService.set_document_labels` and it is not done — recorded here rather than
-implemented, because it touches F3 code the session was not asked to modify.
+**Closed, partly.** `zenith reingest` finds documents in `pending` or `failed` and
+enqueues them with the labels read *now* rather than the ones the old payload carried. It
+reports by default and only enqueues with `--apply`, because sending a thousand documents
+to a machine sized for one at a time is an operator's decision rather than a side effect of
+asking what is stuck.
+
+**Still open:** the relabel operation does not re-enqueue automatically, so recovery is
+manual. That would be a small change in `LabelService.set_document_labels`, and it touches
+F3 code this session was not asked to modify.
 
 ## 2. Pages routed to `LAYOUT` are parsed by pdfplumber anyway, with a warning
 
@@ -93,9 +99,8 @@ which since PR #8 scopes to `uv export --no-dev` — does not see it, and it nev
 **Why.** The document is stored, its labels are correct, and it sits in `pending`. Losing a
 customer's file because a queue insert failed is much the worse outcome.
 
-**Cost.** A document can be `pending` with no job behind it, and there is no requeue command
-yet. Same gap as (1), and the same fix would serve both: an operator-facing
-`zenith reingest --status pending`.
+**Cost.** A document can be `pending` with no job behind it. Closed by the same
+`zenith reingest` as (1) — the two failures were different causes with one shape.
 
 ## 8. Procrastinate's schema is a separate install step
 
@@ -111,8 +116,8 @@ failure is loud, which is the right direction.
 
 ## Known gaps, in the order they should be closed
 
-1. **No requeue path.** Items (1) and (7) both end with a document in `pending` and nothing
-   to pick it up. `zenith reingest` closes both.
+1. **Relabelling does not re-enqueue.** `zenith reingest` recovers a stranded document, but
+   only when an operator runs it. Automatic recovery belongs in `LabelService`.
 2. **The two-column detector is unmeasured.** It should be run against M0's corpus before
    anyone treats its output as trustworthy.
 3. **Docling is absent**, so `LAYOUT` is a label rather than a behaviour.
