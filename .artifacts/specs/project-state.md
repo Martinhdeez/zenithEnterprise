@@ -26,7 +26,7 @@ first — then the three specs, then the code.
 | **F4 — Documents** | **In progress.** Branch `feat/f4-documents`: storage, service and API done |
 | F5 onwards | Not started |
 
-**158 tests, `make check` green.** That command runs the exact CI job.
+**170 tests, `make check` green.** That command runs the exact CI job.
 
 ### What F0 actually delivered, verified
 
