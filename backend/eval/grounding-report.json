@@ -1,0 +1,354 @@
+{
+  "summary": {
+    "questions": 31,
+    "passages_per_answer": 8,
+    "extraction_rate": 1.0,
+    "context_rate": 0.9032,
+    "by_type": {
+      "cross-document": {
+        "extraction": 1.0,
+        "context": 0.8
+      },
+      "factual": {
+        "extraction": 1.0,
+        "context": 1.0
+      },
+      "identifier": {
+        "extraction": 1.0,
+        "context": 0.6667
+      },
+      "table": {
+        "extraction": 1.0,
+        "context": 1.0
+      }
+    },
+    "docling": {
+      "table_questions": 5,
+      "anchors_lost_in_extraction": 0,
+      "lost": []
+    },
+    "lost_in_extraction": [],
+    "found_but_not_in_context": [
+      "cross-platform-obligations",
+      "identifier-catalog-number",
+      "identifier-usc-citation"
+    ]
+  },
+  "results": [
+    {
+      "question_id": "gdpr-breach-deadline",
+      "type": "factual",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 1,
+      "anchors": [
+        "72 hours after having become aware"
+      ]
+    },
+    {
+      "question_id": "gdpr-right-to-erasure",
+      "type": "factual",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 1,
+      "anchors": [
+        "Right to erasure"
+      ]
+    },
+    {
+      "question_id": "gdpr-personal-data-definition",
+      "type": "factual",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 1,
+      "anchors": [
+        "\u2018personal data\u2019 means"
+      ]
+    },
+    {
+      "question_id": "gdpr-data-portability",
+      "type": "factual",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 1,
+      "anchors": [
+        "Right to data portability"
+      ]
+    },
+    {
+      "question_id": "gdpr-dpo",
+      "type": "factual",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 2,
+      "anchors": [
+        "Designation of the data protection officer"
+      ]
+    },
+    {
+      "question_id": "aiact-social-scoring",
+      "type": "factual",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 2,
+      "anchors": [
+        "social scoring"
+      ]
+    },
+    {
+      "question_id": "aiact-prohibited-practices",
+      "type": "factual",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 1,
+      "anchors": [
+        "shall be prohibited"
+      ]
+    },
+    {
+      "question_id": "dsa-trusted-flaggers",
+      "type": "factual",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 4,
+      "anchors": [
+        "status of trusted flagger"
+      ]
+    },
+    {
+      "question_id": "attention-optimizer",
+      "type": "factual",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 1,
+      "anchors": [
+        "Adamoptimizer"
+      ]
+    },
+    {
+      "question_id": "attention-multihead",
+      "type": "factual",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 3,
+      "anchors": [
+        "MultiHead"
+      ]
+    },
+    {
+      "question_id": "bert-pretraining",
+      "type": "factual",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 3,
+      "anchors": [
+        "masked language model"
+      ]
+    },
+    {
+      "question_id": "rag-knowledge-source",
+      "type": "factual",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 4,
+      "anchors": [
+        "vectorindexofWikipedia"
+      ]
+    },
+    {
+      "question_id": "rag-retriever",
+      "type": "factual",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 1,
+      "anchors": [
+        "DensePassageRetriever"
+      ]
+    },
+    {
+      "question_id": "irs-social-security-rate",
+      "type": "factual",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 1,
+      "anchors": [
+        "6.2%"
+      ]
+    },
+    {
+      "question_id": "boe-bank-rate",
+      "type": "factual",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 3,
+      "anchors": [
+        "this is Bank Rate"
+      ]
+    },
+    {
+      "question_id": "cross-eu-extraterritorial",
+      "type": "cross-document",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 5,
+      "anchors": [
+        "controller not established in the Union",
+        "located in a third country"
+      ]
+    },
+    {
+      "question_id": "cross-transformer-lineage",
+      "type": "cross-document",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 2,
+      "anchors": [
+        "MultiHead",
+        "deep bidirectional Transformer"
+      ]
+    },
+    {
+      "question_id": "cross-retrieval-vs-pretraining",
+      "type": "cross-document",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 1,
+      "anchors": [
+        "DensePassageRetriever",
+        "Bidirectional Encoder Representations"
+      ]
+    },
+    {
+      "question_id": "cross-platform-obligations",
+      "type": "cross-document",
+      "extracted": true,
+      "in_context": false,
+      "context_rank": null,
+      "anchors": [
+        "status of trusted flagger",
+        "provider of a high-risk AI system"
+      ]
+    },
+    {
+      "question_id": "cross-payroll-and-return",
+      "type": "cross-document",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 3,
+      "anchors": [
+        "6.2%",
+        "Standard Deduction Worksheet"
+      ]
+    },
+    {
+      "question_id": "table-attention-bleu",
+      "type": "table",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 1,
+      "anchors": [
+        "28.4"
+      ]
+    },
+    {
+      "question_id": "table-attention-training-cost",
+      "type": "table",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 1,
+      "anchors": [
+        "GNMT"
+      ]
+    },
+    {
+      "question_id": "table-irs-medicare",
+      "type": "table",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 2,
+      "anchors": [
+        "1.45%"
+      ]
+    },
+    {
+      "question_id": "table-boe-cpi",
+      "type": "table",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 1,
+      "anchors": [
+        "CPI inflation is projected"
+      ]
+    },
+    {
+      "question_id": "table-form-1040-status",
+      "type": "table",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 1,
+      "anchors": [
+        "Filing Status"
+      ]
+    },
+    {
+      "question_id": "identifier-catalog-number",
+      "type": "identifier",
+      "extracted": true,
+      "in_context": false,
+      "context_rank": null,
+      "anchors": [
+        "10000W"
+      ]
+    },
+    {
+      "question_id": "identifier-omb-number",
+      "type": "identifier",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 1,
+      "anchors": [
+        "1545-0074"
+      ]
+    },
+    {
+      "question_id": "identifier-regulation-2016-679",
+      "type": "identifier",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 1,
+      "anchors": [
+        "2016/679"
+      ]
+    },
+    {
+      "question_id": "identifier-regulation-2022-2065",
+      "type": "identifier",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 1,
+      "anchors": [
+        "2022/2065"
+      ]
+    },
+    {
+      "question_id": "identifier-oj-page",
+      "type": "identifier",
+      "extracted": true,
+      "in_context": true,
+      "context_rank": 1,
+      "anchors": [
+        "L 119/33"
+      ]
+    },
+    {
+      "question_id": "identifier-usc-citation",
+      "type": "identifier",
+      "extracted": true,
+      "in_context": false,
+      "context_rank": null,
+      "anchors": [
+        "23 U.S.C. 101"
+      ]
+    }
+  ]
+}

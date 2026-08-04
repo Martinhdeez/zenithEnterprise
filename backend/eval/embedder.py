@@ -28,16 +28,37 @@ class Embedder(Protocol):
 
 
 class LocalEmbedder:
-    """PyTorch with the MPS backend. For the development machine."""
+    """PyTorch with the MPS backend. For the development machine.
 
-    def encode(self, texts: list[str], batch: int = 16) -> list[list[float]]:
+    The model is loaded once per instance rather than once per call, and that is not a
+    micro-optimisation. Ingestion calls `encode` once with every chunk, so the difference is
+    invisible there — but `LocalQueryEmbedder.embed_query` calls it **once per question**,
+    and the original version therefore reloaded two gigabytes of weights before every
+    query. It is why every per-query latency this harness has ever reported was dominated
+    by model loading, and why F6's 4.8 s and F7's 8.6 s medians were correctly described in
+    both write-ups as meaning nothing.
+    """
+
+    def __init__(self) -> None:
+        self._model: object | None = None
+
+    def _loaded(self) -> object:
         import torch
         from sentence_transformers import SentenceTransformer
 
-        device = "mps" if torch.backends.mps.is_available() else "cpu"
-        model = SentenceTransformer(MODEL, device=device)
-        vectors = model.encode(
-            texts, batch_size=batch, normalize_embeddings=True, show_progress_bar=True
+        if self._model is None:
+            device = "mps" if torch.backends.mps.is_available() else "cpu"
+            self._model = SentenceTransformer(MODEL, device=device)
+        return self._model
+
+    def encode(self, texts: list[str], batch: int = 16) -> list[list[float]]:
+        vectors = self._loaded().encode(  # type: ignore[attr-defined]
+            texts,
+            batch_size=batch,
+            normalize_embeddings=True,
+            # Off for a single query: a progress bar per question buries the actual output
+            # of a 36-question run under 36 finished bars.
+            show_progress_bar=len(texts) > 1,
         )
         return [vector.tolist() for vector in vectors]
 
