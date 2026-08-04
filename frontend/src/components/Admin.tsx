@@ -15,10 +15,12 @@ import { useCallback, useEffect, useState } from "react";
 
 import {
   ApiError,
+  inviteUser,
   llmConfig,
   roles as fetchRoles,
   saveLlmConfig,
   setRolePermissions,
+  type Invitation,
   type LlmConfig,
   type Role,
 } from "../api/client";
@@ -26,9 +28,104 @@ import {
 export function Admin({ token }: { token: string }) {
   return (
     <div className="space-y-8">
+      <InvitePanel token={token} />
       <RolePanel token={token} />
       <LlmPanel token={token} />
     </div>
+  );
+}
+
+function InvitePanel({ token }: { token: string }) {
+  const [email, setEmail] = useState("");
+  const [roleId, setRoleId] = useState("");
+  const [available, setAvailable] = useState<Role[]>([]);
+  const [issued, setIssued] = useState<Invitation | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void fetchRoles(token)
+      .then(setAvailable)
+      .catch(() => setAvailable([]));
+  }, [token]);
+
+  return (
+    <section className="space-y-3">
+      <h2 className="font-semibold">Invite a colleague</h2>
+
+      <form
+        onSubmit={async (event) => {
+          event.preventDefault();
+          setError(null);
+          try {
+            setIssued(await inviteUser(token, email, roleId ? [roleId] : []));
+            setEmail("");
+          } catch (caught) {
+            // Shown verbatim: "that address is already a user here" is actionable, and a
+            // generic failure is not.
+            setError(caught instanceof ApiError ? caught.message : "The invitation failed.");
+          }
+        }}
+        className="flex max-w-lg flex-wrap items-end gap-2 text-sm"
+      >
+        <label className="flex-1">
+          Email
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+            className="mt-1 w-full rounded border border-slate-300 px-2 py-1"
+          />
+        </label>
+        <label>
+          Role
+          <select
+            value={roleId}
+            onChange={(event) => setRoleId(event.target.value)}
+            className="mt-1 rounded border border-slate-300 px-2 py-1"
+          >
+            <option value="">none</option>
+            {available.map((role) => (
+              <option key={role.id} value={role.id}>
+                {role.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="submit" className="rounded bg-slate-900 px-3 py-1 text-white">
+          Invite
+        </button>
+      </form>
+
+      {error && (
+        <p role="alert" className="text-sm text-red-800">
+          {error}
+        </p>
+      )}
+
+      {issued && (
+        // The password is returned once and is not recoverable, so the dialog says so
+        // rather than presenting it as an ordinary field. An administrator who closes this
+        // without copying it has to invite again — which is cheap, but only if they know.
+        <div className="max-w-lg rounded-md border border-amber-300 bg-amber-50 p-3 text-sm">
+          <p className="font-medium">{issued.email} can now sign in.</p>
+          <p className="mt-1">
+            Password: <code className="rounded bg-white px-1 py-0.5">{issued.password}</code>
+          </p>
+          <p className="mt-2 text-amber-900">
+            This is shown once and cannot be retrieved. Copy it now and pass it on the way
+            you already share credentials.
+          </p>
+          <button
+            type="button"
+            onClick={() => setIssued(null)}
+            className="mt-2 rounded border border-amber-400 px-2 py-0.5"
+          >
+            I have copied it
+          </button>
+        </div>
+      )}
+    </section>
   );
 }
 

@@ -150,3 +150,66 @@ async def test_the_last_page_reports_no_cursor(account: Account) -> None:
     page = await HistoryService(profile_with(account, account.member_id, {OWN})).page(limit=10)
 
     assert page.next_cursor is None
+
+
+async def test_the_policy_hides_a_colleagues_history_even_without_the_service(
+    account: Account,
+) -> None:
+    """The assertion that proves the enforcement moved into the database.
+
+    F15 filtered by `user_id` in Python and documented it as the one place application code
+    did security work. Migration 0005 replaced that with a policy — so a raw `SELECT *`,
+    written by somebody who never read `history.py`, must now return nothing. That is the
+    whole difference between a rule and a convention.
+    """
+    from app.core.database import tenant_session
+
+    await log(account.tenant_id, account.admin_id, "what is the redundancy budget?")
+    theirs = TenantContext.for_tenant(
+        account.tenant_id,
+        [account.default_label],
+        user_id=account.member_id,
+        reads_all_history=False,
+    )
+
+    async with tenant_session(theirs) as session:
+        rows = await session.execute(text("SELECT id, question FROM queries"))
+        assert rows.all() == []
+
+
+async def test_an_unbound_user_reads_nothing_rather_than_everything(
+    account: Account,
+) -> None:
+    """Failing closed, in the same direction as every other policy here.
+
+    `zenith.user_id` unset is NULL, and `user_id = NULL` is never true. A session that
+    forgets to bind the caller — a background job, a future code path — sees no history at
+    all, which is the safe half of the mistake.
+    """
+    from app.core.database import tenant_session
+
+    await log(account.tenant_id, account.member_id, "a question")
+    unbound = TenantContext.for_tenant(account.tenant_id, [account.default_label])
+
+    async with tenant_session(unbound) as session:
+        assert (await session.execute(text("SELECT id FROM queries"))).all() == []
+
+
+async def test_citations_of_an_unreadable_query_are_unreadable_too(
+    account: Account,
+) -> None:
+    """`query_citations` needed no change: its policy is `EXISTS (SELECT 1 FROM queries…)`,
+    which applies the parent's policy in turn. That is why derived policies were written
+    that way in migration 0001, and this is the first time it has paid off."""
+    from app.core.database import tenant_session
+
+    query_id = await log(account.tenant_id, account.admin_id, "private", citations=1)
+    theirs = TenantContext.for_tenant(
+        account.tenant_id, [account.default_label], user_id=account.member_id
+    )
+
+    async with tenant_session(theirs) as session:
+        rows = await session.execute(
+            text("SELECT chunk_id FROM query_citations WHERE query_id = :q"), {"q": query_id}
+        )
+        assert rows.all() == []

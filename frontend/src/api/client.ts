@@ -218,3 +218,30 @@ export function saveLlmConfig(
     body: JSON.stringify(config),
   });
 }
+
+
+export interface Invitation {
+  user_id: string;
+  email: string;
+  /**
+   * Shown exactly once and not recoverable.
+   *
+   * There is no mail server on an on-premise install, so the administrator passes this on
+   * however they already pass on credentials. The UI must therefore make it obvious that
+   * closing the dialog loses it.
+   */
+  password: string;
+  role_ids: string[];
+}
+
+export function inviteUser(
+  token: string,
+  email: string,
+  roleIds: string[],
+): Promise<Invitation> {
+  return request<Invitation>("/users/invite", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, role_ids: roleIds }),
+  });
+}

@@ -133,6 +133,17 @@ async def set_rls_context(session: AsyncSession, context: "TenantContext") -> No
         text("SELECT set_config('zenith.label_ids', :labels, true)"),
         {"labels": ",".join(str(label) for label in context.label_ids)},
     )
+    # Bound even when absent: an empty string becomes NULL in `zenith_current_user_id()`,
+    # and `user_id = NULL` is never true. A context that forgets the user reads nothing
+    # rather than everything, which is the direction every policy here fails in.
+    await session.execute(
+        text("SELECT set_config('zenith.user_id', :user_id, true)"),
+        {"user_id": str(context.user_id) if context.user_id else ""},
+    )
+    await session.execute(
+        text("SELECT set_config('zenith.reads_all_history', :reads_all, true)"),
+        {"reads_all": "true" if context.reads_all_history else "false"},
+    )
     await session.execute(text(f"SET LOCAL statement_timeout = {settings.statement_timeout_ms}"))
     # Recorded on the session so the base repository can demand a context without
     # paying an extra round trip to check for one.

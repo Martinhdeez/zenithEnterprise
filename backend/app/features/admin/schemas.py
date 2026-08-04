@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 
 class RoleResponse(BaseModel):
@@ -40,3 +40,20 @@ class LlmConfigRequest(BaseModel):
     model_name: str = Field(min_length=1)
     #: Omit to keep the stored key; send "" to clear it.
     api_key: str | None = None
+
+
+class InviteRequest(BaseModel):
+    email: EmailStr
+    #: Roles the new user starts with. Empty is valid — a user who can sign in and do
+    #: nothing is a legitimate intermediate state while somebody is being onboarded.
+    role_ids: list[UUID] = Field(default_factory=list[UUID])
+
+
+class InviteResponse(BaseModel):
+    user_id: UUID
+    email: str
+    #: **Returned exactly once.** Never stored in the clear, never logged, not recoverable.
+    #: There is no email server on an on-premise install to send it, so the administrator
+    #: passes it on the way they already pass on credentials.
+    password: str
+    role_ids: list[UUID]

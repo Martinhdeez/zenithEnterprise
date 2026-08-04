@@ -44,9 +44,41 @@ signal was added: one query ANDing only identifier-shaped lexemes. Context ceili
 
 Every number above is from `eval/`, against 19,533 chunks of real public documents.
 
-## Not taken
+## Not taken — BM25 via `pg_search`, and why it cannot be
 
-**BM25 via `pg_search`.** ParadeDB ships it and it fixes the IDF class properly rather than
-case by case — the `score_bm25` column is named for that plan. It is a re-measurement of all
-36 questions with recall risk in both directions, and it deserves its own milestone rather
-than arriving inside a bug fix.
+**Attempted and reverted in F18. It is incompatible with ADR 0001.**
+
+BM25 does fix the IDF class properly: with a `bm25` index on `chunks`, the identifier that
+`ts_rank_cd` ranked 52nd ranks **1st**, and the U.S.C. citation moves from unfound to
+**40th** — inside the candidate set — with no custom identifier query at all. Measured on
+the real 19,533-chunk corpus.
+
+**It cannot supply a score under row-level security.** `paradedb.score(id)` produces a value
+only when ParadeDB's custom scan executes. With the RLS policies on `chunks` in force, the
+planner uses the tenant and label b-tree indexes and applies `@@@` as an ordinary
+**filter**:
+
+```
+Bitmap Heap Scan on chunks
+  Filter: (id @@@ '{"with_index":...}'::paradedb.searchqueryinput)
+    Bitmap Index Scan on ix_chunks_tenant_id
+    Bitmap Index Scan on ix_chunks_label_ids
+```
+
+The rows come back correctly filtered — isolation is never at risk — but every score is
+`NULL`. Ranking by a NULL score ranks everything equally, which is a *silent* degradation:
+search keeps answering, and answers worse, with nothing to indicate it.
+
+Coaxing the planner (`enable_bitmapscan = off`) is not an answer. Correctness would then
+depend on a plan choice, and the failure mode when the plan changes is the silent one
+above — exactly what this project refuses everywhere else.
+
+**Consequence for ADR 0001:** RLS-first is not free, and this is the first place its cost is
+visible. The isolation guarantee is worth more than the ranker; if BM25 is ever revisited it
+needs either a `pg_search` version whose custom scan composes with RLS quals, or a design
+where the lexical index is queried in a context that has no policies to satisfy — and the
+second would mean adding a bypass route, which ADR 0001 permits only for a security
+guarantee and never for ergonomics.
+
+F15's identifier query stands as the shipped answer. It is narrower, and it works inside the
+architecture rather than against it.

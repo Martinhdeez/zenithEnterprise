@@ -9,7 +9,7 @@ thinks, and the log is written afterwards in its own short transaction.
 
 import time
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from uuid import UUID
 
 import structlog
@@ -251,7 +251,12 @@ class AnswerService:
         caller's. The value is passed from the context rather than from anything the request
         supplied.
         """
-        async with tenant_session(self.context) as session:
+        # Scoped with the author. Migration 0005's policy has `WITH CHECK` as well as
+        # `USING`, so a query row may only be written by the user it belongs to — which
+        # means the writer must bind itself, exactly as the reader does. Without this the
+        # insert is refused, which is the policy working: a row nobody could subsequently
+        # read is not a row worth writing.
+        async with tenant_session(replace(self.context, user_id=self.profile.user_id)) as session:
             query_id = await session.scalar(
                 text(
                     "INSERT INTO queries (tenant_id, user_id, question, answer, model_used, "

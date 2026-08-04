@@ -186,7 +186,11 @@ async def test_the_query_log_is_tenant_scoped(account: Account) -> None:
         )
         assert rows.first() is None
 
-    async with tenant_session(TenantContext.for_tenant(account.tenant_id)) as session:
+    # Bound with the author, because migration 0005 made `queries` private per user as well
+    # as per tenant: a context that names the tenant but not the reader now sees nothing,
+    # which is the point of that migration and is asserted directly in `test_history.py`.
+    reader = TenantContext.for_tenant(account.tenant_id, user_id=account.admin_id)
+    async with tenant_session(reader) as session:
         rows = await session.execute(
             text("SELECT id FROM queries WHERE id = :q"), {"q": result.query_id}
         )

@@ -16,12 +16,15 @@ from fastapi import APIRouter, Depends, status
 
 from app.features.admin.schemas import (
     AssignRolesRequest,
+    InviteRequest,
+    InviteResponse,
     LlmConfigRequest,
     LlmConfigResponse,
     RoleRequest,
     RoleResponse,
 )
 from app.features.auth.dependencies import CurrentProfile, requires
+from app.features.auth.invitations import INVITE, InvitationService
 from app.features.auth.roles import MANAGE as ROLES_MANAGE
 from app.features.auth.roles import RoleService
 from app.features.generation.config_service import MANAGE as LLM_MANAGE
@@ -141,3 +144,31 @@ async def set_llm_config(profile: CurrentProfile, request: LlmConfigRequest) -> 
 )
 async def clear_llm_config(profile: CurrentProfile) -> None:
     await LlmConfigService(profile).clear()
+
+
+@router.post(
+    "/users/invite",
+    operation_id="inviteUser",
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a user and return their password once",
+    responses={
+        404: {"description": "A role that does not exist in this tenant"},
+        409: {"description": "That address is already a user here"},
+    },
+    dependencies=[Depends(requires(INVITE))],
+)
+async def invite_user(profile: CurrentProfile, request: InviteRequest) -> InviteResponse:
+    """No email is sent, and the password is shown exactly once.
+
+    This product ships into networks that frequently have no outbound SMTP, so requiring a
+    mail server to add a colleague would make the feature undeployable precisely where the
+    product is sold. The API generates the password, returns it in this response, and never
+    stores or logs it in the clear — the same decision the install CLI made, for the same
+    reason.
+
+    The cost is written down rather than glossed: a password passed through a chat message
+    is a password in a chat log. An invitation token with a set-password page is the proper
+    answer and needs a public unauthenticated route and a token table.
+    """
+    invitation = await InvitationService(profile).invite(request.email, request.role_ids)
+    return InviteResponse(**asdict(invitation))
