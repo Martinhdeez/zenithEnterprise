@@ -68,15 +68,29 @@ class SlidingWindowLimiter:
     def allow(self, key: str) -> bool:
         now = self._clock()
         self._evict(now)
-
-        hits = self._hits.setdefault(key, deque())
-        while hits and now - hits[0] > self._window:
-            hits.popleft()
+        hits = self._fresh(key, now)
 
         if len(hits) >= self._limit:
             return False
         hits.append(now)
         return True
+
+    def would_allow(self, key: str) -> bool:
+        """Whether `allow` would succeed, without spending the allowance.
+
+        Needed wherever two limits guard one request: checking the second after the first
+        has already recorded a hit charges the caller for a request the second then
+        refuses, so a user near their limit would be penalised by their colleagues' traffic.
+        """
+        now = self._clock()
+        return len(self._fresh(key, now)) < self._limit
+
+    def _fresh(self, key: str, now: float) -> deque[float]:
+        """This key's hits, with everything outside the window discarded."""
+        hits = self._hits.setdefault(key, deque())
+        while hits and now - hits[0] > self._window:
+            hits.popleft()
+        return hits
 
     def _evict(self, now: float) -> None:
         """Drop keys with nothing left in the window.

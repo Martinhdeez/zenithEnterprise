@@ -1,2 +1,6 @@
 node_modules/
 dist/
+
+# TypeScript's incremental build cache. Machine-specific and regenerated on every
+# build; it reached main once because `tsc -b` writes it next to the config.
+tsconfig.tsbuildinfo
