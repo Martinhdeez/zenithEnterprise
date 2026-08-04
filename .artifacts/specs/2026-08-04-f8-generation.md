@@ -31,27 +31,83 @@ question ─► SearchService ─► hits[1..n]  ─► prompt ─► connector 
 Four new modules under `features/generation/`, one new router under `features/query/`.
 Nothing in `retrieval/` changes behaviour — it changes what it *reports*, which is §4.
 
-## 2. The connector is pluggable, and the folder is not named after a vendor
+## 2. The connector: an enforced boundary, not a convention
 
-`mvp.md` §5.1 settled this in advance: the package is `generation/` with
-`adapters/openai_compatible.py` inside it. A folder called `openai/` starts lying the day a
-customer plugs in Bedrock, and it drags vendor names into code that should not know any.
+This is a product sold on-premise and maintained for years, so the requirement is stronger
+than "we could swap the model": **swapping it must be a configuration change, never a
+refactor.** That holds only if a vendor's types cannot reach the application layer, and
+that is a layering rule — the kind that survives exactly as long as the first person in a
+hurry, unless something enforces it.
 
-```python
-class Connector(Protocol):
-    async def complete(self, system: str, user: str) -> Completion: ...
+```
+app/common/llm.py            ← the contract. BaseLLMProvider, GenerationResponse,
+   ▲                            ChunkCitation, GenerationUnavailableError
+   │  no vendor type crosses this line
+   │
+app/features/generation/
+   adapters/openai_compatible.py   OpenAIProvider   ─┐ the only modules allowed
+   adapters/mock.py                MockProvider     ─┘ to know a vendor's JSON
+   providers.py                    the registry
+   service.py, citations.py        application layer — sees only the contract
 ```
 
-`Completion` carries `text` and `model`. That is the whole interface. It is deliberately
-narrower than any vendor's API: everything the SDKs offer beyond this — tools, JSON mode,
-logprobs — is a thing one vendor has and another does not, and the moment the interface
-carries it, "pluggable" stops being true.
+**The interface is an ABC, not a Protocol.** A Protocol is checked at the call site, so an
+adapter that drifts from the contract fails wherever it happens to be used — or does not
+fail at all, if the drift widens a return type. The ABC fails at construction, in the
+adapter's own tests, where the person writing it is looking.
+
+```python
+class BaseLLMProvider(ABC):
+    name: str                       # how ZENITH_LLM_PROVIDER selects it
+    async def complete(self, system: str, user: str) -> GenerationResponse: ...
+```
+
+Two strings in, a `GenerationResponse` out. Deliberately narrower than any vendor's API:
+tools, JSON mode, logprobs, cached-token counts — each is something one provider has and
+another does not, and a field for any of them would be `None` on half the installations and
+load-bearing on the other half.
+
+**The DTOs are ours.** `GenerationResponse` and `ChunkCitation` are defined in the domain
+layer and are what every layer above the adapter speaks. `test_no_vendor_type_crosses_the_
+boundary` inspects `complete`'s signature on every registered provider, because the usual
+way this rots is a "temporary" passthrough of a vendor response for token counts.
+
+**Errors are translated too.** An `httpx.ConnectError` reaching the router would be a
+vendor detail crossing the boundary just as surely as a response object, and it would
+arrive as a 500. Every adapter raises `GenerationUnavailableError` instead.
+
+**Two implementations, both shipped.** `OpenAIProvider` and `MockProvider` — the second is
+not test scaffolding. An abstraction with one implementation is a guess; nothing proves
+`BaseLLMProvider` is general until something other than an HTTP client satisfies it. It
+also lets `zenith diagnose` and a first install answer a question before an LLM is
+configured, which is what separates *is retrieval working?* from *is the model reachable?*
+when both are new. The generation tests use it rather than a local stub, so every one of
+them is also a check that the interface has more than one member.
+
+**The class is `OpenAIProvider`; the module is `openai_compatible.py`.** Worth keeping
+apart. The protocol is OpenAI's, the servers speaking it here are mostly Ollama and vLLM,
+and `mvp.md` §5.1 already ruled that no *folder* may be named after a vendor — a tree that
+reads `adapters/openai/` tells the next maintainer this codebase talks to one company.
+
+### Selection is configuration
+
+`ZENITH_LLM_PROVIDER` picks the adapter, `ZENITH_LLM_ENDPOINT_URL` and `ZENITH_LLM_MODEL`
+the target. The registry in `providers.py` is a plain dict keyed by `BaseLLMProvider.name`:
+adding Anthropic or Bedrock is an adapter plus one line, and nothing else changes. It is
+deliberately not a plugin system that discovers classes at runtime — the set of providers
+an installation can be pointed at is a fact the codebase states.
+
+An unknown provider name **fails with the list of valid ones** rather than falling back to
+a default. A typo that silently selected something would be a model swap nobody ordered,
+and `queries.model_used` would be the only place it ever showed.
 
 **Resolution order**, per request:
 
 1. The tenant's `llm_config` row, read inside `tenant_session` — its RLS policy is
    `tenant_id = zenith_current_tenant()`, so no bypass is needed and the bypass surface
-   stays at four routes.
+   stays at four routes. A tenant configures an **endpoint and a model, never an adapter**:
+   which adapter speaks to that endpoint is an operator's decision about the installation,
+   not a customer's about their account.
 2. Environment defaults (`ZENITH_LLM_*`) when the tenant has not configured one. This is
    the development and CI path, and it is what §5.4 fixed to **Llama 3.1 8B Instruct via
    Ollama** — the floor, not the ceiling. A citation format that survives an 8B model
@@ -134,6 +190,9 @@ the rank in the same row has to mean the same thing.
 5. `queries` and `query_citations` carry the four scores, and RLS keeps them tenant-scoped
    — asserted from another tenant's session.
 6. No new RLS bypass. The grep for `owner_session` returns the same four routes.
+7. **The boundary holds as a test, not a docstring.** Every registered provider subclasses
+   `BaseLLMProvider`, names itself, and returns `GenerationResponse` — checked by
+   inspecting the signature, so a vendor type appearing there fails the build.
 
 ## 6. Recorded as out of scope
 

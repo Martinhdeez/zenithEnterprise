@@ -64,6 +64,11 @@ class Settings(BaseSettings):
     # by the person storing a key.
     encryption_key: str = ""
 
+    # Which adapter runs. Names come from `BaseLLMProvider.name`; the registry in
+    # `features/generation/providers.py` refuses an unknown value with the valid list
+    # rather than falling back to a default nobody chose.
+    llm_provider: str = "openai"
+
     # The generation connector's fallback, used when a tenant has not configured its own
     # `llm_config` row. This is the development and CI path, and mvp.md 5.4 fixed it to
     # Llama 3.1 8B Instruct via Ollama: a citation format that survives an 8B model

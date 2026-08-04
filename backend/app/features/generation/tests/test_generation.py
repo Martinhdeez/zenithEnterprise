@@ -10,10 +10,11 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy import text
 
+from app.common.llm import GenerationUnavailableError
 from app.core.database import owner_session
 from app.features.auth.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
-from app.features.generation.connector import Completion, GenerationUnavailableError
+from app.features.generation.adapters.mock import MockProvider
 from app.features.generation.prompt import ABSTENTION
 from app.features.generation.service import AnswerService
 from app.features.retrieval.service import SearchService
@@ -25,28 +26,16 @@ from conftest import Account
 QUESTION = "What must the controller implement?"
 
 
-class StubModel:
-    """A model that answers with whatever it was told to, and remembers what it was asked.
-
-    Deliberately not a real model: what is under test is the binding and the log, and those
-    have to hold for *any* text a model produces — including the texts a good model never
-    writes, which are exactly the ones worth testing.
-    """
-
-    def __init__(self, answer: str) -> None:
-        self.answer = answer
-        self.system: str | None = None
-        self.user: str | None = None
-
-    async def complete(self, system: str, user: str) -> Completion:
-        self.system, self.user = system, user
-        return Completion(text=self.answer, model="stub-8b")
+# `MockProvider` rather than a stub defined here, deliberately: it is the shipped second
+# implementation of `BaseLLMProvider`, so every test in this file is also a check that the
+# abstraction has more than one member. A local stub would let the interface drift and the
+# drift would only surface when a real second provider was written.
 
 
-async def answering(account: Account, model: StubModel, labels: list[UUID] | None = None):
+async def answering(account: Account, model: MockProvider, labels: list[UUID] | None = None):
     profile = await profile_for(account)
     search = SearchService(profile, embedder=WorkingEmbedder())  # type: ignore[arg-type]
-    return await AnswerService(profile, connector=model, search=search).answer(QUESTION, labels)
+    return await AnswerService(profile, provider=model, search=search).answer(QUESTION, labels)
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,7 +75,7 @@ async def citations_of(query_id: UUID) -> list[StoredCitation]:
 async def test_an_answer_cites_a_passage_that_was_actually_retrieved(account: Account) -> None:
     await seed(account.tenant_id, account.default_label)
 
-    result = await answering(account, StubModel("Technical measures for data protection [1]."))
+    result = await answering(account, MockProvider(["Technical measures for data protection [1]."]))
 
     assert result.abstained is False
     assert len(result.citations) == 1
@@ -99,7 +88,7 @@ async def test_the_four_score_columns_are_populated_with_real_numbers(account: A
     someone can answer *why did this query return garbage*. F6 and F7 filled none of them."""
     await seed(account.tenant_id, account.default_label)
 
-    result = await answering(account, StubModel("Measures [1]."))
+    result = await answering(account, MockProvider(["Measures [1]."]))
     stored = await citations_of(result.query_id)
 
     assert len(stored) == 1
@@ -116,7 +105,7 @@ async def test_only_the_cited_passages_are_logged(account: Account) -> None:
     describe the shortlist rather than the answer."""
     await seed(account.tenant_id, account.default_label)
 
-    result = await answering(account, StubModel("Only the first one matters [1]."))
+    result = await answering(account, MockProvider(["Only the first one matters [1]."]))
     stored = await citations_of(result.query_id)
 
     assert len(result.consulted) > 1
@@ -129,7 +118,7 @@ async def test_a_fabricated_citation_never_reaches_the_answer_or_the_log(
     """The 0% gate, at the level where it is visible to a customer."""
     await seed(account.tenant_id, account.default_label)
 
-    result = await answering(account, StubModel("The penalty is 4% of turnover [99]."))
+    result = await answering(account, MockProvider(["The penalty is 4% of turnover [99]."]))
     stored = await citations_of(result.query_id)
 
     assert "[99]" not in result.answer
@@ -139,7 +128,7 @@ async def test_a_fabricated_citation_never_reaches_the_answer_or_the_log(
 async def test_an_uncited_answer_becomes_an_abstention(account: Account) -> None:
     await seed(account.tenant_id, account.default_label)
 
-    result = await answering(account, StubModel("Controllers must do the right thing."))
+    result = await answering(account, MockProvider(["Controllers must do the right thing."]))
 
     assert result.abstained is True
     assert result.answer == ABSTENTION
@@ -151,13 +140,13 @@ async def test_an_empty_corpus_abstains_without_calling_the_model(account: Accou
     would be asking it to write from its own knowledge — the one thing the prompt forbids —
     and would cost a minute to produce something this system must then refuse to show.
     """
-    model = StubModel("I happen to know the answer anyway.")
+    model = MockProvider(["I happen to know the answer anyway."])
 
     result = await answering(account, model)
 
     assert result.abstained is True
     assert result.consulted == []
-    assert model.user is None, "the model must not have been called at all"
+    assert model.calls == [], "the model must not have been called at all"
 
 
 async def test_the_model_is_shown_only_passages_this_caller_may_read(account: Account) -> None:
@@ -172,13 +161,13 @@ async def test_the_model_is_shown_only_passages_this_caller_may_read(account: Ac
         context=TenantContext.for_tenant(account.tenant_id, [account.default_label]),
         permissions=frozenset(CATALOGUE),
     )
-    model = StubModel("Anything [1].")
+    model = MockProvider(["Anything [1]."])
     search = SearchService(narrow, embedder=WorkingEmbedder())  # type: ignore[arg-type]
 
-    result = await AnswerService(narrow, connector=model, search=search).answer(QUESTION)
+    result = await AnswerService(narrow, provider=model, search=search).answer(QUESTION)
 
     assert result.consulted == []
-    assert model.user is None, "the model was never given the finance passages"
+    assert model.calls == [], "the model was never given the finance passages"
     assert result.abstained is True
 
 
@@ -187,7 +176,7 @@ async def test_the_query_log_is_tenant_scoped(account: Account) -> None:
     readable across tenants would be a worse leak than the documents, because it contains
     the questions people asked."""
     await seed(account.tenant_id, account.default_label)
-    result = await answering(account, StubModel("Measures [1]."))
+    result = await answering(account, MockProvider(["Measures [1]."]))
 
     from app.core.database import tenant_session
 

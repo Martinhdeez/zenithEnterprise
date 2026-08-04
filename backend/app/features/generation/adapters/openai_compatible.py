@@ -6,9 +6,16 @@ rather than by a committee, and that is exactly why it is the right thing to tar
 on-premise product: it is the format a customer's existing infrastructure most likely
 already exposes.
 
+The class is `OpenAIProvider` and the module is `openai_compatible` — the distinction is
+worth keeping. The protocol is OpenAI's; the servers speaking it here are mostly not
+OpenAI, and the module name is what stops someone reading the tree from concluding this
+codebase talks to one vendor. mvp.md 5.1 made the same call about the folder.
+
 No vendor SDK. `httpx` is already a dependency, the request is one JSON object, and a
 vendor SDK would drag in its own retry policy, its own timeout defaults and its own opinion
-about environment variables — three things this codebase has decided for itself.
+about environment variables — three things this codebase has decided for itself. It would
+also put a vendor's response type one import away from the application layer, which is the
+line `common/llm.py` exists to hold.
 """
 
 from typing import cast
@@ -16,7 +23,7 @@ from typing import cast
 import httpx
 import structlog
 
-from app.features.generation.connector import Completion, GenerationUnavailableError
+from app.common.llm import BaseLLMProvider, GenerationResponse, GenerationUnavailableError
 
 log = structlog.get_logger()
 
@@ -31,7 +38,9 @@ TIMEOUT = 120.0
 TEMPERATURE = 0.1
 
 
-class OpenAiCompatible:
+class OpenAIProvider(BaseLLMProvider):
+    name = "openai"
+
     def __init__(
         self,
         endpoint_url: str,
@@ -44,7 +53,7 @@ class OpenAiCompatible:
         self.api_key = api_key
         self.transport = transport
 
-    async def complete(self, system: str, user: str) -> Completion:
+    async def complete(self, system: str, user: str) -> GenerationResponse:
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
         try:
             async with httpx.AsyncClient(timeout=TIMEOUT, transport=self.transport) as client:
@@ -61,6 +70,9 @@ class OpenAiCompatible:
                     },
                 )
         except httpx.HTTPError as exc:
+            # Translated here rather than allowed to propagate. An `httpx.ConnectError`
+            # reaching the router is a vendor detail crossing the boundary just as surely
+            # as a response object would be, and it would arrive as a 500.
             raise GenerationUnavailableError(
                 f"the language model at {self.endpoint_url} could not be reached "
                 f"({type(exc).__name__})."
@@ -78,7 +90,13 @@ class OpenAiCompatible:
                 f"model name and key configured for this tenant."
             )
 
-        return Completion(text=_first_message(response.json()), model=self.model)
+        payload: object = response.json()
+        return GenerationResponse(
+            text=_first_message(payload),
+            # What the server says it ran, falling back to what we asked for. A gateway
+            # substituting a model silently is exactly what `queries.model_used` is for.
+            model=_model_of(payload) or self.model,
+        )
 
 
 def _first_message(payload: object) -> str:
@@ -99,6 +117,11 @@ def _first_message(payload: object) -> str:
     if not isinstance(content, str):
         raise GenerationUnavailableError("the endpoint answered with no message content.")
     return content
+
+
+def _model_of(payload: object) -> str | None:
+    model = _field(payload, "model")
+    return model if isinstance(model, str) else None
 
 
 def _field(value: object, key: str) -> object:

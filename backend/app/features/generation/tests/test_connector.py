@@ -3,12 +3,12 @@
 import httpx
 import pytest
 
-from app.features.generation.adapters.openai_compatible import TEMPERATURE, OpenAiCompatible
-from app.features.generation.connector import GenerationUnavailableError
+from app.common.llm import GenerationUnavailableError
+from app.features.generation.adapters.openai_compatible import TEMPERATURE, OpenAIProvider
 
 
-def connector(handler: object, api_key: str | None = None) -> OpenAiCompatible:
-    return OpenAiCompatible(
+def provider(handler: object, api_key: str | None = None) -> OpenAIProvider:
+    return OpenAIProvider(
         endpoint_url="http://model/v1",
         model="llama3.1:8b",
         api_key=api_key,
@@ -33,7 +33,7 @@ async def test_it_speaks_the_shape_every_local_server_already_speaks() -> None:
         captured["path"] = request.url.path
         return httpx.Response(200, json={"choices": [{"message": {"content": "answer [1]"}}]})
 
-    completion = await connector(handler).complete("system rules", "the passages")
+    completion = await provider(handler).complete("system rules", "the passages")
 
     assert captured["path"] == "/v1/chat/completions"
     assert captured["messages"] == [
@@ -54,8 +54,8 @@ async def test_the_api_key_is_sent_only_when_there_is_one() -> None:
         seen.append(request.headers.get("authorization"))
         return httpx.Response(200, json={"choices": [{"message": {"content": "x [1]"}}]})
 
-    await connector(handler).complete("s", "u")
-    await connector(handler, api_key="sk-secret").complete("s", "u")
+    await provider(handler).complete("s", "u")
+    await provider(handler, api_key="sk-secret").complete("s", "u")
 
     assert seen == [None, "Bearer sk-secret"]
 
@@ -65,7 +65,7 @@ async def test_an_unreachable_model_is_a_domain_error_not_a_transport_one() -> N
         raise httpx.ConnectError("connection refused")
 
     with pytest.raises(GenerationUnavailableError, match="could not be reached"):
-        await connector(dead).complete("s", "u")
+        await provider(dead).complete("s", "u")
 
 
 async def test_the_providers_error_body_is_not_forwarded_to_the_user() -> None:
@@ -76,7 +76,7 @@ async def test_the_providers_error_body_is_not_forwarded_to_the_user() -> None:
         return httpx.Response(401, json={"error": {"message": "invalid key sk-secret-value"}})
 
     with pytest.raises(GenerationUnavailableError) as raised:
-        await connector(rejects).complete("s", "u")
+        await provider(rejects).complete("s", "u")
 
     assert "sk-secret-value" not in raised.value.message
     assert "401" in raised.value.message
@@ -90,4 +90,4 @@ async def test_a_200_with_the_wrong_shape_says_what_is_wrong() -> None:
         return httpx.Response(200, json={"status": "ok"})
 
     with pytest.raises(GenerationUnavailableError, match="OpenAI-compatible"):
-        await connector(wrong_shape).complete("s", "u")
+        await provider(wrong_shape).complete("s", "u")

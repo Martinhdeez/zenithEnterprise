@@ -15,14 +15,12 @@ import structlog
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.llm import BaseLLMProvider, ChunkCitation
 from app.core.database import tenant_session
 from app.features.auth.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
 from app.features.generation import citations as binding
-from app.features.generation import prompt
-from app.features.generation.adapters.openai_compatible import OpenAiCompatible
-from app.features.generation.citations import Citation
-from app.features.generation.connector import Connector, GenerationUnavailableError
+from app.features.generation import prompt, providers
 from app.features.generation.crypto import decrypt
 from app.features.retrieval.search import Hit
 from app.features.retrieval.service import SearchService
@@ -43,7 +41,7 @@ PASSAGES = 8
 class Answer:
     query_id: UUID
     answer: str
-    citations: list[Citation]
+    citations: list[ChunkCitation]
     abstained: bool
     # The passages consulted, whether or not any were cited. mvp.md 2.10: an abstention
     # says which documents were looked at — "I found nothing" and "I looked at nothing"
@@ -60,17 +58,17 @@ class AnswerService:
     def __init__(
         self,
         profile: AccessProfile,
-        connector: Connector | None = None,
+        provider: BaseLLMProvider | None = None,
         search: SearchService | None = None,
     ) -> None:
         self.profile = profile
         self.context = profile.context
         self.search = search or SearchService(profile)
-        self._connector = connector
+        self._provider = provider
 
     async def answer(self, question: str, labels: list[UUID] | None = None) -> Answer:
         found = await self.search.search(question, PASSAGES, labels)
-        connector = self._connector or await self._resolve()
+        provider = self._provider or await self._resolve()
 
         if not found.hits:
             # Nothing retrieved, so nothing to ground an answer in. Calling the model here
@@ -81,7 +79,7 @@ class AnswerService:
             model, generation_ms = "", 0
         else:
             started = time.perf_counter()
-            completion = await connector.complete(prompt.SYSTEM, prompt.build(question, found.hits))
+            completion = await provider.complete(prompt.SYSTEM, prompt.build(question, found.hits))
             generation_ms = int((time.perf_counter() - started) * 1000)
             model = completion.model
             bound = binding.bind(completion.text, found.hits)
@@ -113,16 +111,19 @@ class AnswerService:
             took_generation_ms=generation_ms,
         )
 
-    async def _resolve(self) -> Connector:
-        """The tenant's own connector, or the installation's default.
+    async def _resolve(self) -> BaseLLMProvider:
+        """The tenant's own configuration, or the installation's, built by the registry.
+
+        This method reads a row and returns a `Configuration`; `providers.build` decides
+        what class that becomes. The split is what keeps provider selection in one place —
+        otherwise "which adapter runs" would be answered here for tenants and in settings
+        for everyone else, and the two would drift.
 
         Read inside `tenant_session`, so the policy `tenant_id = zenith_current_tenant()`
         does the scoping and the RLS bypass surface stays at the four routes 5.1 names.
         There is nothing here a customer's own session may not read — it is their
         configuration.
         """
-        from app.core.config import settings
-
         async with tenant_session(self.context) as session:
             row = (
                 await session.execute(
@@ -132,22 +133,19 @@ class AnswerService:
                 )
             ).first()
 
-        if row is not None:
-            return OpenAiCompatible(
+        if row is None:
+            return providers.build(providers.from_settings())
+
+        return providers.build(
+            providers.Configuration(
+                # A tenant configures an endpoint and a model, never an adapter: which
+                # adapter speaks to that endpoint is an operator's decision about the
+                # installation, not a customer's about their account.
+                provider=providers.from_settings().provider,
                 endpoint_url=row.endpoint_url,
                 model=row.model_name,
                 api_key=decrypt(row.api_key_encrypted) if row.api_key_encrypted else None,
             )
-
-        if not settings.llm_endpoint_url or not settings.llm_model:
-            raise GenerationUnavailableError(
-                "no language model is configured for this tenant, and no default is set. "
-                "Someone holding llm_config.manage has to configure one."
-            )
-        return OpenAiCompatible(
-            endpoint_url=settings.llm_endpoint_url,
-            model=settings.llm_model,
-            api_key=settings.llm_api_key or None,
         )
 
     async def _record(
@@ -190,7 +188,7 @@ class AnswerService:
 
 
 async def _record_citations(
-    session: AsyncSession, query_id: UUID, citations: list[Citation], hits: list[Hit]
+    session: AsyncSession, query_id: UUID, citations: list[ChunkCitation], hits: list[Hit]
 ) -> None:
     """Only the passages the answer actually used, with the scores that retrieved them.
 

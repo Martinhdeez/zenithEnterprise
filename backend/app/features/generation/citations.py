@@ -20,10 +20,10 @@ the fabrications would simply stop wearing markers.
 
 import re
 from dataclasses import dataclass
-from uuid import UUID
 
 import structlog
 
+from app.common.llm import ChunkCitation
 from app.features.generation.prompt import ABSTENTION
 from app.features.retrieval.search import Hit
 
@@ -37,27 +37,9 @@ MARKER = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
 
 
 @dataclass(frozen=True, slots=True)
-class Citation:
-    """One passage the answer actually leaned on.
-
-    `marker` is the number as it appears in the text, so a viewer can highlight the right
-    bracket; everything else is what a click has to resolve to — the document, the page, and
-    the boxes to draw on it.
-    """
-
-    marker: int
-    chunk_id: UUID
-    document_id: UUID
-    filename: str
-    page_num: int
-    text: str
-    bboxes: list[dict[str, float]]
-
-
-@dataclass(frozen=True, slots=True)
 class Bound:
     answer: str
-    citations: list[Citation]
+    citations: list[ChunkCitation]
     abstained: bool
     # Markers the model invented. Kept as a count rather than dropped silently, because
     # this is the number the RNF-06 certification suite scores a model on, and a model that
@@ -67,7 +49,7 @@ class Bound:
 
 def bind(answer: str, hits: list[Hit]) -> Bound:
     valid = range(1, len(hits) + 1)
-    cited: dict[int, Citation] = {}
+    cited: dict[int, ChunkCitation] = {}
     fabricated = 0
 
     def keep(match: re.Match[str]) -> str:
@@ -106,8 +88,8 @@ def bind(answer: str, hits: list[Hit]) -> Bound:
     )
 
 
-def _citation(marker: int, hit: Hit) -> Citation:
-    return Citation(
+def _citation(marker: int, hit: Hit) -> ChunkCitation:
+    return ChunkCitation(
         marker=marker,
         chunk_id=hit.chunk_id,
         document_id=hit.document_id,
