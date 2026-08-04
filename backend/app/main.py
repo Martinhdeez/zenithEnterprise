@@ -1,6 +1,7 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+import structlog
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
@@ -15,6 +16,7 @@ from app.features.query.router import router as query_router
 from app.features.retrieval.router import router as search_router
 
 configure_logging()
+log = structlog.get_logger()
 
 
 @asynccontextmanager
@@ -35,6 +37,33 @@ async def handle_domain_error(_: Request, exc: ZenithError) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,
         content={"code": exc.code, "message": exc.message},
+    )
+
+
+@app.exception_handler(Exception)
+async def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
+    """Everything that is not a domain error, given the same shape and no detail.
+
+    Without this, an unhandled exception becomes Starlette's default 500, whose body
+    depends on how the app is served — plain text here, a traceback if someone leaves
+    `debug=True` on a customer's server. A client cannot parse a response whose shape
+    changes with the deployment, and a traceback names our file paths, our query text and
+    occasionally the row that caused it.
+
+    The message is deliberately fixed and useless to the caller. What they need is the
+    correlation with the log line, and what the log line has is everything: the traceback,
+    the path, and the method. Deciding what is safe to reveal per-exception is a judgement
+    nobody makes correctly at three in the morning, so this makes it once.
+    """
+    log.exception(
+        "unhandled_error",
+        path=request.url.path,
+        method=request.method,
+        error=type(exc).__name__,
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"code": "internal_error", "message": "An unexpected error occurred."},
     )
 
 

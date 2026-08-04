@@ -104,10 +104,46 @@ def layout(limit: int | None) -> int:
     return 0
 
 
+def grounding() -> int:
+    """Extraction and context rates, and the Docling verdict.
+
+    Needs no language model, which is what makes it runnable anywhere and RNF-07 compliant
+    by construction — there is nothing here to send to anyone.
+    """
+    import asyncio
+
+    from eval.grounding import run
+
+    asyncio.run(run())
+    return 0
+
+
+def answers() -> int:
+    """The end-to-end run, through whatever `ZENITH_LLM_PROVIDER` selects."""
+    import asyncio
+
+    from eval.answers import run
+
+    asyncio.run(run())
+    return 0
+
+
+COMMANDS = ("fetch", "layout", "grounding", "answers")
+
+
 def main() -> int:
-    if len(sys.argv) < 2 or sys.argv[1] not in ("fetch", "layout"):
-        print("usage: python -m eval fetch [--record] | python -m eval layout [--limit N]")
+    if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
+        print(
+            "usage: python -m eval fetch [--record]\n"
+            "       python -m eval layout [--limit N]\n"
+            "       python -m eval grounding\n"
+            "       python -m eval answers"
+        )
         return 2
+    if sys.argv[1] == "grounding":
+        return grounding()
+    if sys.argv[1] == "answers":
+        return answers()
     if sys.argv[1] == "layout":
         limit = None
         if "--limit" in sys.argv:

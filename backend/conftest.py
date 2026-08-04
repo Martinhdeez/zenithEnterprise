@@ -142,6 +142,54 @@ def fresh_login_allowance() -> None:
     login_limiter.reset()
 
 
+# --- Embedding doubles --------------------------------------------------------------
+#
+# Here rather than in a feature's test file because search, reranking and generation all
+# need them, and the generation tests were importing one from `retrieval/tests/test_rerank`
+# — which made a retrieval test file a dependency of a generation one, and meant renaming a
+# class in one feature broke the tests of another.
+#
+# Named for what they do to the search path rather than called `Stub`, because which one a
+# test picks is a decision about which half of the search runs.
+
+
+class LexicalOnlyEmbedder:
+    """No `embed_query` at all, so the dense half degrades and the lexical half answers.
+
+    The absence is the point and it must stay an absence: giving it a method that raises
+    would exercise the same path, but a later refactor could catch the exception somewhere
+    new and the test would go on passing while measuring something else.
+    """
+
+    url = "http://stub"
+    transport = None
+
+    def __init__(self, fail: bool = False) -> None:
+        self.fail = fail
+
+
+class WorkingEmbedder:
+    """Returns a real vector, so both halves run and the search is not degraded.
+
+    Needed wherever `degraded` is under test for another reason — reranking, generation —
+    because with `LexicalOnlyEmbedder` the result is degraded before the code under test is
+    reached, and the assertion would pass for the wrong reason.
+
+    The vector encodes nothing: whether BGE-M3 puts the right passage near the query is a
+    question for the eval corpus, and `eval/` answers it against 19,533 real chunks.
+    """
+
+    url = "http://stub"
+    transport = None
+
+    async def embed_query(self, question: str) -> list[float]:
+        from app.features.embeddings.client import DIMENSION
+
+        vector = [0.0] * DIMENSION
+        vector[0] = 1.0
+        return vector
+
+
 # --- A provisioned tenant -----------------------------------------------------------
 #
 # Lives here rather than in the auth feature because both the feature tests and the

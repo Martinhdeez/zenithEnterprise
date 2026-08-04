@@ -18,10 +18,9 @@ from app.features.generation.adapters.mock import MockProvider
 from app.features.generation.prompt import ABSTENTION
 from app.features.generation.service import AnswerService
 from app.features.retrieval.service import SearchService
-from app.features.retrieval.tests.test_rerank import WorkingEmbedder
 from app.features.retrieval.tests.test_search import profile_for, seed
 from app.features.tenancy.context import TenantContext
-from conftest import Account
+from conftest import Account, WorkingEmbedder
 
 QUESTION = "What must the controller implement?"
 

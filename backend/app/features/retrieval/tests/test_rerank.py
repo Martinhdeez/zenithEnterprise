@@ -11,32 +11,13 @@ from app.features.retrieval.reranker import RerankerUnavailable, TeiReranker
 from app.features.retrieval.search import RRF_K, candidates, fuse
 from app.features.retrieval.service import SearchService
 from app.features.tenancy.context import TenantContext
-from conftest import Account
+from conftest import Account, WorkingEmbedder
 
 from .test_search import profile_for, seed
 
 # A query that matches all three seeded passages, so there is an order to disturb. With one
 # match, a reranker that did nothing and one that worked perfectly would look identical.
 QUERY = "controller taxpayer employees"
-
-
-class WorkingEmbedder:
-    """Returns a real vector, so the dense half runs and the search is not degraded.
-
-    `test_search.StubEmbedder` deliberately has no `embed_query` — it exercises the
-    lexical-only path. Here the embedding must succeed, or `degraded` would already be true
-    before the reranker was reached and the assertions would pass for the wrong reason.
-    """
-
-    url = "http://stub"
-    transport = None
-
-    async def embed_query(self, question: str) -> list[float]:
-        from app.features.embeddings.client import DIMENSION
-
-        vector = [0.0] * DIMENSION
-        vector[0] = 1.0
-        return vector
 
 
 def reranker(handler: object, profile: str = "cpu") -> TeiReranker:

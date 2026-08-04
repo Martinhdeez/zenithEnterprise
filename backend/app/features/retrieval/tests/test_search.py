@@ -17,28 +17,13 @@ from app.features.embeddings.client import DIMENSION, MODEL, VERSION
 from app.features.retrieval.search import RRF_K, fuse
 from app.features.retrieval.service import SearchService
 from app.features.tenancy.context import TenantContext
-from conftest import Account
+from conftest import Account, LexicalOnlyEmbedder
 
 PASSAGES = [
     ("The controller shall implement appropriate technical measures for data protection.", 1),
     ("Form 1545-0074 must be filed with the annual return by the taxpayer.", 2),
     ("Employees may request access to their personnel records at any time.", 3),
 ]
-
-
-class StubEmbedder:
-    """Vectors that encode nothing.
-
-    Deliberately: this file tests wiring, isolation and fusion, and a stub with predictable
-    output makes an ordering assertion mean something. Whether BGE-M3 puts the right passage
-    near the query is M0's question, and M0 measured it — 75% Recall@8.
-    """
-
-    url = "http://stub"
-    transport = None
-
-    def __init__(self, fail: bool = False) -> None:
-        self.fail = fail
 
 
 async def seed(
@@ -126,7 +111,7 @@ def service(profile: AccessProfile) -> SearchService:
     is covered by `test_the_dense_half_is_label_filtered_by_its_join`, which supplies a
     vector directly.
     """
-    return SearchService(profile, embedder=StubEmbedder())  # type: ignore[arg-type]
+    return SearchService(profile, embedder=LexicalOnlyEmbedder())  # type: ignore[arg-type]
 
 
 async def test_lexical_search_finds_a_passage(account: Account) -> None:
