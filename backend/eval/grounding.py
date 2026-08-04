@@ -75,8 +75,30 @@ def normalise(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip().lower()
 
 
+def squashed(text: str) -> str:
+    """Alphanumerics only. The second chance for an anchor that differs by typography.
+
+    Measured, not guessed: the RAG paper writes `DensePassageRetriever` in a code font and
+    the model answers `Dense Passage Retriever`. Those are the same name, and the first
+    version of this check scored the correct answer as a miss.
+    """
+    return re.sub(r"[^a-z0-9]", "", text.lower())
+
+
 def contains(haystack: str, anchor: str) -> bool:
-    return normalise(anchor) in normalise(haystack)
+    """Whitespace-normalised containment, then a typography-insensitive second chance.
+
+    The second chance is **withheld from anchors containing digits**, and that restriction
+    is the whole reason it is safe. Squashing `1.45%` gives `145`, which appears inside
+    `1450` and inside a page number — so a numeric anchor would start matching things that
+    are not it. Numbers are exact facts where punctuation carries meaning; names are prose
+    where the typesetter's choices do not.
+    """
+    if normalise(anchor) in normalise(haystack):
+        return True
+    if any(character.isdigit() for character in anchor):
+        return False
+    return squashed(anchor) in squashed(haystack)
 
 
 def extract(document_id: str, cache: dict[str, Extraction]) -> Extraction:

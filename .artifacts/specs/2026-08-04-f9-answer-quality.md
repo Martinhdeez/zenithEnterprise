@@ -43,14 +43,25 @@ model is money spent on the wrong stage.
 
 ### What the anchor check is not
 
-Containment is lenient. An answer holding `28.4` scores as correct even if the surrounding
-sentence is nonsense, and a four-character anchor like `GNMT` can appear by accident. So
-the answer-stage number is an **upper bound on correctness**, and it is reported as one.
+> **Corrected after measurement — see `2026-08-04-f9-results.md` §4.**
+>
+> This section originally predicted containment would be an **upper bound on correctness**,
+> on the reasoning that it is lenient. The first run disproved that: an anchor of
+> `DensePassageRetriever` scored the answer "Dense Passage Retriever (DPR)" as a miss, and
+> ten of sixteen misses turned out to be correct answers on inspection. Containment
+> measures **quotation**, not correctness, and is neither an upper nor a lower bound on it.
+> The metric is now named `quotation_rate` for that reason.
 
-That is a deliberate trade. A lenient deterministic check that everyone can reproduce beats
-a strict judged one that moves when the judge changes — and for the failure this project
-actually fears, it is not lenient at all: a fabricated answer does not contain the anchor,
-because the anchor is a string from the document.
+Containment is lenient in one direction and strict in the other. An answer holding `28.4`
+scores as a quote even if the surrounding sentence is nonsense — but a correct answer that
+paraphrases scores as nothing at all, and paraphrase is what good prose does.
+
+Typography is handled (the check retries on alphanumerics only, withheld from anchors
+containing digits, since squashing `1.45%` to `145` would match page numbers). Paraphrase
+cannot be, and an anchor lifted from a section heading will never appear verbatim.
+
+What survives is the direction this project actually fears: a fabricated answer does not
+contain the anchor, because the anchor is a string lifted from the document.
 
 ## 2. The Docling verdict, decided by measurement rather than by faith
 

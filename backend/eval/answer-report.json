@@ -1,0 +1,449 @@
+{
+  "summary": {
+    "model": "llama3.1:8b-instruct-q4_K_M",
+    "questions": 36,
+    "quotation_rate": 0.4516,
+    "abstention_rate_on_answerable": 0.0323,
+    "invalid_citations": 0,
+    "abstention": {
+      "unanswerable_questions": 5,
+      "correctly_abstained": 5,
+      "answered_anyway": []
+    },
+    "by_type": {
+      "cross-document": {
+        "quoted": 0.4,
+        "abstained": 0.0
+      },
+      "factual": {
+        "quoted": 0.4667,
+        "abstained": 0.0
+      },
+      "identifier": {
+        "quoted": 0.3333,
+        "abstained": 0.1667
+      },
+      "table": {
+        "quoted": 0.6,
+        "abstained": 0.0
+      }
+    },
+    "median_latency_ms": 11115.6,
+    "unquoted": [
+      "gdpr-right-to-erasure",
+      "gdpr-data-portability",
+      "gdpr-dpo",
+      "aiact-social-scoring",
+      "aiact-prohibited-practices",
+      "dsa-trusted-flaggers",
+      "rag-knowledge-source",
+      "boe-bank-rate",
+      "cross-retrieval-vs-pretraining",
+      "cross-platform-obligations",
+      "cross-payroll-and-return",
+      "table-boe-cpi",
+      "table-form-1040-status",
+      "identifier-omb-number",
+      "identifier-oj-page",
+      "identifier-usc-citation"
+    ]
+  },
+  "results": [
+    {
+      "question_id": "gdpr-breach-deadline",
+      "type": "factual",
+      "abstained": false,
+      "quoted": true,
+      "citations": 1,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 12814.908374999504,
+      "answer": "Without undue delay and, where feasible, not later than 72 hours after having become aware of it. [1]"
+    },
+    {
+      "question_id": "gdpr-right-to-erasure",
+      "type": "factual",
+      "abstained": false,
+      "quoted": false,
+      "citations": 2,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 7071.27570800003,
+      "answer": "Article 17 [1] and Article 4 [5]."
+    },
+    {
+      "question_id": "gdpr-personal-data-definition",
+      "type": "factual",
+      "abstained": false,
+      "quoted": true,
+      "citations": 2,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 10384.124083000643,
+      "answer": "According to Article 4(1) of Regulation (EU) 2016/679 [1], 'personal data' means any information relating to an identified or identifiable natural person (\u2018data subject\u2019). An identifiable natural person is one who can be identified, directly or indirectly, in particular by reference to an identifier such as a name, an identification number, location data, an online identifier or to one or more factors specific to the physical, physiological or behavioural characteristics of that natural person [1].\n\nAccording to Article 4(50) of Regulation (EU) 2016/679 [2], 'personal data' means personal data as defined in Article 4, point (1), of Regulation (EU) 2016/679."
+    },
+    {
+      "question_id": "gdpr-data-portability",
+      "type": "factual",
+      "abstained": false,
+      "quoted": false,
+      "citations": 2,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 10839.392875001067,
+      "answer": "The data subject shall have the right to receive the personal data concerning him or her, which he or she has provided to a controller, in a structured, commonly used and machine-readable format... [1]\n\nThis right applies where the processing is based on consent pursuant to point (a) of Article 6(1) or point (a) of Article 9(2) or on a contract pursuant to point (b) of Article 6(1); and the processing is carried out by automated means. [1]\n\nThe data subject should also be allowed to receive personal data concerning him or her which he or she has provided to a controller in a structured, commonly used, machine-readable and interoperable format... [2]"
+    },
+    {
+      "question_id": "gdpr-dpo",
+      "type": "factual",
+      "abstained": false,
+      "quoted": false,
+      "citations": 2,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 7611.372417002713,
+      "answer": "They must designate a Data Protection Officer (DPO) [2]. The DPO shall support the data protection officer in performing tasks referred to in Article 39 by providing resources necessary to carry out those tasks and access to personal data and processing operations, and to maintain his or her expert knowledge. [1]"
+    },
+    {
+      "question_id": "aiact-social-scoring",
+      "type": "factual",
+      "abstained": false,
+      "quoted": false,
+      "citations": 1,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 8840.286375001597,
+      "answer": "Yes [1]. The social score obtained from such AI systems may lead to the detrimental or unfavourable treatment of natural persons or whole groups thereof in social contexts, which are unrelated to the context in which the data was originally generated or collected. AI systems entailing such unacceptable scoring practices and leading to such detrimental or unfavourable outcomes should therefore be prohibited [1]."
+    },
+    {
+      "question_id": "aiact-prohibited-practices",
+      "type": "factual",
+      "abstained": false,
+      "quoted": false,
+      "citations": 5,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 13651.700082999014,
+      "answer": "The EU AI Act prohibits the following AI practices outright:\n\n* Placing on the market, putting into service, or using an AI system that deploys subliminal techniques beyond a person's consciousness or purposefully manipulative or deceptive techniques (Article 5) [1]\n* Intention to distort behaviour where the distortion results from factors external to the AI system which are outside the control of the provider or the deployer (Article 5) [2]\n* Biometric categorisation systems that are based on natural persons' biometric data, such as an individual person's face or fingerprint, to deduce or infer an individuals' political opinions, trade union membership, religious or philosophical beliefs, race, sex life or sexual orientation (Article 5) [5]\n* AI systems intended to be used to detect the emotional state of individuals in situations related to the workplace and education (Article 5) [4]\n* Placing on the market strictly for medical or safety reasons, such as systems intended for therapeutical use (Article 5) [4]\n* Creating or expanding facial recognition databases through the untargeted scraping of facial images from the internet or CCTV footage (Article 5) [6]\n* Profiling individuals or assessing their personality traits and characteristics to determine whether they are involved in a criminal offence (Article 5) [6]\n\nNote that these prohibitions do not apply if the AI system is used for medical treatment, psychological treatment of a mental disease, physical rehabilitation, or other lawful purposes."
+    },
+    {
+      "question_id": "dsa-trusted-flaggers",
+      "type": "factual",
+      "abstained": false,
+      "quoted": false,
+      "citations": 1,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 6951.1061669982155,
+      "answer": "The status created is called \"trusted flagger\" [2]."
+    },
+    {
+      "question_id": "attention-optimizer",
+      "type": "factual",
+      "abstained": false,
+      "quoted": true,
+      "citations": 2,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 10240.547957997478,
+      "answer": "The Adam optimizer was used, with \u03b2 = 0.9, \u03b2 = 0.98, and \u03f5 = 10\u22129 [3][5]."
+    },
+    {
+      "question_id": "attention-multihead",
+      "type": "factual",
+      "abstained": false,
+      "quoted": true,
+      "citations": 1,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 9147.733957997843,
+      "answer": "The Transformer uses multi-head attention, which allows it to jointly attend to information from different representation subspaces at different positions. [3]"
+    },
+    {
+      "question_id": "bert-pretraining",
+      "type": "factual",
+      "abstained": false,
+      "quoted": true,
+      "citations": 1,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 8899.176167000405,
+      "answer": "The masked language model (MLM) pre-training objective lets BERT condition on both left and right context [6]."
+    },
+    {
+      "question_id": "rag-knowledge-source",
+      "type": "factual",
+      "abstained": false,
+      "quoted": false,
+      "citations": 1,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 10874.373458002083,
+      "answer": "The RAG paper uses Wikipedia as its non-parametric knowledge source. [2]"
+    },
+    {
+      "question_id": "rag-retriever",
+      "type": "factual",
+      "abstained": false,
+      "quoted": true,
+      "citations": 2,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 11759.514000001218,
+      "answer": "Dense Passage Retriever (DPR) is used as the retriever in the RAG model. [6][7]"
+    },
+    {
+      "question_id": "irs-social-security-rate",
+      "type": "factual",
+      "abstained": false,
+      "quoted": true,
+      "citations": 1,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 8542.816790999495,
+      "answer": "The employee social security tax rate on taxable wages is 6.2% [4]."
+    },
+    {
+      "question_id": "boe-bank-rate",
+      "type": "factual",
+      "abstained": false,
+      "quoted": false,
+      "citations": 2,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 8451.950041999226,
+      "answer": "Bank Rate is the interest rate that banks and building societies earn on deposits, or 'reserves', placed with the Bank of England [3][4]."
+    },
+    {
+      "question_id": "cross-eu-extraterritorial",
+      "type": "cross-document",
+      "abstained": false,
+      "quoted": true,
+      "citations": 3,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 11115.56274999748,
+      "answer": "Yes, according to [3], factors such as using a language or currency generally used in one or more Member States, or mentioning customers/users in the Union, may make it apparent that a controller envisages offering goods/services to data subjects in the Union. This suggests that EU rules can reach organisations not established in the Union if they offer services to individuals within the Union.\n\nAdditionally, [5] states that this Regulation applies to the processing of personal data by a controller not established in the Union, but in a place where Member State law applies by virtue of public international law.\n\n[6] also mentions that EU rules can apply to providers and deployers of AI systems established in a third country if their output is intended to be used in the Union."
+    },
+    {
+      "question_id": "cross-transformer-lineage",
+      "type": "cross-document",
+      "abstained": false,
+      "quoted": true,
+      "citations": 1,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 11573.629583999718,
+      "answer": "The paper \"Attention Is All You Need\" by Vaswani et al. (2017) [5] introduced the Transformer. The paper \"BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding\" by Devlin et al. (2019) built a bidirectional encoder on it, specifically calling it BERT (Bidirectional Encoder Representations from Transformers)."
+    },
+    {
+      "question_id": "cross-retrieval-vs-pretraining",
+      "type": "cross-document",
+      "abstained": false,
+      "quoted": false,
+      "citations": 2,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 11125.470874998427,
+      "answer": "Our work aims to expand the space of possible tasks with a single, unified architecture, by learning a retrieval module to augment pre-trained, generative language models. [8]\n\nWe explore RAG models, which use the input sequence to retrieve text documents z and use them as additional context when generating the target sequence y. [7]"
+    },
+    {
+      "question_id": "cross-platform-obligations",
+      "type": "cross-document",
+      "abstained": false,
+      "quoted": false,
+      "citations": 3,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 11318.293874999654,
+      "answer": "Regulation (EU) 2016/679 [1] and Regulation (EU) 2022/2065 [3] are mentioned as imposing obligations on providers of very large online platforms and very large online search engines.\n\nDirective 2000/31/EC, Directive 98/6/EC, and Directive 2011/16/EU are also mentioned in the context of applicable Union law for online platforms [8].\n\nThe Regulation (EU) 2022/2065 is specifically referred to as a risk-management framework that applies to providers of very large online platforms or very large online search engines [3]."
+    },
+    {
+      "question_id": "cross-payroll-and-return",
+      "type": "cross-document",
+      "abstained": false,
+      "quoted": false,
+      "citations": 3,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 11688.506583999697,
+      "answer": "The document that states employer withholding rates is [3] (from irs-pub-15, page 15).\n\nThe document that explains the individual return is not explicitly stated as such, but it appears to be described in [4] (from irs-pub-15, page 8) and [5] (from irs-pub-15, page 28)."
+    },
+    {
+      "question_id": "table-attention-bleu",
+      "type": "table",
+      "abstained": false,
+      "quoted": true,
+      "citations": 2,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 10276.108499998372,
+      "answer": "28.4 [3][2]"
+    },
+    {
+      "question_id": "table-attention-training-cost",
+      "type": "table",
+      "abstained": false,
+      "quoted": true,
+      "citations": 2,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 11245.391167001799,
+      "answer": "The Transformer's training cost is lower than GNMT+RL. For English-to-French translation, the Transformer has a training cost of 41.8 FLOPs [4], while GNMT+RL has a training cost of 39.92\u00b710^19 and 1.4\u00b710^20 FLOPs [1]."
+    },
+    {
+      "question_id": "table-irs-medicare",
+      "type": "table",
+      "abstained": false,
+      "quoted": true,
+      "citations": 1,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 10203.081583000312,
+      "answer": "The Medicare tax rate on wages is 1.45% each for the employee and employer (2.9% total). [2]"
+    },
+    {
+      "question_id": "table-boe-cpi",
+      "type": "table",
+      "abstained": false,
+      "quoted": false,
+      "citations": 3,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 9729.972041997826,
+      "answer": "The report projects that CPI inflation will be around 2\u00be% by the end of this year [1][4], then remain above target over nearly all of the remainder of the forecast period [1][2][4]. It is also projected to be 2.3% in two years' time and 1.9% in three years [1][4]."
+    },
+    {
+      "question_id": "table-form-1040-status",
+      "type": "table",
+      "abstained": false,
+      "quoted": false,
+      "citations": 1,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 13175.300834001973,
+      "answer": "Everyone can file Form 1040. Form 1040-SR is available to you if you were born before January 2, 1961. [6]"
+    },
+    {
+      "question_id": "identifier-catalog-number",
+      "type": "identifier",
+      "abstained": true,
+      "quoted": false,
+      "citations": 0,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 12364.87991699687,
+      "answer": "The documents provided do not contain an answer to this question."
+    },
+    {
+      "question_id": "identifier-omb-number",
+      "type": "identifier",
+      "abstained": false,
+      "quoted": false,
+      "citations": 1,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 11933.709290999104,
+      "answer": "Form 1040 [1]."
+    },
+    {
+      "question_id": "identifier-regulation-2016-679",
+      "type": "identifier",
+      "abstained": false,
+      "quoted": true,
+      "citations": 7,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 11137.250042000232,
+      "answer": "Regulation (EU) 2016/679 is on the protection of natural persons with regard to the processing of personal data and on the free movement of such data, and repealing Directive 95/46/EC (General Data Protection Regulation). [1]\nIt defines \"personal data\" as in Article 4, point (1), of itself. [4]\nIt is also referred to in several other passages as the General Data Protection Regulation. [2][3][5][6][7]"
+    },
+    {
+      "question_id": "identifier-regulation-2022-2065",
+      "type": "identifier",
+      "abstained": false,
+      "quoted": true,
+      "citations": 4,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 10648.91683300084,
+      "answer": "Regulation (EU) 2022/2065 is on a Single Market For Digital Services and amending Directive 2000/31/EC (Digital Services Act). [1]\n\nIt is also referred to as the \"Digital Services Act\". [4][6]\n\nThis Regulation regulates providers of very large online platforms or very large online search engines, who are subject to a risk-management framework. [2]\n\nThe corresponding obligations of this Regulation should be presumed to be fulfilled, unless significant systemic risks not covered by it emerge and are identified in such models. [2]"
+    },
+    {
+      "question_id": "identifier-oj-page",
+      "type": "identifier",
+      "abstained": false,
+      "quoted": false,
+      "citations": 1,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 12537.81416700076,
+      "answer": "This Regulation applies to the processing of personal data of data subjects who are in the Union by a controller or processor not established in the Union, where the processing activities are related to:\n(a) the offering of goods or services, irrespective of whether a payment of the data subject is required, to such data\nsubjects in the Union; or\n(b) the monitoring of their behaviour as far as their behaviour takes place within the Union.\n\n[1]"
+    },
+    {
+      "question_id": "identifier-usc-citation",
+      "type": "identifier",
+      "abstained": false,
+      "quoted": false,
+      "citations": 4,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 17017.875542002002,
+      "answer": "According to passage [4], the term \"State\" has the meaning given such term in section 101 of title 23, United States Code.\n\nAlso, according to passage [8], section 11403(a) amends chapter 1 of title 23, United States Code. \n\nAdditionally, passage [5] refers to Section 1123 of the FAST Act (23 U.S.C. 201 note; Public Law 114\u201394).\n\nPassage [6] mentions that the term \"institution of higher education\" has the meaning given the term in section 101 of the Higher Education Act of 1965 (20 U.S.C. 1001), but this is not directly related to title 23, United States Code.\n\nThe most direct answer would be: According to passage [4], the term \"State\" has the meaning given such term in section 101 of title 23, United States Code."
+    },
+    {
+      "question_id": "unanswerable-pricing",
+      "type": "unanswerable",
+      "abstained": true,
+      "quoted": false,
+      "citations": 0,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 14502.45354100116,
+      "answer": "The documents provided do not contain an answer to this question."
+    },
+    {
+      "question_id": "unanswerable-future-rate",
+      "type": "unanswerable",
+      "abstained": true,
+      "quoted": false,
+      "citations": 0,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 9444.958457999746,
+      "answer": "The documents provided do not contain an answer to this question."
+    },
+    {
+      "question_id": "unanswerable-quantum",
+      "type": "unanswerable",
+      "abstained": true,
+      "quoted": false,
+      "citations": 0,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 8463.200165999297,
+      "answer": "The documents provided do not contain an answer to this question."
+    },
+    {
+      "question_id": "unanswerable-tungsten",
+      "type": "unanswerable",
+      "abstained": true,
+      "quoted": false,
+      "citations": 0,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 13577.25429200218,
+      "answer": "The documents provided do not contain an answer to this question."
+    },
+    {
+      "question_id": "unanswerable-headcount",
+      "type": "unanswerable",
+      "abstained": true,
+      "quoted": false,
+      "citations": 0,
+      "invalid_citations": 0,
+      "fabricated_markers": 0,
+      "elapsed_ms": 11665.317250000953,
+      "answer": "The documents provided do not contain an answer to this question."
+    }
+  ]
+}

@@ -8,13 +8,24 @@
 
 Three numbers, and the third is the one this product is sold on.
 
-**Accuracy** — the answer contains the anchor, the exact phrase the fact comes from. A
-lenient check, and reported as an upper bound: an answer holding `28.4` scores as correct
-even if the sentence around it is nonsense. The trade is deliberate, because a lenient
-deterministic check everyone can reproduce beats a strict judged one that moves when the
-judge changes. For the failure this project actually fears it is not lenient at all — a
-fabricated answer does not contain the anchor, because the anchor is a string from the
-document.
+**Quotation rate** — the answer contains the anchor, the exact phrase the fact comes from.
+The F9 spec predicted this would be an *upper* bound on correctness, on the reasoning that
+containment is lenient. **The first run disproved that**, and the correction is recorded
+here rather than quietly fixed:
+
+    anchor "DensePassageRetriever"   answer "Dense Passage Retriever (DPR)"   scored MISS
+    anchor "this is Bank Rate"       a correct definition of Bank Rate        scored MISS
+
+Of the first four misses inspected by hand, three were correct answers. Typography is now
+handled (`contains` retries on alphanumerics only), but paraphrase is not and cannot be —
+an anchor lifted from a section heading will never appear verbatim in good prose.
+
+So this number is **neither an upper nor a lower bound on correctness**. It measures
+whether the answer quotes the source, which is a real property worth tracking and is not
+the same property as being right. It is named for what it measures.
+
+What it *is* trustworthy for is the direction this project cares about: a fabricated answer
+does not contain an anchor, because an anchor is a string lifted from the document.
 
 **Citation validity** — every citation resolves to a passage that was in the shortlist. It
 is 100% by construction, since `citations.bind` strips anything else, so this is a
@@ -48,9 +59,9 @@ class Answered:
     question_id: str
     type: str
     abstained: bool = False
-    # The anchor appears in the answer text. Upper bound on correctness — see the module
-    # docstring.
-    accurate: bool = False
+    # The anchor appears in the answer text. This measures *quotation*, not correctness —
+    # see the module docstring for the measured false-negative rate.
+    quoted: bool = False
     citations: int = 0
     # Citations naming a passage that was not in the shortlist. Zero by construction; if it
     # is ever non-zero, `citations.bind` has a hole.
@@ -115,19 +126,17 @@ async def measure() -> list[Answered]:
             question_id=question.id,
             type=question.type,
             abstained=answer.abstained,
-            accurate=any(contains(answer.answer, anchor) for anchor in anchors),
+            quoted=any(contains(answer.answer, anchor) for anchor in anchors),
             citations=len(answer.citations),
             invalid_citations=sum(
                 citation.chunk_id not in shortlist for citation in answer.citations
             ),
             elapsed_ms=elapsed,
-            answer=answer.answer[:400],
+            answer=answer.answer,
         )
         results.append(result)
 
-        verdict = (
-            "ABSTAINED" if result.abstained else ("correct" if result.accurate else "no anchor")
-        )
+        verdict = "ABSTAINED" if result.abstained else ("quoted" if result.quoted else "no anchor")
         print(
             f"{question.id:<26} {question.type:<15} {verdict:<10} "
             f"cites={result.citations} {elapsed:>7.0f}ms",
@@ -150,7 +159,7 @@ def report(results: list[Answered], model: str) -> dict[str, object]:
         "model": model,
         "questions": len(results),
         # The headline. Upper bound: containment, not comprehension.
-        "accuracy_upper_bound": rate(answerable, "accurate"),
+        "quotation_rate": rate(answerable, "quoted"),
         "abstention_rate_on_answerable": rate(answerable, "abstained"),
         # The gate. Anything other than zero here is a defect in `citations.bind`.
         "invalid_citations": sum(item.invalid_citations for item in results),
@@ -161,7 +170,7 @@ def report(results: list[Answered], model: str) -> dict[str, object]:
         },
         "by_type": {
             kind: {
-                "accuracy": rate([i for i in answerable if i.type == kind], "accurate"),
+                "quoted": rate([i for i in answerable if i.type == kind], "quoted"),
                 "abstained": rate([i for i in answerable if i.type == kind], "abstained"),
             }
             for kind in kinds
@@ -169,8 +178,8 @@ def report(results: list[Answered], model: str) -> dict[str, object]:
         "median_latency_ms": round(
             sorted(item.elapsed_ms for item in results)[len(results) // 2], 1
         ),
-        "missed": [
-            item.question_id for item in answerable if not item.accurate and not item.abstained
+        "unquoted": [
+            item.question_id for item in answerable if not item.quoted and not item.abstained
         ],
     }
 
