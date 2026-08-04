@@ -25,7 +25,14 @@ Rules:
 3. Only cite numbers that appear in the passages given to you.
 4. If the passages do not answer the question, reply with exactly this sentence and nothing
    else: {ABSTENTION}
-5. Be brief. Answer the question that was asked, and stop."""
+5. Answer the exact question asked. If it asks for two things, answer both.
+6. Start with the answer itself. Do not write "According to passage 2" or "The passages
+   say" — state the fact and put the marker after it.
+7. Write the answer yourself. Do not copy sentences out of a passage, and never write "we"
+   or "our" — the passages were written by their authors, not by you.
+8. [1] is a citation marker, not a name. When you name a document, write its filename and
+   nothing else — not the marker, not the page number.
+9. Be brief, but never answer with only "yes" or "no". State the fact that makes it so."""
 
 
 def build(question: str, hits: list[Hit]) -> str:
@@ -37,7 +44,14 @@ def build(question: str, hits: list[Hit]) -> str:
     means a lookup, which means the model could name a passage it was never shown.
     """
     passages = "\n\n".join(
-        f"[{number}] (from {hit.filename}, page {hit.page_num})\n{hit.text}"
+        # Delimited, and with the filename before the text rather than in a parenthesis
+        # after the marker. Measured: an 8B model answering "which document states the
+        # withholding rates" replied "the document is [3] (from irs-pub-15, page 15)" —
+        # it read the marker as the document's name because the marker came first and the
+        # filename looked like an aside. The triple quotes matter for the same reason
+        # rule 7 exists: without a visible boundary the model treats passage prose as its
+        # own voice and copies it out, first person and all.
+        f'[{number}] {hit.filename} — page {hit.page_num}\n"""\n{hit.text}\n"""'
         for number, hit in enumerate(hits, start=1)
     )
-    return f"Passages:\n\n{passages}\n\nQuestion: {question}"
+    return f"Passages:\n\n{passages}\n\nQuestion: {question}\n\nAnswer:"
