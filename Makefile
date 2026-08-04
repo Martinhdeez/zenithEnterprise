@@ -1,7 +1,9 @@
-.PHONY: up up-models down logs migrate revision test lint format format-check types licenses check
+.PHONY: up up-models down logs migrate revision test lint format format-check types licenses \
+	web-install web-types web-test web check
 
 COMPOSE := docker compose -f docker/docker-compose.yml
 UV := cd backend && uv run
+WEB := cd frontend && npm
 
 up:
 	$(COMPOSE) up -d db
@@ -40,6 +42,20 @@ types:
 licenses:
 	./scripts/check-licences.sh
 
+web-install:
+	$(WEB) ci
+
+# The frontend's equivalent of `types` and `test`. Separate targets so a backend-only
+# change does not pay for a node_modules install, and one `web` target so `check` has a
+# single thing to call.
+web-types:
+	$(WEB) run lint
+
+web-test:
+	$(WEB) run test
+
+web: web-types web-test
+
 # What has to pass before every commit. Mirrors the CI job exactly, so a green
 # `check` locally means a green pipeline.
-check: lint format-check types test licenses
+check: lint format-check types test licenses web
