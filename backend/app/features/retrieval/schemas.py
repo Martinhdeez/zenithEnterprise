@@ -20,6 +20,12 @@ class HitResponse(BaseModel):
     lexical_rank: int | None
     dense_rank: int | None
     score: float
+    # The magnitudes behind the positions, for whoever is debugging a bad answer six months
+    # from now. `lexical_score` is `ts_rank_cd` and `dense_score` is cosine similarity —
+    # still not comparable with each other, which is why the ranks stay.
+    lexical_score: float | None = None
+    dense_score: float | None = None
+    rerank_score: float | None = None
 
 
 class SearchResponse(BaseModel):

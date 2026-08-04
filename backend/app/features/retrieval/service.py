@@ -13,7 +13,7 @@ is the failure mode this whole project keeps refusing.
 """
 
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from uuid import UUID
 
 import structlog
@@ -84,8 +84,8 @@ class SearchService:
         embedding, degraded_reason = await self._embed(question)
 
         async with tenant_session(context) as session:
-            lexical_ids = await lexical(session, question, CANDIDATES)
-            dense_ids = (
+            lexical_scored = await lexical(session, question, CANDIDATES)
+            dense_scored = (
                 await dense(
                     session,
                     embedding,
@@ -97,6 +97,11 @@ class SearchService:
                 if embedding
                 else []
             )
+            # Ids drive fusion, which never sees a magnitude; the scores travel separately
+            # and end up in the query log. Keeping them apart is what stops a later change
+            # from quietly making RRF scale-dependent.
+            lexical_ids = [chunk_id for chunk_id, _ in lexical_scored]
+            dense_ids = [chunk_id for chunk_id, _ in dense_scored]
             # The union goes to the reranker; the fused top-k is what answers without one.
             # Choosing candidates and ordering results are different jobs, and RRF is only
             # good at the second.
@@ -106,7 +111,9 @@ class SearchService:
                 if reranking
                 else fuse(lexical_ids, dense_ids, limit)
             )
-            hits = await hydrate(session, ranked, lexical_ids, dense_ids)
+            hits = await hydrate(
+                session, ranked, lexical_ids, dense_ids, dict(lexical_scored), dict(dense_scored)
+            )
 
         rerank_reason: str | None = None
         if reranking and hits:
@@ -147,7 +154,9 @@ class SearchService:
             log.warning("rerank_failed", error=str(exc))
             return hits[:limit], f"reranking unavailable ({type(exc).__name__}); fused order"
 
-        return [hits[item.index] for item in scored[:limit]], None
+        # `replace` rather than mutation: `Hit` is frozen, and the cross-encoder's score is
+        # the fourth column `query_citations` was designed to hold.
+        return [replace(hits[item.index], rerank_score=item.score) for item in scored[:limit]], None
 
     async def _embed(self, question: str) -> tuple[list[float], str | None]:
         """The dense half's input, or an honest admission that we could not get it.

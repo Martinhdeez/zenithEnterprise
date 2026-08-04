@@ -43,14 +43,25 @@ class Hit:
     lexical_rank: int | None
     dense_rank: int | None
     score: float
+    # The magnitudes behind those positions. Not for ranking — see `fuse`, which never
+    # sees them — but because `query_citations` has four score columns and a rank cannot
+    # tell you whether third place was a strong third or the least bad of a bad set.
+    lexical_score: float | None = None
+    dense_score: float | None = None
+    rerank_score: float | None = None
 
 
-async def lexical(session: AsyncSession, question: str, limit: int = CANDIDATES) -> list[UUID]:
+async def lexical(
+    session: AsyncSession, question: str, limit: int = CANDIDATES
+) -> list[tuple[UUID, float]]:
     """Exact terms: identifiers, product codes, proper nouns, acronyms.
 
     `ts_rank_cd` rather than `ts_rank` because it accounts for term proximity. For an
     identifier query the match is exact either way; for prose, proximity is what separates a
     passage *about* the subject from one that merely mentions it.
+
+    The score comes back alongside the id and goes nowhere near fusion — it is logged, in
+    `query_citations.score_bm25`, and that is the only thing it is for.
     """
     query = await to_tsquery(session, question)
     if not query:
@@ -58,13 +69,14 @@ async def lexical(session: AsyncSession, question: str, limit: int = CANDIDATES)
 
     rows = await session.execute(
         text(
-            "SELECT c.id FROM chunks c, to_tsquery(:config, :query) q "
+            "SELECT c.id, ts_rank_cd(c.tsv, q) AS score FROM chunks c, "
+            "to_tsquery(:config, :query) q "
             "WHERE c.tsv @@ q "
-            "ORDER BY ts_rank_cd(c.tsv, q) DESC, c.id LIMIT :limit"
+            "ORDER BY score DESC, c.id LIMIT :limit"
         ),
         {"config": CONFIGURATION, "query": query, "limit": limit},
     )
-    return [row.id for row in rows]
+    return [(row.id, float(row.score)) for row in rows]
 
 
 async def dense(
@@ -74,7 +86,7 @@ async def dense(
     version: str,
     limit: int = CANDIDATES,
     ef_search: int | None = None,
-) -> list[UUID]:
+) -> list[tuple[UUID, float]]:
     """Meaning: intent, synonyms, paraphrase — everything the lexical half cannot reach.
 
     Restricted to one embedding space. `embedding_spaces` exists so several can coexist
@@ -89,7 +101,10 @@ async def dense(
 
     rows = await session.execute(
         text(
-            "SELECT c.id FROM chunk_embeddings e "
+            # Reported as *similarity* rather than distance, so both score columns in
+            # `query_citations` read the same way round: bigger is better.
+            "SELECT c.id, 1 - (e.embedding <=> CAST(:embedding AS vector)) AS score "
+            "FROM chunk_embeddings e "
             # Not decoration: `chunk_embeddings` is filtered by tenant only, so this join is
             # where label isolation is enforced for the dense half.
             "JOIN chunks c ON c.id = e.chunk_id "
@@ -103,7 +118,7 @@ async def dense(
             "limit": limit,
         },
     )
-    return [row.id for row in rows]
+    return [(row.id, float(row.score)) for row in rows]
 
 
 def candidates(lexical_ids: list[UUID], dense_ids: list[UUID]) -> list[tuple[UUID, float]]:
@@ -180,6 +195,8 @@ async def hydrate(
     ranked: list[tuple[UUID, float]],
     lexical_ids: list[UUID],
     dense_ids: list[UUID],
+    lexical_scores: dict[UUID, float] | None = None,
+    dense_scores: dict[UUID, float] | None = None,
 ) -> list[Hit]:
     """Fetch what a citation needs, for the fused set only.
 
@@ -218,6 +235,8 @@ async def hydrate(
             lexical_rank=lexical_positions.get(row.id),
             dense_rank=dense_positions.get(row.id),
             score=dict(ranked)[row.id],
+            lexical_score=(lexical_scores or {}).get(row.id),
+            dense_score=(dense_scores or {}).get(row.id),
         )
         for row in rows
     ]

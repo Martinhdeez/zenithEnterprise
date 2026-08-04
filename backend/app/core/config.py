@@ -56,10 +56,22 @@ class Settings(BaseSettings):
     jwt_secret: str = ""
     access_token_minutes: int = 15
     refresh_token_days: int = 14
-    # Fernet key protecting customer API keys at rest. Still optional because nothing
-    # reads it yet; it gets the same guard as `jwt_secret` when the generation connector
-    # is built, and refusing to start over a feature that does not exist would be theatre.
+    # Fernet key protecting customer API keys at rest. The connector now reads it, so the
+    # guard promised here has arrived — but as a *format* check rather than a presence
+    # check. An installation on the local Ollama baseline stores no provider key at all,
+    # and refusing to boot it over a credential it does not have would be theatre in a
+    # different costume. Absence is caught where it matters, in `generation/crypto.py`,
+    # by the person storing a key.
     encryption_key: str = ""
+
+    # The generation connector's fallback, used when a tenant has not configured its own
+    # `llm_config` row. This is the development and CI path, and mvp.md 5.4 fixed it to
+    # Llama 3.1 8B Instruct via Ollama: a citation format that survives an 8B model
+    # survives anything a customer plugs in, and tuning against a large cloud model
+    # produces prompts that break on the first local deployment.
+    llm_endpoint_url: str = "http://localhost:11434/v1"
+    llm_model: str = "llama3.1:8b-instruct-q4_K_M"
+    llm_api_key: str = ""
 
     # Selects a profile in `app/core/hardware.py`: gpu | cpu | low-spec. Not validated
     # here, because the profile table is what knows the valid names and importing it from
@@ -112,6 +124,30 @@ class Settings(BaseSettings):
                 f"ZENITH_JWT_SECRET must be at least {MINIMUM_SECRET_BYTES} bytes "
                 f"(got {len(value.encode())}).{HOW_TO_GENERATE}"
             )
+        return value
+
+    @field_validator("encryption_key")
+    @classmethod
+    def encryption_key_must_be_a_fernet_key(cls, value: str) -> str:
+        """Unset is allowed. Set-but-wrong is not.
+
+        The failure this prevents is the expensive one: an operator pastes a hand-made
+        value, the service starts, a tenant configures a connector months later, and the
+        first request to store an API key fails on a machine nobody is watching. A
+        malformed key is knowable at boot, so it is caught at boot.
+        """
+        if not value:
+            return value
+        from cryptography.fernet import Fernet
+
+        try:
+            Fernet(value.encode())
+        except (ValueError, TypeError) as exc:
+            raise ValueError(
+                "ZENITH_ENCRYPTION_KEY is not a valid Fernet key (32 url-safe base64-encoded "
+                'bytes).\n  Generate one with:  python -c "from cryptography.fernet import '
+                'Fernet; print(Fernet.generate_key().decode())"'
+            ) from exc
         return value
 
 
