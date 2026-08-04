@@ -41,12 +41,15 @@ async def test_an_unexpected_exception_returns_the_standard_error_shape() -> Non
     if anyone ever leaves `debug=True` on a customer's server.
     """
     response = await handle_unexpected_error(request(), RuntimeError("anything"))
+    rendered = body(response)
 
     assert response.status_code == 500
-    assert body(response) == {
-        "code": "internal_error",
-        "message": "An unexpected error occurred.",
-    }
+    assert response.media_type == "application/problem+json"
+    assert rendered["type"].endswith("/internal_error")
+    assert rendered["title"] == "Internal error"
+    assert rendered["status"] == 500
+    assert rendered["detail"] == "An unexpected error occurred."
+    assert rendered["instance"] == "/query"
 
 
 async def test_the_exception_text_never_reaches_the_caller() -> None:
@@ -68,9 +71,41 @@ async def test_the_exception_text_never_reaches_the_caller() -> None:
 async def test_a_domain_error_keeps_its_own_status_and_message() -> None:
     """The catch-all must not swallow the errors that were designed to be seen."""
     response = await handle_domain_error(request(), NotFoundError("no such document"))
+    rendered = body(response)
 
     assert response.status_code == 404
-    assert body(response) == {"code": "not_found", "message": "no such document"}
+    assert rendered["type"].endswith("/not_found")
+    assert rendered["detail"] == "no such document"
+
+
+async def test_the_legacy_shape_is_still_present() -> None:
+    """`code` and `message` are retained alongside the RFC 7807 members, deliberately.
+
+    Every client written against this API reads them, including the one in this repository,
+    and an error contract is the last thing that should break silently. Adopting a standard
+    is not a licence to break the callers who trusted the old one.
+    """
+    rendered = body(await handle_domain_error(request(), NotFoundError("no such document")))
+
+    assert rendered["code"] == "not_found"
+    assert rendered["message"] == "no such document"
+
+
+async def test_a_rate_limit_carries_retry_after_in_both_places() -> None:
+    """The header for HTTP, the member for the client that already parsed the body.
+
+    A caller that decoded the problem should not have to reach back into the headers to
+    learn when it may try again — RFC 7807 §3.2 exists for exactly this.
+    """
+    from app.features.query.throttle import QueryRateLimitedError
+
+    response = await handle_domain_error(
+        request(), QueryRateLimitedError("too many questions", retry_after=60)
+    )
+
+    assert response.status_code == 429
+    assert response.headers["Retry-After"] == "60"
+    assert body(response)["retry_after"] == 60
 
 
 def test_the_application_installs_both_handlers() -> None:

@@ -25,9 +25,23 @@ export interface TenantStatus {
   searchable: boolean;
 }
 
+/**
+ * RFC 7807 Problem Details, as this API returns them.
+ *
+ * `code` and `message` are retained by the server alongside the standard members, so this
+ * client keeps reading them: `code` is the stable token to switch on, and `detail` and
+ * `message` carry the same string. Preferring `detail` with `message` as the fallback means
+ * this client works against both the current server and any older one still deployed.
+ */
 export interface ApiErrorBody {
+  type?: string;
+  title?: string;
+  status?: number;
+  detail?: string;
   code: string;
   message: string;
+  /** Present on 429. Seconds until the caller may retry. */
+  retry_after?: number;
 }
 
 export class ApiError extends Error {
@@ -52,7 +66,7 @@ async function request<T>(path: string, token: string, init: RequestInit = {}): 
     const body: ApiErrorBody = await response
       .json()
       .catch(() => ({ code: "unknown", message: "The request failed." }));
-    throw new ApiError(response.status, body.code, body.message);
+    throw new ApiError(response.status, body.code, body.detail ?? body.message);
   }
   return (await response.json()) as T;
 }
@@ -70,7 +84,7 @@ export function login(email: string, password: string): Promise<{ access_token: 
       // Deliberately not distinguishing "no such user" from "wrong password" in the UI
       // either. The API refuses to, because telling them apart turns a login form into an
       // account-enumeration tool, and a helpful client would undo that.
-      throw new ApiError(response.status, body.code, body.message);
+      throw new ApiError(response.status, body.code, body.detail ?? body.message);
     }
     return response.json() as Promise<{ access_token: string }>;
   });

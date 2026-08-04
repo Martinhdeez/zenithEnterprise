@@ -6,9 +6,11 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.common.exceptions import ZenithError
+from app.common.problem import problem
 from app.core.database import verify_rls_active
 from app.core.hardware import active as active_profile
 from app.core.logging import configure_logging
+from app.core.request_context import RequestContextMiddleware
 from app.features.admin.router import router as admin_router
 from app.features.auth.router import router as auth_router
 from app.features.documents.router import router as documents_router
@@ -31,14 +33,49 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
     yield
 
 
-app = FastAPI(title="Zenith Enterprise", version="0.1.0", lifespan=lifespan)
+app = FastAPI(
+    title="Zenith Enterprise",
+    version="0.1.0",
+    lifespan=lifespan,
+    description=(
+        "On-premise enterprise knowledge retrieval.\n\n"
+        "**Errors** follow RFC 7807 Problem Details (`application/problem+json`). Every "
+        "failure carries `type`, `title`, `status` and `detail`; `code` and `message` are "
+        "retained for clients written against the original shape.\n\n"
+        "**Isolation** is enforced by Postgres row-level security, not by query filters. A "
+        "resource another tenant owns is absent rather than forbidden, so a 404 rather "
+        "than a 403 — the difference between them would confirm that it exists."
+    ),
+)
+
+# Outermost, so a `trace_id` exists before anything else can log. Raw ASGI rather than
+# BaseHTTPMiddleware, which buffers the response body and would defeat /query/stream.
+app.add_middleware(RequestContextMiddleware)
 
 
 @app.exception_handler(ZenithError)
-async def handle_domain_error(_: Request, exc: ZenithError) -> JSONResponse:
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"code": exc.code, "message": exc.message},
+async def handle_domain_error(request: Request, exc: ZenithError) -> JSONResponse:
+    """Every domain error, as RFC 7807 Problem Details.
+
+    `Retry-After` is forwarded when the error carries one. A 429 that says "stop" without
+    saying "until when" is retried immediately, which makes the overload it was reporting
+    worse — mvp.md 2.12 requires the header for that reason.
+
+    F14 claimed this in its commit message and did not ship it: the edit ran from the wrong
+    directory, wrote nothing, and the throttle tests asserted on the exception rather than
+    on the response, so nothing failed. It is here now, and
+    `test_a_rate_limit_carries_retry_after_in_both_places` asserts the response.
+    """
+    retry_after = getattr(exc, "retry_after", None)
+    return problem(
+        status=exc.status_code,
+        code=exc.code,
+        detail=exc.message,
+        instance=request.url.path,
+        headers={"Retry-After": str(retry_after)} if retry_after else None,
+        # A machine-readable member alongside the header, per RFC 7807 §3.2: a client that
+        # already parsed the body should not reach back into headers to learn when to retry.
+        **({"retry_after": retry_after} if retry_after else {}),
     )
 
 
@@ -63,9 +100,11 @@ async def handle_unexpected_error(request: Request, exc: Exception) -> JSONRespo
         method=request.method,
         error=type(exc).__name__,
     )
-    return JSONResponse(
-        status_code=500,
-        content={"code": "internal_error", "message": "An unexpected error occurred."},
+    return problem(
+        status=500,
+        code="internal_error",
+        detail="An unexpected error occurred.",
+        instance=request.url.path,
     )
 
 

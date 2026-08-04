@@ -93,8 +93,10 @@ export async function streamQuery(
     // The backend never forwards a provider's error body, so whatever arrives here is
     // already safe to show — but it is still an internal message, so only the shape the
     // API documents is read.
-    const detail = await response.json().catch(() => ({ message: "The request failed." }));
-    handlers.onError(detail.message ?? "The request failed.");
+    // RFC 7807: `detail` describes this occurrence. `message` is the retained legacy
+    // member, read as a fallback so this client also works against an older server.
+    const problem = await response.json().catch(() => ({}));
+    handlers.onError(problem.detail ?? problem.message ?? "The request failed.");
     return;
   }
 
