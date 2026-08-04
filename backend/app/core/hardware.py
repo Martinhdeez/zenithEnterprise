@@ -84,6 +84,17 @@ PROFILES: Final[dict[str, Profile]] = {
         hnsw_ef_search=200,
         rerank_candidates=100,
     ),
+    # Requires **more than 4 cores and more than 7.6 GB**, and that floor is measured
+    # rather than estimated. F11 started TEI with these flags on a 4-core, 7.6 GB VPS and
+    # the reranker container was OOM-killed during warm-up at 4.3 GB RSS, before serving a
+    # single request. On the same box the cross-encoder could not rerank even *ten*
+    # passages inside the 5-second interactive timeout.
+    #
+    # `rerank_candidates = 50` therefore remains **uncalibrated**. It has never run on
+    # hardware that can host this profile, and lowering it on the strength of a machine
+    # that cannot run the profile at all would repeat F7's mistake in the other direction.
+    # A box that meets the floor is what settles it. Until then the honest statement is
+    # that this number is a guess, and it is written down as one.
     "cpu": Profile(
         name="cpu",
         max_batch_tokens=8192,

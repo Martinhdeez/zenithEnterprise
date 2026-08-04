@@ -1,0 +1,71 @@
+name: zenith-bench
+
+# The benchmark stack, on the machine a customer would actually buy.
+#
+# Separate from `docker-compose.yml` and on offset ports, because the target VPS already
+# runs the owner's own infrastructure on 80, 443, 5432 and 8000. A benchmark that takes down
+# the box it is measuring produces no numbers and one angry owner.
+#
+# The TEI settings repeat F5's measurements rather than the defaults: with TEI's own
+# defaults this image reached 6.59 GB RSS during warm-up on this exact machine and was
+# OOM-killed before processing a single document. `--max-concurrent-requests` is absent
+# deliberately — measured on this image, setting it panics TEI after as few as three
+# sequential requests.
+
+services:
+  db:
+    image: paradedb/paradedb:0.15.26-pg17
+    environment:
+      POSTGRES_USER: zenith
+      POSTGRES_PASSWORD: zenith
+      POSTGRES_DB: zenith
+    ports:
+      - "55432:5432"
+    volumes:
+      - bench_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zenith"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  tei-embed:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
+    command:
+      - "--model-id"
+      - "BAAI/bge-m3"
+      - "--auto-truncate"
+      - "--max-batch-tokens"
+      - "2048"
+      - "--max-client-batch-size"
+      - "4"
+    ports:
+      - "58081:80"
+    volumes:
+      # The cache F5 filled. 2.2 GB of weights already on this disk, and re-pulling them
+      # would cost more than the benchmark.
+      - zenith-eval_hf_cache:/data
+
+  tei-rerank:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
+    command:
+      - "--model-id"
+      - "BAAI/bge-reranker-v2-m3"
+      - "--auto-truncate"
+      # Sized for the `cpu` profile, which is what this benchmark calibrates. The first run
+      # left the `low-spec` numbers here while the application ran `cpu`, and every rerank
+      # request was rejected. The flags and the profile under test are one setting; they are
+      # set together or the measurement is fiction.
+      - "--max-batch-tokens"
+      - "${BENCH_MAX_BATCH_TOKENS:-8192}"
+      - "--max-client-batch-size"
+      - "${BENCH_MAX_CLIENT_BATCH_SIZE:-16}"
+    ports:
+      - "58082:80"
+    volumes:
+      - zenith-eval_hf_cache:/data
+
+volumes:
+  bench_db:
+  zenith-eval_hf_cache:
+    external: true

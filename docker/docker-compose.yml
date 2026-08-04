@@ -55,7 +55,29 @@ services:
 
   tei-rerank:
     image: ${TEI_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.8}
-    command: ["--model-id", "BAAI/bge-reranker-v2-m3", "--auto-truncate"]
+    # These flags were missing until F11 measured what their absence does, and their
+    # absence was worse than a wrong value. `TeiReranker.plan_batches` builds batches up to
+    # the profile's `max_client_batch_size` — 16 on `cpu`, 32 on `gpu`. TEI's own default
+    # is smaller, so every rerank request was rejected with
+    #
+    #   batch size 14 > maximum allowed batch size 4
+    #
+    # and `SearchService` did exactly what it was designed to do: caught it, fell back to
+    # the fused order, and returned a perfectly good answer marked `degraded`. Nothing
+    # crashed. The customer pays for a reranker that never runs once, and the only symptom
+    # is a recall number 15 points below what F7 measured.
+    #
+    # They share the embedder's variables deliberately. One TEI setting must never be
+    # configurable in two places that can disagree — that is the mistake this comment
+    # exists to prevent from recurring.
+    command:
+      - "--model-id"
+      - "BAAI/bge-reranker-v2-m3"
+      - "--auto-truncate"
+      - "--max-batch-tokens"
+      - "${TEI_MAX_BATCH_TOKENS:-2048}"
+      - "--max-client-batch-size"
+      - "${TEI_MAX_CLIENT_BATCH_SIZE:-4}"
     ports:
       - "${TEI_RERANK_PORT:-8082}:80"
     volumes:

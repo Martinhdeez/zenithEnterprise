@@ -1,0 +1,1058 @@
+{
+  "cores": 4,
+  "samples": [
+    {
+      "phase": "query",
+      "concurrency": 1,
+      "latency_ms": 4232.034971006215,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 1,
+      "latency_ms": 1042.7003297954798,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 1,
+      "latency_ms": 1151.5707676298916,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 1,
+      "latency_ms": 6078.078028745949,
+      "rerank_candidates": 10,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 1,
+      "latency_ms": 6997.430563904345,
+      "rerank_candidates": 10,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 1,
+      "latency_ms": 6386.306638363749,
+      "rerank_candidates": 10,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 1,
+      "latency_ms": 6226.815378293395,
+      "rerank_candidates": 25,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 1,
+      "latency_ms": 6284.144837874919,
+      "rerank_candidates": 25,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 1,
+      "latency_ms": 6454.350668936968,
+      "rerank_candidates": 25,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 1,
+      "latency_ms": 6273.562740068883,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 1,
+      "latency_ms": 6237.007814925164,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 1,
+      "latency_ms": 6202.82361889258,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 1,
+      "latency_ms": 6179.177625104785,
+      "rerank_candidates": 100,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 1,
+      "latency_ms": 6042.034369893372,
+      "rerank_candidates": 100,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 1,
+      "latency_ms": 5842.91296871379,
+      "rerank_candidates": 100,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 2,
+      "latency_ms": 6160.589723847806,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 2,
+      "latency_ms": 6940.024166367948,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 2,
+      "latency_ms": 6330.570787657052,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 2,
+      "latency_ms": 6803.308078087866,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 2,
+      "latency_ms": 6164.558181073517,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 2,
+      "latency_ms": 6831.678592134267,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 6646.04981103912,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 7482.01460018754,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 8266.274590045214,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 8576.21297892183,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 8562.269191723317,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 6123.789994046092,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 6856.888206209987,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 8269.409911241382,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 8313.435717020184,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 8389.039407018572,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 6116.940188221633,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 7026.094031985849,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 7895.895875059068,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 8321.002233307809,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 8007.86970788613,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 7283.276265952736,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 11251.187466084957,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 7629.681908991188,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 10624.601787887514,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 7364.793614950031,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 11291.081734932959,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 11123.877166304737,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 10669.502238743007,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 11307.592258788645,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 10683.137269224972,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 7425.475280266255,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 7150.147244334221,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 6353.962735738605,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 9598.385647404939,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 10691.977518144995,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 10537.135327234864,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 10737.23716288805,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 10013.724335934967,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 10331.152827013284,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 10583.253690972924,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 6339.985865633935,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 10860.773774329573,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 6986.2814750522375,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 10731.46232124418,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 10809.69346826896,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 10850.69464566186,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 10653.125388082117,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 10833.268649876118,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 9299.866267945617,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 11015.999366063625,
+      "rerank_candidates": 50,
+      "error": null,
+      "degraded": true,
+      "reason": "reranking unavailable (ReadTimeout); fused order"
+    },
+    {
+      "phase": "query",
+      "concurrency": 2,
+      "latency_ms": 1306.00073793903,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 2,
+      "latency_ms": 1774.4871168397367,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 2,
+      "latency_ms": 1030.584785155952,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 2,
+      "latency_ms": 1460.9933588653803,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 2,
+      "latency_ms": 1146.7249332927167,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 2,
+      "latency_ms": 1834.994567092508,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 1309.6554325893521,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 1792.5435910001397,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 2893.7946939840913,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 2950.4832909442484,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 2701.2397199869156,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 1680.317176040262,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 3127.1404880099,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 838.6321431025863,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 2952.9016902670264,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 2877.0705349743366,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 1255.9705679304898,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 1994.613941758871,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 3042.315999045968,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 3256.99565699324,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 5,
+      "latency_ms": 3000.0024433247745,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 4968.531207647175,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 1982.4375733733177,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 1155.9552811086178,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 5166.667450685054,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 4978.76109695062,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 5150.443776976317,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 5403.901597019285,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 5058.29621385783,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 4783.618392888457,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 4957.462873775512,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 2488.174383994192,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 1685.2553570643067,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 5855.4879277944565,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 5674.320625606924,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 5936.478718649596,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 4916.522223036736,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 5913.438516668975,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 5217.49881003052,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 4911.984955891967,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 5761.471998877823,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 5555.329370778054,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 1083.3915290422738,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 2060.582258272916,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 5821.6451071202755,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 5336.638948880136,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 4570.3556928783655,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 5645.60513664037,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 5971.702069975436,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 5619.55679487437,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    },
+    {
+      "phase": "query",
+      "concurrency": 10,
+      "latency_ms": 5703.373560216278,
+      "rerank_candidates": 0,
+      "error": null,
+      "degraded": false,
+      "reason": null
+    }
+  ]
+}
