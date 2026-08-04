@@ -7,14 +7,18 @@
  * is not to undermine it by displaying something it fetched from somewhere else.
  */
 
-import type { TenantStatus } from "../api/client";
+import { IN_FLIGHT, type TenantStatus } from "../api/client";
 
 export function StatusBadge({ status }: { status: TenantStatus | null }) {
   if (!status) return <p className="text-sm text-slate-500">Loading…</p>;
 
   const ready = status.documents.ready ?? 0;
-  const processing = (status.documents.processing ?? 0) + (status.documents.pending ?? 0);
   const failed = status.documents.failed ?? 0;
+  // Summed from the statuses the schema actually defines. The first version of this
+  // component added `processing`, which has never been one of them — it was always zero,
+  // silently, and the ingestion indicator never appeared. F16 found the same invented
+  // status in a backend folder count on the same day.
+  const processing = IN_FLIGHT.reduce((total, state) => total + (status.documents[state] ?? 0), 0);
 
   return (
     <div className="space-y-2 text-sm">

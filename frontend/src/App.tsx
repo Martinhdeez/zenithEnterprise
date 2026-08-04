@@ -11,7 +11,10 @@ import { Suspense, lazy, useCallback, useEffect, useState } from "react";
 
 import { tenantStatus, type TenantStatus } from "./api/client";
 import type { Citation } from "./api/stream";
+import { Admin } from "./components/Admin";
 import { Chat } from "./components/Chat";
+import { Folders } from "./components/Folders";
+import { History } from "./components/History";
 import { Login } from "./components/Login";
 import { StatusBadge } from "./components/StatusBadge";
 import { Upload } from "./components/Upload";
@@ -34,6 +37,12 @@ export function App() {
   const [token, setToken] = useState<string | null>(() => sessionStorage.getItem(TOKEN_KEY));
   const [status, setStatus] = useState<TenantStatus | null>(null);
   const [citation, setCitation] = useState<Citation | null>(null);
+  // A plain union rather than a router. Three screens with no deep links and no back-button
+  // expectations do not need one, and a router would be the largest dependency in the
+  // bundle for a product whose first screen must render fast on a busy box.
+  const [view, setView] = useState<"chat" | "history" | "admin">("chat");
+  const [folder, setFolder] = useState<string | null>(null);
+  const [uploads, setUploads] = useState(0);
 
   const refresh = useCallback(async () => {
     if (!token) return;
@@ -79,7 +88,38 @@ export function App() {
         </div>
 
         <StatusBadge status={status} />
-        <Upload token={token} onUploaded={() => void refresh()} />
+
+        <Folders
+          token={token}
+          selected={folder}
+          onSelect={setFolder}
+          refreshKey={uploads}
+        />
+
+        <Upload
+          token={token}
+          onUploaded={() => {
+            void refresh();
+            // Bumped so the folder counts follow ingestion. The tree is server-computed,
+            // so refreshing it is a fetch rather than a recount.
+            setUploads((count) => count + 1);
+          }}
+        />
+
+        <div className="flex flex-col gap-1 text-sm">
+          {(["chat", "history", "admin"] as const).map((name) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => setView(name)}
+              className={`rounded px-2 py-1 text-left capitalize ${
+                view === name ? "bg-slate-100 font-medium" : "hover:bg-slate-50"
+              }`}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
 
         <button
           type="button"
@@ -94,11 +134,16 @@ export function App() {
       </nav>
 
       <main className="flex-1 overflow-auto p-6">
-        <Chat
-          token={token}
-          onCitation={setCitation}
-          searchable={status?.searchable ?? true}
-        />
+        {view === "chat" && (
+          <Chat
+            token={token}
+            onCitation={setCitation}
+            searchable={status?.searchable ?? true}
+            labels={folder ? [folder] : undefined}
+          />
+        )}
+        {view === "history" && <History token={token} />}
+        {view === "admin" && <Admin token={token} />}
       </main>
 
       <div className="w-[38rem] shrink-0 border-l border-slate-200">

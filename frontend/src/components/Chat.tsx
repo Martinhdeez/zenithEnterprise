@@ -19,9 +19,16 @@ interface Props {
   onCitation: (citation: Citation) => void;
   /** From `GET /tenant/status`. An ask box over an empty corpus can only disappoint. */
   searchable: boolean;
+  /**
+   * Narrow the search to a folder the user selected.
+   *
+   * Passed straight through to the API, which refuses a label the caller does not hold
+   * with a 403 rather than an empty result — so this can only ever narrow, never widen.
+   */
+  labels?: string[];
 }
 
-export function Chat({ token, onCitation, searchable }: Props) {
+export function Chat({ token, onCitation, searchable, labels }: Props) {
   const [state, dispatch] = useReducer(reduce, INITIAL);
   const [question, setQuestion] = useState("");
   const inflight = useRef<AbortController | null>(null);
@@ -42,7 +49,7 @@ export function Chat({ token, onCitation, searchable }: Props) {
             onResult: (result) => dispatch({ type: "result", result }),
             onError: (message) => dispatch({ type: "error", message }),
           },
-          { signal: controller.signal },
+          { labels, signal: controller.signal },
         );
       } catch (error) {
         // An abort is the user asking something else, not a failure to report.
@@ -53,7 +60,7 @@ export function Chat({ token, onCitation, searchable }: Props) {
         });
       }
     },
-    [token],
+    [token, labels],
   );
 
   if (!searchable) {

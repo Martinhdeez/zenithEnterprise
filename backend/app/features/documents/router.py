@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+from dataclasses import asdict
 from typing import Annotated
 from uuid import UUID
 
@@ -8,8 +9,15 @@ from fastapi.responses import FileResponse
 from app.common.exceptions import LimitExceededError, NotFoundError
 from app.core.config import settings
 from app.features.auth.dependencies import CurrentProfile, requires, requires_any
+from app.features.documents.folders import tree
 from app.features.documents.pagination import MAX_LIMIT
-from app.features.documents.schemas import DocumentPage, DocumentResponse, UploadResponse
+from app.features.documents.schemas import (
+    DocumentPage,
+    DocumentResponse,
+    FolderResponse,
+    FolderTreeResponse,
+    UploadResponse,
+)
 from app.features.documents.service import DELETE_ANY, DELETE_OWN, UPLOAD, DocumentService
 from app.features.documents.storage import CHUNK_BYTES, DocumentStorage
 
@@ -47,6 +55,33 @@ async def upload_document(
         document=DocumentResponse.model_validate(result.document),
         labels=result.labels,
         deduplicated=result.deduplicated,
+    )
+
+
+@router.get(
+    "/documents/folders",
+    operation_id="listFolders",
+    summary="The label structure, aggregated into a browsable tree",
+    responses={401: {"description": "Missing or invalid credentials"}},
+)
+async def folders(profile: CurrentProfile) -> FolderTreeResponse:
+    """Grouping computed here rather than in the browser.
+
+    A client building this from the flat listing would need every document to do it, would
+    disagree with the list about counts the moment either changed, and — the reason that
+    settles it — would have to re-implement the rule that a document with no labels is
+    visible to the whole tenant while a labelled one is not. That rule lives in the RLS
+    policy, and reconstructing it client-side is how a folder appears in a sidebar for
+    somebody who cannot open anything inside it.
+
+    Gated on authentication alone: every role can already discover what it can reach by
+    searching, so a permission here would protect nothing and break the first screen for
+    the lowest-privileged user.
+    """
+    computed = await tree(profile.context)
+    return FolderTreeResponse(
+        folders=[FolderResponse(**asdict(folder)) for folder in computed.folders],
+        total_documents=computed.total_documents,
     )
 
 

@@ -9,6 +9,7 @@ from app.common.exceptions import ZenithError
 from app.core.database import verify_rls_active
 from app.core.hardware import active as active_profile
 from app.core.logging import configure_logging
+from app.features.admin.router import router as admin_router
 from app.features.auth.router import router as auth_router
 from app.features.documents.router import router as documents_router
 from app.features.labels.router import router as labels_router
@@ -74,6 +75,7 @@ app.include_router(documents_router)
 app.include_router(search_router)
 app.include_router(query_router)
 app.include_router(tenancy_router)
+app.include_router(admin_router)
 
 
 @app.get("/health")

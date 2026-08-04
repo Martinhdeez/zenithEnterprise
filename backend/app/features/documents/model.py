@@ -17,6 +17,12 @@ from app.core.database import Base, created_at, uuid_col, uuid_pk
 
 DOCUMENT_STATUSES = ("pending", "parsing", "chunking", "embedding", "ready", "failed")
 
+#: The statuses that mean "still being worked on". Derived from the tuple above rather than
+#: listed again, because F16 shipped a folder count filtering on a status named
+#: `processing` that has never existed — it matched nothing, silently, and the constraint
+#: only caught it because a test happened to insert one.
+IN_FLIGHT = tuple(status for status in DOCUMENT_STATUSES if status not in {"ready", "failed"})
+
 
 class Document(Base):
     __tablename__ = "documents"

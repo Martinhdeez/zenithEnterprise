@@ -7,6 +7,16 @@
  * else.
  */
 
+/**
+ * The document statuses that mean "still being worked on".
+ *
+ * Mirrors `DOCUMENT_STATUSES` in the backend model, and it is a real duplication rather
+ * than a convenience: the client cannot import Python. `documents` is keyed by whatever
+ * the server sends, so a typo here is not a type error — it is a counter that reads zero
+ * forever. Which is exactly what happened before F16 noticed.
+ */
+export const IN_FLIGHT = ["pending", "parsing", "chunking", "embedding"] as const;
+
 export interface TenantStatus {
   documents: Record<string, number>;
   chunks: number;
@@ -88,4 +98,109 @@ export function uploadDocument(
   // multipart boundary it generated. Setting it by hand produces a body the server cannot
   // parse, and the error says nothing about why.
   return request<UploadResult>("/documents", token, { method: "POST", body });
+}
+
+
+export interface Folder {
+  label_id: string | null;
+  name: string;
+  is_default: boolean;
+  documents: number;
+  ready: number;
+  processing: number;
+  failed: number;
+}
+
+export interface FolderTree {
+  folders: Folder[];
+  total_documents: number;
+}
+
+/**
+ * The folder tree, grouped by the server.
+ *
+ * The client is a presentation layer here on purpose: a browser rebuilding this from the
+ * flat listing would have to re-implement the rule that an unlabelled document is visible
+ * tenant-wide while a labelled one is not — which lives in an RLS policy, and getting it
+ * wrong means showing a folder to somebody who cannot open anything inside it.
+ */
+export function folders(token: string): Promise<FolderTree> {
+  return request<FolderTree>("/documents/folders", token);
+}
+
+export interface HistoryEntry {
+  query_id: string;
+  question: string;
+  answer: string | null;
+  model_used: string | null;
+  citations: number;
+  latency_retrieval_ms: number | null;
+  latency_generation_ms: number | null;
+  created_at: string;
+  mine: boolean;
+}
+
+export interface HistoryPage {
+  entries: HistoryEntry[];
+  next_cursor: string | null;
+}
+
+/**
+ * Past questions. Whose, is decided by the server from the caller's permissions — there is
+ * deliberately no scope parameter, because that would be the client asking rather than the
+ * server deciding.
+ */
+export function history(token: string, cursor?: string | null): Promise<HistoryPage> {
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+  return request<HistoryPage>(`/query/history${query}`, token);
+}
+
+export interface Role {
+  id: string;
+  name: string;
+  is_system: boolean;
+  permissions: string[];
+  users: number;
+}
+
+export function roles(token: string): Promise<Role[]> {
+  return request<Role[]>("/roles", token);
+}
+
+export function setRolePermissions(
+  token: string,
+  roleId: string,
+  permissions: string[],
+): Promise<Role> {
+  return request<Role>(`/roles/${roleId}/permissions`, token, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ permissions }),
+  });
+}
+
+export interface LlmConfig {
+  endpoint_url: string;
+  model_name: string;
+  /** Never the key itself — only whether one is stored. */
+  has_api_key: boolean;
+  configured: boolean;
+}
+
+export function llmConfig(token: string): Promise<LlmConfig> {
+  return request<LlmConfig>("/llm-config", token);
+}
+
+export function saveLlmConfig(
+  token: string,
+  config: { endpoint_url: string; model_name: string; api_key?: string },
+): Promise<LlmConfig> {
+  // `api_key` omitted rather than sent empty when the field was left alone: the server
+  // reads omission as "keep the stored key" and "" as "clear it", and an administrator
+  // editing a model name must not silently wipe a credential they cannot even read.
+  return request<LlmConfig>("/llm-config", token, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config),
+  });
 }

@@ -44,3 +44,22 @@ class UploadResponse(BaseModel):
     document: DocumentResponse
     labels: list[UUID]
     deduplicated: bool
+
+
+class FolderResponse(BaseModel):
+    """One folder. `label_id` is null for the unlabelled bucket, which is not a label."""
+
+    label_id: UUID | None
+    name: str
+    is_default: bool
+    documents: int
+    #: Broken out because a folder with three ready documents and one failed is a different
+    #: thing from one with four, and a failed document is invisible in search.
+    ready: int
+    processing: int
+    failed: int
+
+
+class FolderTreeResponse(BaseModel):
+    folders: list[FolderResponse]
+    total_documents: int
