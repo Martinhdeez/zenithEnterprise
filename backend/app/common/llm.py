@@ -15,6 +15,7 @@ a contract that adapters and application code both depend on cannot live inside 
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from uuid import UUID
 
@@ -97,3 +98,18 @@ class BaseLLMProvider(ABC):
     @abstractmethod
     async def complete(self, system: str, user: str) -> GenerationResponse:
         """Answer the prompt, or raise `GenerationUnavailableError`."""
+
+    async def stream(self, system: str, user: str) -> AsyncIterator[str]:
+        """Yield the answer in pieces, for `POST /query/stream`.
+
+        Concrete rather than abstract, and defaulting to one chunk containing the whole
+        answer. A provider that cannot stream is not broken — a corporate gateway that
+        buffers, an adapter written before this existed — and forcing every implementation
+        to reimplement `complete` in terms of a generator would make the interface harder
+        to satisfy for no gain. The endpoint still works against such a provider; it simply
+        delivers one large token.
+
+        Not part of the `Connector`-shaped contract F8 defined for that reason: adding a
+        method with a working default cannot break an existing adapter.
+        """
+        yield (await self.complete(system, user)).text

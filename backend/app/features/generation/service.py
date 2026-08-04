@@ -8,6 +8,7 @@ thinks, and the log is written afterwards in its own short transaction.
 """
 
 import time
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -22,8 +23,9 @@ from app.features.auth.service import AccessProfile
 from app.features.generation import citations as binding
 from app.features.generation import prompt, providers
 from app.features.generation.crypto import decrypt
+from app.features.generation.streaming import filtered
 from app.features.retrieval.search import Hit
-from app.features.retrieval.service import SearchService
+from app.features.retrieval.service import SearchResult, SearchService
 
 log = structlog.get_logger()
 
@@ -35,6 +37,19 @@ assert EXECUTE in CATALOGUE, "the permission this service is gated on must exist
 # pays for in latency, and F7 measured Recall@8 at 95% — the answer is almost always in the
 # first few. Asking for forty would buy 0% more recall and a much slower answer.
 PASSAGES = 8
+
+
+@dataclass(frozen=True, slots=True)
+class Streamed:
+    """One event on the wire: a piece of text, or the authoritative verdict.
+
+    Both fields optional and exactly one set, rather than two event classes, because the
+    router turns this into named SSE events and a union would make that a match statement
+    for no gain.
+    """
+
+    token: str | None = None
+    result: "Answer | None" = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,6 +113,78 @@ class AnswerService:
             retrieval_ms=found.took_ms,
             generation_ms=generation_ms,
         )
+        return Answer(
+            query_id=query_id,
+            answer=bound.answer,
+            citations=bound.citations,
+            abstained=bound.abstained,
+            consulted=found.hits,
+            model=model,
+            degraded=found.degraded,
+            reason=found.reason,
+            took_retrieval_ms=found.took_ms,
+            took_generation_ms=generation_ms,
+        )
+
+    async def stream(
+        self, question: str, labels: list[UUID] | None = None
+    ) -> AsyncIterator[Streamed]:
+        """The same answer, delivered in pieces, with one guarantee weakened on purpose.
+
+        An invalid marker still never reaches the caller — `MarkerFilter` holds text from
+        `[` until the marker resolves. What cannot survive streaming is the rule that an
+        answer citing *nothing* valid is discarded: that is knowable only at the end, and by
+        then the prose is sent. So the final `Streamed` carries the authoritative answer and
+        `abstained`, and the caller is required to honour it.
+
+        The log is written from the accumulated text, so a streamed query is as auditable as
+        a buffered one — `queries` and `query_citations` cannot tell the difference.
+        """
+        found = await self.search.search(question, PASSAGES, labels)
+        provider = self._provider or await self._resolve()
+
+        if not found.hits:
+            bound = binding.Bound(prompt.ABSTENTION, [], abstained=True, fabricated=0)
+            query_id = await self._record(question, bound, [], "", found.took_ms, 0)
+            yield Streamed(result=self._answer(query_id, bound, found, "", 0))
+            return
+
+        started = time.perf_counter()
+        pieces: list[str] = []
+        async for text_piece in filtered(
+            provider.stream(prompt.SYSTEM, prompt.build(question, found.hits)),
+            range(1, len(found.hits) + 1),
+        ):
+            pieces.append(text_piece)
+            yield Streamed(token=text_piece)
+
+        generation_ms = int((time.perf_counter() - started) * 1000)
+        # Bound again over the whole text rather than trusting the filter's bookkeeping.
+        # The filter guarantees what was *sent*; `bind` decides what is *true*, and the
+        # audit row has to come from the same function the non-streaming path uses or the
+        # two would drift.
+        bound = binding.bind("".join(pieces), found.hits)
+        model = getattr(provider, "model", "")
+        query_id = await self._record(
+            question, bound, found.hits, model, found.took_ms, generation_ms
+        )
+        log.info(
+            "query_streamed",
+            query_id=str(query_id),
+            cited=len(bound.citations),
+            abstained=bound.abstained,
+            fabricated=bound.fabricated,
+        )
+        yield Streamed(result=self._answer(query_id, bound, found, model, generation_ms))
+
+    def _answer(
+        self,
+        query_id: UUID,
+        bound: binding.Bound,
+        found: SearchResult,
+        model: str,
+        generation_ms: int,
+    ) -> Answer:
         return Answer(
             query_id=query_id,
             answer=bound.answer,

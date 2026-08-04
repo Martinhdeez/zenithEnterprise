@@ -18,6 +18,8 @@ also put a vendor's response type one import away from the application layer, wh
 line `common/llm.py` exists to hold.
 """
 
+import json
+from collections.abc import AsyncIterator
 from typing import cast
 
 import httpx
@@ -97,6 +99,69 @@ class OpenAIProvider(BaseLLMProvider):
             # substituting a model silently is exactly what `queries.model_used` is for.
             model=_model_of(payload) or self.model,
         )
+
+    async def stream(self, system: str, user: str) -> AsyncIterator[str]:
+        """The same request with `stream: true`, decoded from SSE.
+
+        Parsed by hand rather than with a library: the response is `data: {...}` lines and a
+        `data: [DONE]` sentinel, and a dependency that exists to split on a colon would be a
+        dependency to audit, license and upgrade for the next decade of an on-premise
+        product.
+
+        A malformed line is skipped rather than fatal. Half a streamed answer that keeps
+        flowing is worth more than an exception thrown at the client mid-sentence, and the
+        `result` event at the end is what carries the authoritative text regardless.
+        """
+        headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+        try:
+            async with (
+                httpx.AsyncClient(timeout=TIMEOUT, transport=self.transport) as client,
+                client.stream(
+                    "POST",
+                    f"{self.endpoint_url}/chat/completions",
+                    headers=headers,
+                    json={
+                        "model": self.model,
+                        "temperature": TEMPERATURE,
+                        "stream": True,
+                        "messages": [
+                            {"role": "system", "content": system},
+                            {"role": "user", "content": user},
+                        ],
+                    },
+                ) as response,
+            ):
+                if response.status_code >= 400:
+                    raise GenerationUnavailableError(
+                        f"the language model returned {response.status_code}."
+                    )
+                async for line in response.aiter_lines():
+                    content = _streamed_delta(line)
+                    if content:
+                        yield content
+        except httpx.HTTPError as exc:
+            raise GenerationUnavailableError(
+                f"the language model at {self.endpoint_url} could not be reached "
+                f"({type(exc).__name__})."
+            ) from exc
+
+
+def _streamed_delta(line: str) -> str | None:
+    """One SSE line to the text it carries, or `None` for everything else."""
+    if not line.startswith("data:"):
+        return None
+    payload = line[len("data:") :].strip()
+    if not payload or payload == "[DONE]":
+        return None
+    try:
+        decoded: object = json.loads(payload)
+    except json.JSONDecodeError:
+        return None
+    choices = _field(decoded, "choices")
+    if not isinstance(choices, list) or not choices:
+        return None
+    content = _field(_field(cast(list[object], choices)[0], "delta"), "content")
+    return content if isinstance(content, str) and content else None
 
 
 def _first_message(payload: object) -> str:

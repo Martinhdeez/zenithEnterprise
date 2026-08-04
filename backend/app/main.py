@@ -14,6 +14,7 @@ from app.features.documents.router import router as documents_router
 from app.features.labels.router import router as labels_router
 from app.features.query.router import router as query_router
 from app.features.retrieval.router import router as search_router
+from app.features.tenancy.router import router as tenancy_router
 
 configure_logging()
 log = structlog.get_logger()
@@ -72,6 +73,7 @@ app.include_router(labels_router)
 app.include_router(documents_router)
 app.include_router(search_router)
 app.include_router(query_router)
+app.include_router(tenancy_router)
 
 
 @app.get("/health")
