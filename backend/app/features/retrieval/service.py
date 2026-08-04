@@ -25,6 +25,7 @@ from app.core.hardware import active as active_profile
 from app.features.auth.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
 from app.features.embeddings.client import MODEL, VERSION, TeiClient
+from app.features.retrieval.breaker import Breaker
 from app.features.retrieval.reranker import TeiReranker
 from app.features.retrieval.search import (
     CANDIDATES,
@@ -45,6 +46,12 @@ assert EXECUTE in CATALOGUE, "the permission this service is gated on must exist
 DEFAULT_LIMIT = 8
 MAX_LIMIT = 50
 
+# One breaker per process, shared by every `SearchService` instance, because the thing it
+# describes — is the reranker answering? — is a property of the deployment rather than of a
+# request. A per-instance breaker would reset on every query and never open at all, which
+# is the bug this module would otherwise ship with.
+RERANKER_BREAKER = Breaker()
+
 
 @dataclass(frozen=True, slots=True)
 class SearchResult:
@@ -61,8 +68,11 @@ class SearchService:
         embedder: TeiClient | None = None,
         hardware: Profile | None = None,
         reranker: TeiReranker | None = None,
+        breaker: Breaker | None = None,
     ) -> None:
         self.profile = profile
+        # Injectable so a test can drive the states without waiting a minute of real time.
+        self.breaker = breaker or RERANKER_BREAKER
         self.context = profile.context
         self.hardware = hardware or active_profile()
         self.embedder = embedder or TeiClient(profile=self.hardware)
@@ -148,11 +158,26 @@ class SearchService:
             # Configured off. Not a degradation: the customer chose this profile and
             # `zenith diagnose` names what it disabled.
             return hits[:limit], None
+
+        if not self.breaker.allows():
+            # F11 measured why this exists: a reranker that times out costs the full
+            # 5-second timeout on *every* query and returns the fused order anyway —
+            # 6,237 ms for an answer that takes 1,152 ms with reranking switched off. The
+            # timeout protects correctness and does nothing for latency. Skipping it while
+            # the circuit is open turns a permanent tax into a one-minute one.
+            #
+            # Still reported as degraded, because it is: the answer is the fused order and
+            # the customer paid for better.
+            return hits[:limit], "reranking unavailable (circuit open); fused order"
+
         try:
             scored = await self.reranker.rank(question, [hit.text for hit in hits])
         except Exception as exc:  # noqa: BLE001 - degrading is the point
+            self.breaker.failed()
             log.warning("rerank_failed", error=str(exc))
             return hits[:limit], f"reranking unavailable ({type(exc).__name__}); fused order"
+
+        self.breaker.succeeded()
 
         # `replace` rather than mutation: `Hit` is frozen, and the cross-encoder's score is
         # the fourth column `query_citations` was designed to hold.

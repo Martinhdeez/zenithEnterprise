@@ -142,6 +142,24 @@ def fresh_login_allowance() -> None:
     login_limiter.reset()
 
 
+@pytest.fixture(autouse=True)
+def fresh_reranker_breaker() -> None:
+    """Reset the reranker circuit before every test.
+
+    Process-wide state by design — whether the reranker is answering is a property of the
+    deployment, not of a request — but in a test run every case shares it. Without this, a
+    test that deliberately fails the reranker leaves failures on the counter, and the third
+    such test opens the circuit and silently changes the behaviour of whatever runs next.
+    The suite would pass until someone reordered it.
+
+    Exactly the reasoning behind `fresh_login_allowance`, for exactly the same class of
+    state.
+    """
+    from app.features.retrieval.service import RERANKER_BREAKER
+
+    RERANKER_BREAKER.succeeded()
+
+
 # --- Embedding doubles --------------------------------------------------------------
 #
 # Here rather than in a feature's test file because search, reranking and generation all
