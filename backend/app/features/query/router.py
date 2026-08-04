@@ -1,13 +1,18 @@
 from collections.abc import AsyncIterator
+from dataclasses import asdict
+from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sse_starlette.sse import EventSourceResponse
 
-from app.features.auth.dependencies import CurrentProfile, requires
+from app.features.auth.dependencies import CurrentProfile, requires, requires_any
 from app.features.generation.service import EXECUTE, Answer, AnswerService
+from app.features.query.history import ANY, OWN, HistoryService
 from app.features.query.schemas import (
     CitationResponse,
     ConsultedResponse,
+    HistoryEntryResponse,
+    HistoryResponse,
     QueryRequest,
     QueryResponse,
 )
@@ -124,3 +129,30 @@ async def ask_streaming(profile: CurrentProfile, request: QueryRequest) -> Event
                 yield {"event": "result", "data": _rendered(piece.result).model_dump_json()}
 
     return EventSourceResponse(events())
+
+
+@router.get(
+    "/query/history",
+    operation_id="listQueryHistory",
+    summary="Past questions and the answers they received",
+    responses={403: {"description": "Missing query.history.own and query.history.any"}},
+    dependencies=[Depends(requires_any(OWN, ANY))],
+)
+async def history(
+    profile: CurrentProfile,
+    limit: Annotated[int | None, Query(ge=1, le=200)] = None,
+    cursor: Annotated[str | None, Query(description="From a previous page.")] = None,
+) -> HistoryResponse:
+    """Whose history is returned is decided by the caller's permissions, never by a
+    parameter.
+
+    `query.history.any` reads the whole tenant's; `query.history.own` reads only the
+    caller's. That distinction is enforced in the service rather than by RLS, because RLS
+    models tenant and label and not "mine versus my colleagues'" — and the questions people
+    ask are more revealing than the documents they read.
+    """
+    page = await HistoryService(profile).page(limit, cursor)
+    return HistoryResponse(
+        entries=[HistoryEntryResponse(**asdict(entry)) for entry in page.entries],
+        next_cursor=page.next_cursor,
+    )

@@ -3,7 +3,7 @@
     "questions": 31,
     "passages_per_answer": 8,
     "extraction_rate": 1.0,
-    "context_rate": 0.9032,
+    "context_rate": 0.9677,
     "by_type": {
       "cross-document": {
         "extraction": 1.0,
@@ -15,7 +15,7 @@
       },
       "identifier": {
         "extraction": 1.0,
-        "context": 0.6667
+        "context": 1.0
       },
       "table": {
         "extraction": 1.0,
@@ -29,9 +29,7 @@
     },
     "lost_in_extraction": [],
     "found_but_not_in_context": [
-      "cross-platform-obligations",
-      "identifier-catalog-number",
-      "identifier-usc-citation"
+      "cross-platform-obligations"
     ]
   },
   "results": [
@@ -110,7 +108,7 @@
       "type": "factual",
       "extracted": true,
       "in_context": true,
-      "context_rank": 4,
+      "context_rank": 2,
       "anchors": [
         "status of trusted flagger"
       ]
@@ -130,7 +128,7 @@
       "type": "factual",
       "extracted": true,
       "in_context": true,
-      "context_rank": 3,
+      "context_rank": 1,
       "anchors": [
         "MultiHead"
       ]
@@ -294,8 +292,8 @@
       "question_id": "identifier-catalog-number",
       "type": "identifier",
       "extracted": true,
-      "in_context": false,
-      "context_rank": null,
+      "in_context": true,
+      "context_rank": 1,
       "anchors": [
         "10000W"
       ]
@@ -344,8 +342,8 @@
       "question_id": "identifier-usc-citation",
       "type": "identifier",
       "extracted": true,
-      "in_context": false,
-      "context_rank": null,
+      "in_context": true,
+      "context_rank": 3,
       "anchors": [
         "23 U.S.C. 101"
       ]

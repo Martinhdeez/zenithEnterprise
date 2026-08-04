@@ -121,7 +121,9 @@ async def dense(
     return [(row.id, float(row.score)) for row in rows]
 
 
-def candidates(lexical_ids: list[UUID], dense_ids: list[UUID]) -> list[tuple[UUID, float]]:
+def candidates(
+    lexical_ids: list[UUID], dense_ids: list[UUID], exact_ids: list[UUID] | None = None
+) -> list[tuple[UUID, float]]:
     """Everything either half proposed, in fused order.
 
     The union rather than the fused top-N, because fusion was doing two jobs and is bad at
@@ -132,10 +134,21 @@ def candidates(lexical_ids: list[UUID], dense_ids: list[UUID]) -> list[tuple[UUI
     Measured: identifier questions scored 0% at rank 8, and two of six were not in the fused
     top-50 at all — found by the lexical half, ranked out of existence by agreement.
     """
-    return fuse(lexical_ids, dense_ids, limit=len(lexical_ids) + len(dense_ids))
+    exact_ids = exact_ids or []
+    return fuse(
+        lexical_ids,
+        dense_ids,
+        limit=len(lexical_ids) + len(dense_ids) + len(exact_ids),
+        exact_ids=exact_ids,
+    )
 
 
-def fuse(lexical_ids: list[UUID], dense_ids: list[UUID], limit: int) -> list[tuple[UUID, float]]:
+def fuse(
+    lexical_ids: list[UUID],
+    dense_ids: list[UUID],
+    limit: int,
+    exact_ids: list[UUID] | None = None,
+) -> list[tuple[UUID, float]]:
     """Reciprocal Rank Fusion — positions only, never scores.
 
     BM25-style relevance and cosine similarity are not comparable: they live on different
@@ -154,19 +167,23 @@ def fuse(lexical_ids: list[UUID], dense_ids: list[UUID], limit: int) -> list[tup
     result. Not a weight and not a tuning parameter — a floor, and the smallest change that
     fixes the case without reintroducing the scale problem RRF was chosen to avoid.
     """
+    # The exact-identifier ranking is a third input to the same arithmetic rather than a
+    # special case. It is short and precise, so its top position contributes the same
+    # 1/(k+1) any other first place does — and the leader floor below guarantees its best
+    # hit a seat, which is what actually rescues a buried identifier.
+    rankings = [lexical_ids, dense_ids, *([exact_ids] if exact_ids else [])]
     scores: dict[UUID, float] = {}
-    for ranking in (lexical_ids, dense_ids):
+    for ranking in rankings:
         for position, chunk_id in enumerate(ranking, start=1):
             scores[chunk_id] = scores.get(chunk_id, 0.0) + 1 / (RRF_K + position)
 
     ordered = sorted(scores.items(), key=lambda item: (-item[1], str(item[0])))
-    return _promote_leaders(ordered[:limit], lexical_ids, dense_ids, limit)
+    return _promote_leaders(ordered[:limit], rankings, limit)
 
 
 def _promote_leaders(
     top: list[tuple[UUID, float]],
-    lexical_ids: list[UUID],
-    dense_ids: list[UUID],
+    rankings: list[list[UUID]],
     limit: int,
 ) -> list[tuple[UUID, float]]:
     """If either half ranked something first, it appears.
@@ -180,7 +197,7 @@ def _promote_leaders(
         return top
 
     present = {chunk_id for chunk_id, _ in top}
-    leaders = [ranking[0] for ranking in (lexical_ids, dense_ids) if ranking]
+    leaders = [ranking[0] for ranking in rankings if ranking]
     missing = [leader for leader in leaders if leader not in present]
     if not missing:
         return top

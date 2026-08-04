@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -55,3 +56,25 @@ class QueryResponse(BaseModel):
     reason: str | None
     took_retrieval_ms: int
     took_generation_ms: int
+
+
+class HistoryEntryResponse(BaseModel):
+    query_id: UUID
+    question: str
+    answer: str | None
+    model_used: str | None
+    #: How many passages the answer leaned on. A count rather than the citations
+    #: themselves: a history list is a list, and fetching every citation for every row
+    #: would make the cheap screen expensive.
+    citations: int
+    latency_retrieval_ms: int | None
+    latency_generation_ms: int | None
+    created_at: datetime
+    #: Whose question this was. A shared history is only readable if you can tell.
+    mine: bool
+
+
+class HistoryResponse(BaseModel):
+    entries: list[HistoryEntryResponse]
+    #: Opaque. Pass it back as `cursor` for the next page; `null` means this is the last.
+    next_cursor: str | None

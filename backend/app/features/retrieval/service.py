@@ -26,6 +26,7 @@ from app.features.auth.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
 from app.features.embeddings.client import MODEL, VERSION, TeiClient
 from app.features.retrieval.breaker import Breaker
+from app.features.retrieval.identifiers import exact
 from app.features.retrieval.reranker import TeiReranker
 from app.features.retrieval.search import (
     CANDIDATES,
@@ -110,16 +111,23 @@ class SearchService:
             # Ids drive fusion, which never sees a magnitude; the scores travel separately
             # and end up in the query log. Keeping them apart is what stops a later change
             # from quietly making RRF scale-dependent.
+            # The third signal, and it usually costs nothing: it returns immediately
+            # unless the question contains something identifier-shaped. F15 measured the
+            # case it exists for — a chunk holding the exact identifier ranked 52nd by
+            # `ts_rank_cd`, two places outside the candidate set, because frequency
+            # ranking has no notion of how rare a term is.
+            exact_scored = await exact(session, question)
             lexical_ids = [chunk_id for chunk_id, _ in lexical_scored]
             dense_ids = [chunk_id for chunk_id, _ in dense_scored]
+            exact_ids = [chunk_id for chunk_id, _ in exact_scored]
             # The union goes to the reranker; the fused top-k is what answers without one.
             # Choosing candidates and ordering results are different jobs, and RRF is only
             # good at the second.
             reranking = self.reranker is not None and self.hardware.rerank_candidates > 0
             ranked = (
-                candidates(lexical_ids, dense_ids)[: self.hardware.rerank_candidates]
+                candidates(lexical_ids, dense_ids, exact_ids)[: self.hardware.rerank_candidates]
                 if reranking
-                else fuse(lexical_ids, dense_ids, limit)
+                else fuse(lexical_ids, dense_ids, limit, exact_ids)
             )
             hits = await hydrate(
                 session, ranked, lexical_ids, dense_ids, dict(lexical_scored), dict(dense_scored)
@@ -137,6 +145,7 @@ class SearchService:
             "search",
             lexical=len(lexical_ids),
             dense=len(dense_ids),
+            exact=len(exact_ids),
             returned=len(hits),
             degraded=bool(degraded_reason),
             took_ms=took,
