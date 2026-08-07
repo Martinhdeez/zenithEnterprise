@@ -44,6 +44,11 @@ export function deleteLabel(token: string, labelId: string): Promise<void> {
 
 export interface LabelSearchItem extends Label {
   /**
+   * When this label was last applied to a document the caller can see, or null if never.
+   * RLS-scoped like `documents` — it describes the corpus you can open, not the tenant's.
+   */
+  last_used: string | null;
+  /**
    * Documents *this caller can see* carrying the label — not a tenant-wide total.
    * `document_labels` inherits its RLS policy from `documents`, so an administrator who
    * does not reach a label is told how many of its documents they could open, never how
@@ -58,7 +63,7 @@ export interface LabelSearchPage {
   next_cursor: string | null;
 }
 
-export type LabelSort = "name" | "usage_count" | "created_at";
+export type LabelSort = "name" | "usage_count" | "created_at" | "last_used";
 
 /**
  * Paginated label search. `cursor` is opaque and belongs to the `sort` that produced it —
@@ -67,13 +72,24 @@ export type LabelSort = "name" | "usage_count" | "created_at";
  */
 export function searchLabels(
   token: string,
-  options: { q?: string; sort?: LabelSort; cursor?: string; limit?: number } = {},
+  options: {
+    q?: string;
+    sort?: LabelSort;
+    cursor?: string;
+    limit?: number;
+    /** Drop labels no document carries. */
+    inUse?: boolean;
+    /** Narrow to labels on documents this caller uploaded. */
+    mine?: boolean;
+  } = {},
 ): Promise<LabelSearchPage> {
   const query = new URLSearchParams();
   if (options.q) query.set("q", options.q);
   if (options.sort) query.set("sort", options.sort);
   if (options.cursor) query.set("cursor", options.cursor);
   if (options.limit) query.set("limit", String(options.limit));
+  if (options.inUse) query.set("in_use", "true");
+  if (options.mine) query.set("mine", "true");
   const suffix = query.toString();
   return request<LabelSearchPage>(`/labels/search${suffix ? `?${suffix}` : ""}`, token);
 }

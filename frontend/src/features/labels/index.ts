@@ -1,5 +1,5 @@
 /** Choosing labels for a document, and administering the set itself. */
-export { LabelPicker, COMBOBOX_THRESHOLD } from "./LabelPicker";
+export { LabelPicker } from "./LabelPicker";
 export { TagManager } from "./TagManager";
 export {
   labels,

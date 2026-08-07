@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -44,6 +45,9 @@ class LabelSearchItem(BaseModel):
     name: str
     is_default: bool
     documents: int
+    #: When this label was last applied to a document the caller can see; null if never.
+    #: Lets the picker say "used yesterday" without a second request per label.
+    last_used: datetime | None
 
 
 class LabelSearchPage(BaseModel):

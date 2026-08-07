@@ -27,9 +27,14 @@ DEFAULT_LIMIT = 20
 MAX_LIMIT = 100
 
 #: The orderings `GET /labels/search` accepts. `name` ascending is the one a human
-#: browsing an alphabetical list expects; the other two are descending, because "most
-#: used" and "most recent" are questions about the top of the list, not the bottom.
-Sort = Literal["name", "usage_count", "created_at"]
+#: browsing an alphabetical list expects; the rest are descending, because "most used",
+#: "most recently created" and "most recently applied" are all questions about the top of
+#: the list, not the bottom.
+#:
+#: `last_used` is the one that answers "the label I was using yesterday" — paired with the
+#: `mine` filter it becomes the short, muscle-memory list a person actually files under,
+#: which is the whole point at a scale where the alphabetical list is thousands long.
+Sort = Literal["name", "usage_count", "created_at", "last_used"]
 SORTS: tuple[str, ...] = get_args(Sort)
 
 DEFAULT_SORT: Sort = "name"
@@ -42,14 +47,24 @@ Key = str | int | datetime
 
 @dataclass(frozen=True, slots=True)
 class LabelCursor:
-    """The last row of the previous page, in the ordering that produced it."""
+    """The last row of the previous page, in the ordering that produced it.
+
+    `key` is nullable because one ordering has a null tail: under `last_used` every label
+    nobody has ever applied sorts after every label somebody has, and the cursor has to be
+    able to say "I stopped *inside* that tail". Substituting some other value there is not
+    a harmless simplification — it makes the next page's `WHERE` unable to tell the tail
+    from the timestamped part, which returns the same null rows forever.
+    """
 
     sort: Sort
-    key: Key
+    key: Key | None
     id: UUID
 
     def encode(self) -> str:
-        key = self.key.isoformat() if isinstance(self.key, datetime) else str(self.key)
+        if self.key is None:
+            key = ""
+        else:
+            key = self.key.isoformat() if isinstance(self.key, datetime) else str(self.key)
         raw = f"{self.sort}|{key}|{self.id}".encode()
         return base64.urlsafe_b64encode(raw).decode().rstrip("=")
 
@@ -73,8 +88,11 @@ class LabelCursor:
             raise InvalidCursorError("this cursor is not one we issued") from exc
 
 
-def _parse(sort: str, key: str) -> Key:
-    if sort == "created_at":
+def _parse(sort: str, key: str) -> Key | None:
+    # Only `last_used` has a null tail, and the empty string is how the cursor spells it.
+    if key == "":
+        return None
+    if sort in {"created_at", "last_used"}:
         return datetime.fromisoformat(key)
     if sort == "usage_count":
         return int(key)
