@@ -5,10 +5,13 @@ never be highlighted — and boxes exist only during parsing, so the second fail
 repairable without re-parsing the whole corpus.
 """
 
+import pytest
+
 from app.core.hardware import PROFILES
 from app.features.ingestion.chunking.chunker import (
     OVERLAP_CHARACTERS,
     TARGET_CHARACTERS,
+    _merge_lines,  # type: ignore[reportPrivateUsage]
     chunk_page,
 )
 from app.features.ingestion.parsers.base import Box, ParsedPage, Word
@@ -122,3 +125,55 @@ def test_the_target_size_is_what_m0_measured_at() -> None:
     """75% Recall@8 was measured at roughly this size. Changing it silently would move the
     baseline the reranker is supposed to beat, and nobody would know why."""
     assert TARGET_CHARACTERS == 1200
+
+
+# --- Column gutters ------------------------------------------------------------------
+#
+# `_merge_lines` collapses word boxes into line boxes so a chunk stores a handful of
+# rectangles rather than hundreds. It used to decide "same line" from vertical alignment
+# alone, which is true of the last word of a left column and the first of a right one —
+# physically true, and not one line of anything.
+
+
+def _box(x0: float, x1: float, y0: float = 0.5, page: int = 1) -> Box:
+    return Box(page=page, x0=x0, y0=y0, x1=x1, y1=y0 + 0.01)
+
+
+def test_boxes_across_a_gutter_stay_separate() -> None:
+    """The defect, at its smallest: two boxes level with each other, a column apart.
+
+    Merged, this is a highlight spanning the whole page width for a paragraph that occupies
+    half of it.
+    """
+    left = _box(0.10, 0.45)
+    right = _box(0.55, 0.90)
+
+    merged = _merge_lines([left, right])
+
+    assert len(merged) == 2, "a gutter is not a word space"
+    assert merged[0].x1 <= 0.45 and merged[1].x0 >= 0.55
+
+
+def test_words_on_one_line_still_merge() -> None:
+    """The behaviour that has to survive the guard: ordinary adjacent words are one line,
+    and storing a rectangle per word would put hundreds of objects in JSONB per chunk."""
+    merged = _merge_lines([_box(0.10, 0.20), _box(0.205, 0.31), _box(0.315, 0.42)])
+
+    assert len(merged) == 1
+    assert merged[0].x0 == pytest.approx(0.10)
+    assert merged[0].x1 == pytest.approx(0.42)
+
+
+def test_overlapping_boxes_are_one_line() -> None:
+    """Kerned or overlapping glyph boxes produce a negative gap, which is common and still
+    one line — the guard must compare against the gap, not its absolute value."""
+    merged = _merge_lines([_box(0.10, 0.25), _box(0.24, 0.40)])
+
+    assert len(merged) == 1
+
+
+def test_boxes_on_different_lines_stay_separate() -> None:
+    """Proximity is required *as well as* alignment, not instead of it."""
+    merged = _merge_lines([_box(0.10, 0.20, y0=0.30), _box(0.205, 0.31, y0=0.60)])
+
+    assert len(merged) == 2

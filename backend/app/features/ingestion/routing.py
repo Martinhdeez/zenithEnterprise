@@ -21,8 +21,8 @@ must not be indistinguishable from a clean one.
 
 from dataclasses import dataclass
 from enum import Enum
-from statistics import median
 
+from app.features.ingestion.columns import is_multi_column
 from app.features.ingestion.parsers.base import ParsedPage, Word
 
 # Below this, the page has no usable text layer. Not zero: a scanned page often carries a
@@ -36,34 +36,14 @@ MIN_CHARACTERS = 100
 LONG_RUN = 30
 SUSPECT_RUN_RATIO = 0.02
 
-# A column gutter is a *low-density* band, not an empty one, and it is found by where words
-# sit rather than by where they stop.
+# Multi-column detection lives in `columns.py`, along with the constants it was calibrated
+# with and the history of how they were arrived at. It moved there when the extractor
+# needed the other half of the same measurement — not just *whether* a page has columns but
+# *where* they are, so it can read each one separately.
 #
-# Two earlier versions were measured and discarded, which is the only reason these numbers
-# are trustworthy. Looking for a strip no word crossed fired on **nothing** across 1,842
-# pages: every real page has a header, a page number or a figure caption spanning the full
-# width, and one of those closes the gap. Counting the bins each word *spans* was better but
-# smeared the trough, catching M0's IRS document at 59% of pages and the genuinely
-# two-column BERT paper at 0%.
-#
-# Binning word **centres** is what separates them. Measured across the corpus:
-#
-#   bert-paper (two-column, NAACL)                    100% of pages flagged
-#   irs-1040-instructions (M0's scrambled document)    73%
-#   gdpr, eu-ai-act, dsa, infrastructure-act, rag       0%
-#   boe-monetary-policy, nasa-technical-report        16%, 14% — false positives
-#
-# A false positive costs one warning on a page that is fine. A false negative puts
-# interleaved text into the index where nothing can see it. The threshold leans towards the
-# cheaper mistake.
-BINS = 60
-CENTRAL_BAND = (0.30, 0.70)
-TROUGH_RATIO = 0.25
-
-# Only text-dense pages are judged. A sparse page — a title page, a figure, a page of
-# equations — has empty bins from sparsity rather than from layout, and judging it produced
-# a 73% false-positive rate on a single-column paper. Below this, the page is left alone.
-MIN_WORDS_FOR_LAYOUT = 250
+# Shared rather than duplicated on purpose: a page the router calls multi-column and the
+# extractor reads as one block is precisely the inconsistency that would put interleaved
+# text into the index while the warning said everything was handled.
 
 
 class Route(Enum):
@@ -108,7 +88,7 @@ def decide(page: ParsedPage, *, ocr_available: bool) -> Decision:
     if _looks_multi_column(page.words):
         return Decision(
             Route.LAYOUT,
-            "multi-column layout: left-to-right extraction interleaves the columns",
+            "multi-column layout: read column by column",
             tuple(warnings),
         )
 
@@ -132,37 +112,15 @@ def _has_broken_spacing(text: str) -> bool:
 def _looks_multi_column(words: tuple[Word, ...]) -> bool:
     """A pronounced trough in the horizontal distribution of text.
 
-    The signal M0 proved §7 was missing. pdfplumber reads a two-column page left to right
-    across the full width, so a line from the left column is followed by a line from the
-    right, and the sentences are spliced together from two different places. Detected on
-    positions rather than on text, because the text is exactly what gives no hint.
+    The signal M0 proved §7 was missing, detected on positions rather than on text because
+    the text is exactly what gives no hint.
 
-    Measured on the corpus rather than reasoned about — twice, because the first two
-    reasoned versions scored zero and near-zero on the documents this exists to catch. The
-    margins are excluded before the comparison: a page with a wide left margin would
-    otherwise have its lowest-density slice outside the text entirely, which says nothing
-    about columns.
+    Now a thin wrapper over `columns.py`, which the extractor also uses to decide where to
+    crop. The measurement is unchanged — the constants and the reasoning behind them moved
+    with it — but there is one of it instead of two.
+
+    Still worth routing on after the extractor learned to read columns: a page whose columns
+    were read separately is *handled*, not simple, and the record of which pages needed
+    that is what makes a later extraction problem findable.
     """
-    if len(words) < MIN_WORDS_FOR_LAYOUT:
-        return False
-
-    coverage = [0] * BINS
-    for word in words:
-        centre = (word.box.x0 + word.box.x1) / 2
-        coverage[max(0, min(BINS - 1, int(centre * BINS)))] += 1
-
-    peak = max(coverage)
-    body = [index for index, count in enumerate(coverage) if count > peak * 0.1]
-    if len(body) < 10:
-        return False
-
-    inner = coverage[body[0] : body[-1] + 1]
-    start = body[0] + int(len(inner) * CENTRAL_BAND[0])
-    end = body[0] + int(len(inner) * CENTRAL_BAND[1])
-    typical = median(inner)
-    if not typical:
-        return False
-
-    # Only the middle of the text block is considered. A trough at the edge is a margin;
-    # a trough in the middle, with dense text on both sides of it, is a gutter.
-    return min(coverage[start : end + 1]) / typical < TROUGH_RATIO
+    return is_multi_column([(word.box.x0 + word.box.x1) / 2 for word in words])
