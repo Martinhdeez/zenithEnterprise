@@ -1,8 +1,22 @@
 <!doctype html>
-<html lang="en">
+<!--
+  `dark` lives on `<html>`, not on a wrapper div inside the app: every current screen is
+  dark-themed and Radix (Select, Dialog, Sheet, Tooltip, DropdownMenu) portals its content
+  to `document.body` rather than into the component tree, so a `.dark` class scoped to a div
+  never reached it — the popover fell back to `:root`'s light `--popover` and rendered a
+  white dropdown under a dark app. `Login.tsx` and `App.tsx` still carry their own `dark`
+  class too; that's redundant now; not wrong, and it's what keeps this component working
+  correctly if it's ever rendered standalone again.
+-->
+<html lang="en" translate="no" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- The product name is a brand, and the interface text is the product. Chrome's
+         auto-translation renders "Zenith" as "Cenit" and the navigation as Spanish, which
+         is a different application than the one that was tested. -->
+    <meta name="google" content="notranslate" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
     <title>Zenith</title>
   </head>
   <body>

@@ -90,11 +90,21 @@ services:
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     env_file: [../.env]
     environment:
-      ZENITH_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-zenith}:${POSTGRES_PASSWORD:-zenith}@db:5432/${POSTGRES_DB:-zenith}
+      # `zenith_app`, never the owner (`${POSTGRES_USER}`) — the owner bypasses every RLS
+      # policy, which `verify_rls_active()` refuses to start against. See db.7's role setup.
+      ZENITH_DATABASE_URL: postgresql+psycopg://zenith_app:${ZENITH_APP_PASSWORD:-zenith_app}@db:5432/${POSTGRES_DB:-zenith}
+      ZENITH_DATABASE_OWNER_URL: postgresql+psycopg://${POSTGRES_USER:-zenith}:${POSTGRES_PASSWORD:-zenith}@db:5432/${POSTGRES_DB:-zenith}
       ZENITH_TEI_EMBED_URL: http://tei-embed:80
       ZENITH_TEI_RERANK_URL: http://tei-rerank:80
     ports:
       - "${API_PORT:-8000}:8000"
+    volumes:
+      # Bind-mounted, not a named volume: the tenant's documents already live on the host
+      # at this path from earlier non-docker (`uv run`) sessions, content-addressed by
+      # sha256 under `ZENITH_STORAGE_DIR`. A named volume would start empty and every
+      # existing row in `documents` would point at a file the container can never see —
+      # `PdfViewer.tsx` renders exactly that as "That document is no longer available."
+      - ../backend/.data/documents:/data/documents
     depends_on:
       db: {condition: service_healthy}
 
@@ -113,11 +123,27 @@ services:
       - "${ZENITH_WORKER_CONCURRENCY:-1}"
     env_file: [../.env]
     environment:
-      ZENITH_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-zenith}:${POSTGRES_PASSWORD:-zenith}@db:5432/${POSTGRES_DB:-zenith}
+      # Same role as `api` — a worker writing chunks with RLS disabled is as dangerous as
+      # an API reading them (see `core.database.verify_rls_active`).
+      ZENITH_DATABASE_URL: postgresql+psycopg://zenith_app:${ZENITH_APP_PASSWORD:-zenith_app}@db:5432/${POSTGRES_DB:-zenith}
+      ZENITH_DATABASE_OWNER_URL: postgresql+psycopg://${POSTGRES_USER:-zenith}:${POSTGRES_PASSWORD:-zenith}@db:5432/${POSTGRES_DB:-zenith}
       ZENITH_TEI_EMBED_URL: http://tei-embed:80
       ZENITH_TEI_RERANK_URL: http://tei-rerank:80
+    volumes:
+      # Same mount as `api`, same reason — the worker is the one that writes newly
+      # ingested files here, and it must land them in the same place `api` serves from.
+      - ../backend/.data/documents:/data/documents
     depends_on:
       db: {condition: service_healthy}
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      - api
 
 volumes:
   db_data:

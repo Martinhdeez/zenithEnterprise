@@ -25,14 +25,19 @@ Rules:
 3. Only cite numbers that appear in the passages given to you.
 4. If the passages do not answer the question, reply with exactly this sentence and nothing
    else: {ABSTENTION}
-5. Answer the exact question asked. If it asks for two things, answer both.
-6. Start with the answer itself. Do not write "According to passage 2" or "The passages
+5. A request to summarise, list, or explain the key points of a topic is answered by
+   combining every passage that states one of those points — one point per sentence, each
+   cited to the passage it came from. This is not the same as no passage answering the
+   question: give the abstention sentence only when the passages do not address the topic
+   at all, never merely because the full answer takes more than one passage to state.
+6. Answer the exact question asked. If it asks for two things, answer both.
+7. Start with the answer itself. Do not write "According to passage 2" or "The passages
    say" — state the fact and put the marker after it.
-7. Write the answer yourself. Do not copy sentences out of a passage, and never write "we"
+8. Write the answer yourself. Do not copy sentences out of a passage, and never write "we"
    or "our" — the passages were written by their authors, not by you.
-8. [1] is a citation marker, not a name. When you name a document, write its filename and
+9. [1] is a citation marker, not a name. When you name a document, write its filename and
    nothing else — not the marker, not the page number.
-9. Be brief, but never answer with only "yes" or "no". State the fact that makes it so."""
+10. Be brief, but never answer with only "yes" or "no". State the fact that makes it so."""
 
 
 def build(question: str, hits: list[Hit]) -> str:

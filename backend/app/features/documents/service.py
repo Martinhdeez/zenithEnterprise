@@ -68,12 +68,16 @@ class DocumentService:
         self.storage = storage or DocumentStorage()
 
     async def upload(
-        self, filename: str, chunks: AsyncIterator[bytes], label_ids: list[UUID] | None = None
+        self,
+        filename: str,
+        chunks: AsyncIterator[bytes],
+        label_ids: list[UUID] | None = None,
+        description: str | None = None,
     ) -> Upload:
         staged = await self.storage.stash(_only_pdf(chunks))
 
         try:
-            result = await self._record(filename, staged, label_ids)
+            result = await self._record(filename, staged, label_ids, description)
         except BaseException:
             await self.storage.discard(staged)
             raise
@@ -95,7 +99,13 @@ class DocumentService:
             )
         return result
 
-    async def _record(self, filename: str, staged: Staged, requested: list[UUID] | None) -> Upload:
+    async def _record(
+        self,
+        filename: str,
+        staged: Staged,
+        requested: list[UUID] | None,
+        description: str | None,
+    ) -> Upload:
         async with tenant_session(self.context) as session:
             documents = DocumentRepository(session)
             labels = LabelRepository(session)
@@ -103,6 +113,11 @@ class DocumentService:
 
             existing = await documents.by_sha256(staged.sha256)
             if existing is not None:
+                # The name and description on this upload are dropped, not merged — same
+                # rule as the bytes themselves: identical content is one document, and a
+                # second uploader's title for it doesn't overwrite the first's. Only the
+                # labels widen, because that's the one thing `_merge` already promises to
+                # report back.
                 return await self._merge(documents, labels, existing, wanted)
 
             if await documents.count() >= settings.max_documents_per_tenant:
@@ -113,6 +128,7 @@ class DocumentService:
             document = Document(
                 tenant_id=self.context.tenant_id,
                 filename=filename,
+                description=description,
                 sha256=staged.sha256,
                 size_bytes=staged.size_bytes,
                 uploaded_by=self.profile.user_id,
@@ -209,13 +225,25 @@ class DocumentService:
         await self.storage.delete(self.context.tenant_id, sha256)
 
     async def page(
-        self, limit: int | None = None, cursor: str | None = None, status: str | None = None
+        self,
+        limit: int | None = None,
+        cursor: str | None = None,
+        status: str | None = None,
+        label_id: UUID | None = None,
+        unlabelled: bool = False,
     ) -> tuple[list[Document], str | None]:
         """One page of documents, newest first.
 
         There is no unpaginated variant, deliberately. A tenant may hold five thousand
         documents, and a method returning all of them would eventually be called by
         something that only wanted the first twenty.
+
+        `label_id` narrows to one folder — the counterpart to `documents/folders`'
+        grouping, which only ever aggregated counts and never let a client ask for the rows
+        behind one of them. `unlabelled` is the same narrowing for the one folder that has
+        no id: `documents/folders` computes it from `label_ids = '{}'`, and this reads it
+        the same way rather than inventing a second definition of "unlabelled" that could
+        drift from the first.
         """
         if status is not None and status not in DOCUMENT_STATUSES:
             raise NotFoundError(f"no such status: {status!r}")
@@ -224,6 +252,8 @@ class DocumentService:
                 limit=clamp(limit),
                 cursor=Cursor.decode(cursor) if cursor else None,
                 status=status,
+                label_id=label_id,
+                unlabelled=unlabelled,
             )
         return documents, next_cursor.encode() if next_cursor else None
 

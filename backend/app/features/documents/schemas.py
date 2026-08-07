@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class DocumentResponse(BaseModel):
     id: UUID
     filename: str
+    description: str | None
     sha256: str
     status: str
     status_detail: str | None

@@ -1,4 +1,7 @@
 
+# macOS
+.DS_Store
+
 # project-init managed
 .notes/
 .scratch/
@@ -17,3 +20,20 @@ __pycache__/
 # node
 node_modules/
 dist/
+
+# Playwright MCP scratch output (screenshots, snapshots, console logs)
+.playwright-mcp/
+# Leading slash so this catches a screenshot dropped at the repo root and nothing else —
+# `*.png` unqualified would also swallow `frontend/public/`, which holds the favicon and
+# the logo the application actually ships.
+/*.png
+
+# Uploaded documents. `ZENITH_STORAGE_DIR` points here in local development, so this is
+# real tenant content — the PDFs somebody dragged into the upload form — not fixtures.
+# It reached 6.9 MB of customer files before anyone noticed it was untracked rather than
+# ignored, which is the wrong way round for a directory holding documents whose whole
+# point is that only certain roles may read them.
+backend/.data/
+
+# Claude Code scratch screenshots; the skills/ directory below is real project config.
+.claude/*.png

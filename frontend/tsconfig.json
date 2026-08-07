@@ -12,7 +12,9 @@
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
     "types": ["vitest/globals"],
-    "noEmit": true
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": { "@/*": ["./src/*"] }
   },
   "include": ["src"]
 }
