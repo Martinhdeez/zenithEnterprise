@@ -14,6 +14,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
 from app.common.exceptions import ZenithError
+from app.core.config import settings
 from app.core.database import owner_session
 from app.features.auth.router import router as auth_router
 from app.features.retrieval.router import router as search_router
@@ -84,11 +85,18 @@ async def test_search_returns_the_citation_payload(client: AsyncClient, account:
 
 
 async def test_search_reports_when_it_ran_on_one_half(
-    client: AsyncClient, account: Account
+    client: AsyncClient, account: Account, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """No embedding service is reachable in the test environment, which is exactly the
-    condition this flag exists for. A silently halved search is the failure this project
-    keeps refusing."""
+    """A silently halved search is the failure this project keeps refusing.
+
+    The embedder is pointed at a closed port rather than assumed to be absent. It used to
+    rely on there being no embedding service anywhere — true in CI, false on any machine
+    where the development stack happens to be up, so the suite passed or failed depending
+    on ambient state and the only way to get a green run locally was to stop the container
+    the application was using. Which broke search for whoever was using the app at that
+    moment. Naming the unreachable address makes the condition the test's own.
+    """
+    monkeypatch.setattr(settings, "tei_embed_url", "http://127.0.0.1:1")
     await seed(account)
 
     body = (
