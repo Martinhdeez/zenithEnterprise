@@ -1,7 +1,18 @@
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, UnaryExpression, delete, func, literal, select, tuple_, update
+from sqlalchemy import (
+    ColumnElement,
+    UnaryExpression,
+    delete,
+    func,
+    literal,
+    or_,
+    select,
+    tuple_,
+    update,
+)
 from sqlalchemy.dialects.postgresql import insert
 
 from app.common.repositories.base import ScopedRepository
@@ -44,37 +55,49 @@ class LabelRepository(ScopedRepository[AccessLabel]):
         cursor: LabelCursor | None,
         limit: int,
         restrict_to: list[UUID] | None,
-    ) -> list[tuple[AccessLabel, int]]:
-        """One page of labels, each with the number of documents carrying it.
+        in_use: bool = False,
+        uploaded_by: UUID | None = None,
+    ) -> list[tuple[AccessLabel, int, datetime | None]]:
+        """One page of labels, each with a document count and when it was last applied.
 
         `restrict_to` is the caller's reachable set, or `None` for a holder of
         `labels.manage` — the same admin/non-admin split `visible()` makes, threaded
         through rather than re-decided here, so the two can never disagree about who sees
         what.
 
-        **The count is RLS-scoped, and that is a real semantic, not an oversight.**
-        `document_labels` inherits its policy from `documents`, so this counts *documents
-        the caller can see* carrying the label, not every document in the tenant. An
-        administrator who does not reach a label sees a smaller number than one who does.
-        Anything else would need `owner_session`, which this feature deliberately never
-        opens — the count would then disclose the size of a compartment the caller was not
-        admitted to.
+        `in_use` drops labels nothing carries. At the scale this endpoint exists for —
+        thousands of labels, most of them typos and abandoned experiments — the useful
+        question is usually "which of these does the corpus actually use", and that is not
+        answerable by name.
+
+        `uploaded_by` narrows to labels on documents that user uploaded: "the ones I file
+        things under", which is a far shorter list than the tenant's and the one somebody
+        reaches for by muscle memory. It is a parameter rather than something read from
+        the context because `AuthService.profile` leaves `context.user_id` unset on every
+        ordinary request — the same trap that made `grant_to_creator` a silent no-op.
+
+        **Both the count and the last-used timestamp are RLS-scoped, and that is a real
+        semantic rather than an oversight.** `document_labels` inherits its policy from
+        `documents`, so these describe *documents the caller can see* carrying the label,
+        never the size or activity of a compartment they were not admitted to.
 
         One row more than `limit` is fetched, so the caller can tell a full page from the
         last one without a second query or a count.
         """
-        counts = (
-            select(
-                DocumentLabel.label_id.label("label_id"),
-                func.count().label("documents"),
-            )
-            .group_by(DocumentLabel.label_id)
-            .subquery()
-        )
-        usage = func.coalesce(counts.c.documents, 0)
+        applied = select(
+            DocumentLabel.label_id.label("label_id"),
+            func.count().label("documents"),
+            func.max(Document.created_at).label("last_used"),
+        ).join(Document, Document.id == DocumentLabel.document_id)
+        if uploaded_by is not None:
+            applied = applied.where(Document.uploaded_by == uploaded_by)
+        usage_by_label = applied.group_by(DocumentLabel.label_id).subquery()
 
-        statement = select(AccessLabel, usage).outerjoin(
-            counts, counts.c.label_id == AccessLabel.id
+        usage = func.coalesce(usage_by_label.c.documents, 0)
+        last_used = usage_by_label.c.last_used
+
+        statement = select(AccessLabel, usage, last_used).outerjoin(
+            usage_by_label, usage_by_label.c.label_id == AccessLabel.id
         )
         if restrict_to is not None:
             # An empty reachable set is not "no filter" — it is "nothing". `in_([])` is
@@ -83,10 +106,16 @@ class LabelRepository(ScopedRepository[AccessLabel]):
             statement = statement.where(AccessLabel.id.in_(restrict_to))
         if query:
             statement = statement.where(AccessLabel.name.ilike(_contains(query), escape="\\"))
+        if in_use or uploaded_by is not None:
+            # `uploaded_by` implies it: a label on none of my documents is not one of mine,
+            # and without this the join would keep every label in the tenant with a zero.
+            statement = statement.where(usage > 0)
 
-        statement = statement.where(*_after(sort, usage, cursor)).order_by(*_ordering(sort, usage))
+        statement = statement.where(*_after(sort, usage, last_used, cursor)).order_by(
+            *_ordering(sort, usage, last_used)
+        )
         rows = await self.session.execute(statement.limit(limit + 1))
-        return [(label, count) for label, count in rows]
+        return [(label, count, used) for label, count, used in rows]
 
     async def grant_to_creator(self, label_id: UUID, user_id: UUID | None) -> None:
         """Give the caller's own roles access to a label they just created.
@@ -271,7 +300,9 @@ def _contains(query: str) -> str:
     return f"%{escaped}%"
 
 
-def _ordering(sort: Sort, usage: ColumnElement[int]) -> tuple[UnaryExpression[Any], ...]:
+def _ordering(
+    sort: Sort, usage: ColumnElement[int], last_used: ColumnElement[Any]
+) -> tuple[UnaryExpression[Any], ...]:
     """Every ordering ends in `id`, and that is what makes the cursor work at all.
 
     `name` is unique per tenant, but `created_at` and a usage count are emphatically not —
@@ -284,11 +315,19 @@ def _ordering(sort: Sort, usage: ColumnElement[int]) -> tuple[UnaryExpression[An
         return (AccessLabel.name.asc(), AccessLabel.id.asc())
     if sort == "created_at":
         return (AccessLabel.created_at.desc(), AccessLabel.id.desc())
+    if sort == "last_used":
+        # `NULLS LAST` explicitly: Postgres sorts NULLs first under `DESC`, which would put
+        # every never-used label above every recently-used one — the exact inverse of what
+        # "most recently used" is asked for.
+        return (last_used.desc().nullslast(), AccessLabel.id.desc())
     return (usage.desc(), AccessLabel.id.desc())
 
 
 def _after(
-    sort: Sort, usage: ColumnElement[int], cursor: LabelCursor | None
+    sort: Sort,
+    usage: ColumnElement[int],
+    last_used: ColumnElement[Any],
+    cursor: LabelCursor | None,
 ) -> tuple[ColumnElement[bool], ...]:
     """Where the previous page stopped, as a row-value comparison.
 
@@ -298,9 +337,23 @@ def _after(
     """
     if cursor is None:
         return ()
+    if sort == "last_used" and cursor.key is None:
+        # Already inside the null tail. Everything with a timestamp came before it, so the
+        # only rows left are the remaining untouched labels, ordered by id.
+        return (last_used.is_(None), AccessLabel.id < literal(cursor.id))
     position = tuple_(literal(cursor.key), literal(cursor.id))
     if sort == "name":
         return (tuple_(AccessLabel.name, AccessLabel.id) > position,)
     if sort == "created_at":
         return (tuple_(AccessLabel.created_at, AccessLabel.id) < position,)
+    if sort == "last_used":
+        # Still in the timestamped part. A row-value comparison cannot express `NULLS
+        # LAST`, so the tail is spelled out alongside it: what follows is either an earlier
+        # timestamp or the untouched labels that sort after all of them.
+        return (
+            or_(
+                tuple_(last_used, AccessLabel.id) < position,
+                last_used.is_(None),
+            ),
+        )
     return (tuple_(usage, AccessLabel.id) < position,)

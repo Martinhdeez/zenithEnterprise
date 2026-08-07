@@ -57,7 +57,7 @@ async def document(tenant_id: UUID, label_ids: list[UUID], name: str = "doc.pdf"
 
 
 def names(result: object) -> list[str]:
-    return [label.name for label, _ in result.labels]  # type: ignore[attr-defined]
+    return [label.name for label, _, _ in result.labels]  # type: ignore[attr-defined]
 
 
 async def test_a_manager_searches_every_label_in_the_tenant(account: Account) -> None:
@@ -125,11 +125,11 @@ async def test_the_count_is_what_the_caller_can_see_not_what_exists(account: Acc
     service = LabelService(TenantContext.for_tenant(account.tenant_id, [account.default_label]))
     result = await service.search(may_manage=True, query="Finance")
 
-    assert [count for _, count in result.labels] == [0]
+    assert [count for _, count, _ in result.labels] == [0]
 
     reaching = LabelService(TenantContext.for_tenant(account.tenant_id, [account.finance_label]))
     seen = await reaching.search(may_manage=True, query="Finance")
-    assert [count for _, count in seen.labels] == [2]
+    assert [count for _, count, _ in seen.labels] == [2]
 
 
 async def test_pages_walk_the_whole_list_without_repeating_or_skipping(account: Account) -> None:
@@ -180,7 +180,7 @@ async def test_sorting_by_usage_puts_the_most_carried_label_first(account: Accou
     service = LabelService(TenantContext.for_tenant(account.tenant_id, [busy, quiet]))
     result = await service.search(may_manage=True, sort="usage_count", limit=2)
 
-    assert [(label.name, count) for label, count in result.labels] == [("Busy", 3), ("Quiet", 1)]
+    assert [(label.name, count) for label, count, _ in result.labels] == [("Busy", 3), ("Quiet", 1)]
 
 
 async def test_usage_pages_stay_stable_when_counts_tie(account: Account) -> None:
@@ -290,3 +290,121 @@ async def _roles_of(user_id: UUID) -> list[UUID]:
                 text("SELECT role_id FROM user_roles WHERE user_id = :u"), {"u": user_id}
             )
         )
+
+
+async def test_in_use_drops_labels_no_document_carries(account: Account) -> None:
+    """The filter that makes a list of thousands usable.
+
+    Most of a mature tenant's labels are typos and abandoned experiments. "Which of these
+    does the corpus actually use" is not answerable by name, so it has to be a filter.
+    """
+    carried = await label(account.tenant_id, "Carried")
+    await label(account.tenant_id, "Never used")
+    await document(account.tenant_id, [carried], name="doc.pdf")
+
+    service = LabelService(TenantContext.for_tenant(account.tenant_id, [carried]))
+    result = await service.search(may_manage=True, in_use=True)
+
+    assert names(result) == ["Carried"]
+
+
+async def test_mine_narrows_to_labels_on_my_own_uploads(account: Account) -> None:
+    """ "The ones I file things under" — a far shorter list than the tenant's."""
+    mine = await label(account.tenant_id, "Mine")
+    theirs = await label(account.tenant_id, "Theirs")
+    await _document_uploaded_by(account, mine, account.admin_id, "mine.pdf")
+    await _document_uploaded_by(account, theirs, account.member_id, "theirs.pdf")
+
+    service = LabelService(TenantContext.for_tenant(account.tenant_id, [mine, theirs]))
+    result = await service.search(may_manage=True, uploaded_by=account.admin_id)
+
+    assert names(result) == ["Mine"]
+
+
+async def test_last_used_orders_by_when_the_label_was_applied(account: Account) -> None:
+    """Not by when the *label* was created — by when a document last carried it.
+
+    A label made months ago and used this morning belongs at the top; `created_at` would
+    bury it. This is the ordering that makes "the one I was using yesterday" reachable
+    without searching for it.
+    """
+    old = await label(account.tenant_id, "Older use")
+    fresh = await label(account.tenant_id, "Fresher use")
+    await document(account.tenant_id, [old], name="old.pdf")
+    await document(account.tenant_id, [fresh], name="fresh.pdf")
+
+    service = LabelService(TenantContext.for_tenant(account.tenant_id, [old, fresh]))
+    result = await service.search(may_manage=True, sort="last_used", in_use=True)
+
+    assert names(result) == ["Fresher use", "Older use"]
+
+
+async def test_never_used_labels_sort_last_not_first(account: Account) -> None:
+    """Postgres puts NULLs first under `DESC`, which without `NULLS LAST` would rank every
+    label nobody has ever used above the one applied five minutes ago — the exact inverse
+    of what "most recently used" means."""
+    used = await label(account.tenant_id, "Used")
+    await label(account.tenant_id, "Untouched")
+    await document(account.tenant_id, [used], name="doc.pdf")
+
+    # The context has to *reach* `used`, or RLS hides the document behind it and the
+    # timestamp comes back null — which would make this pass for the wrong reason.
+    service = LabelService(TenantContext.for_tenant(account.tenant_id, [used]))
+    result = await service.search(may_manage=True, sort="last_used")
+
+    assert names(result)[0] == "Used"
+    assert "Untouched" in names(result)
+
+
+async def test_last_used_pages_without_repeating_across_the_null_boundary(
+    account: Account,
+) -> None:
+    """The tail of this ordering is every never-used label, and a row-value cursor cannot
+    express `NULLS LAST` on its own. Walked end to end because an off-by-one there shows up
+    as a duplicate or a gap only in the concatenation."""
+    reached: list[UUID] = []
+    for index in range(3):
+        used = await label(account.tenant_id, f"Boundary used {index}")
+        await document(account.tenant_id, [used], name=f"b{index}.pdf")
+        reached.append(used)
+    for index in range(3):
+        await label(account.tenant_id, f"Boundary idle {index}")
+
+    service = LabelService(TenantContext.for_tenant(account.tenant_id, reached))
+    seen: list[str] = []
+    cursor: str | None = None
+    for _ in range(12):
+        page = await service.search(
+            may_manage=True, query="Boundary", sort="last_used", cursor=cursor, limit=2
+        )
+        seen.extend(names(page))
+        cursor = page.next_cursor
+        if cursor is None:
+            break
+
+    assert cursor is None, "pagination did not terminate"
+    assert len(seen) == len(set(seen)), "a row was returned twice across the null boundary"
+    assert sorted(seen) == sorted(
+        [f"Boundary used {i}" for i in range(3)] + [f"Boundary idle {i}" for i in range(3)]
+    )
+
+
+async def _document_uploaded_by(account: Account, label_id: UUID, user_id: UUID, name: str) -> UUID:
+    async with owner_session() as session:
+        document_id = await session.scalar(
+            text(
+                "INSERT INTO documents (tenant_id, filename, sha256, size_bytes, uploaded_by) "
+                "VALUES (:t, :name, :sha, 10, :u) RETURNING id"
+            ),
+            {
+                "t": account.tenant_id,
+                "name": name,
+                "sha": uuid4().hex + uuid4().hex[:32],
+                "u": user_id,
+            },
+        )
+        await session.execute(
+            text("INSERT INTO document_labels (document_id, label_id) VALUES (:d, :l)"),
+            {"d": document_id, "l": label_id},
+        )
+    return UUID(str(document_id))

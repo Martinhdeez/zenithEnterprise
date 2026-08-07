@@ -40,6 +40,8 @@ async def search_labels(
     sort: Sort = DEFAULT_SORT,
     cursor: str | None = None,
     limit: Annotated[int | None, Query(ge=1, le=MAX_LIMIT)] = None,
+    in_use: bool = False,
+    mine: bool = False,
 ) -> LabelSearchPage:
     """Find labels by name, a page at a time, with usage counts.
 
@@ -54,7 +56,14 @@ async def search_labels(
 
     `sort=usage_count` counts only documents *this caller* can see; the count is
     RLS-scoped, not a tenant-wide total. `LabelRepository.search` explains why that is the
-    only version of the number this endpoint is allowed to know.
+    only version of the number this endpoint is allowed to know. `sort=last_used` orders by
+    when a label was last applied to a document, on the same RLS-scoped basis.
+
+    `in_use=true` drops labels no document carries. `mine=true` narrows to labels on
+    documents the caller uploaded — "the ones I file things under" — which with
+    `sort=last_used` is the short list somebody reaches for by habit rather than by
+    searching. Both are server-side because at the scale this endpoint is for, the client
+    never holds the whole list to filter.
     """
     result = await LabelService(profile.context).search(
         may_manage=MANAGE in profile.permissions,
@@ -62,13 +71,21 @@ async def search_labels(
         sort=sort,
         cursor=cursor,
         limit=limit,
+        in_use=in_use,
+        # `profile.user_id`, never `context.user_id`: the request context is built without
+        # a user, so reading it there would make `mine=true` silently match everything.
+        uploaded_by=profile.user_id if mine else None,
     )
     return LabelSearchPage(
         items=[
             LabelSearchItem(
-                id=label.id, name=label.name, is_default=label.is_default, documents=documents
+                id=label.id,
+                name=label.name,
+                is_default=label.is_default,
+                documents=documents,
+                last_used=last_used,
             )
-            for label, documents in result.labels
+            for label, documents, last_used in result.labels
         ],
         next_cursor=result.next_cursor,
     )

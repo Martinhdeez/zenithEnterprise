@@ -47,7 +47,10 @@ export function Upload({ token, onUploaded }: Props) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [recent, setRecent] = useState<DocumentSummary[]>([]);
-  const [available, setAvailable] = useState<Label[]>([]);
+  // Not "every label in the tenant" any more — the picker searches server-side and never
+  // holds the whole set. This is only the names behind the ticked ids, so the selected
+  // chips can render even when the current search does not contain them.
+  const [known, setKnown] = useState<Map<string, Label>>(new Map());
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [staged, setStaged] = useState<Staged | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -57,23 +60,27 @@ export function Upload({ token, onUploaded }: Props) {
     void fetchLabels(token)
       .then((result) => {
         if (cancelled) return;
-        setAvailable(result);
+        setKnown(new Map(result.map((label) => [label.id, label])));
         // Pre-check the tenant's default so the common case — one label, everyone files
         // under it — is a single click, not a click to open the list plus one to check it.
         const fallback = result.find((label) => label.is_default);
         if (fallback) setSelected(new Set([fallback.id]));
       })
-      .catch(() => !cancelled && setAvailable([]));
+      .catch(() => !cancelled && setKnown(new Map()));
     return () => {
       cancelled = true;
     };
   }, [token]);
 
-  const toggle = useCallback((id: string) => {
+  // Takes the whole label so a pick out of a search result is remembered by name — the
+  // picker paginates server-side, so the row that produced this click may be gone from the
+  // list by the time the selected chips render.
+  const toggle = useCallback((label: Label) => {
+    setKnown((current) => (current.has(label.id) ? current : new Map(current).set(label.id, label)));
     setSelected((current) => {
       const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(label.id)) next.delete(label.id);
+      else next.add(label.id);
       return next;
     });
   }, []);
@@ -83,12 +90,16 @@ export function Upload({ token, onUploaded }: Props) {
   // exists. A newly created label is selected immediately: someone who just typed a name
   // into an upload form meant to file this document under it.
   const added = useCallback((label: Label) => {
-    setAvailable((current) => [...current, label]);
+    setKnown((current) => new Map(current).set(label.id, label));
     setSelected((current) => new Set(current).add(label.id));
   }, []);
 
   const removed = useCallback((id: string) => {
-    setAvailable((current) => current.filter((label) => label.id !== id));
+    setKnown((current) => {
+      const next = new Map(current);
+      next.delete(id);
+      return next;
+    });
     setSelected((current) => {
       const next = new Set(current);
       next.delete(id);
@@ -147,8 +158,8 @@ export function Upload({ token, onUploaded }: Props) {
     <section className="mx-auto max-w-2xl space-y-6 py-4">
       <LabelPicker
         token={token}
-        available={available}
         selected={selected}
+        known={known}
         onToggle={toggle}
         onCreated={added}
         onRemoved={removed}

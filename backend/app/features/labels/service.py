@@ -1,5 +1,6 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -8,7 +9,7 @@ from app.common.exceptions import ConflictError, NotFoundError, PermissionDenied
 from app.core.database import tenant_session
 from app.features.auth.permissions import CATALOGUE
 from app.features.labels.model import AccessLabel
-from app.features.labels.pagination import DEFAULT_SORT, LabelCursor, Sort, clamp
+from app.features.labels.pagination import DEFAULT_SORT, Key, LabelCursor, Sort, clamp
 from app.features.labels.repository import LabelRepository
 from app.features.tenancy.context import TenantContext
 
@@ -18,7 +19,8 @@ assert MANAGE in CATALOGUE, "the permission this service is gated on must exist"
 
 @dataclass(frozen=True, slots=True)
 class SearchResult:
-    labels: list[tuple[AccessLabel, int]]
+    #: `(label, documents the caller can see carrying it, when it was last applied)`.
+    labels: list[tuple[AccessLabel, int, datetime | None]]
     next_cursor: str | None
 
 
@@ -93,12 +95,19 @@ class LabelService:
         sort: Sort = DEFAULT_SORT,
         cursor: str | None = None,
         limit: int | None = None,
+        in_use: bool = False,
+        uploaded_by: UUID | None = None,
     ) -> SearchResult:
         """One page of labels matching `query`, with usage counts.
 
         The admin/non-admin split is `visible()`'s, not a second one: a manager searches
         every label in the tenant, everyone else searches only what they reach, because a
         label name discloses something merely by existing.
+
+        `in_use` and `uploaded_by` are the two filters that make a list of thousands
+        usable: what the corpus actually carries, and what *this person* files things
+        under. Neither can be applied in the browser, which is the point — the client
+        never holds the whole list.
         """
         size = clamp(limit)
         decoded = LabelCursor.decode(cursor, sort) if cursor else None
@@ -111,6 +120,8 @@ class LabelService:
                 cursor=decoded,
                 limit=size,
                 restrict_to=None if may_manage else list(self.context.label_ids),
+                in_use=in_use,
+                uploaded_by=uploaded_by,
             )
 
         # The extra row fetched by the repository is the answer to "is there a next page",
@@ -277,9 +288,17 @@ class LabelService:
             )
 
 
-def _cursor_for(sort: Sort, row: tuple[AccessLabel, int]) -> LabelCursor:
-    label, documents = row
-    key = {"name": label.name, "created_at": label.created_at, "usage_count": documents}[sort]
+def _cursor_for(sort: Sort, row: tuple[AccessLabel, int, datetime | None]) -> LabelCursor:
+    label, documents, last_used = row
+    key: Key | None = {
+        "name": label.name,
+        "created_at": label.created_at,
+        "usage_count": documents,
+        "last_used": last_used,
+    }[sort]
+    # `key` is deliberately left null for a never-used label under `last_used`: that is
+    # what tells the next page it is resuming inside the null tail rather than among the
+    # timestamped rows. Substituting anything here loops the tail forever.
     return LabelCursor(sort=sort, key=key, id=label.id)
 
 
