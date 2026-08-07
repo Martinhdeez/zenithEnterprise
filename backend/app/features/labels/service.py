@@ -1,16 +1,34 @@
+from collections.abc import Iterable
+from dataclasses import dataclass
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
 
-from app.common.exceptions import ConflictError, NotFoundError
+from app.common.exceptions import ConflictError, NotFoundError, PermissionDeniedError
 from app.core.database import tenant_session
 from app.features.auth.permissions import CATALOGUE
 from app.features.labels.model import AccessLabel
+from app.features.labels.pagination import DEFAULT_SORT, LabelCursor, Sort, clamp
 from app.features.labels.repository import LabelRepository
 from app.features.tenancy.context import TenantContext
 
 MANAGE = "labels.manage"
 assert MANAGE in CATALOGUE, "the permission this service is gated on must exist"
+
+
+@dataclass(frozen=True, slots=True)
+class SearchResult:
+    labels: list[tuple[AccessLabel, int]]
+    next_cursor: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class MergeResult:
+    target: AccessLabel
+    merged: list[UUID]
+    documents_relabelled: int
+    visibility_widening: int
+    dry_run: bool
 
 
 class LabelService:
@@ -42,6 +60,110 @@ class LabelService:
         async with tenant_session(self.context) as session:
             labels = LabelRepository(session)
             return await (labels.all_in_tenant() if may_manage else labels.reachable())
+
+    async def search(
+        self,
+        *,
+        may_manage: bool,
+        query: str | None = None,
+        sort: Sort = DEFAULT_SORT,
+        cursor: str | None = None,
+        limit: int | None = None,
+    ) -> SearchResult:
+        """One page of labels matching `query`, with usage counts.
+
+        The admin/non-admin split is `visible()`'s, not a second one: a manager searches
+        every label in the tenant, everyone else searches only what they reach, because a
+        label name discloses something merely by existing.
+        """
+        size = clamp(limit)
+        decoded = LabelCursor.decode(cursor, sort) if cursor else None
+
+        async with tenant_session(self.context) as session:
+            labels = LabelRepository(session)
+            rows = await labels.search(
+                query=query,
+                sort=sort,
+                cursor=decoded,
+                limit=size,
+                restrict_to=None if may_manage else list(self.context.label_ids),
+            )
+
+        # The extra row fetched by the repository is the answer to "is there a next page",
+        # and it is dropped rather than returned: a page of `size + 1` would hand the
+        # client a row it did not ask for and break the invariant that a full page is
+        # exactly `limit` long.
+        page, has_more = rows[:size], len(rows) > size
+        next_cursor = _cursor_for(sort, page[-1]).encode() if has_more and page else None
+        return SearchResult(labels=page, next_cursor=next_cursor)
+
+    async def merge(
+        self,
+        sources: list[UUID],
+        target: UUID,
+        *,
+        dry_run: bool = False,
+        acknowledge_widening: bool = False,
+    ) -> MergeResult:
+        """Fold labels together, once the caller has seen what it costs.
+
+        Three guards, each closing a different way this can go wrong silently.
+
+        **The target cannot be a source.** Merging a label into itself would delete it at
+        the end of its own reassignment, taking every document with it — the cascade in
+        migration 0003 would then strip the label from documents whose only label it was,
+        leaving them visible to the entire tenant. A typo should not be able to do that.
+
+        **The caller must reach every label involved.** Not because they lack the
+        permission — `labels.manage` is already checked at the router — but because the
+        widening count below is computed under RLS, from the documents and roles the
+        caller can see. An administrator who does not reach a source label cannot see its
+        documents, so the count would come back reassuringly small for a merge that
+        exposes a compartment they were never admitted to. Refusing is the only honest
+        answer available without `owner_session`, which this file deliberately never
+        opens.
+
+        **A merge that widens visibility must be acknowledged.** Same reasoning as
+        `delete`'s guard: the dangerous consequence here is not the one the caller is
+        thinking about. They are tidying up a duplicate tag; the effect is that documents
+        change hands between roles.
+        """
+        if target in set(sources):
+            raise ConflictError("a label cannot be merged into itself")
+
+        async with tenant_session(self.context) as session:
+            labels = LabelRepository(session)
+            involved = [*sources, target]
+            await self._require_all(labels, involved)
+            self._require_reach(involved)
+
+            destination = await self._require(labels, target)
+            source_ids = set(sources)
+
+            before = await labels.documents_carrying(source_ids | {target})
+            reach = await labels.role_labels()
+            widening = _widening(before, reach.values(), source_ids, target)
+            relabelled = sum(1 for document in before if document & source_ids)
+
+            if widening and not (dry_run or acknowledge_widening):
+                raise ConflictError(
+                    f"this merge makes {widening} document(s) visible to roles that cannot "
+                    "see them today. Re-send with acknowledge_widening=true to proceed, or "
+                    "with dry_run=true to inspect it first."
+                )
+
+            if not dry_run:
+                await labels.reassign(source_ids, target)
+                for label in [await self._require(labels, source) for source in source_ids]:
+                    await labels.delete(label)
+
+            return MergeResult(
+                target=destination,
+                merged=sorted(source_ids, key=str),
+                documents_relabelled=relabelled,
+                visibility_widening=widening,
+                dry_run=dry_run,
+            )
 
     async def rename(self, label_id: UUID, name: str) -> AccessLabel:
         async with tenant_session(self.context) as session:
@@ -119,3 +241,62 @@ class LabelService:
         missing = [str(label_id) for label_id in label_ids if label_id not in found]
         if missing:
             raise NotFoundError(f"unknown label(s): {', '.join(missing)}")
+
+    def _require_reach(self, label_ids: list[UUID]) -> None:
+        """See `merge`'s docstring — this is the guard that keeps its count honest."""
+        beyond = sorted(str(label_id) for label_id in set(label_ids) - set(self.context.label_ids))
+        if beyond:
+            raise PermissionDeniedError(
+                f"you do not reach label(s) {', '.join(beyond)}. Merging a label you cannot "
+                "see would move documents you cannot see, and the visibility report would "
+                "not count them."
+            )
+
+
+def _cursor_for(sort: Sort, row: tuple[AccessLabel, int]) -> LabelCursor:
+    label, documents = row
+    key = {"name": label.name, "created_at": label.created_at, "usage_count": documents}[sort]
+    return LabelCursor(sort=sort, key=key, id=label.id)
+
+
+def _after_merge(labels: set[UUID], sources: set[UUID], target: UUID) -> set[UUID]:
+    """What a label set becomes. Applies to documents and roles alike — a merge moves both
+    the same way, which is why one function serves both."""
+    if labels & (sources | {target}):
+        return (labels - sources) | {target}
+    return labels
+
+
+def _widening(
+    documents: list[set[UUID]],
+    roles: Iterable[set[UUID]],
+    sources: set[UUID],
+    target: UUID,
+) -> int:
+    """Documents that at least one role can see after the merge but not before.
+
+    Both directions of the exposure are counted here, and only one of them is obvious.
+
+    *Forwards*: a document carrying a source label ends up carrying the target, so every
+    role holding the target picks it up — the "merge Legal-only into Everyone" case.
+
+    *Backwards*: a role holding only a source label ends up holding the target, so it
+    picks up every document that already carried the target. Nothing about that document
+    changed; the role's reach did. A count that only looked at relabelled documents would
+    report zero for a merge that hands a role an entire compartment.
+
+    Documents with no labels are visible tenant-wide before and after, so they can never
+    be part of a widening — which is also why the caller only passes documents carrying
+    one of the labels involved.
+    """
+    after_roles = [(role, _after_merge(role, sources, target)) for role in roles]
+    widened = 0
+    for before in documents:
+        after = _after_merge(before, sources, target)
+        for role_before, role_after in after_roles:
+            visible_before = not before or bool(before & role_before)
+            visible_after = not after or bool(after & role_after)
+            if visible_after and not visible_before:
+                widened += 1
+                break
+    return widened

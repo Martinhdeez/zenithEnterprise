@@ -28,6 +28,13 @@ from app.core.hardware import active as active_profile
 from app.features.ingestion.pipeline import IngestionPipeline
 from app.features.tenancy.context import TenantContext
 
+# Import-only — see the identical import in `app.main` for why. This module is also the
+# worker's own entry point (`procrastinate --app=app.features.ingestion.tasks.app worker`),
+# a separate process with its own import graph that never touches `app.main`, so the fix
+# there does not cover it: the worker hit the same `NoReferencedTableError` writing a
+# `Chunk` row, independently, the first time a real document reached that code path.
+from app.models import Base as _Base  # noqa: F401  # pyright: ignore[reportUnusedImport]
+
 log = structlog.get_logger()
 
 
