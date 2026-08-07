@@ -252,7 +252,11 @@ export function Search({ token, onCitation, searchable, labels }: Props) {
             </div>
           )}
 
-          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+          {/* Separate cards, same as the history and document lists. A hit is a filename,
+              two lines of the passage and a row of scores — running text, where a hairline
+              rule gives the eye nothing to tell it where one result stops and the next
+              starts. */}
+          <ul className="space-y-2">
             {state.hits.map((hit, index) => (
               <li key={hit.chunk_id}>
                 <button
@@ -268,7 +272,7 @@ export function Search({ token, onCitation, searchable, labels }: Props) {
                       bboxes: hit.bboxes,
                     })
                   }
-                  className="w-full px-4 py-3.5 text-left transition-colors hover:bg-secondary/40"
+                  className="w-full rounded-lg border border-border bg-secondary px-4 py-3.5 text-left transition-colors hover:bg-secondary/70"
                 >
                   <div className="flex items-baseline justify-between gap-4">
                     <p className="truncate text-sm font-medium text-foreground">
