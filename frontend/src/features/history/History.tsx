@@ -73,19 +73,24 @@ export function History({
 
   return (
     <section className="space-y-4">
-      <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+      {/* Separate cards rather than one ruled block, matching the document list. A history
+          entry is a question *and* the answer it got — two or three lines of prose each —
+          and hairline dividers between paragraphs of running text leave the eye with
+          nothing to tell it where one entry stops. The gap does that; the raised background
+          makes each one a thing on the page rather than text on the panel. */}
+      <ul className="space-y-2">
         {entries.map((entry) => (
           <li key={entry.query_id}>
             <button
               type="button"
               onClick={() => onAsk(entry.question)}
-              className="w-full px-4 py-3.5 text-left transition-colors hover:bg-secondary/40"
+              className="w-full rounded-lg border border-border bg-secondary px-4 py-3.5 text-left transition-colors hover:bg-secondary/70"
             >
               <p className="font-medium text-foreground">{entry.question}</p>
               {entry.answer && (
-                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{entry.answer}</p>
+                <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{entry.answer}</p>
               )}
-              <p className="mt-2 flex flex-wrap gap-x-3 text-xs text-muted-foreground/80">
+              <p className="mt-2.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground/80">
                 <span>{new Date(entry.created_at).toLocaleString()}</span>
                 <span>
                   {entry.citations} citation{entry.citations === 1 ? "" : "s"}
