@@ -178,37 +178,53 @@ function EditableName({
           .catch((failure) => setError(message(failure, "That name couldn't be saved.")))
           .finally(() => setBusy(false));
       }}
-      className="flex items-center justify-end gap-2"
+      className="flex flex-col items-end gap-1.5"
     >
-      <Input
+      {/* Bordered box removed on purpose: this row is a definition list, and dropping a
+          field-shaped control into it made one line look like a form and the rest like
+          data. Underline only, right-aligned, same size and position as the text it
+          replaces — so entering edit mode moves nothing on the page. */}
+      <input
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
         placeholder="Your name"
         aria-label="Your name"
         maxLength={200}
         autoFocus
-        className="h-8 w-48 rounded-md border-input bg-background text-right text-sm text-foreground focus-visible:border-primary focus-visible:ring-primary/40"
-      />
-      <Button type="submit" size="sm" disabled={busy} className="rounded-md">
-        {busy ? "Saving…" : "Save"}
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant="ghost"
-        onClick={() => {
-          setEditing(false);
-          setError(null);
+        // Escape leaves without saving, which is the shortcut anyone editing in place
+        // reaches for before they look for a Cancel button.
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            setEditing(false);
+            setError(null);
+          }
         }}
-        className="rounded-md"
-      >
-        Cancel
-      </Button>
-      {error && (
-        <span role="alert" className="text-xs text-destructive">
-          {error}
-        </span>
-      )}
+        className="w-48 border-b border-muted-foreground/40 bg-transparent pb-0.5 text-right text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-primary"
+      />
+      <div className="flex items-center gap-3 text-xs">
+        {error && (
+          <span role="alert" className="text-destructive">
+            {error}
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            setEditing(false);
+            setError(null);
+          }}
+          className="text-muted-foreground transition-colors hover:text-foreground"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={busy}
+          className="font-medium text-primary transition-colors hover:text-primary/80 disabled:opacity-50"
+        >
+          {busy ? "Saving…" : "Save"}
+        </button>
+      </div>
     </form>
   );
 }
