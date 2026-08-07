@@ -289,9 +289,12 @@ export function App() {
                 onClick={() => setCollapsed(true)}
                 aria-label="Collapse sidebar"
                 title="Collapse sidebar"
-                className="shrink-0 rounded-md p-1 text-muted-foreground/60 transition-colors hover:bg-secondary/60 hover:text-foreground"
+                className="shrink-0 rounded-md p-1.5 text-muted-foreground/60 transition-colors hover:bg-secondary/60 hover:text-foreground"
               >
-                <PanelLeftClose className="size-4" />
+                {/* Matches the collapsed rail's toggle rather than the caption-sized icon
+                    it was: the same control on both sides of the same action should not
+                    change size depending on which state you are in. */}
+                <PanelLeftClose className="size-5" />
               </button>
             </>
           )}
