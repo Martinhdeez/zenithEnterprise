@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from sse_starlette.sse import EventSourceResponse
 
 from app.features.auth.dependencies import CurrentProfile, requires, requires_any
+from app.features.generation.conversation import Turn
 from app.features.generation.service import EXECUTE, Answer, AnswerService
 from app.features.query.history import ANY, OWN, HistoryService
 from app.features.query.schemas import (
@@ -43,7 +44,14 @@ async def ask(profile: CurrentProfile, request: QueryRequest) -> QueryResponse:
     it cannot name one it was not given; markers naming a passage that was not sent are
     stripped before the answer leaves this process.
     """
-    return _rendered(await AnswerService(profile).answer(request.question, request.labels))
+    return _rendered(
+        await AnswerService(profile).answer(request.question, request.labels, _thread(request))
+    )
+
+
+def _thread(request: QueryRequest) -> list[Turn]:
+    """The client's thread, in the shape the generator wants."""
+    return [Turn(question=turn.question, answer=turn.answer) for turn in request.history]
 
 
 def _rendered(result: Answer) -> QueryResponse:
@@ -122,7 +130,7 @@ async def ask_streaming(profile: CurrentProfile, request: QueryRequest) -> Event
     service = AnswerService(profile)
 
     async def events() -> AsyncIterator[dict[str, str]]:
-        async for piece in service.stream(request.question, request.labels):
+        async for piece in service.stream(request.question, request.labels, _thread(request)):
             if piece.token is not None:
                 yield {"event": "token", "data": piece.token}
             elif piece.result is not None:

@@ -18,7 +18,7 @@ import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState }
 import { ArrowUp, MessageSquare, Quote, Search as SearchIcon, ShieldCheck, Square } from "lucide-react";
 
 import { history } from "@/features/history";
-import { reduce, type AnswerState } from "./answerState";
+import { asThread, reduce, type AnswerState } from "./answerState";
 import { streamQuery, type Citation } from "./stream";
 import { Answer } from "./Answer";
 import { Button } from "@/components/ui/button";
@@ -91,6 +91,10 @@ function EmptyState({ token, onAsk }: { token: string; onAsk: (question: string)
           If your documents do not answer the question, it says so instead of inventing an
           answer.
         </Point>
+        <Point icon={<MessageSquare className="size-4" />}>
+          It remembers this conversation. Ask a follow-up — "and the other one?", "explain
+          that more simply" — without repeating yourself.
+        </Point>
         <Point icon={<SearchIcon className="size-4" />}>
           Looking for the passages themselves rather than a written answer? Use Search.
         </Point>
@@ -161,6 +165,7 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
       const controller = new AbortController();
       inflight.current = controller;
 
+      const thread = [...turns, state];
       setTurns((current) => (state.phase === "idle" ? current : [...current, state]));
       dispatch({ type: "ask", question: asked });
       try {
@@ -172,7 +177,7 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
             onResult: (result) => dispatch({ type: "result", result }),
             onError: (message) => dispatch({ type: "error", message }),
           },
-          { labels, signal: controller.signal },
+          { labels, signal: controller.signal, history: asThread(thread) },
         );
       } catch (error) {
         // An abort is the user asking something else, not a failure to report.
@@ -185,8 +190,12 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
     },
     // `state` deliberately included: the closure needs the *current* live turn at the
     // moment a new question starts, to carry it into `turns` before replacing it.
+    // `state` and `turns` deliberately included: the closure needs the *current* thread at
+    // the moment a new question starts — to carry the live turn into `turns`, and to send
+    // the finished ones as the context the next answer is allowed to refer to. Omitting
+    // `turns` would send a thread frozen at the first question.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [token, labels, state],
+    [token, labels, state, turns],
   );
 
   const cancel = useCallback(() => {

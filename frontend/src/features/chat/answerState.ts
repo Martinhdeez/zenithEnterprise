@@ -75,3 +75,17 @@ export function displayed(state: AnswerState): string {
 export function isProvisional(state: AnswerState): boolean {
   return state.phase === "retrieving" || state.phase === "streaming";
 }
+
+/**
+ * The thread as the server wants it: finished exchanges only.
+ *
+ * A turn still streaming, one that errored, and one the user cancelled are all dropped. The
+ * question is on screen either way, but sending half an answer as context invites the model
+ * to continue it, and sending an error message as an "answer" would have the model explain
+ * an error to somebody who can already read it.
+ */
+export function asThread(states: AnswerState[]): { question: string; answer: string }[] {
+  return states
+    .filter((state) => state.phase === "final")
+    .map((state) => ({ question: state.question, answer: state.result.answer }));
+}

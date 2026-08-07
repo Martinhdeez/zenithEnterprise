@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { displayed, isProvisional, reduce, type AnswerState } from "./answerState";
+import { asThread, displayed, isProvisional, reduce, type AnswerState } from "./answerState";
 import type { QueryResult } from "./stream";
 
 const result = (over: Partial<QueryResult> = {}): QueryResult => ({
@@ -110,5 +110,45 @@ describe("the answer state machine", () => {
 
     expect(state.phase).toBe("error");
     expect(state).toHaveProperty("question", "what is the rate?");
+  });
+});
+
+describe("the thread sent with the next question", () => {
+  const final = (question: string, answer: string): AnswerState => ({
+    phase: "final",
+    question,
+    result: { answer } as QueryResult,
+  });
+
+  it("carries each finished exchange", () => {
+    expect(asThread([final("what is VAT?", "a tax [1]")])).toEqual([
+      { question: "what is VAT?", answer: "a tax [1]" },
+    ]);
+  });
+
+  it("drops a turn that is still streaming", () => {
+    // Half an answer as context invites the model to continue it rather than answer the
+    // new question.
+    const thread = asThread([
+      final("first", "done"),
+      { phase: "streaming", question: "second", text: "half an ans" },
+    ]);
+
+    expect(thread.map((turn) => turn.question)).toEqual(["first"]);
+  });
+
+  it("drops a turn that failed", () => {
+    // "The request failed." is not something the assistant said, and handing it back as an
+    // answer would have the model explain an error the user can already read.
+    const thread = asThread([
+      final("first", "done"),
+      { phase: "error", question: "second", message: "The request failed." },
+    ]);
+
+    expect(thread.map((turn) => turn.question)).toEqual(["first"]);
+  });
+
+  it("is empty before anything has been asked", () => {
+    expect(asThread([{ phase: "idle" }])).toEqual([]);
   });
 });

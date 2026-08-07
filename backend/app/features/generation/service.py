@@ -21,7 +21,7 @@ from app.core.database import tenant_session
 from app.features.auth.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
 from app.features.generation import citations as binding
-from app.features.generation import prompt, providers
+from app.features.generation import conversation, prompt, providers, routing
 from app.features.generation.crypto import decrypt
 from app.features.generation.streaming import filtered
 from app.features.retrieval.search import Hit
@@ -81,9 +81,20 @@ class AnswerService:
         self.search = search or SearchService(profile)
         self._provider = provider
 
-    async def answer(self, question: str, labels: list[UUID] | None = None) -> Answer:
-        found = await self.search.search(question, PASSAGES, labels)
+    async def answer(
+        self,
+        question: str,
+        labels: list[UUID] | None = None,
+        history: list[conversation.Turn] | None = None,
+    ) -> Answer:
         provider = self._provider or await self._resolve()
+        thread = conversation.bounded(history or [])
+        intent = await routing.resolve(thread, question, provider)
+
+        if intent.conversational:
+            return await self._conversational(question, thread, provider)
+
+        found = await self.search.search(intent.query or question, PASSAGES, labels)
 
         if not found.hits:
             # Nothing retrieved, so nothing to ground an answer in. Calling the model here
@@ -94,7 +105,9 @@ class AnswerService:
             model, generation_ms = "", 0
         else:
             started = time.perf_counter()
-            completion = await provider.complete(prompt.SYSTEM, prompt.build(question, found.hits))
+            completion = await provider.complete(
+                prompt.SYSTEM, prompt.build(question, found.hits, thread.rendered())
+            )
             generation_ms = int((time.perf_counter() - started) * 1000)
             model = completion.model
             bound = binding.bind(completion.text, found.hits)
@@ -127,7 +140,10 @@ class AnswerService:
         )
 
     async def stream(
-        self, question: str, labels: list[UUID] | None = None
+        self,
+        question: str,
+        labels: list[UUID] | None = None,
+        history: list[conversation.Turn] | None = None,
     ) -> AsyncIterator[Streamed]:
         """The same answer, delivered in pieces, with one guarantee weakened on purpose.
 
@@ -140,8 +156,20 @@ class AnswerService:
         The log is written from the accumulated text, so a streamed query is as auditable as
         a buffered one — `queries` and `query_citations` cannot tell the difference.
         """
-        found = await self.search.search(question, PASSAGES, labels)
         provider = self._provider or await self._resolve()
+        thread = conversation.bounded(history or [])
+        intent = await routing.resolve(thread, question, provider)
+
+        if intent.conversational:
+            # Streamed as one piece rather than token by token. The conversational path has
+            # no passages, so `MarkerFilter` has no marker range to validate against and the
+            # buffered call is the honest way to get text that is already whole.
+            answered = await self._conversational(question, thread, provider)
+            yield Streamed(token=answered.answer)
+            yield Streamed(result=answered)
+            return
+
+        found = await self.search.search(intent.query or question, PASSAGES, labels)
 
         if not found.hits:
             bound = binding.Bound(prompt.ABSTENTION, [], abstained=True, fabricated=0)
@@ -152,7 +180,7 @@ class AnswerService:
         started = time.perf_counter()
         pieces: list[str] = []
         async for text_piece in filtered(
-            provider.stream(prompt.SYSTEM, prompt.build(question, found.hits)),
+            provider.stream(prompt.SYSTEM, prompt.build(question, found.hits, thread.rendered())),
             range(1, len(found.hits) + 1),
         ):
             pieces.append(text_piece)
@@ -176,6 +204,50 @@ class AnswerService:
             fabricated=bound.fabricated,
         )
         yield Streamed(result=self._answer(query_id, bound, found, model, generation_ms))
+
+    async def _conversational(
+        self, message: str, thread: conversation.Thread, provider: BaseLLMProvider
+    ) -> Answer:
+        """A turn answered from the transcript, with no retrieval at all.
+
+        Not a search that happened to find nothing: nothing was searched. `consulted` is
+        empty because no document was read, `abstained` is false because there was nothing
+        to abstain from, and `took_retrieval_ms` is zero because no retrieval ran. Reporting
+        this as an abstention would tell the user their documents failed to answer a
+        question that was never about their documents.
+
+        Still recorded. It is a message the user sent to the system, and the audit log's
+        claim to be complete does not survive a category of question it silently drops.
+        """
+        started = time.perf_counter()
+        completion = await provider.complete(
+            prompt.CHAT_SYSTEM, prompt.build_chat(thread.rendered(), message)
+        )
+        generation_ms = int((time.perf_counter() - started) * 1000)
+
+        # Markers are stripped rather than bound. Any marker the model wrote despite rule 2
+        # is invalid by construction — there were no passages — and would otherwise reach
+        # the client as a link to something that was never consulted. `bind` is not usable
+        # here: with no hits it finds no valid citation and replaces the whole answer with
+        # the abstention sentence, which is the right rule for a turn that was offered
+        # passages and the wrong one for a turn that never asked for any.
+        text_only, markers = binding.stripped(completion.text)
+        bound = binding.Bound(text_only, [], abstained=False, fabricated=markers)
+
+        query_id = await self._record(message, bound, [], completion.model, 0, generation_ms)
+        log.info("query_conversational", query_id=str(query_id), generation_ms=generation_ms)
+        return Answer(
+            query_id=query_id,
+            answer=bound.answer,
+            citations=[],
+            abstained=False,
+            consulted=[],
+            model=completion.model,
+            degraded=False,
+            reason=None,
+            took_retrieval_ms=0,
+            took_generation_ms=generation_ms,
+        )
 
     def _answer(
         self,

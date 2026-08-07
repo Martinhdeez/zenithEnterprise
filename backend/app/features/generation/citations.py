@@ -47,6 +47,32 @@ class Bound:
     fabricated: int
 
 
+def stripped(answer: str) -> tuple[str, int]:
+    """Remove every marker, and say how many there were.
+
+    For a turn that had no passages: the conversational path, where the user asked about
+    the conversation rather than about the corpus. `bind` is the wrong tool there, and
+    wrong in a way that deletes the answer — with no hits, no marker can be valid, and its
+    rule that an uncited answer is discarded turns a perfectly good reply into the
+    abstention sentence. That rule is right when passages were offered and none were used;
+    here nothing was offered.
+
+    A marker that survived into this text is still not allowed to reach the client: it would
+    render as a link to a passage that was never retrieved.
+    """
+    count = 0
+
+    def drop(match: re.Match[str]) -> str:
+        nonlocal count
+        count += len(match.group(1).split(","))
+        return ""
+
+    cleaned = MARKER.sub(drop, answer)
+    if count:
+        log.warning("marker_in_conversational_answer", count=count)
+    return _tidy(cleaned), count
+
+
 def bind(answer: str, hits: list[Hit]) -> Bound:
     valid = range(1, len(hits) + 1)
     cited: dict[int, ChunkCitation] = {}

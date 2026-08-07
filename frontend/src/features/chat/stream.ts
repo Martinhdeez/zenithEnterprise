@@ -73,11 +73,17 @@ function parseFrame(frame: string): { event: string; data: string } | null {
   return { event, data: data.join("\n") };
 }
 
+/** One exchange already on screen, sent so the next message can refer to it. */
+export interface Turn {
+  question: string;
+  answer: string;
+}
+
 export async function streamQuery(
   question: string,
   token: string,
   handlers: StreamHandlers,
-  options: { labels?: string[]; signal?: AbortSignal } = {},
+  options: { labels?: string[]; signal?: AbortSignal; history?: Turn[] } = {},
 ): Promise<void> {
   // A relative path deliberately. The client is served next to the API inside the
   // customer's network, and a baked-in host is a value that is wrong on every installation
@@ -85,7 +91,13 @@ export async function streamQuery(
   const response = await fetch("/query/stream", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ question, labels: options.labels ?? null }),
+    // `history` is this thread, not the stored query log: the server bounds it again
+    // before it reaches the model, so sending more here cannot enlarge the prompt.
+    body: JSON.stringify({
+      question,
+      labels: options.labels ?? null,
+      history: options.history ?? [],
+    }),
     signal: options.signal,
   });
 

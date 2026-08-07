@@ -40,7 +40,31 @@ Rules:
 10. Be brief, but never answer with only "yes" or "no". State the fact that makes it so."""
 
 
-def build(question: str, hits: list[Hit]) -> str:
+# A turn that needs no passages: the user asked about the conversation itself, or asked for
+# the previous answer in other words. Kept separate from `SYSTEM` rather than adding rules
+# to it, because the two disagree on the thing `SYSTEM` is strictest about. There are no
+# passages here, so "cite everything" and "abstain if the passages do not answer" cannot be
+# followed, and a model handed contradictory rules follows the wrong one.
+CHAT_SYSTEM = """You are the assistant in a conversation about a set of documents.
+
+This message is about the conversation itself, not about the documents. Answer it using
+only what was said above.
+
+Rules:
+1. Use only the conversation. Do not add facts about the subject from your own knowledge.
+2. Never write citation markers like [1]. Nothing here is cited.
+3. If the conversation does not contain what is being asked for, say so plainly and say
+   what was discussed instead. Offer to look in the documents.
+4. Write in the language the user is writing in.
+5. Be brief."""
+
+
+def build_chat(thread: str, message: str) -> str:
+    """The conversational turn: the transcript, and the message about it."""
+    return f"Conversation:\n\n{thread}\n\nUser: {message}\n\nAssistant:"
+
+
+def build(question: str, hits: list[Hit], thread: str = "") -> str:
     """Number the passages from 1, and keep that numbering as the only handle the model has.
 
     Chunk ids are never shown. A UUID in the prompt is 36 tokens of nothing the model can
@@ -59,4 +83,16 @@ def build(question: str, hits: list[Hit]) -> str:
         f'[{number}] {hit.filename} — page {hit.page_num}\n"""\n{hit.text}\n"""'
         for number, hit in enumerate(hits, start=1)
     )
-    return f"Passages:\n\n{passages}\n\nQuestion: {question}\n\nAnswer:"
+    if not thread:
+        return f"Passages:\n\n{passages}\n\nQuestion: {question}\n\nAnswer:"
+
+    # The thread goes first and is labelled as context, with the restriction restated after
+    # it. A grounded turn that can see the conversation answers "and what about the other
+    # one?" properly; the risk is that a model reading its own earlier prose treats that
+    # prose as a source and cites a passage for a fact that came from the transcript. The
+    # passages stay last so they are what the model has just read when it starts writing.
+    return (
+        f"Conversation so far (for context only — every fact in your answer must still come "
+        f"from the passages below and carry its marker):\n\n{thread}\n\n"
+        f"Passages:\n\n{passages}\n\nQuestion: {question}\n\nAnswer:"
+    )

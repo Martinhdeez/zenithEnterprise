@@ -4,11 +4,29 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
+class TurnRequest(BaseModel):
+    """One exchange the client already has on screen.
+
+    Sent by the client rather than read from `queries` on purpose. A thread is what *this
+    conversation* said, and the stored history is every question the user ever asked,
+    interleaved across tabs and screens — rebuilding a thread from it would put a question
+    asked ten minutes ago in a different tab into the context of this one.
+    """
+
+    question: str = Field(min_length=1, max_length=4000)
+    answer: str = Field(max_length=8000)
+
+
 class QueryRequest(BaseModel):
     question: str = Field(min_length=1, max_length=1000)
     labels: list[UUID] | None = Field(
         default=None, description="Narrow to a subset of the labels you reach."
     )
+    #: The conversation so far, oldest first. Bounded again server-side — this cap only
+    #: stops an oversized request body; what actually reaches the model is decided by
+    #: `generation.conversation.bounded`, so a client cannot enlarge the prompt by sending
+    #: more.
+    history: list[TurnRequest] = Field(default_factory=list[TurnRequest], max_length=50)
 
 
 class CitationResponse(BaseModel):

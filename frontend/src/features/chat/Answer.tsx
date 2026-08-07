@@ -200,7 +200,11 @@ function Footer({ result }: { result: QueryResult }) {
       )}
       <p>
         {result.model && <>{result.model} · </>}
-        retrieval {result.took_retrieval_ms} ms · generation {result.took_generation_ms} ms
+        {/* A turn answered from the conversation searched nothing, and "retrieval 0 ms"
+            reads as a retrieval that was instant rather than one that never ran. The
+            absence of the number is the more accurate statement. */}
+        {result.consulted.length > 0 && <>retrieval {result.took_retrieval_ms} ms · </>}
+        generation {result.took_generation_ms} ms
       </p>
     </div>
   );
