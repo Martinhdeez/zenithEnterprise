@@ -201,7 +201,11 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
 
   useEffect(() => {
     if (!prefill) return;
-    setQuestion(prefill.text);
+    // Asked, not typed. Putting the text in the composer left it sitting there after the
+    // answer had streamed, so the next question had to start with deleting the last one —
+    // and the question is already on screen at the top of its own turn, which is where a
+    // thread shows what was asked. The composer's job is what you are about to send.
+    setQuestion("");
     void ask(prefill.text);
     // `prefill.nonce` is the trigger — a click on the same past question a second time
     // still asks it again, which `[prefill]` alone (identity-equal to itself) would not.
