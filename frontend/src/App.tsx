@@ -472,7 +472,9 @@ export function App() {
               />
             )}
             {view === "admin" && <Admin token={token} />}
-            {view === "profile" && <Profile token={token} onSignedOut={signOut} />}
+            {view === "profile" && (
+              <Profile token={token} onSignedOut={signOut} onProfile={setMe} />
+            )}
             </div>
             </main>
           )}

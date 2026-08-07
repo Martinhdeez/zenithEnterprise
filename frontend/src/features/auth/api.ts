@@ -93,3 +93,12 @@ export function changePassword(
 export function signOutEverywhere(token: string): Promise<void> {
   return request<void>("/auth/sign-out-everywhere", token, { method: "POST" });
 }
+
+/** The only field on the profile its owner may set. Returns the whole profile back. */
+export function renameSelf(token: string, name: string): Promise<UserProfile> {
+  return request<UserProfile>("/auth/profile", token, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+}

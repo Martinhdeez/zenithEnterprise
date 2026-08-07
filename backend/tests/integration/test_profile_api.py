@@ -172,3 +172,49 @@ async def test_the_profile_shows_a_name_when_there_is_one(
 
     after = await client.get("/auth/profile", headers=await headers(client, account.admin_email))
     assert after.json()["name"] == "Ada Lovelace"
+
+
+async def test_setting_your_own_name(client: AsyncClient, account: Account) -> None:
+    auth = await headers(client, account.admin_email)
+
+    updated = await client.patch("/auth/profile", json={"name": "Ada Lovelace"}, headers=auth)
+
+    assert updated.status_code == 200
+    assert updated.json()["name"] == "Ada Lovelace"
+    # Returned whole rather than as the changed field, so a client re-renders from one
+    # authoritative shape instead of patching its own copy.
+    assert updated.json()["email"] == account.admin_email
+    assert (await client.get("/auth/profile", headers=auth)).json()["name"] == "Ada Lovelace"
+
+
+async def test_a_blank_name_clears_it_rather_than_storing_spaces(
+    client: AsyncClient, account: Account
+) -> None:
+    """ "Not set" needs one representation, or every fallback to the email has to know
+    about two."""
+    auth = await headers(client, account.admin_email)
+    await client.patch("/auth/profile", json={"name": "Ada Lovelace"}, headers=auth)
+
+    cleared = await client.patch("/auth/profile", json={"name": "   "}, headers=auth)
+
+    assert cleared.json()["name"] is None
+
+
+async def test_renaming_cannot_reach_anything_but_the_name(
+    client: AsyncClient, account: Account
+) -> None:
+    """The endpoint takes one field, and that is the guarantee: a profile screen that let
+    somebody widen their own access would defeat the point of having roles at all."""
+    auth = await headers(client, account.admin_email)
+    before = (await client.get("/auth/profile", headers=auth)).json()
+
+    await client.patch(
+        "/auth/profile",
+        json={"name": "Ada", "roles": ["admin", "invented"], "labels": ["Everything"]},
+        headers=auth,
+    )
+
+    after = (await client.get("/auth/profile", headers=auth)).json()
+    assert after["roles"] == before["roles"]
+    assert after["labels"] == before["labels"]
+    assert after["permissions"] == before["permissions"]

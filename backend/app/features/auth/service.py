@@ -178,6 +178,21 @@ class AuthService:
                 created_at=user.created_at,
             )
 
+    async def rename(self, profile: AccessProfile, name: str) -> Profile:
+        """Set or clear your own display name.
+
+        Whitespace-only is stored as null rather than as a string of spaces, so "not set"
+        has one representation and every fallback to the email keeps working.
+        """
+        async with tenant_session(profile.context) as session:
+            users = UserRepository(session)
+            user = await users.get(profile.user_id)
+            if user is None:
+                raise NotFoundError("no such user")
+            user.name = name.strip() or None
+            await session.flush()
+        return await self.describe(profile)
+
     async def change_password(self, profile: AccessProfile, current: str, new: str) -> None:
         """Let somebody change their own password, which until now nobody could.
 

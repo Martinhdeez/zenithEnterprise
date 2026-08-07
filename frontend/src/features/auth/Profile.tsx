@@ -15,7 +15,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Loader2, LogOut, ShieldCheck } from "lucide-react";
 
-import { changePassword, profile as fetchProfile, signOutEverywhere, type UserProfile } from "./api";
+import {
+  changePassword,
+  profile as fetchProfile,
+  renameSelf,
+  signOutEverywhere,
+  type UserProfile,
+} from "./api";
 import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,21 +30,35 @@ interface Props {
   token: string;
   /** Called once every session is invalidated, so the shell can drop its tokens. */
   onSignedOut: () => void;
+  /**
+   * Reported upward on load and on every change, because the shell draws the avatar from
+   * the same profile and would otherwise keep showing the initial of the email after
+   * somebody had just set their name on this very screen.
+   */
+  onProfile: (profile: UserProfile) => void;
 }
 
-export function Profile({ token, onSignedOut }: Props) {
+export function Profile({ token, onSignedOut, onProfile }: Props) {
   const [me, setMe] = useState<UserProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const remember = useCallback(
+    (result: UserProfile) => {
+      setMe(result);
+      onProfile(result);
+    },
+    [onProfile],
+  );
 
   useEffect(() => {
     let cancelled = false;
     void fetchProfile(token)
-      .then((result) => !cancelled && setMe(result))
+      .then((result) => !cancelled && remember(result))
       .catch((failure) => !cancelled && setError(message(failure, "Your profile couldn't be loaded.")));
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, remember]);
 
   if (error && !me) {
     return (
@@ -61,7 +81,9 @@ export function Profile({ token, onSignedOut }: Props) {
     <div className="space-y-6">
       <Panel title="Account">
         <dl className="space-y-3 text-sm">
-          <Row label="Name">{me.name ?? <Absent>Not set</Absent>}</Row>
+          <Row label="Name">
+            <EditableName token={token} value={me.name} onSaved={remember} />
+          </Row>
           <Row label="Email">{me.email}</Row>
           <Row label="Organisation">{me.tenant_name ?? <Absent>Unnamed</Absent>}</Row>
           <Row label="Member since">{new Date(me.created_at).toLocaleDateString()}</Row>
@@ -103,6 +125,91 @@ export function Profile({ token, onSignedOut }: Props) {
         <SignOutEverywhere token={token} onSignedOut={onSignedOut} />
       </Panel>
     </div>
+  );
+}
+
+/**
+ * The name, in place, because it is the one field on this screen its owner may change.
+ *
+ * Everything else here is either an identifier (email) or granted by somebody else (roles,
+ * labels, permissions) — a profile that let you edit your own access would defeat the
+ * point of having roles. So one field is editable and the rest reads as the record it is.
+ */
+function EditableName({
+  token,
+  value,
+  onSaved,
+}: {
+  token: string;
+  value: string | null;
+  onSaved: (profile: UserProfile) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setDraft(value ?? "");
+          setEditing(true);
+        }}
+        className="text-foreground underline decoration-muted-foreground/40 underline-offset-4 transition-colors hover:decoration-foreground"
+      >
+        {value ?? <Absent>Set a name</Absent>}
+      </button>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={(event: FormEvent) => {
+        event.preventDefault();
+        setBusy(true);
+        setError(null);
+        void renameSelf(token, draft)
+          .then((updated) => {
+            onSaved(updated);
+            setEditing(false);
+          })
+          .catch((failure) => setError(message(failure, "That name couldn't be saved.")))
+          .finally(() => setBusy(false));
+      }}
+      className="flex items-center justify-end gap-2"
+    >
+      <Input
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        placeholder="Your name"
+        aria-label="Your name"
+        maxLength={200}
+        autoFocus
+        className="h-8 w-48 rounded-md border-input bg-background text-right text-sm text-foreground focus-visible:border-primary focus-visible:ring-primary/40"
+      />
+      <Button type="submit" size="sm" disabled={busy} className="rounded-md">
+        {busy ? "Saving…" : "Save"}
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        onClick={() => {
+          setEditing(false);
+          setError(null);
+        }}
+        className="rounded-md"
+      >
+        Cancel
+      </Button>
+      {error && (
+        <span role="alert" className="text-xs text-destructive">
+          {error}
+        </span>
+      )}
+    </form>
   );
 }
 
