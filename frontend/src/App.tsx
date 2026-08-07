@@ -236,31 +236,65 @@ export function App() {
           collapsed ? "w-16" : "w-72"
         }`}
       >
+        {/* Collapsed, this slot holds one control instead of two stacked. The mark and the
+            toggle were sharing a 64px column, which made the rail top-heavy and gave the
+            eye two targets for what is really one place. Collapsed, the mark steps aside
+            and the toggle takes its position — the way Gemini's rail does it — so the
+            thing you click to get the sidebar back is exactly where the logo was. */}
         <div
-          className={`panel-accent flex shrink-0 rounded-t-xl border-b border-border py-3.5 ${
-            collapsed ? "flex-col items-center gap-2 px-2" : "items-center gap-2 px-4"
+          className={`panel-accent flex shrink-0 items-center gap-2 rounded-t-xl border-b border-border py-3.5 ${
+            collapsed ? "justify-center px-2" : "px-4"
           }`}
         >
-          <img src="/zenith-mark.png" alt="Zenith" width={22} height={22} className="size-[22px] object-contain" />
-          {!collapsed && (
-            <div className="min-w-0 flex-1">
-              <p className="text-sm leading-tight font-semibold text-foreground">Zenith</p>
-              <p className="text-xs leading-tight text-muted-foreground">Ask your documents</p>
-            </div>
+          {collapsed ? (
+            // The mark is still the mark until you reach for it. Hovering swaps it for the
+            // control, so the rail reads as branding at rest and as a button under the
+            // cursor — one slot doing both jobs, which is what keeps a 64px column from
+            // needing two rows. `grid` with both children stacked rather than swapping
+            // `display`: they occupy the same cell, so nothing shifts on hover.
+            <button
+              type="button"
+              onClick={() => setCollapsed(false)}
+              aria-label="Expand sidebar"
+              title="Expand sidebar"
+              className="group grid size-8 place-items-center rounded-md transition-colors hover:bg-secondary/60"
+            >
+              <img
+                src="/zenith-mark.png"
+                alt="Zenith"
+                width={22}
+                height={22}
+                className="col-start-1 row-start-1 size-[22px] object-contain transition-opacity group-hover:opacity-0"
+              />
+              <PanelLeftOpen
+                aria-hidden
+                className="col-start-1 row-start-1 size-5 text-muted-foreground opacity-0 transition-opacity group-hover:text-foreground group-hover:opacity-100"
+              />
+            </button>
+          ) : (
+            <>
+              <img
+                src="/zenith-mark.png"
+                alt="Zenith"
+                width={22}
+                height={22}
+                className="size-[22px] object-contain"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm leading-tight font-semibold text-foreground">Zenith</p>
+                <p className="text-xs leading-tight text-muted-foreground">Ask your documents</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCollapsed(true)}
+                aria-label="Collapse sidebar"
+                title="Collapse sidebar"
+                className="shrink-0 rounded-md p-1 text-muted-foreground/60 transition-colors hover:bg-secondary/60 hover:text-foreground"
+              >
+                <PanelLeftClose className="size-4" />
+              </button>
+            </>
           )}
-          {/* Up here rather than as a labelled bar at the bottom: it is chrome for the
-              panel, and it belongs on the panel's own edge where the eye already is when
-              looking for the logo. Icon only — the arrow's direction says which way it
-              goes, and a word repeating that would be the widest thing in a 64px rail. */}
-          <button
-            type="button"
-            onClick={() => setCollapsed((was) => !was)}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="shrink-0 rounded-md p-1 text-muted-foreground/60 transition-colors hover:bg-secondary/60 hover:text-foreground"
-          >
-            {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
-          </button>
         </div>
 
         <div className="scrollbar-none flex flex-1 flex-col overflow-y-auto">
