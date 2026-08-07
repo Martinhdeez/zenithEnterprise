@@ -42,6 +42,18 @@ class PdfPlumberParser:
         with pdfplumber.open(path) as document:
             for index, page in enumerate(document.pages, start=1):
                 pages.append(self._page(page, index))
+                # Released per page, and this is not a micro-optimisation. pdfplumber
+                # caches every character, line and rectangle it decoded on the page object
+                # and keeps it for the lifetime of the document — so parsing a long file
+                # accumulates the whole decoded corpus in memory whether anything still
+                # needs it or not.
+                #
+                # Measured on `infrastructure-act.pdf` (1,039 pages): 3,068 MB without this
+                # call, 58 MB with it. The worker then sat at ~2 GB *after* finishing,
+                # because the caches outlived the parse, and TEI — which needs 4.6 GB to
+                # serve BGE-M3 — was OOM-killed by the sum on an 8 GB machine. Two large
+                # documents failed to ingest that way before anyone looked at why.
+                page.close()  # type: ignore[attr-defined]
         return pages
 
     def _page(self, page: object, page_num: int) -> ParsedPage:

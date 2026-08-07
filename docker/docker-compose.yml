@@ -52,6 +52,14 @@ services:
       - "${TEI_EMBED_PORT:-8081}:80"
     volumes:
       - hf_cache:/data
+    # Embedding on CPU will take every core it is given: unlimited, this container ran at
+    # 1301% on a 14-core laptop and the machine got hot enough for its owner to come asking
+    # what was wrong. Ingestion is a background job and nobody is watching it finish, so the
+    # trade is the right way round — the box stays usable while a long document is indexed.
+    #
+    # It is a ceiling, not a reservation, and it is here rather than in a `docker update`
+    # because that one is lost the next time the container is recreated.
+    cpus: ${TEI_CPUS:-4.0}
 
   tei-rerank:
     image: ${TEI_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.8}

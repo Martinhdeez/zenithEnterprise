@@ -109,6 +109,17 @@ PROFILES: Final[dict[str, Profile]] = {
     # serves at 3.71 GB; with the defaults the kernel kills it at 6.59 GB. The difference
     # between "does not run at all" and "runs" is two numbers, and no amount of design
     # review would have produced them.
+    #
+    # Tried at 16 once the parser fix had freed 2.8 GB, on the theory that the round trips
+    # were the reason a 3,179-chunk document took an hour. They are not, and the number
+    # cannot move: `plan_batches` fills a request until *either* bound is reached, and at
+    # 400-token chunks the token budget is reached first, at five. Raising the client limit
+    # to 16 changed nothing about what was sent — 555 requests, every one a 200, none of
+    # them larger than the budget already allowed.
+    #
+    # So 4 is already within one chunk of the ceiling, and the only lever that would
+    # actually widen a request is `max_batch_tokens` — which is the number keeping TEI
+    # alive at 3.71 GB on this hardware, and is not available to spend.
     "low-spec": Profile(
         name="low-spec",
         max_batch_tokens=2048,
