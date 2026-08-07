@@ -122,7 +122,7 @@ export function Profile({ token, onSignedOut, onProfile }: Props) {
       </Panel>
 
       <Panel title="Sessions">
-        <SignOutEverywhere token={token} onSignedOut={onSignedOut} />
+        <Sessions token={token} onSignedOut={onSignedOut} />
       </Panel>
     </div>
   );
@@ -303,12 +303,32 @@ function PasswordForm({ token, onChanged }: { token: string; onChanged: () => vo
   );
 }
 
-function SignOutEverywhere({ token, onSignedOut }: { token: string; onSignedOut: () => void }) {
+/**
+ * Both ways of ending a session, read together.
+ *
+ * Plain sign-out used to live in the sidebar and this one lived here, which left the
+ * difference between them to be inferred from two labels in two places. Side by side, one
+ * says "this device" and the other says "all of them", and the second's real limitation —
+ * it cannot kill a live access token, only stop it renewing — is stated where somebody
+ * choosing between them will read it.
+ */
+function Sessions({ token, onSignedOut }: { token: string; onSignedOut: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
+      <div className="space-y-3">
+        <p className="max-w-prose text-sm text-muted-foreground">
+          Sign out on this device. Your other sessions are untouched.
+        </p>
+        <Button type="button" variant="outline" onClick={onSignedOut} className="gap-1.5 rounded-md">
+          <LogOut className="size-4" />
+          Sign out
+        </Button>
+      </div>
+
+      <div className="space-y-3 border-t border-border pt-5">
       {/* The honest version of what this does. Access tokens are stateless by design
           (mvp.md 2.4) — nothing reads the database to check one — so this ends the ability
           to *renew* a session rather than killing it mid-flight. Promising more than that
@@ -341,6 +361,7 @@ function SignOutEverywhere({ token, onSignedOut }: { token: string; onSignedOut:
         <LogOut className="size-4" />
         {busy ? "Ending…" : "Sign out everywhere"}
       </Button>
+      </div>
     </div>
   );
 }

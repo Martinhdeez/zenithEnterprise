@@ -14,7 +14,6 @@ import {
   Maximize2,
   MessageSquare,
   Minimize2,
-  LogOut,
   PanelLeftClose,
   PanelLeftOpen,
   Search as SearchIcon,
@@ -350,9 +349,10 @@ export function App() {
           )}
         </div>
 
-        {/* The avatar and the name are the profile's own control now, above Sign out
-            rather than beside it — one opens a screen, the other ends the session, and
-            they had been sharing a row as if they were the same kind of thing. */}
+        {/* Just the profile now. Signing out moved onto that screen, next to "sign out
+            everywhere" — the two are variants of one decision and reading them together is
+            what makes the difference between them legible. It also stops a destructive
+            action sitting permanently one stray click from the navigation. */}
         <div
           className={`panel-accent flex shrink-0 flex-col gap-1 border-t border-border py-2 ${
             collapsed ? "items-center px-2" : "px-2"
@@ -376,16 +376,6 @@ export function App() {
             </span>
             {!collapsed && <span className="truncate text-sm">Profile</span>}
           </button>
-          {!collapsed && (
-            <button
-              type="button"
-              onClick={signOut}
-              className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground"
-            >
-              <LogOut className="size-4 shrink-0" />
-              Sign out
-            </button>
-          )}
         </div>
       </nav>
 
