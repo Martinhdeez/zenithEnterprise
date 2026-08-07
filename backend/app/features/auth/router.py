@@ -9,6 +9,7 @@ from app.features.auth.schemas import (
     MeResponse,
     PasswordChange,
     ProfileResponse,
+    ProfileUpdate,
     RefreshRequest,
     TokenResponse,
 )
@@ -53,6 +54,16 @@ async def profile(current: CurrentProfile) -> ProfileResponse:
     """
     described = await AuthService().describe(current)
     return ProfileResponse(**asdict(described))
+
+
+@router.patch("/profile")
+async def rename(request: ProfileUpdate, current: CurrentProfile) -> ProfileResponse:
+    """Change your own display name — the only field on this screen that is yours to set.
+
+    Returns the whole profile rather than the changed field, so the client re-renders from
+    one authoritative shape instead of patching its own copy and drifting from the server.
+    """
+    return ProfileResponse(**asdict(await AuthService().rename(current, request.name)))
 
 
 @router.post("/password", status_code=status.HTTP_204_NO_CONTENT)

@@ -7,6 +7,7 @@ export {
   profile,
   changePassword,
   signOutEverywhere,
+  renameSelf,
   type TokenPair,
   type UserProfile,
 } from "./api";

@@ -30,6 +30,21 @@ class PasswordChange(BaseModel):
     new_password: str = Field(min_length=8, max_length=1024)
 
 
+class ProfileUpdate(BaseModel):
+    """The parts of a profile its owner may change.
+
+    Only the display name. Email is the login identifier and is unique per tenant, so
+    changing it is an account operation with a uniqueness check and a re-authentication
+    question attached, not a text field. Roles and labels are an administrator's to grant
+    — a profile screen that let you widen your own access would defeat the point of having
+    them.
+    """
+
+    #: Empty string clears it, which is why the floor is zero rather than one: somebody who
+    #: filled this in by mistake needs a way back to "not set".
+    name: str = Field(max_length=200)
+
+
 class ProfileResponse(BaseModel):
     """Who the caller is, for the screen that shows it.
 
