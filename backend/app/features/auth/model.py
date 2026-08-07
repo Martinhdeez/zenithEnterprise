@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Index, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base, created_at, uuid_col, uuid_pk
@@ -32,6 +32,10 @@ class User(Base):
     # Stored lowercased; see `normalise_email`. Uniqueness is per tenant, not per
     # installation, so the same person can exist in two tenants of a hosted install.
     email: Mapped[str]
+    # Optional and staying that way: an invitation that demanded a name would put a
+    # required field in front of an administrator who may only know the address. Every
+    # place that renders it falls back to the email.
+    name: Mapped[str | None] = mapped_column(Text)
     password_hash: Mapped[str]
     # Immediate revocation without Redis: bumping this invalidates live tokens.
     token_version: Mapped[int] = mapped_column(default=0, server_default="0")

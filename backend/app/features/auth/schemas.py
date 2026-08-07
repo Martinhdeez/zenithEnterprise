@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
@@ -19,6 +20,34 @@ class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+
+
+class PasswordChange(BaseModel):
+    current_password: str = Field(min_length=1, max_length=1024)
+    # The same floor `LoginRequest` uses. A real policy belongs somewhere both this and
+    # invitation can read it, and inventing one here would apply it to changes and not to
+    # the generated passwords beside them.
+    new_password: str = Field(min_length=8, max_length=1024)
+
+
+class ProfileResponse(BaseModel):
+    """Who the caller is, for the screen that shows it.
+
+    `labels` is names rather than ids on purpose: it exists to answer "why can I not see
+    the document my colleague can", and an id answers nothing. It is still not a
+    permission check — RLS decides, in the database.
+    """
+
+    user_id: UUID
+    email: str
+    name: str | None
+    tenant_id: UUID
+    tenant_name: str | None
+    roles: list[str]
+    permissions: list[str]
+    labels: list[str]
+    documents_uploaded: int
+    created_at: datetime
 
 
 class MeResponse(BaseModel):
