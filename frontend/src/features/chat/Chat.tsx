@@ -8,7 +8,7 @@
  * Laid out like the chat interfaces this is deliberately modelled on: a message thread that
  * scrolls in its own region, an input pinned to the bottom of the panel rather than sitting
  * above the answer. `turns` is this session's thread — every prior question this component
- * has asked, kept purely so there is something to scroll back through; `HistoryAI` already
+ * has asked, kept purely so there is something to scroll back through; `@/features/history` already
  * persists questions server-side (`GET /query/history`) for the record that outlives a tab,
  * and this array duplicates none of that, it just gives the *current* conversation a shape
  * instead of replacing itself on every question the way earlier versions of this screen did.
