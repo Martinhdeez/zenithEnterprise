@@ -14,7 +14,7 @@ import { useCallback, useRef, useState } from "react";
 import { search, type SearchHit } from "./api";
 import { ApiError } from "@/shared/api/http";
 import type { Citation } from "@/features/chat";
-import { Search as SearchIcon } from "lucide-react";
+import { Clock, Search as SearchIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,13 +33,51 @@ type State =
   | { phase: "done"; query: string; hits: SearchHit[]; degraded: boolean; reason: string | null; tookMs: number }
   | { phase: "error"; query: string; message: string };
 
-/** Starting points, not features — a blank search box gives no clue what this corpus even
-    holds. Deliberately generic so they stay sensible whatever the tenant uploaded. */
+/** Starting points for a corpus nobody has searched yet — a blank box gives no clue what
+    is even in there. Deliberately generic so they stay sensible whatever was uploaded, and
+    shown only until there is real history to offer instead. */
 const SUGGESTIONS = ["obligations", "deadlines", "definitions", "penalties"];
+
+const RECENT_KEY = "zenith.recent-searches";
+const RECENT_LIMIT = 5;
+
+/**
+ * Recent searches live in the browser, not on the server, and that is a decision rather
+ * than a shortcut.
+ *
+ * `GET /query/history` exists and would have been the obvious source — but it records
+ * *questions asked in Chat*. Search is deliberately not written to it: it runs retrieval
+ * alone, generates nothing, and nobody has decided it should be part of the tenant's
+ * audited record. Reading chat history here would put a different kind of thing under a
+ * heading that says "recent searches", which is worse than having no list.
+ *
+ * The trade-off is honest and worth stating: this is per-browser and per-device. If these
+ * should follow a person between machines — or be visible to an auditor — that is a
+ * server-side feature and a separate decision about what Search owes the record.
+ */
+function readRecent(): string[] {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
+    return Array.isArray(raw) ? raw.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    // Hand-edited or written by an older version. A broken preference is not worth an
+    // error on a screen whose job is to search.
+    return [];
+  }
+}
+
+function remember(query: string): string[] {
+  // Most recent first, no duplicates: searching the same thing twice should move it to the
+  // top rather than fill the list with one word.
+  const next = [query, ...readRecent().filter((item) => item !== query)].slice(0, RECENT_LIMIT);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  return next;
+}
 
 export function Search({ token, onCitation, searchable, labels }: Props) {
   const [state, setState] = useState<State>({ phase: "idle" });
   const [query, setQuery] = useState("");
+  const [recent, setRecent] = useState<string[]>(readRecent);
   const inflight = useRef<AbortController | null>(null);
 
   const run = useCallback(
@@ -51,6 +89,9 @@ export function Search({ token, onCitation, searchable, labels }: Props) {
       setState({ phase: "loading", query: q });
       try {
         const result = await search(token, q, labels, controller.signal);
+        // Recorded once the search came back, not when it was submitted: a query that
+        // errored or was cancelled is not one worth offering again.
+        setRecent(remember(q));
         setState({
           phase: "done",
           query: q,
@@ -101,7 +142,7 @@ export function Search({ token, onCitation, searchable, labels }: Props) {
           if (asked) void run(asked);
         }}
       >
-        <div className="flex items-center gap-2 rounded-full border border-input bg-secondary py-2 pr-2 pl-5 shadow-sm transition-colors focus-within:border-primary/50">
+        <div className="flex items-center gap-2 rounded-full border border-input bg-input/30 py-2 pr-2 pl-5 shadow-sm transition-colors focus-within:border-primary/50">
           <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
           <Input
             value={query}
@@ -109,7 +150,11 @@ export function Search({ token, onCitation, searchable, labels }: Props) {
             placeholder="Search passages by keyword and meaning"
             aria-label="Search"
             maxLength={1000}
-            className="h-8 flex-1 border-0 bg-transparent p-0 text-base text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0"
+            // `dark:bg-transparent` is load-bearing: the base `Input` carries
+            // `dark:bg-input/30`, which outlives a plain `bg-transparent` in the dark theme
+            // and painted the field a shade off the pill around it — two surfaces where
+            // there should be one.
+            className="h-8 flex-1 border-0 bg-transparent p-0 text-base text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 dark:bg-transparent"
           />
           {busy ? (
             <Button
@@ -146,20 +191,38 @@ export function Search({ token, onCitation, searchable, labels }: Props) {
               came from. Nothing is generated here; use Chat for a written answer.
             </p>
           </div>
-          <div className="flex flex-wrap justify-center gap-2">
-            {SUGGESTIONS.map((suggestion) => (
+          <div className="space-y-2">
+            <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">
+              {recent.length > 0 ? "Recent" : "Try"}
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {(recent.length > 0 ? recent : SUGGESTIONS).map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  onClick={() => {
+                    setQuery(suggestion);
+                    void run(suggestion);
+                  }}
+                  className="inline-flex max-w-xs items-center gap-1.5 rounded-full border border-input bg-card px-3.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                >
+                  {recent.length > 0 && <Clock className="size-3 shrink-0 opacity-60" />}
+                  <span className="truncate">{suggestion}</span>
+                </button>
+              ))}
+            </div>
+            {recent.length > 0 && (
               <button
-                key={suggestion}
                 type="button"
                 onClick={() => {
-                  setQuery(suggestion);
-                  void run(suggestion);
+                  localStorage.removeItem(RECENT_KEY);
+                  setRecent([]);
                 }}
-                className="rounded-full border border-input bg-card px-3.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                className="text-xs text-muted-foreground/60 transition-colors hover:text-foreground"
               >
-                {suggestion}
+                Clear
               </button>
-            ))}
+            )}
           </div>
         </div>
       )}
