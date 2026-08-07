@@ -15,8 +15,9 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
-import { ArrowUp, Square } from "lucide-react";
+import { ArrowUp, MessageSquare, Quote, Search as SearchIcon, ShieldCheck, Square } from "lucide-react";
 
+import { history } from "@/features/history";
 import { reduce, type AnswerState } from "./answerState";
 import { streamQuery, type Citation } from "./stream";
 import { Answer } from "./Answer";
@@ -24,6 +25,106 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 const INITIAL: AnswerState = { phase: "idle" };
+
+/** Shapes of question this corpus can answer, for somebody who has never used it. Kept
+    generic — the tenant's documents are not known here — and only shown until there is
+    real history to offer in their place. */
+const STARTERS = [
+  "What are the main obligations described here?",
+  "Summarise the key points on penalties.",
+  "What deadlines are mentioned?",
+];
+
+/**
+ * What the screen says before anyone has asked anything.
+ *
+ * It used to be a heading and one line, which left the two things nobody guesses
+ * unexplained: that every sentence carries a citation you can click to open the page it
+ * came from, and that the model is required to refuse rather than fill a gap from its own
+ * knowledge. Both are the point of the product, and the empty screen is the only moment
+ * there is room to say them.
+ *
+ * Past questions come from `GET /query/history` — the real record, which is what this
+ * endpoint holds. `Search`'s equivalent list is local storage precisely because searches
+ * are *not* written there; here the data is the right data.
+ */
+function EmptyState({ token, onAsk }: { token: string; onAsk: (question: string) => void }) {
+  const [recent, setRecent] = useState<string[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void history(token)
+      .then((page) => {
+        if (cancelled) return;
+        // Deduplicated: asking the same thing twice should not fill the list with it.
+        const asked = page.entries.map((entry) => entry.question);
+        setRecent([...new Set(asked)].slice(0, 3));
+      })
+      .catch(() => !cancelled && setRecent([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const offered = recent.length > 0 ? recent : STARTERS;
+
+  return (
+    <div className="mx-auto flex max-w-xl flex-col items-center gap-6 py-12 text-center">
+      <div className="flex size-12 items-center justify-center rounded-full border border-input bg-secondary">
+        <MessageSquare className="size-5 text-primary" />
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="text-lg font-medium text-foreground">Ask your documents</p>
+        <p className="text-sm text-muted-foreground">
+          Answered only from what is in your corpus — never from what the model happens to
+          know.
+        </p>
+      </div>
+
+      <ul className="w-full space-y-2.5 text-left">
+        <Point icon={<Quote className="size-4" />}>
+          Every fact is followed by a citation. Click one to open the page it came from,
+          highlighted.
+        </Point>
+        <Point icon={<ShieldCheck className="size-4" />}>
+          If your documents do not answer the question, it says so instead of inventing an
+          answer.
+        </Point>
+        <Point icon={<SearchIcon className="size-4" />}>
+          Looking for the passages themselves rather than a written answer? Use Search.
+        </Point>
+      </ul>
+
+      <div className="w-full space-y-2">
+        <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">
+          {recent.length > 0 ? "Ask again" : "Try"}
+        </p>
+        <div className="flex flex-col gap-1.5">
+          {offered.map((question) => (
+            <button
+              key={question}
+              type="button"
+              onClick={() => onAsk(question)}
+              className="truncate rounded-lg border border-input bg-card px-3.5 py-2 text-left text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+            >
+              {question}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Point({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+      <span className="mt-0.5 shrink-0 text-primary">{icon}</span>
+      <span>{children}</span>
+    </li>
+  );
+}
 
 interface Props {
   token: string;
@@ -132,14 +233,7 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
     <div className="flex h-full flex-col">
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-3xl space-y-6 px-6 py-6 2xl:max-w-4xl">
-        {empty && (
-          <div className="flex h-full flex-col items-center justify-center gap-1.5 text-center">
-            <p className="text-lg font-medium text-foreground">Ask your documents</p>
-            <p className="text-sm text-muted-foreground">
-              Whatever you ask is answered only from what's in your corpus — nothing else.
-            </p>
-          </div>
-        )}
+        {empty && <EmptyState token={token} onAsk={(asked) => void ask(asked)} />}
 
         {[...turns, state]
           .filter((turn) => turn.phase !== "idle")
