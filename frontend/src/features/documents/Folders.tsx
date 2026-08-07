@@ -26,6 +26,8 @@
 import { useEffect, useState } from "react";
 import { FileStack, Folder as FolderIcon } from "lucide-react";
 
+import { leaf, parentPath } from "@/features/labels";
+
 import { folders, type FolderTree } from "./api";
 import type { Citation } from "@/features/chat";
 import { Documents } from "./Documents";
@@ -39,11 +41,20 @@ interface Props {
   onCitation: (citation: Citation) => void;
   selection: FolderSelection;
   onSelect: (next: FolderSelection) => void;
+  /** Passed through to the document list, whose rows carry tag chips. */
+  onSelectTag?: (name: string) => void;
   /** Bumped by the shell after an upload, so the counts follow ingestion. */
   refreshKey?: number;
 }
 
-export function Folders({ token, onCitation, selection, onSelect, refreshKey = 0 }: Props) {
+export function Folders({
+  token,
+  onCitation,
+  selection,
+  onSelect,
+  onSelectTag,
+  refreshKey = 0,
+}: Props) {
   const [tree, setTree] = useState<FolderTree | null>(null);
 
   useEffect(() => {
@@ -58,11 +69,27 @@ export function Folders({ token, onCitation, selection, onSelect, refreshKey = 0
 
   if (selection) {
     return (
-      <Documents token={token} onCitation={onCitation} filter={selection.filter} refreshKey={refreshKey} />
+      <Documents
+        token={token}
+        onCitation={onCitation}
+        onSelectTag={onSelectTag}
+        filter={selection.filter}
+        refreshKey={refreshKey}
+      />
     );
   }
 
   if (!tree) return <p className="text-sm text-muted-foreground">Loading folders…</p>;
+
+  // Sorted so a namespace's folders sit together and in order. Grouping is presentational:
+  // every folder is still its own label and its own filter, and no parent selects its
+  // children — `legal` grants nothing over `legal/contracts`.
+  const grouped = [...tree.folders]
+    .map((folder) => ({
+      folder,
+      node: { parent: parentPath(folder.name), leaf: leaf(folder.name) },
+    }))
+    .sort((a, b) => a.folder.name.localeCompare(b.folder.name));
 
   return (
     <section className="space-y-4">
@@ -79,7 +106,7 @@ export function Folders({ token, onCitation, selection, onSelect, refreshKey = 0
           </div>
         </button>
 
-        {tree.folders.map((folder) => (
+        {grouped.map(({ node, folder }) => (
           <button
             key={folder.label_id ?? "unlabelled"}
             type="button"
@@ -88,7 +115,15 @@ export function Folders({ token, onCitation, selection, onSelect, refreshKey = 0
           >
             <FolderIcon className="size-5 text-muted-foreground" />
             <div className="w-full">
-              <p className="truncate text-sm font-medium text-foreground">{folder.name}</p>
+              {/* The namespace above the leaf, so `legal/contracts` reads as "contracts,
+                  under legal" rather than as one long name that truncates to nothing. The
+                  hierarchy is a naming convention over a flat table — `columns` of a sort
+                  — and it exists only here and in `namespace.ts`; nothing about access
+                  follows from it. */}
+              {node.parent && (
+                <p className="truncate text-[11px] text-muted-foreground/60">{node.parent}</p>
+              )}
+              <p className="truncate text-sm font-medium text-foreground">{node.leaf}</p>
               <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
                 <span>{folder.documents} documents</span>
                 {folder.processing > 0 && (

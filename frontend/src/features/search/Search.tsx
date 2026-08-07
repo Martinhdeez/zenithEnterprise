@@ -9,12 +9,14 @@
  * generation ever answers the second one.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { search, type SearchHit } from "./api";
 import { ApiError } from "@/shared/api/http";
 import type { Citation } from "@/features/chat";
 import { Clock, Search as SearchIcon } from "lucide-react";
+
+import { TagChips, labels as fetchLabels } from "@/features/labels";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +27,8 @@ interface Props {
   onCitation: (citation: Citation) => void;
   searchable: boolean;
   labels?: string[];
+  /** Clicking a chip on a result narrows the workspace to that label. */
+  onSelectTag?: (name: string) => void;
 }
 
 type State =
@@ -74,11 +78,33 @@ function remember(query: string): string[] {
   return next;
 }
 
-export function Search({ token, onCitation, searchable, labels }: Props) {
+export function Search({ token, onCitation, searchable, labels, onSelectTag }: Props) {
+  // Resolved from what this caller reaches; an unknown id belongs to a label they see the
+  // passage through some other route, and is not theirs to learn the name of.
+  const [known, setKnown] = useState<Map<string, string>>(new Map());
   const [state, setState] = useState<State>({ phase: "idle" });
   const [query, setQuery] = useState("");
   const [recent, setRecent] = useState<string[]>(readRecent);
   const inflight = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchLabels(token)
+      .then((all) => !cancelled && setKnown(new Map(all.map((l) => [l.id, l.name]))))
+      .catch(() => !cancelled && setKnown(new Map()));
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const namesFor = useCallback(
+    (hit: SearchHit): string[] =>
+      hit.label_ids
+        .map((id) => known.get(id))
+        .filter((name): name is string => name !== undefined)
+        .sort(),
+    [known],
+  );
 
   const run = useCallback(
     async (q: string) => {
@@ -283,6 +309,11 @@ export function Search({ token, onCitation, searchable, labels }: Props) {
                     </span>
                   </div>
                   <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{hit.text}</p>
+                  {/* What this passage is filed under, on the result itself — otherwise
+                      the only way to know is to open the document and look. */}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <TagChips names={namesFor(hit)} onSelect={onSelectTag} short />
+                  </div>
                   <p className="mt-2 flex flex-wrap gap-x-3 font-mono text-xs text-muted-foreground/80">
                     {hit.lexical_rank !== null && (
                       <span>lexical #{hit.lexical_rank} ({hit.lexical_score?.toFixed(3)})</span>

@@ -13,7 +13,7 @@ checks `label_ids`. Dropping that join to "simplify" the query would return pass
 documents the caller cannot open.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from uuid import UUID
 
 from sqlalchemy import text
@@ -49,6 +49,13 @@ class Hit:
     lexical_score: float | None = None
     dense_score: float | None = None
     rerank_score: float | None = None
+    # The document's labels, so a result can say what it is filed under. Read from
+    # `documents.label_ids` rather than the chunk's copy: the two are kept in step by a
+    # trigger, and the document's is what the citation refers to.
+    #
+    # Defaulted because it is a display concern. A test about prompt construction or
+    # citation binding should not have to invent one to say what those functions do.
+    label_ids: list[UUID] = field(default_factory=list[UUID])
 
 
 async def lexical(
@@ -234,7 +241,8 @@ async def hydrate(
 
     rows = await session.execute(
         text(
-            "SELECT c.id, c.document_id, d.filename, c.page_num, c.text, c.bboxes "
+            "SELECT c.id, c.document_id, d.filename, c.page_num, c.text, c.bboxes, "
+            "       d.label_ids "
             "FROM chunks c JOIN documents d ON d.id = c.document_id "
             "WHERE c.id = ANY(:ids)"
         ),
@@ -249,6 +257,7 @@ async def hydrate(
             page_num=row.page_num,
             text=row.text,
             bboxes=list(row.bboxes or []),
+            label_ids=list(row.label_ids or []),
             lexical_rank=lexical_positions.get(row.id),
             dense_rank=dense_positions.get(row.id),
             score=dict(ranked)[row.id],

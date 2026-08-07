@@ -23,8 +23,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FileText, UploadCloud, X } from "lucide-react";
 
-import { type DocumentSummary, uploadDocument } from "./api";
+import { getDocument, uploadDocument, type DocumentSummary } from "./api";
 import { LabelPicker, labels as fetchLabels, type Label } from "@/features/labels";
+import { IN_FLIGHT } from "@/shared/api/tenant";
+import {
+  IDLE,
+  PROCESSING,
+  formatEta,
+  formatRate,
+  processing,
+  progress,
+  type UploadStats,
+} from "./uploadProgress";
 import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +63,7 @@ export function Upload({ token, onUploaded }: Props) {
   const [known, setKnown] = useState<Map<string, Label>>(new Map());
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [staged, setStaged] = useState<Staged | null>(null);
+  const [stats, setStats] = useState<UploadStats>(IDLE);
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -113,10 +124,27 @@ export function Upload({ token, onUploaded }: Props) {
       setBusy(true);
       setMessage(null);
       const labelIds = [...selected];
+      const started = Date.now();
       try {
         for (const file of files) {
-          const uploaded = await uploadDocument(file, token, labelIds, options);
+          const uploaded = await uploadDocument(file, token, labelIds, {
+            ...options,
+            onProgress: ({ loaded, total }) =>
+              setStats(progress(loaded, total, Date.now() - started)),
+          });
+          // The bytes are in, and the request is already answered: `POST /documents`
+          // returns once the row exists, and the worker parses, chunks and embeds
+          // afterwards. So the wait the user actually notices starts *here*, and holding
+          // this phase means asking the server when it is over — the first version set it
+          // and cleared it in the same tick, which showed nothing at all.
+          setStats(PROCESSING);
           setRecent((current) => [uploaded.document, ...current].slice(0, 10));
+          const settled = await untilSettled(token, uploaded.document, (status) =>
+            setStats(processing(status)),
+          );
+          setRecent((current) =>
+            current.map((item) => (item.id === settled.id ? settled : item)),
+          );
         }
         onUploaded();
       } catch (error) {
@@ -126,6 +154,7 @@ export function Upload({ token, onUploaded }: Props) {
         setMessage(error instanceof ApiError ? error.message : "The upload failed.");
       } finally {
         setBusy(false);
+        setStats(IDLE);
       }
     },
     [token, onUploaded, selected],
@@ -297,9 +326,9 @@ export function Upload({ token, onUploaded }: Props) {
         {/* `busy && !staged` is the several-files-at-once path — those upload immediately
             with no review step, so the button itself stays disabled (nothing staged) while
             this still needs to say what's happening. */}
-        {busy ? "Uploading…" : "Upload"}
+        {stats.phase === "processing" ? "Processing…" : busy ? "Uploading…" : "Upload"}
       </Button>
-      {busy && !staged && <p className="text-sm text-muted-foreground">Uploading the selected files…</p>}
+      {stats.phase !== "idle" && <UploadBar stats={stats} />}
 
       {message && (
         <p role="alert" className="text-sm text-destructive">
@@ -322,4 +351,94 @@ export function Upload({ token, onUploaded }: Props) {
       )}
     </section>
   );
+}
+
+/**
+ * The bar, and the two things it says besides a percentage.
+ *
+ * Rate and estimate appear only once there is enough of a transfer to derive them from —
+ * `uploadProgress` returns null for both until then, and an empty string is better than a
+ * confident "0s remaining" on an upload that has barely started.
+ *
+ * The processing phase has no percentage because ingestion reports no fraction. It gets an
+ * indeterminate stripe and a label instead: a full bar that stops moving is the shape of a
+ * hang, and this stretch is longer than the upload on the hardware this runs on.
+ */
+function UploadBar({ stats }: { stats: UploadStats }) {
+  const isProcessing = stats.phase === "processing";
+
+  return (
+    <div className="space-y-2 rounded-md border border-input bg-secondary p-4">
+      <div className="flex items-baseline justify-between gap-4 text-sm">
+        <span className="text-foreground">
+          {isProcessing ? (stats.stage ?? "Processing") : "Uploading"}
+        </span>
+        {/* Shown in both phases. While uploading it is bytes; while processing it is which
+            of the four ingestion stages the server last reported — a coarser measure, but
+            a real one, and the alternative was a bar that stopped moving. */}
+        <span className="tabular-nums text-muted-foreground">{stats.percent}%</span>
+      </div>
+
+      <div className="h-1.5 overflow-hidden rounded-full bg-background">
+        <div
+          // One bar for both phases. Transitions over a second while processing, because
+          // the stages arrive as steps and a jump from 25% to 45% reads as a glitch;
+          // uploading moves continuously and needs no smoothing beyond the frame.
+          className={`h-full rounded-full bg-primary ease-out ${
+            isProcessing ? "transition-[width] duration-1000" : "transition-[width] duration-200"
+          }`}
+          style={{ width: `${stats.percent}%` }}
+        />
+      </div>
+
+      <p className="flex gap-3 text-xs text-muted-foreground">
+        {isProcessing ? (
+          <span>The document is being indexed — searchable once this finishes.</span>
+        ) : (
+          <>
+            {stats.bytesPerSecond !== null && <span>{formatRate(stats.bytesPerSecond)}</span>}
+            {stats.secondsRemaining !== null && (
+              <span>{formatEta(stats.secondsRemaining)} remaining</span>
+            )}
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Wait for the worker to finish with a document.
+ *
+ * Polled rather than pushed: there is no channel from the worker to the browser, and
+ * adding one for a progress label would be a websocket, a subscription and a reconnection
+ * story for something a request every second and a half answers.
+ *
+ * Bounded, because an unbounded wait is a spinner that never stops. Ingestion of a large
+ * document on `low-spec` is minutes, so this gives up long after it usually finishes and
+ * returns whatever the last look said — the recents row then shows that status honestly
+ * rather than claiming the document is ready.
+ */
+const POLL_MS = 1500;
+const POLL_LIMIT = 80; // two minutes
+
+async function untilSettled(
+  token: string,
+  created: DocumentSummary,
+  onStage: (status: string) => void,
+): Promise<DocumentSummary> {
+  let latest = created;
+  for (let attempt = 0; attempt < POLL_LIMIT; attempt += 1) {
+    if (!IN_FLIGHT.includes(latest.status as (typeof IN_FLIGHT)[number])) return latest;
+    onStage(latest.status);
+    await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+    try {
+      latest = await getDocument(token, created.id);
+    } catch {
+      // A failed poll is not a failed upload — the document is stored either way. Report
+      // the last state actually seen rather than inventing one.
+      return latest;
+    }
+  }
+  return latest;
 }

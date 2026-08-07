@@ -211,3 +211,9 @@
 .progress-sweep {
   animation: progress-sweep 1.1s ease-in-out infinite;
 }
+/* The indeterminate stripe on the upload bar's processing phase. Ingestion reports no
+   fraction, so this moves to say "still working" rather than to measure anything. */
+@keyframes progress-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}

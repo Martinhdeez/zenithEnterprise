@@ -15,6 +15,14 @@ class DocumentResponse(BaseModel):
     size_bytes: int
     uploaded_by: UUID | None
     created_at: datetime
+    #: The labels this document carries, read from `documents.label_ids` — the denormalised
+    #: copy RLS itself evaluates, so what a client is shown is what the policy used.
+    #:
+    #: Ids rather than names: a name is a disclosure, and the caller may reach only some of
+    #: these. The client resolves the ones it already holds from `GET /labels` and shows
+    #: nothing for the rest, which keeps this endpoint from leaking a compartment's name
+    #: through a document somebody can otherwise see.
+    label_ids: list[UUID]
 
     model_config = {"from_attributes": True}
 

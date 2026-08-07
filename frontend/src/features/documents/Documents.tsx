@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 import { FileText, Trash2 } from "lucide-react";
 
 import { deleteDocument, listDocuments, type DocumentSummary } from "./api";
+import { TagChips, labels as fetchLabels } from "@/features/labels";
 import { ApiError } from "@/shared/api/http";
 import type { Citation } from "@/features/chat";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,8 @@ import {
 interface Props {
   token: string;
   onCitation: (citation: Citation) => void;
+  /** Clicking a chip narrows the view to that label. Omitted where nothing can filter. */
+  onSelectTag?: (name: string) => void;
   /** From `Folders`. `null` (no object at all) means every reachable document; `{ labelId:
       null }` means specifically the ones carrying no label. */
   filter?: { labelId: string | null } | null;
@@ -43,7 +46,31 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function Documents({ token, onCitation, filter, refreshKey = 0 }: Props) {
+export function Documents({ token, onCitation, onSelectTag, filter, refreshKey = 0 }: Props) {
+  // Label ids resolve to names only for the labels this caller reaches — `GET /labels`
+  // already applies that rule. A document may carry an id absent from this map, which
+  // means RLS admitted the document through some *other* label; that name is not theirs
+  // to learn, so it is dropped rather than shown as a uuid.
+  const [known, setKnown] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchLabels(token)
+      .then((all) => !cancelled && setKnown(new Map(all.map((label) => [label.id, label.name]))))
+      .catch(() => !cancelled && setKnown(new Map()));
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const namesFor = useCallback(
+    (document_: DocumentSummary): string[] =>
+      document_.label_ids
+        .map((id) => known.get(id))
+        .filter((name): name is string => name !== undefined)
+        .sort(),
+    [known],
+  );
   const [items, setItems] = useState<DocumentSummary[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -154,6 +181,14 @@ export function Documents({ token, onCitation, filter, refreshKey = 0 }: Props) 
                   </p>
                 </div>
               </button>
+
+              {/* Names, resolved from the labels this caller already holds. A document can
+                  carry an id the caller does not reach — RLS let them see the document
+                  through a *different* label — and that name is not theirs to learn, so it
+                  is silently absent rather than rendered as an id. */}
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                <TagChips names={namesFor(document_)} onSelect={onSelectTag} short />
+              </div>
               <span
                 className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
                   STATUS_STYLE[document_.status] ?? "bg-secondary text-muted-foreground"

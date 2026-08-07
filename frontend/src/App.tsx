@@ -36,6 +36,7 @@ import {
   Folders,
   StatusBadge,
   Upload,
+  folders,
   type FolderSelection,
 } from "@/features/documents";
 import { Search } from "@/features/search";
@@ -141,6 +142,25 @@ export function App() {
     sessionStorage.removeItem(REFRESH_KEY);
     setToken(null);
   }, []);
+
+  // A tag chip anywhere — a document row, a search result — narrows the workspace to that
+  // label. Resolved by name against the folder tree the server already computes, so a chip
+  // for a label this caller cannot reach has nothing to select and does nothing.
+  const selectTag = useCallback(
+    (name: string) => {
+      // Declared above the point where `token` is narrowed by the login guard below, so
+      // the check is here rather than in the type.
+      if (!token) return;
+      void folders(token).then((computed) => {
+        const match = computed.folders.find((entry) => entry.name === name);
+        if (!match) return;
+        setFolderSelection({ name: match.name, filter: { labelId: match.label_id } });
+        open("folders");
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [token],
+  );
 
   const refresh = useCallback(async () => {
     if (!token) return;
@@ -465,6 +485,7 @@ export function App() {
                 onCitation={setCitation}
                 searchable={status?.searchable ?? true}
                 labels={folder ? [folder] : undefined}
+                onSelectTag={selectTag}
               />
             )}
             {view === "folders" && (
@@ -474,6 +495,7 @@ export function App() {
                 refreshKey={uploads}
                 selection={folderSelection}
                 onSelect={setFolderSelection}
+                onSelectTag={selectTag}
               />
             )}
             {view === "upload" && (

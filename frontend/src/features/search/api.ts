@@ -11,6 +11,9 @@ export interface SearchHit {
   page_num: number;
   text: string;
   bboxes: Array<Record<string, number>>;
+  /** The document's labels, as ids. Names come from `GET /labels`, so an id with no name
+      is a compartment this caller reaches the passage through some other label. */
+  label_ids: string[];
   lexical_rank: number | null;
   dense_rank: number | null;
   score: number;

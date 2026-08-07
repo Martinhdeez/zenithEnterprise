@@ -17,6 +17,9 @@ class HitResponse(BaseModel):
     page_num: int
     text: str
     bboxes: list[dict[str, float]]
+    #: Ids, resolved to names client-side against the labels the caller reaches — the same
+    #: rule `GET /documents` follows, and for the same reason: a name is a disclosure.
+    label_ids: list[UUID]
     lexical_rank: int | None
     dense_rank: int | None
     score: float
