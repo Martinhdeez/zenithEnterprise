@@ -6,6 +6,7 @@ from sqlalchemy import (
     Computed,
     ForeignKey,
     Index,
+    Text,
     UniqueConstraint,
     text,
 )
@@ -45,6 +46,11 @@ class Document(Base):
     status: Mapped[str] = mapped_column(default="pending", server_default="pending")
     # Human-readable reason for the current status; on `failed`, the taxonomy error.
     status_detail: Mapped[str | None]
+    # User-facing context a filename can't carry. Never read by ingestion or search —
+    # display only. `Text` rather than an inferred `VARCHAR`, matching migration 0006:
+    # `test_schema_matches_models` compares the two and a bare `Mapped[str | None]` maps
+    # to `String()`, which is the drift it exists to catch.
+    description: Mapped[str | None] = mapped_column(Text)
     # Copy of `document_labels`. Denormalised so the RLS policy on `documents` does
     # not have to read `document_labels`: if it did, and `document_labels` in turn
     # reads `documents`, the policies call each other and Postgres aborts on

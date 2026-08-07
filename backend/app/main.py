@@ -14,10 +14,21 @@ from app.core.request_context import RequestContextMiddleware
 from app.features.admin.router import router as admin_router
 from app.features.auth.router import router as auth_router
 from app.features.documents.router import router as documents_router
+from app.features.ingestion.tasks import app as procrastinate_app
 from app.features.labels.router import router as labels_router
 from app.features.query.router import router as query_router
 from app.features.retrieval.router import router as search_router
 from app.features.tenancy.router import router as tenancy_router
+
+# Import-only, and load-bearing rather than tidiness: `app.models` is the one place every
+# table gets registered on `Base.metadata` (Alembic's target). Nothing in this file uses
+# the names it imports, but without this line the API process only ends up knowing about
+# whatever tables its *own* import graph happens to touch — `tenancy_router` reaches
+# `tenancy.status`, never `tenancy.service`, so `Tenant` was never imported and every FK
+# to `tenants` failed at first flush with `NoReferencedTableError`, on any endpoint that
+# happened to be the first to need it: `POST /labels`, `DELETE /documents/{id}`. A model
+# never referenced from a router is exactly the case this import exists to cover.
+from app.models import Base as _Base  # noqa: F401  # pyright: ignore[reportUnusedImport]
 
 configure_logging()
 log = structlog.get_logger()
@@ -30,7 +41,14 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
     # And if the hardware profile is not one we know, fail here rather than at the first
     # embedding request, at three in the morning, on a customer's server.
     active_profile()
-    yield
+    # `defer_async` needs its own pool open before the first call, or it raises
+    # `AppNotOpen` — which `enqueue_ingestion` deliberately treats as non-fatal to the
+    # upload (a stored document a requeue can recover beats a lost upload), so this was
+    # failing silently on every single upload rather than loudly on the first one. The
+    # worker process opens its own copy of this same `App` independently; this is the
+    # API's, for writing jobs rather than running them.
+    async with procrastinate_app.open_async():
+        yield
 
 
 app = FastAPI(

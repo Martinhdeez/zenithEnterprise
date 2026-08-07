@@ -29,3 +29,61 @@ class LabelResponse(BaseModel):
     is_default: bool
 
     model_config = {"from_attributes": True}
+
+
+class LabelSearchItem(BaseModel):
+    """A label and how much of the corpus actually carries it.
+
+    `documents` counts what the *caller* can see, not the tenant. `document_labels`
+    inherits its RLS policy from `documents`, so an administrator who does not reach a
+    label is told how many of its documents they could open — never how large the
+    compartment really is. See `LabelRepository.search`.
+    """
+
+    id: UUID
+    name: str
+    is_default: bool
+    documents: int
+
+
+class LabelSearchPage(BaseModel):
+    """`next_cursor` is null on the last page, and that is the only end-of-list signal.
+
+    No total, for the reason `DocumentPage` gives: counting under RLS evaluates the policy
+    over every row in the tenant to produce a number that is stale before it is read.
+    """
+
+    items: list[LabelSearchItem]
+    next_cursor: str | None
+
+
+class LabelMerge(BaseModel):
+    """Fold `sources` into `target`, then delete them.
+
+    Two flags rather than one, because previewing and consenting are different acts and a
+    client can skip either. `dry_run` answers "what would this do" without doing it;
+    `acknowledge_widening` is the caller stating they have seen the answer. A merge that
+    would widen visibility and carries neither is refused — the same shape of guard
+    `LabelService.delete` already applies to the same class of accident.
+    """
+
+    sources: list[UUID] = Field(min_length=1)
+    target: UUID
+    dry_run: bool = False
+    acknowledge_widening: bool = False
+
+
+class LabelMergeResult(BaseModel):
+    """What the merge did, or — under `dry_run` — what it would do.
+
+    `visibility_widening` is the number the caller is being asked to look at. It counts
+    *documents that become visible to at least one role that could not see them before*,
+    which is a different question from how many documents were relabelled: a merge can
+    move a thousand documents and widen nothing, or move one and expose it to everybody.
+    """
+
+    target: LabelResponse
+    merged: list[UUID]
+    documents_relabelled: int
+    visibility_widening: int
+    dry_run: bool
