@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { displayed, isProvisional, reduce, type AnswerState } from "./answer";
+import { displayed, isProvisional, reduce, type AnswerState } from "./answerState";
 import type { QueryResult } from "./stream";
 
 const result = (over: Partial<QueryResult> = {}): QueryResult => ({

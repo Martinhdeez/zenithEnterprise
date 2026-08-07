@@ -24,7 +24,8 @@
 import { useState } from "react";
 import { ArrowRight, Eye, EyeOff, Lock, Mail, ShieldCheck } from "lucide-react";
 
-import { ApiError, login, type TokenPair } from "../api/client";
+import { login, type TokenPair } from "./api";
+import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

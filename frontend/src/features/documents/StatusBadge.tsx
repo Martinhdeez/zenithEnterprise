@@ -7,7 +7,7 @@
  * is not to undermine it by displaying something it fetched from somewhere else.
  */
 
-import { IN_FLIGHT, type TenantStatus } from "../api/client";
+import { IN_FLIGHT, type TenantStatus } from "@/shared/api/tenant";
 
 export function StatusBadge({ status }: { status: TenantStatus | null }) {
   if (!status) return <p className="text-sm text-muted-foreground">Loading…</p>;

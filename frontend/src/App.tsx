@@ -20,17 +20,18 @@ import {
   X,
 } from "lucide-react";
 
-import { refreshTokens, tenantStatus, type TenantStatus } from "./api/client";
-import type { Citation } from "./api/stream";
-import { Admin } from "./components/Admin";
-import { Chat } from "./components/Chat";
-import { Folders, type FolderSelection } from "./components/Folders";
-import { History } from "./components/History";
-import { Login } from "./components/Login";
-import { Search } from "./components/Search";
-import { Section } from "./components/Section";
-import { StatusBadge } from "./components/StatusBadge";
-import { Upload } from "./components/Upload";
+import { Admin } from "@/features/admin";
+import { Login, refreshTokens } from "@/features/auth";
+import { Chat, History, type Citation } from "@/features/chat";
+import {
+  Folders,
+  StatusBadge,
+  Upload,
+  type FolderSelection,
+} from "@/features/documents";
+import { Search } from "@/features/search";
+import { tenantStatus, type TenantStatus } from "@/shared/api/tenant";
+import { Section } from "@/shared/components/Section";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 
@@ -38,8 +39,15 @@ import { Button } from "@/components/ui/button";
 // own runtime, and none of it is needed until someone clicks a citation. F11 made
 // time-to-first-answer the metric this client is judged on, and paying for a PDF engine
 // before the first question is asked works directly against that.
+//
+// The one import in this file that deliberately reaches past `@/features/documents` to the
+// module itself. Going through the barrel would import the whole feature — `Upload`,
+// `Folders`, the API module — to reach one component, which puts all of it in the main
+// chunk and leaves nothing behind the `lazy` boundary to split. The rule is "features are
+// imported through their public surface"; a code-splitting boundary is the exception, and
+// the build output is where it shows: `PdfViewer-*.js` has to stay its own chunk.
 const PdfViewer = lazy(() =>
-  import("./components/PdfViewer").then((module) => ({ default: module.PdfViewer })),
+  import("@/features/documents/PdfViewer").then((module) => ({ default: module.PdfViewer })),
 );
 
 // Session storage rather than local storage: it keeps both tokens out of other tabs and out

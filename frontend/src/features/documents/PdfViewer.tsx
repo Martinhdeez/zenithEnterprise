@@ -13,8 +13,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { boxesOnPage, toRect, type Box } from "../api/highlight";
-import type { Citation } from "../api/stream";
+import { boxesOnPage, toRect, type Box } from "./highlight";
+import type { Citation } from "@/features/chat";
 
 // The worker is loaded from the bundle rather than a CDN. This product is installed inside
 // networks with no egress, and a viewer that silently fails to render because a script host

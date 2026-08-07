@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { history, type HistoryEntry } from "../api/client";
+import { history, type HistoryEntry } from "./api";
 import { Button } from "@/components/ui/button";
 
 export function History({

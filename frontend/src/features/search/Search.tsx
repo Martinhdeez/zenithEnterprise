@@ -11,11 +11,12 @@
 
 import { useCallback, useRef, useState } from "react";
 
-import { ApiError, search, type SearchHit } from "../api/client";
-import type { Citation } from "../api/stream";
+import { search, type SearchHit } from "./api";
+import { ApiError } from "@/shared/api/http";
+import type { Citation } from "@/features/chat";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ProgressBar } from "./ProgressBar";
+import { ProgressBar } from "@/shared/components/ProgressBar";
 
 interface Props {
   token: string;

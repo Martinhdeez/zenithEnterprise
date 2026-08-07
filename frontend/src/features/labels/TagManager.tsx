@@ -23,15 +23,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Loader2, Merge, Search, Trash2 } from "lucide-react";
 
-import {
-  ApiError,
-  deleteLabel,
-  mergeLabels,
-  searchLabels,
-  type LabelMergeResult,
-  type LabelSearchItem,
-  type LabelSort,
-} from "../api/client";
+import { deleteLabel, mergeLabels, searchLabels, type LabelMergeResult, type LabelSearchItem, type LabelSort } from "./api";
+import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
