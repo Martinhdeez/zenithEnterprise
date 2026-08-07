@@ -169,15 +169,19 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
         {/* One rounded pill rather than an input-plus-button row — the border lives on
             this wrapper and the input itself is borderless inside it, which is the
             difference between "a text field next to a button" and the single composer
-            every chat interface this is modelled on uses. */}
-        <div className="flex items-center gap-2 rounded-3xl border border-border bg-card py-1.5 pl-4 pr-1.5 shadow-sm transition-colors focus-within:border-primary/40">
+            every chat interface this is modelled on uses. One surface too: the wrapper
+            takes the field's own colour so the two do not read as stacked shapes. */}
+        <div className="flex items-center gap-2 rounded-3xl border border-input bg-input/30 py-1.5 pr-1.5 pl-4 shadow-sm transition-colors focus-within:border-primary/40">
           <Input
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
             placeholder="Ask a question about your documents"
             aria-label="Question"
             maxLength={1000}
-            className="h-8 flex-1 border-0 bg-transparent p-0 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0"
+            // `dark:bg-transparent` is load-bearing, same as the search bar: the base
+            // `Input` carries `dark:bg-input/30`, which outlives a plain `bg-transparent`
+            // in the dark theme and painted the field a shade off the pill around it.
+            className="h-8 flex-1 border-0 bg-transparent p-0 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 dark:bg-transparent"
           />
           {busy ? (
             // The stop-generating affordance every one of these interfaces settles on: a
