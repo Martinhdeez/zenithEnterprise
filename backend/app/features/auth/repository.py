@@ -1,10 +1,12 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.common.repositories.base import ScopedRepository
-from app.features.auth.model import RolePermission, User, UserRole
-from app.features.labels.model import RoleLabel
+from app.features.auth.model import Role, RolePermission, User, UserRole
+from app.features.documents.model import Document
+from app.features.labels.model import AccessLabel, RoleLabel
+from app.features.tenancy.model import Tenant
 
 
 class UserRepository(ScopedRepository[User]):
@@ -47,3 +49,47 @@ class UserRepository(ScopedRepository[User]):
             .distinct()
         )
         return tuple(await self.session.scalars(statement))
+
+    async def role_names(self, user_id: UUID) -> list[str]:
+        """The roles this user holds, by the names their administrator chose.
+
+        For the profile screen. Permission codes are the authority and are already
+        returned beside these; a role name is what somebody recognises about themselves.
+        """
+        statement = (
+            select(Role.name)
+            .join(UserRole, UserRole.role_id == Role.id)
+            .where(UserRole.user_id == user_id)
+            .order_by(Role.name)
+        )
+        return list(await self.session.scalars(statement))
+
+    async def label_names(self, label_ids: tuple[UUID, ...]) -> list[str]:
+        """Names for the labels a caller reaches.
+
+        The profile shows these to answer the question this product prompts more than any
+        other — "why can I not see the document my colleague can" — whose answer is always
+        that the label behind it is not one of these. Ids alone cannot answer it.
+        """
+        if not label_ids:
+            return []
+        statement = (
+            select(AccessLabel.name).where(AccessLabel.id.in_(label_ids)).order_by(AccessLabel.name)
+        )
+        return list(await self.session.scalars(statement))
+
+    async def tenant_name(self) -> str | None:
+        return await self.session.scalar(select(Tenant.name))
+
+    async def documents_uploaded(self, user_id: UUID) -> int:
+        """How many documents this person put into the corpus.
+
+        RLS-scoped like everything else here: it counts what they can still see, so a
+        document filed under a label their role later lost is not in the number.
+        """
+        return (
+            await self.session.scalar(
+                select(func.count()).select_from(Document).where(Document.uploaded_by == user_id)
+            )
+            or 0
+        )

@@ -1,3 +1,12 @@
 /** Signing in. `api` is exported too: the shell holds the token and refreshes it. */
 export { Login } from "./Login";
-export { login, refreshTokens, type TokenPair } from "./api";
+export { Profile } from "./Profile";
+export {
+  login,
+  refreshTokens,
+  profile,
+  changePassword,
+  signOutEverywhere,
+  type TokenPair,
+  type UserProfile,
+} from "./api";

@@ -14,6 +14,7 @@ import {
   Maximize2,
   MessageSquare,
   Minimize2,
+  LogOut,
   PanelLeftClose,
   PanelLeftOpen,
   Search as SearchIcon,
@@ -23,7 +24,13 @@ import {
 } from "lucide-react";
 
 import { Admin } from "@/features/admin";
-import { Login, refreshTokens } from "@/features/auth";
+import {
+  Login,
+  Profile,
+  profile as fetchMyProfile,
+  refreshTokens,
+  type UserProfile,
+} from "@/features/auth";
 import { Chat, type Citation } from "@/features/chat";
 import { History } from "@/features/history";
 import {
@@ -77,6 +84,7 @@ function capitalise(name: string): string {
 export function App() {
   const [token, setToken] = useState<string | null>(() => sessionStorage.getItem(TOKEN_KEY));
   const [status, setStatus] = useState<TenantStatus | null>(null);
+  const [me, setMe] = useState<UserProfile | null>(null);
   const [citation, setCitation] = useState<Citation | null>(null);
   // A plain union rather than a router. Four screens with no deep links and no back-button
   // expectations do not need one, and a router would be the largest dependency in the
@@ -90,7 +98,7 @@ export function App() {
   // Search is the landing screen, not Chat: it is the one screen that shows what the
   // retrieval mechanism actually did, and that is the more useful first thing to see than
   // an empty ask box — Chat is one click away in the same nav, never removed.
-  const [view, setView] = useState<"chat" | "search" | "folders" | "upload" | "history" | "admin">(
+  const [view, setView] = useState<"chat" | "search" | "folders" | "upload" | "history" | "admin" | "profile">(
     "search",
   );
   // Owned here, not inside `Folders`, so the breadcrumb in the main header can show *and*
@@ -129,6 +137,12 @@ export function App() {
     setPdfExpanded(false);
   }, []);
 
+  const signOut = useCallback(() => {
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_KEY);
+    setToken(null);
+  }, []);
+
   const refresh = useCallback(async () => {
     if (!token) return;
     try {
@@ -143,6 +157,19 @@ export function App() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    // Only for the avatar and the sidebar; the profile screen fetches its own copy rather
+    // than reading a prop, so it is never showing a stale one from before a change.
+    void fetchMyProfile(token)
+      .then((result) => !cancelled && setMe(result))
+      .catch(() => !cancelled && setMe(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   useEffect(() => {
     // Ingestion is asynchronous, so the counts change without the user doing anything.
@@ -187,7 +214,11 @@ export function App() {
     );
   }
 
-  const initial = (status ? "Z" : "…").toUpperCase();
+  // The signed-in person's initial, not the product's. This was a hardcoded "Z" — the
+  // Zenith mark — sitting in an avatar, which reads as a fact about the user and was a
+  // fact about the logo. Falls back to the email when no name is set, and to a dash while
+  // the profile is still loading rather than to a letter that would be wrong.
+  const initial = (me?.name ?? me?.email ?? "").trim().charAt(0).toUpperCase() || "–";
 
   return (
     // A gutter of plain background, and every region floats on it as its own rounded,
@@ -282,24 +313,39 @@ export function App() {
           )}
         </div>
 
+        {/* The avatar and the name are the profile's own control now, above Sign out
+            rather than beside it — one opens a screen, the other ends the session, and
+            they had been sharing a row as if they were the same kind of thing. */}
         <div
-          className={`panel-accent flex shrink-0 items-center gap-2 rounded-b-xl border-t border-border py-3 ${
-            collapsed ? "justify-center px-2" : "px-4"
+          className={`panel-accent flex shrink-0 flex-col gap-1 border-t border-border py-2 ${
+            collapsed ? "items-center px-2" : "px-2"
           }`}
         >
-          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-medium text-muted-foreground">
-            {initial}
-          </span>
+          <button
+            type="button"
+            onClick={() => open("profile")}
+            title={collapsed ? "Profile" : undefined}
+            aria-label={collapsed ? "Profile" : undefined}
+            className={`flex items-center rounded-lg transition-colors ${
+              collapsed ? "justify-center p-1.5" : "w-full gap-2.5 px-2 py-1.5"
+            } ${
+              view === "profile"
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+            }`}
+          >
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-medium text-muted-foreground">
+              {initial}
+            </span>
+            {!collapsed && <span className="truncate text-sm">Profile</span>}
+          </button>
           {!collapsed && (
             <button
               type="button"
-              onClick={() => {
-                sessionStorage.removeItem(TOKEN_KEY);
-                sessionStorage.removeItem(REFRESH_KEY);
-                setToken(null);
-              }}
-              className="text-left text-sm text-muted-foreground hover:text-foreground"
+              onClick={signOut}
+              className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground"
             >
+              <LogOut className="size-4 shrink-0" />
               Sign out
             </button>
           )}
@@ -426,6 +472,7 @@ export function App() {
               />
             )}
             {view === "admin" && <Admin token={token} />}
+            {view === "profile" && <Profile token={token} onSignedOut={signOut} />}
             </div>
             </main>
           )}

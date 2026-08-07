@@ -1,5 +1,6 @@
 import secrets
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -7,7 +8,7 @@ import jwt
 import structlog
 from sqlalchemy import text
 
-from app.common.exceptions import AuthenticationError
+from app.common.exceptions import AuthenticationError, NotFoundError
 from app.core.database import tenant_session, unscoped_session
 from app.core.security import (
     TokenKind,
@@ -51,6 +52,28 @@ class Credentials:
 class TokenPair:
     access_token: str
     refresh_token: str
+
+
+@dataclass(frozen=True, slots=True)
+class Profile:
+    """Who the caller is, in terms a person recognises.
+
+    Deliberately separate from `AccessProfile`, which is what a *request* is authorised
+    with and is resolved on every single one. This is read once, by a screen, and carries
+    names and counts that would be wasted work on the path to every document listing.
+    """
+
+    user_id: UUID
+    email: str
+    name: str | None
+    tenant_id: UUID
+    tenant_name: str | None
+    roles: list[str]
+    permissions: list[str]
+    #: Names, not ids. The answer to "why can I not see my colleague's document".
+    labels: list[str]
+    documents_uploaded: int
+    created_at: datetime
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,6 +149,93 @@ class AuthService:
             context=TenantContext.for_tenant(tenant_id, labels),
             permissions=permissions,
         )
+
+    async def describe(self, profile: AccessProfile) -> Profile:
+        """The profile screen's one request.
+
+        Runs inside the caller's own context, so every name here is one they already
+        reach — a label they cannot use is not in `context.label_ids` and so is never
+        looked up, and the tenant read is scoped by RLS to their own.
+        """
+        async with tenant_session(profile.context) as session:
+            users = UserRepository(session)
+            user = await users.get(profile.user_id)
+            if user is None:
+                # Deleted between issuing the token and using it. The token is still
+                # cryptographically valid, which is exactly the gap `token_version` and a
+                # short expiry exist to bound; there is nothing to describe.
+                raise NotFoundError("no such user")
+            return Profile(
+                user_id=user.id,
+                email=user.email,
+                name=user.name,
+                tenant_id=profile.context.tenant_id,
+                tenant_name=await users.tenant_name(),
+                roles=await users.role_names(user.id),
+                permissions=sorted(profile.permissions),
+                labels=await users.label_names(profile.context.label_ids),
+                documents_uploaded=await users.documents_uploaded(user.id),
+                created_at=user.created_at,
+            )
+
+    async def change_password(self, profile: AccessProfile, current: str, new: str) -> None:
+        """Let somebody change their own password, which until now nobody could.
+
+        A password was generated at invitation, read out once, and could only ever be
+        changed by an administrator with shell access running `reset-password`. For a
+        product whose own documentation admits the invitation password travels through a
+        chat message, being unable to replace it afterwards is the sharper end of that
+        trade-off.
+
+        The current password is required. Not theatre: an access token in someone else's
+        hands is a session, and without this it would also be a permanent account
+        takeover — change the password, and the real owner is locked out of their own
+        tenant with no way back that does not involve an administrator.
+
+        Bumping `token_version` signs the other sessions out, which is what a person
+        changing a password is asking for even when they do not say so: the reason to
+        change one is usually the suspicion that somebody else has it.
+
+        **Not instantaneous, and the difference matters enough to state.** Access tokens
+        are stateless by design (mvp.md 2.4) — verifying one touches no database, because
+        a query in front of every request was judged too high a price for revocation
+        latency the refresh path already bounds. So a live access token issued before the
+        bump keeps working until it expires; what it cannot do is renew itself, because
+        `refresh` compares the version and refuses. The window is therefore at most one
+        access-token lifetime, and any interface offering this must say that rather than
+        implying the sessions drop the moment the button is pressed.
+        """
+        async with tenant_session(profile.context) as session:
+            users = UserRepository(session)
+            user = await users.get(profile.user_id)
+            if user is None:
+                raise NotFoundError("no such user")
+            if not verify_password(current, user.password_hash):
+                raise AuthenticationError("that is not your current password")
+            user.password_hash = hash_password(new)
+            user.token_version += 1
+            await session.flush()
+
+    async def sign_out_everywhere(self, profile: AccessProfile) -> None:
+        """End every session for this user, this one included.
+
+        Same mechanism and the same caveat as `change_password`: raising `token_version`
+        stops every existing token from being *renewed*, and a live access token survives
+        until it expires. Revocation is bounded by the access-token lifetime rather than
+        immediate — a deliberate trade in mvp.md 2.4, which chose not to put a database
+        read in front of every request to shorten it.
+
+        Worth knowing when reading this on a development machine: `backend/.env` sets
+        `ZENITH_ACCESS_TOKEN_MINUTES=240` as a local convenience, so the window here is
+        four hours rather than the fifteen minutes the code defaults to.
+        """
+        async with tenant_session(profile.context) as session:
+            users = UserRepository(session)
+            user = await users.get(profile.user_id)
+            if user is None:
+                raise NotFoundError("no such user")
+            user.token_version += 1
+            await session.flush()
 
     def principal(self, access_token: str) -> tuple[UUID, UUID]:
         """Identity from an access token, with no database access at all.
