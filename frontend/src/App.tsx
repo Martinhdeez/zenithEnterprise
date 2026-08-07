@@ -101,6 +101,15 @@ export function App() {
   const [prefill, setPrefill] = useState<{ text: string; nonce: number } | null>(null);
   const [pdfExpanded, setPdfExpanded] = useState(false);
 
+  // Changing section closes whatever document was open. The preview belongs to the screen
+  // that opened it — a PDF left hanging beside the admin panel is a third of the viewport
+  // showing something nothing on screen refers to any more.
+  const open = useCallback((next: typeof view) => {
+    setView(next);
+    setCitation(null);
+    setPdfExpanded(false);
+  }, []);
+
   const refresh = useCallback(async () => {
     if (!token) return;
     try {
@@ -172,7 +181,7 @@ export function App() {
           narrow column. Both are full screens in the main panel now, reached the same way
           Chat or Admin are — this bar's only job left is getting you there and showing
           what's currently ready, which is why Status is the one thing that stayed. */}
-      <nav className="flex w-64 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm">
+      <nav className="flex w-72 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm">
         <div className="panel-accent flex shrink-0 items-center gap-2 rounded-t-xl border-b border-border px-4 py-3.5">
           <img src="/zenith-mark.png" alt="Zenith" width={22} height={22} className="size-[22px] object-contain" />
           <div className="min-w-0">
@@ -200,7 +209,7 @@ export function App() {
               <button
                 key={name}
                 type="button"
-                onClick={() => setView(name)}
+                onClick={() => open(name)}
                 className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left capitalize transition-colors ${
                   view === name
                     ? "bg-primary/10 font-medium text-primary"
@@ -237,7 +246,9 @@ export function App() {
           screen, which is the bug that made the preview panel render as a sliver. */}
       <ResizablePanelGroup orientation="horizontal" className="min-w-0 flex-1 gap-3">
         <ResizablePanel
-          defaultSize="65%"
+          // Only meaningful while the preview is mounted; with nothing beside it this
+          // panel is the entire row regardless of the number.
+          defaultSize="62%"
           minSize="0%"
           className="flex min-w-0 flex-col rounded-xl border border-border bg-card shadow-sm"
         >
@@ -337,7 +348,7 @@ export function App() {
                 token={token}
                 onAsk={(question) => {
                   setPrefill({ text: question, nonce: Date.now() });
-                  setView("chat");
+                  open("chat");
                 }}
               />
             )}
@@ -346,6 +357,14 @@ export function App() {
           )}
         </ResizablePanel>
 
+        {/* The preview and its handle are mounted only while a document is open. An empty
+            panel holding "click a citation" was a third of the viewport spent on an
+            instruction, permanently, on every screen — including the ones where citations
+            are not even reachable. Conditional rather than hidden with a class: unmounting
+            is what returns the space to the panel beside it, and `PdfViewer` is lazy, so
+            never opening a document means never paying for pdf.js at all. */}
+        {citation && (
+          <>
         <ResizableHandle withHandle />
 
         {/* Drag the handle above to resize; the button below goes properly fullscreen for
@@ -368,17 +387,36 @@ export function App() {
           }
         >
           <header className="panel-accent flex h-12 shrink-0 items-center justify-between rounded-t-xl border-b border-border px-4 text-sm font-medium text-foreground">
+            {/* Deliberately not the filename: `PdfViewer` renders its own header with the
+                name and page directly below this one, and putting it here too showed it
+                twice, stacked. This bar is the panel's chrome — what it is and how to get
+                rid of it — and the document identifies itself. */}
             Document preview
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={pdfExpanded ? "Exit fullscreen" : "Fullscreen"}
-              onClick={() => setPdfExpanded((expanded) => !expanded)}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              {pdfExpanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
-            </Button>
+            <span className="flex shrink-0 items-center">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={pdfExpanded ? "Exit fullscreen" : "Fullscreen"}
+                onClick={() => setPdfExpanded((expanded) => !expanded)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {pdfExpanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Close document preview"
+                onClick={() => {
+                  setCitation(null);
+                  setPdfExpanded(false);
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-4" />
+              </Button>
+            </span>
           </header>
           <div className="flex-1 overflow-auto rounded-b-xl">
             <Suspense
@@ -388,6 +426,8 @@ export function App() {
             </Suspense>
           </div>
         </ResizablePanel>
+          </>
+        )}
       </ResizablePanelGroup>
     </div>
   );
