@@ -22,7 +22,8 @@ import {
 
 import { Admin } from "@/features/admin";
 import { Login, refreshTokens } from "@/features/auth";
-import { Chat, History, type Citation } from "@/features/chat";
+import { Chat, type Citation } from "@/features/chat";
+import { History } from "@/features/history";
 import {
   Folders,
   StatusBadge,
