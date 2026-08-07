@@ -155,7 +155,7 @@ export function Upload({ token, onUploaded }: Props) {
   }, [staged, send]);
 
   return (
-    <section className="mx-auto max-w-2xl space-y-6 py-4">
+    <section className="space-y-6 py-4">
       <LabelPicker
         token={token}
         selected={selected}

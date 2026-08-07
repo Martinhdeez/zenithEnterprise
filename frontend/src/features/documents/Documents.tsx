@@ -110,7 +110,7 @@ export function Documents({ token, onCitation, filter, refreshKey = 0 }: Props) 
   }
 
   return (
-    <section className="max-w-3xl space-y-3">
+    <section className="space-y-3">
       {error && (
         <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
           {error}

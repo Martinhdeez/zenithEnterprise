@@ -130,7 +130,8 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
 
   return (
     <div className="flex h-full flex-col">
-      <div ref={scrollRef} className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-3xl space-y-6 px-6 py-6 2xl:max-w-4xl">
         {empty && (
           <div className="flex h-full flex-col items-center justify-center gap-1.5 text-center">
             <p className="text-lg font-medium text-foreground">Ask your documents</p>
@@ -152,6 +153,7 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
               </div>
             </div>
           ))}
+        </div>
       </div>
 
       <form
@@ -162,7 +164,7 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
           setQuestion("");
           void ask(asked);
         }}
-        className="shrink-0 p-4"
+        className="mx-auto w-full max-w-3xl shrink-0 p-4 2xl:max-w-4xl"
       >
         {/* One rounded pill rather than an input-plus-button row — the border lives on
             this wrapper and the input itself is borderless inside it, which is the
