@@ -102,6 +102,16 @@ And if the change added an Alembic migration, apply it the same way as initial s
 docker compose exec api alembic upgrade head
 ```
 
+**`make check` passing does not mean the dev stack is migrated, and this has already
+bitten once.** `pytest` builds a throwaway Postgres per run and migrates it from zero, so
+a brand-new migration is exercised there whatever state the long-lived `db_data` volume is
+in. Migration 0007 added `access_labels.created_at`, the suite went green, and every
+`POST /labels` in the running app answered `500 UndefinedColumn` until someone tried to
+create a label by hand. After adding a migration, check the dev database itself:
+```bash
+docker compose exec api alembic current   # must equal `head`, not just "no errors"
+```
+
 ## Ports
 
 | Service | Port |
