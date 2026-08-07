@@ -11,7 +11,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { Label } from "../api/client";
+import type { Label } from "./api";
 import { COMBOBOX_THRESHOLD, LabelPicker } from "./LabelPicker";
 
 const labels = (count: number): Label[] =>

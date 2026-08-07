@@ -23,14 +23,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FileText, UploadCloud, X } from "lucide-react";
 
-import {
-  ApiError,
-  labels as fetchLabels,
-  uploadDocument,
-  type DocumentSummary,
-  type Label,
-} from "../api/client";
-import { LabelPicker } from "./LabelPicker";
+import { type DocumentSummary, uploadDocument } from "./api";
+import { LabelPicker, labels as fetchLabels, type Label } from "@/features/labels";
+import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";

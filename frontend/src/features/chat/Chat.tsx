@@ -17,8 +17,8 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import { ArrowUp, Square } from "lucide-react";
 
-import { reduce, type AnswerState } from "../api/answer";
-import { streamQuery, type Citation } from "../api/stream";
+import { reduce, type AnswerState } from "./answerState";
+import { streamQuery, type Citation } from "./stream";
 import { Answer } from "./Answer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

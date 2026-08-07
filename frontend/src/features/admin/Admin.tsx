@@ -19,18 +19,9 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
-import {
-  ApiError,
-  inviteUser,
-  llmConfig,
-  roles as fetchRoles,
-  saveLlmConfig,
-  setRolePermissions,
-  type Invitation,
-  type LlmConfig,
-  type Role,
-} from "../api/client";
-import { TagManager } from "./TagManager";
+import { inviteUser, llmConfig, roles as fetchRoles, saveLlmConfig, setRolePermissions, type Invitation, type LlmConfig, type Role } from "./api";
+import { ApiError } from "@/shared/api/http";
+import { TagManager } from "@/features/labels";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

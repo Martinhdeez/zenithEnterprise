@@ -1,10 +1,10 @@
 /**
- * The parts of the client that are contracts rather than plumbing.
+ * The parts of the HTTP layer that are contracts rather than plumbing.
  */
 
 import { describe, expect, it, vi } from "vitest";
 
-import { IN_FLIGHT, saveLlmConfig } from "./client";
+import { IN_FLIGHT } from "./tenant";
 
 describe("document statuses", () => {
   it("mirrors the statuses the schema defines", () => {
@@ -19,57 +19,13 @@ describe("document statuses", () => {
   });
 });
 
-describe("saving the LLM configuration", () => {
-  it("omits the key entirely when none was entered", async () => {
-    // The server reads omission as "keep the stored key" and "" as "clear it". Sending an
-    // empty string for an untouched field would wipe a credential the administrator cannot
-    // read, on a save that only changed the model name.
-    // Typed as the real signature so the call arguments are readable: `vi.fn` with no
-    // annotation infers an empty tuple and indexing it is a type error rather than a
-    // test failure.
-    const fetchMock = vi.fn(
-      async (_input: RequestInfo | URL, _init?: RequestInit) =>
-        new Response("{}", { status: 200 }),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    await saveLlmConfig("token", { endpoint_url: "http://x/v1", model_name: "m" });
-
-    const body: Record<string, unknown> = JSON.parse(
-      String(fetchMock.mock.calls[0]?.[1]?.body),
-    );
-    expect("api_key" in body).toBe(false);
-  });
-
-  it("sends the key when one was entered", async () => {
-    // Typed as the real signature so the call arguments are readable: `vi.fn` with no
-    // annotation infers an empty tuple and indexing it is a type error rather than a
-    // test failure.
-    const fetchMock = vi.fn(
-      async (_input: RequestInfo | URL, _init?: RequestInit) =>
-        new Response("{}", { status: 200 }),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    await saveLlmConfig("token", {
-      endpoint_url: "http://x/v1",
-      model_name: "m",
-      api_key: "sk-new",
-    });
-
-    const body: Record<string, unknown> = JSON.parse(
-      String(fetchMock.mock.calls[0]?.[1]?.body),
-    );
-    expect(body.api_key).toBe("sk-new");
-  });
-});
-
 describe("error handling", () => {
   it("prefers RFC 7807 detail and falls back to the legacy message", async () => {
     // Both are read because the server sends both: `detail` is the standard member and
     // `message` is retained for clients written against the original shape. Preferring
     // detail with message as fallback means this client works against either.
-    const { ApiError, tenantStatus } = await import("./client");
+    const { ApiError } = await import("./http");
+    const { tenantStatus } = await import("./tenant");
 
     vi.stubGlobal(
       "fetch",
@@ -99,7 +55,7 @@ describe("error handling", () => {
   it("survives a server that sends no body at all", async () => {
     // A proxy returning a bare 502 is not a hypothetical on an on-premise install, and an
     // unparseable body must not become an unhandled rejection in a UI.
-    const { tenantStatus } = await import("./client");
+    const { tenantStatus } = await import("./tenant");
     vi.stubGlobal("fetch", vi.fn(async () => new Response("not json", { status: 502 })));
 
     await expect(tenantStatus("token")).rejects.toMatchObject({ code: "unknown" });

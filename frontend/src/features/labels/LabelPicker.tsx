@@ -18,7 +18,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Check, ChevronsUpDown, Plus, X } from "lucide-react";
 
-import { ApiError, createLabel, deleteLabel, searchLabels, type Label } from "../api/client";
+import { createLabel, deleteLabel, searchLabels, type Label } from "./api";
+import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
 import {
   Command,

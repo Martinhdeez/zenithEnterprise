@@ -9,13 +9,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { FileText, Trash2 } from "lucide-react";
 
-import {
-  ApiError,
-  deleteDocument,
-  listDocuments,
-  type DocumentSummary,
-} from "../api/client";
-import type { Citation } from "../api/stream";
+import { deleteDocument, listDocuments, type DocumentSummary } from "./api";
+import { ApiError } from "@/shared/api/http";
+import type { Citation } from "@/features/chat";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

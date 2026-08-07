@@ -9,8 +9,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AnswerState } from "../api/answer";
-import type { Citation, QueryResult } from "../api/stream";
+import type { AnswerState } from "./answerState";
+import type { Citation, QueryResult } from "./stream";
 import { Answer } from "./Answer";
 
 const citation: Citation = {

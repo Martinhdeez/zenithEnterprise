@@ -26,8 +26,8 @@
 import { useEffect, useState } from "react";
 import { FileStack, Folder as FolderIcon } from "lucide-react";
 
-import { folders, type FolderTree } from "../api/client";
-import type { Citation } from "../api/stream";
+import { folders, type FolderTree } from "./api";
+import type { Citation } from "@/features/chat";
 import { Documents } from "./Documents";
 
 /** `null` at the grid. `filter: null` on a selection means "All documents" specifically —
