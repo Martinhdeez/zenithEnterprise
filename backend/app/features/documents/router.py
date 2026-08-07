@@ -35,6 +35,12 @@ async def upload_document(
     profile: CurrentProfile,
     file: Annotated[UploadFile, File()],
     labels: Annotated[list[UUID] | None, Form()] = None,
+    # Both optional, both display-only overrides of what the file itself would give:
+    # `filename` defaults to the name the browser sent, `description` has no fallback at
+    # all. Neither reaches ingestion or search, so there's nothing here to validate beyond
+    # "is it a string" — Pydantic/FastAPI already do that.
+    filename: Annotated[str | None, Form()] = None,
+    description: Annotated[str | None, Form()] = None,
 ) -> UploadResponse:
     """Store a document and classify it.
 
@@ -45,9 +51,10 @@ async def upload_document(
     _reject_obviously_oversized(request)
 
     result = await DocumentService(profile).upload(
-        filename=file.filename or "document.pdf",
+        filename=filename or file.filename or "document.pdf",
         chunks=_stream(file),
         label_ids=labels,
+        description=description,
     )
     if result.deduplicated:
         response.status_code = status.HTTP_200_OK
@@ -91,6 +98,11 @@ async def list_documents(
     limit: Annotated[int | None, Query(ge=1, le=MAX_LIMIT)] = None,
     cursor: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
+    label_id: UUID | None = None,
+    # `unlabelled=true` rather than `label_id=null`: query strings have no way to write
+    # "the parameter is present and its value is null" distinctly from "the parameter is
+    # absent", so the one folder with no id needs its own flag to be requestable at all.
+    unlabelled: bool = False,
 ) -> DocumentPage:
     """The documents the caller's labels reach, newest first, one page at a time.
 
@@ -101,9 +113,17 @@ async def list_documents(
     Paginated with a cursor rather than an offset. A tenant may hold five thousand
     documents, and uploads arrive while someone is reading — an offset would show a reader
     the same row twice each time a document was added above them.
+
+    `label_id` narrows to one folder from `GET /documents/folders`. Requesting a label the
+    caller cannot reach is not an error — RLS already hides those rows from the base
+    query, so the filter just narrows an empty set to a smaller empty set.
     """
     documents, next_cursor = await DocumentService(profile).page(
-        limit=limit, cursor=cursor, status=status_filter
+        limit=limit,
+        cursor=cursor,
+        status=status_filter,
+        label_id=label_id,
+        unlabelled=unlabelled,
     )
     return DocumentPage(
         items=[DocumentResponse.model_validate(document) for document in documents],

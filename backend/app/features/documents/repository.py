@@ -22,7 +22,12 @@ class DocumentRepository(ScopedRepository[Document]):
         return await self.session.scalar(select(Document).where(Document.sha256 == sha256))
 
     async def page(
-        self, limit: int, cursor: Cursor | None = None, status: str | None = None
+        self,
+        limit: int,
+        cursor: Cursor | None = None,
+        status: str | None = None,
+        label_id: UUID | None = None,
+        unlabelled: bool = False,
     ) -> tuple[list[Document], Cursor | None]:
         """One page, newest first, plus the cursor for the next one.
 
@@ -35,10 +40,25 @@ class DocumentRepository(ScopedRepository[Document]):
         `created_at < :t OR (created_at = :t AND id < :i)`. Postgres treats the tuple form
         as a single range condition and walks the composite index from that point; the
         expanded form is the same rows and a scan.
+
+        `label_id` and `unlabelled` are mutually exclusive by construction — the caller
+        (the router) only ever sends one — and neither widens what RLS already allows: a
+        `label_id` the caller cannot reach filters to zero rows rather than bypassing
+        anything, the same way any other `WHERE` clause layered on top of a policy would.
         """
         statement = self.query().order_by(Document.created_at.desc(), Document.id.desc())
         if status is not None:
             statement = statement.where(Document.status == status)
+        if unlabelled:
+            # Read the same way `folders.py`'s own "unlabelled" count does — via
+            # cardinality rather than `== []`, which asks Postgres to compare against an
+            # untyped empty array literal and is the kind of comparison that silently
+            # depends on implicit casts working out.
+            statement = statement.where(func.cardinality(Document.label_ids) == 0)
+        elif label_id is not None:
+            # `@>` (contains), not `= ANY`: it is the operator the GIN index on
+            # `label_ids` (see the model's `ix_documents_label_ids`) actually accelerates.
+            statement = statement.where(Document.label_ids.contains([label_id]))
         if cursor is not None:
             statement = statement.where(
                 tuple_(Document.created_at, Document.id) < (cursor.created_at, cursor.id)
