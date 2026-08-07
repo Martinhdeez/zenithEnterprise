@@ -72,7 +72,7 @@ export function History({
   }
 
   return (
-    <section className="max-w-3xl space-y-4">
+    <section className="space-y-4">
       <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
         {entries.map((entry) => (
           <li key={entry.query_id}>

@@ -14,6 +14,8 @@ import {
   Maximize2,
   MessageSquare,
   Minimize2,
+  PanelLeftClose,
+  PanelLeftOpen,
   Search as SearchIcon,
   Settings,
   Upload as UploadIcon,
@@ -55,6 +57,7 @@ const PdfViewer = lazy(() =>
 // of the profile after the browser closes. Not a substitute for the httpOnly cookie an
 // eventual hardening pass wants, and recorded as such rather than quietly treated as
 // sufficient.
+const SIDEBAR_KEY = "zenith.sidebar-collapsed";
 const TOKEN_KEY = "zenith.token";
 const REFRESH_KEY = "zenith.refresh";
 
@@ -64,6 +67,12 @@ const REFRESH_KEY = "zenith.refresh";
 // margin against the access token's own expiry without hammering `/auth/refresh` on every
 // render.
 const REFRESH_INTERVAL_MS = 10 * 60 * 1000;
+
+/** The nav names are lowercase because the sidebar capitalises them in CSS; a `title`
+    attribute cannot, so it gets the capital here. */
+function capitalise(name: string): string {
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
 
 export function App() {
   const [token, setToken] = useState<string | null>(() => sessionStorage.getItem(TOKEN_KEY));
@@ -100,6 +109,16 @@ export function App() {
   // effect rather than being a no-op React sees as "the same prop".
   const [prefill, setPrefill] = useState<{ text: string; nonce: number } | null>(null);
   const [pdfExpanded, setPdfExpanded] = useState(false);
+  // Remembered across reloads: someone who collapsed the bar to get room back does not
+  // want it handed to them again on every refresh. `localStorage` rather than session,
+  // because unlike the tokens beside it this is a preference and discloses nothing.
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem(SIDEBAR_KEY) === "true",
+  );
+
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_KEY, String(collapsed));
+  }, [collapsed]);
 
   // Changing section closes whatever document was open. The preview belongs to the screen
   // that opened it — a PDF left hanging beside the admin panel is a third of the viewport
@@ -181,21 +200,40 @@ export function App() {
           narrow column. Both are full screens in the main panel now, reached the same way
           Chat or Admin are — this bar's only job left is getting you there and showing
           what's currently ready, which is why Status is the one thing that stayed. */}
-      <nav className="flex w-72 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm">
-        <div className="panel-accent flex shrink-0 items-center gap-2 rounded-t-xl border-b border-border px-4 py-3.5">
+      <nav
+        className={`flex shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm transition-[width] duration-200 ${
+          collapsed ? "w-16" : "w-72"
+        }`}
+      >
+        <div
+          className={`panel-accent flex shrink-0 rounded-t-xl border-b border-border py-3.5 ${
+            collapsed ? "flex-col items-center gap-2 px-2" : "items-center gap-2 px-4"
+          }`}
+        >
           <img src="/zenith-mark.png" alt="Zenith" width={22} height={22} className="size-[22px] object-contain" />
-          <div className="min-w-0">
-            <p className="text-sm leading-tight font-semibold text-foreground">Zenith</p>
-            <p className="text-xs leading-tight text-muted-foreground">Ask your documents</p>
-          </div>
+          {!collapsed && (
+            <div className="min-w-0 flex-1">
+              <p className="text-sm leading-tight font-semibold text-foreground">Zenith</p>
+              <p className="text-xs leading-tight text-muted-foreground">Ask your documents</p>
+            </div>
+          )}
+          {/* Up here rather than as a labelled bar at the bottom: it is chrome for the
+              panel, and it belongs on the panel's own edge where the eye already is when
+              looking for the logo. Icon only — the arrow's direction says which way it
+              goes, and a word repeating that would be the widest thing in a 64px rail. */}
+          <button
+            type="button"
+            onClick={() => setCollapsed((was) => !was)}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="shrink-0 rounded-md p-1 text-muted-foreground/60 transition-colors hover:bg-secondary/60 hover:text-foreground"
+          >
+            {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+          </button>
         </div>
 
-        <div className="scrollbar-none flex-1 overflow-y-auto">
-          <Section label="Status">
-            <StatusBadge status={status} />
-          </Section>
-
-          <div className="flex flex-col gap-0.5 px-2 py-3 text-sm">
+        <div className="scrollbar-none flex flex-1 flex-col overflow-y-auto">
+          <div className="flex flex-col gap-0.5 px-2 py-3">
             {(
               [
                 { name: "search", icon: SearchIcon },
@@ -210,34 +248,61 @@ export function App() {
                 key={name}
                 type="button"
                 onClick={() => open(name)}
-                className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left capitalize transition-colors ${
+                // `title` and `aria-label` carry the name once the label is gone: an icon
+                // alone is a guess for anyone who has not memorised this bar yet, and a
+                // screen reader would otherwise hear an unnamed button.
+                title={collapsed ? capitalise(name) : undefined}
+                aria-label={collapsed ? capitalise(name) : undefined}
+                className={`flex items-center rounded-lg text-left text-[15px] capitalize transition-colors ${
+                  collapsed ? "justify-center px-0 py-3" : "gap-3 px-3 py-2"
+                } ${
                   view === name
                     ? "bg-primary/10 font-medium text-primary"
                     : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                 }`}
               >
-                <Icon className="size-3.5 shrink-0" />
-                {name}
+                {/* Larger when collapsed: at this size the icon is the only thing carrying
+                    the meaning, so it gets the room the label gave up. */}
+                <Icon className={collapsed ? "size-6 shrink-0" : "size-[18px] shrink-0"} />
+                {!collapsed && name}
               </button>
             ))}
           </div>
+
+          {/* Below the navigation, not above it: this is the answer to "is anything ready
+              to search", which is worth glancing at and never the reason you came to this
+              bar. Dropped entirely when collapsed — it is prose and a set of numbers, and
+              there is no honest way to render either in 64 pixels. */}
+          {!collapsed && (
+            <div className="mt-auto">
+              <Section label="Status">
+                <StatusBadge status={status} />
+              </Section>
+            </div>
+          )}
         </div>
 
-        <div className="panel-accent flex shrink-0 items-center gap-2 rounded-b-xl border-t border-border px-4 py-3">
+        <div
+          className={`panel-accent flex shrink-0 items-center gap-2 rounded-b-xl border-t border-border py-3 ${
+            collapsed ? "justify-center px-2" : "px-4"
+          }`}
+        >
           <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-medium text-muted-foreground">
             {initial}
           </span>
-          <button
-            type="button"
-            onClick={() => {
-              sessionStorage.removeItem(TOKEN_KEY);
-              sessionStorage.removeItem(REFRESH_KEY);
-              setToken(null);
-            }}
-            className="text-left text-sm text-muted-foreground hover:text-foreground"
-          >
-            Sign out
-          </button>
+          {!collapsed && (
+            <button
+              type="button"
+              onClick={() => {
+                sessionStorage.removeItem(TOKEN_KEY);
+                sessionStorage.removeItem(REFRESH_KEY);
+                setToken(null);
+              }}
+              className="text-left text-sm text-muted-foreground hover:text-foreground"
+            >
+              Sign out
+            </button>
+          )}
         </div>
       </nav>
 
@@ -312,7 +377,15 @@ export function App() {
               />
             </div>
           ) : (
-            <main className="flex-1 overflow-auto rounded-b-xl bg-card p-6">
+            <main className="flex-1 overflow-auto rounded-b-xl bg-card">
+            {/* Every screen is centred and capped here rather than each one setting its own
+                width. They used to carry a `max-w-*` and no `mx-auto`, which pinned them to
+                the left edge — barely noticeable while the preview panel took a third of the
+                row, and obviously wrong the moment that space came back. Capped rather than
+                full-bleed because a line of prose spanning a 27" display is unreadable; the
+                cap widens one step on very large screens so the extra room is used without
+                the measure running away. */}
+            <div className="mx-auto w-full max-w-3xl p-6 2xl:max-w-4xl">
             {view === "search" && (
               <Search
                 token={token}
@@ -331,7 +404,7 @@ export function App() {
               />
             )}
             {view === "upload" && (
-              <div className="max-w-3xl">
+              <div>
                 <Upload
                   token={token}
                   onUploaded={() => {
@@ -353,6 +426,7 @@ export function App() {
               />
             )}
             {view === "admin" && <Admin token={token} />}
+            </div>
             </main>
           )}
         </ResizablePanel>

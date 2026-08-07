@@ -65,7 +65,7 @@ export function Folders({ token, onCitation, selection, onSelect, refreshKey = 0
   if (!tree) return <p className="text-sm text-muted-foreground">Loading folders…</p>;
 
   return (
-    <section className="max-w-3xl space-y-4">
+    <section className="space-y-4">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <button
           type="button"

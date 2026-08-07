@@ -14,6 +14,8 @@ import { useCallback, useRef, useState } from "react";
 import { search, type SearchHit } from "./api";
 import { ApiError } from "@/shared/api/http";
 import type { Citation } from "@/features/chat";
+import { Search as SearchIcon } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProgressBar } from "@/shared/components/ProgressBar";
@@ -30,6 +32,10 @@ type State =
   | { phase: "loading"; query: string }
   | { phase: "done"; query: string; hits: SearchHit[]; degraded: boolean; reason: string | null; tookMs: number }
   | { phase: "error"; query: string; message: string };
+
+/** Starting points, not features — a blank search box gives no clue what this corpus even
+    holds. Deliberately generic so they stay sensible whatever the tenant uploaded. */
+const SUGGESTIONS = ["obligations", "deadlines", "definitions", "penalties"];
 
 export function Search({ token, onCitation, searchable, labels }: Props) {
   const [state, setState] = useState<State>({ phase: "idle" });
@@ -83,46 +89,80 @@ export function Search({ token, onCitation, searchable, labels }: Props) {
   const busy = state.phase === "loading";
 
   return (
-    <section className="max-w-3xl space-y-4">
+    <section className="space-y-4">
+      {/* One rounded field with the control inside it, rather than an input sitting next to
+          a button. The pill is the shape a search box has everywhere the people using this
+          already search, and putting the submit inside the same border makes it read as one
+          object instead of two that happen to be adjacent. */}
       <form
         onSubmit={(event) => {
           event.preventDefault();
           const asked = query.trim();
           if (asked) void run(asked);
         }}
-        className="flex gap-2"
       >
-        <Input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search passages by keyword and meaning"
-          aria-label="Search"
-          maxLength={1000}
-          className="h-11 flex-1 border-border bg-card text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/40"
-        />
-        <Button
-          type="submit"
-          disabled={busy || !query.trim()}
-          aria-pressed={busy}
-          className={`h-11 text-white transition-all ${
-            busy
-              ? "translate-y-px bg-primary/80 shadow-inner disabled:opacity-100"
-              : "bg-primary hover:bg-primary/90 disabled:opacity-50"
-          }`}
-        >
-          {busy ? "Searching…" : "Search"}
-        </Button>
-        {busy && (
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={cancel}
-            className="h-11 text-muted-foreground hover:text-foreground"
-          >
-            Cancel
-          </Button>
-        )}
+        <div className="flex items-center gap-2 rounded-full border border-input bg-secondary py-2 pr-2 pl-5 shadow-sm transition-colors focus-within:border-primary/50">
+          <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search passages by keyword and meaning"
+            aria-label="Search"
+            maxLength={1000}
+            className="h-8 flex-1 border-0 bg-transparent p-0 text-base text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0"
+          />
+          {busy ? (
+            <Button
+              type="button"
+              onClick={cancel}
+              className="h-9 shrink-0 rounded-full bg-foreground px-4 text-sm text-background hover:bg-foreground/90"
+            >
+              Stop
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              disabled={!query.trim()}
+              className="h-9 shrink-0 rounded-full bg-primary px-5 text-sm text-white hover:bg-primary/90 disabled:opacity-40"
+            >
+              Search
+            </Button>
+          )}
+        </div>
       </form>
+
+      {/* The screen used to be a lone input on an empty panel — nothing said what this
+          searches, how it differs from Chat, or what to type. It is the landing screen, so
+          it is the one place worth spending a few lines explaining the mechanism. */}
+      {state.phase === "idle" && (
+        <div className="space-y-5 py-10 text-center">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-input bg-secondary">
+            <SearchIcon className="size-5 text-primary" />
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-base font-medium text-foreground">Search your corpus</p>
+            <p className="mx-auto max-w-md text-sm text-muted-foreground">
+              Keyword and meaning at once — passages come back ranked, with the page they
+              came from. Nothing is generated here; use Chat for a written answer.
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-2">
+            {SUGGESTIONS.map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                onClick={() => {
+                  setQuery(suggestion);
+                  void run(suggestion);
+                }}
+                className="rounded-full border border-input bg-card px-3.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {state.phase === "loading" && (
         <ProgressBar key={state.query} label="Ranking passages" />

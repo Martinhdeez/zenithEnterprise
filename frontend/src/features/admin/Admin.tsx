@@ -47,7 +47,7 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
 
 export function Admin({ token }: { token: string }) {
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="space-y-6">
       <Panel title="Invite a colleague">
         <InvitePanel token={token} />
       </Panel>
