@@ -185,3 +185,43 @@ async def test_a_widening_merge_is_a_409_the_client_can_branch_on(
     )
     assert accepted.status_code == 200
     assert accepted.json()["visibility_widening"] == 1
+
+
+async def test_a_label_created_over_http_is_usable_by_its_creator(
+    client: AsyncClient, account: Account
+) -> None:
+    """The bug this test exists for was invisible to every unit test.
+
+    `LabelService.create` grants the new label to its creator's roles, and the id it needs
+    comes from `profile.user_id` — *not* from `context.user_id`, which `AuthService.profile`
+    never populates. A unit test that builds its own `TenantContext` can set that field and
+    pass while the real endpoint silently grants nothing, which is exactly what happened:
+    the label was created, reachable by nobody, and the very next upload was refused with
+    "you cannot file a document under label(s) you do not hold".
+
+    So this goes through the router, with a real token, and then reads `role_labels`
+    directly rather than trusting any response body.
+    """
+    auth = await headers(client, account.admin_email)
+    response = await client.post("/labels", json={"name": f"Invented {uuid4()}"}, headers=auth)
+    assert response.status_code == 201
+    created = UUID(response.json()["id"])
+
+    async with owner_session() as session:
+        granted = set(
+            await session.scalars(
+                text("SELECT role_id FROM role_labels WHERE label_id = :l"), {"l": created}
+            )
+        )
+        held = set(
+            await session.scalars(
+                text("SELECT role_id FROM user_roles WHERE user_id = :u"),
+                {"u": account.admin_id},
+            )
+        )
+    assert granted == held, "the creator's roles, exactly — no more and no fewer"
+
+    # And the label is now usable for the thing it was created for: `GET /labels` returns
+    # what the caller *reaches*, so an ungranted label would be missing from it.
+    listed = await client.get("/labels", headers=auth)
+    assert created in {UUID(item["id"]) for item in listed.json()}

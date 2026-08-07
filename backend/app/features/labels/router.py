@@ -104,7 +104,9 @@ async def merge_labels(request: LabelMerge, profile: CurrentProfile) -> LabelMer
 
 @router.post("/labels", status_code=status.HTTP_201_CREATED, dependencies=[manage])
 async def create_label(request: LabelCreate, profile: CurrentProfile) -> LabelResponse:
-    label = await LabelService(profile.context).create(request.name, request.is_default)
+    label = await LabelService(profile.context).create(
+        request.name, request.is_default, created_by=profile.user_id
+    )
     return LabelResponse.model_validate(label)
 
 

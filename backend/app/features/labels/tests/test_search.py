@@ -233,3 +233,60 @@ async def test_a_forged_cursor_is_rejected(account: Account) -> None:
 
     with pytest.raises(InvalidCursorError):
         await service.search(may_manage=True, cursor="not-a-cursor-we-issued")
+
+
+async def test_a_new_label_is_reachable_by_the_person_who_made_it(account: Account) -> None:
+    """The upload form's "+ New label" flow, in one assertion.
+
+    A label granted to nobody is not "narrow by default", it is unusable: the creator
+    invents a category expressly to file the document in front of them under it, and the
+    upload is then refused with "you cannot file a document under label(s) you do not
+    hold". `provisioning.py` reasoned this out for the seeded label — a label no role
+    reaches makes uploads invisible to everyone including the person who made them — and
+    the same applies to one created by hand.
+
+    Asserted through `role_labels`, the table RLS actually resolves a context from, rather
+    than through the service that just wrote it.
+    """
+    admin_roles = set(await _roles_of(account.admin_id))
+    context = TenantContext.for_tenant(account.tenant_id, [account.default_label])
+    created = await LabelService(context).create(f"Invented {uuid4()}", created_by=account.admin_id)
+
+    async with owner_session() as session:
+        granted = set(
+            await session.scalars(
+                text("SELECT role_id FROM role_labels WHERE label_id = :l"), {"l": created.id}
+            )
+        )
+    assert granted == admin_roles, "every role the creator holds should reach it, and no other"
+
+
+async def test_a_new_label_is_not_granted_to_roles_the_creator_does_not_hold(
+    account: Account,
+) -> None:
+    """The other half: creating a label must not widen anyone else's reach.
+
+    "Narrow by default" is still the rule — it just cannot be so narrow that it excludes
+    the author. A role the creator does not belong to gets the label when an administrator
+    says so, not because somebody typed a name into an upload form.
+    """
+    context = TenantContext.for_tenant(account.tenant_id, [account.default_label])
+    created = await LabelService(context).create(f"Invented {uuid4()}", created_by=account.admin_id)
+
+    member_roles = set(await _roles_of(account.member_id))
+    async with owner_session() as session:
+        granted = set(
+            await session.scalars(
+                text("SELECT role_id FROM role_labels WHERE label_id = :l"), {"l": created.id}
+            )
+        )
+    assert not (granted & member_roles), "the member's role must not have been granted it"
+
+
+async def _roles_of(user_id: UUID) -> list[UUID]:
+    async with owner_session() as session:
+        return list(
+            await session.scalars(
+                text("SELECT role_id FROM user_roles WHERE user_id = :u"), {"u": user_id}
+            )
+        )

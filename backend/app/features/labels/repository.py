@@ -5,7 +5,7 @@ from sqlalchemy import ColumnElement, UnaryExpression, delete, func, literal, se
 from sqlalchemy.dialects.postgresql import insert
 
 from app.common.repositories.base import ScopedRepository
-from app.features.auth.model import Role
+from app.features.auth.model import Role, UserRole
 from app.features.documents.model import Document
 from app.features.labels.model import AccessLabel, DocumentLabel, RoleLabel
 from app.features.labels.pagination import LabelCursor, Sort
@@ -87,6 +87,34 @@ class LabelRepository(ScopedRepository[AccessLabel]):
         statement = statement.where(*_after(sort, usage, cursor)).order_by(*_ordering(sort, usage))
         rows = await self.session.execute(statement.limit(limit + 1))
         return [(label, count) for label, count in rows]
+
+    async def grant_to_creator(self, label_id: UUID, user_id: UUID | None) -> None:
+        """Give the caller's own roles access to a label they just created.
+
+        Without this a new label is reachable by nobody, and `provisioning.py` already
+        spelled out why that is the wrong default — for the seeded label it says a label
+        no role reaches "would make every unclassified upload invisible to everyone,
+        including the administrator who uploaded it, and the product would look broken in a
+        way no error message explains". The same reasoning applies to a label created by
+        hand; it just took the upload form's "+ New label" button to make it visible,
+        because that flow creates a label expressly to file the document in front of you
+        under it and was then refused with a 403.
+
+        Widening is not a concern here and that is worth stating rather than assuming: the
+        label is new, so no document carries it. Granting it reaches an empty compartment.
+
+        `user_id` is optional on a context — a worker has none — and no roles is not an
+        error, only nothing to grant.
+        """
+        if user_id is None:
+            return
+        roles = select(UserRole.role_id).where(UserRole.user_id == user_id).distinct().subquery()
+        await self.session.execute(
+            insert(RoleLabel)
+            .from_select(["role_id", "label_id"], select(roles.c.role_id, literal(label_id)))
+            .on_conflict_do_nothing()
+        )
+        await self.session.flush()
 
     async def role_labels(self) -> dict[UUID, set[UUID]]:
         """Every role in the tenant and the labels it reaches.
