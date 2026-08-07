@@ -112,7 +112,7 @@ export function PdfViewer({ citation, token }: Props) {
             {error}
           </p>
         ) : (
-          <div className="relative mx-auto w-fit shadow">
+          <div className="relative mx-auto w-fit shadow-sm">
             <canvas ref={canvas} data-testid="pdf-canvas" />
             {size &&
               boxesOnPage(citation.bboxes as unknown as Box[], page).map((box, index) => {
@@ -144,21 +144,21 @@ export function PdfViewer({ citation, token }: Props) {
           type="button"
           onClick={() => setPage((current) => Math.max(1, current - 1))}
           disabled={page <= 1}
-          className="rounded px-2 py-1 disabled:opacity-40"
+          className="rounded-sm px-2 py-1 disabled:opacity-40"
         >
           ← Previous
         </button>
         <button
           type="button"
           onClick={() => setPage(citation.page_num)}
-          className="rounded px-2 py-1 text-sky-700"
+          className="rounded-sm px-2 py-1 text-sky-700"
         >
           Back to citation
         </button>
         <button
           type="button"
           onClick={() => setPage((current) => current + 1)}
-          className="rounded px-2 py-1"
+          className="rounded-sm px-2 py-1"
         >
           Next →
         </button>

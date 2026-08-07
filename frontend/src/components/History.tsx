@@ -7,13 +7,24 @@
  *
  * `mine` is rendered when a shared history is being read, because a shared history is only
  * readable if you can tell whose question was whose.
+ *
+ * Every row is a button, not a list item with a link inside it — clicking anywhere on a
+ * past question re-asks it. History exists so a question is never typed twice.
  */
 
 import { useCallback, useEffect, useState } from "react";
 
 import { history, type HistoryEntry } from "../api/client";
+import { Button } from "@/components/ui/button";
 
-export function History({ token }: { token: string }) {
+export function History({
+  token,
+  onAsk,
+}: {
+  token: string;
+  /** Re-runs a past question through the ask box, exactly as if the user had typed it. */
+  onAsk: (question: string) => void;
+}) {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -46,46 +57,57 @@ export function History({ token }: { token: string }) {
 
   if (error) {
     return (
-      <p role="alert" className="text-sm text-red-800">
+      <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
         {error}
       </p>
     );
   }
 
   if (!loading && entries.length === 0) {
-    return <p className="text-sm text-slate-500">You have not asked anything yet.</p>;
+    return (
+      <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+        You have not asked anything yet.
+      </div>
+    );
   }
 
   return (
-    <section className="space-y-3">
-      <ul className="space-y-3">
+    <section className="max-w-3xl space-y-4">
+      <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
         {entries.map((entry) => (
-          <li key={entry.query_id} className="rounded-md border border-slate-200 p-3">
-            <p className="font-medium">{entry.question}</p>
-            {entry.answer && (
-              <p className="mt-1 line-clamp-2 text-sm text-slate-600">{entry.answer}</p>
-            )}
-            <p className="mt-2 flex flex-wrap gap-x-3 text-xs text-slate-500">
-              <span>{new Date(entry.created_at).toLocaleString()}</span>
-              <span>
-                {entry.citations} citation{entry.citations === 1 ? "" : "s"}
-              </span>
-              {entry.model_used && <span>{entry.model_used}</span>}
-              {shared && <span>{entry.mine ? "you" : "a colleague"}</span>}
-            </p>
+          <li key={entry.query_id}>
+            <button
+              type="button"
+              onClick={() => onAsk(entry.question)}
+              className="w-full px-4 py-3.5 text-left transition-colors hover:bg-secondary/40"
+            >
+              <p className="font-medium text-foreground">{entry.question}</p>
+              {entry.answer && (
+                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{entry.answer}</p>
+              )}
+              <p className="mt-2 flex flex-wrap gap-x-3 text-xs text-muted-foreground/80">
+                <span>{new Date(entry.created_at).toLocaleString()}</span>
+                <span>
+                  {entry.citations} citation{entry.citations === 1 ? "" : "s"}
+                </span>
+                {entry.model_used && <span className="font-mono">{entry.model_used}</span>}
+                {shared && <span>{entry.mine ? "you" : "a colleague"}</span>}
+              </p>
+            </button>
           </li>
         ))}
       </ul>
 
       {cursor && (
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={() => void load(cursor)}
           disabled={loading}
-          className="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-50"
+          className="border-border text-foreground hover:bg-secondary/50"
         >
           {loading ? "Loading…" : "Show older"}
-        </button>
+        </Button>
       )}
     </section>
   );

@@ -6,12 +6,22 @@
  * looks settled while it is still arriving invites the user to act on half an answer. And
  * citation markers only become clickable once the result lands, because until then there is
  * no citation object behind them.
+ *
+ * Markdown, not plain text: the model is free-writing prose with lists and emphasis (the
+ * system prompt never asked for it, but nothing stops it either, and an 8B model reaches for
+ * structure when a question has parts), and `whitespace-pre-wrap` on raw text used to leave
+ * every `*` and `#` sitting there literally. Citation markers are converted to real markdown
+ * links (`[1]` → `[[1]](#citation-1)`) before rendering rather than handled with a second
+ * pass over the tree, so ordinary markdown syntax right next to a marker — `**[1]**`,
+ * `- fact [2]` — composes correctly instead of the two systems fighting over the same text.
  */
+
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import type { Citation, QueryResult } from "../api/stream";
 import { displayed, isProvisional, type AnswerState } from "../api/answer";
-
-const MARKER = /(\[\d+\])/g;
+import { ProgressBar } from "./ProgressBar";
 
 interface Props {
   state: AnswerState;
@@ -23,79 +33,162 @@ export function Answer({ state, onCitation }: Props) {
 
   if (state.phase === "error") {
     return (
-      <div role="alert" className="rounded-md border border-red-300 bg-red-50 p-4 text-red-900">
+      <div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-destructive">
         {state.message}
       </div>
     );
   }
 
-  if (state.phase === "retrieving") {
-    // Named rather than a bare spinner. A second of silence is unavoidable — the retrieval
-    // itself costs it — and saying what is happening is the difference between "working"
-    // and "hung".
-    return <p className="text-sm text-slate-500">Searching your documents…</p>;
-  }
-
   const result = state.phase === "final" ? state.result : null;
   const provisional = isProvisional(state);
+
+  // Only markers the result actually vouches for become links — a number the model wrote
+  // that doesn't match any citation (which `citations.py` would already have caught server
+  // side, but this is the last line of defence) stays inert text rather than a link to
+  // nothing.
+  const source = result ? linkCitations(displayed(state), result.citations) : displayed(state);
 
   return (
     <div>
       {result?.abstained && (
-        <p className="mb-2 text-sm font-medium text-amber-800">
+        <p className="mb-2 text-sm font-medium text-zenith-amber">
           No answer was found in your documents.
         </p>
       )}
 
-      <p className="whitespace-pre-wrap leading-relaxed">
-        {segments(displayed(state), result, provisional, onCitation)}
-        {provisional && <span className="ml-0.5 animate-pulse text-slate-400">▍</span>}
-      </p>
+      {provisional && (
+        // One `ProgressBar` instance across both "retrieving" and "streaming" — same tree
+        // position, same `key` — so its internal timer keeps counting through the
+        // transition instead of restarting the moment the first token arrives, which would
+        // understate how long the question has actually been running. Only the label
+        // changes, because retrieval and generation are different things to be slow at and
+        // F9's prompt work fixed different failures in each.
+        <ProgressBar
+          key={state.question}
+          label={state.phase === "retrieving" ? "Searching your documents" : "Writing the answer"}
+        />
+      )}
+
+      {state.phase !== "retrieving" && (
+        <div className="leading-relaxed text-foreground">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={components(result, onCitation)}>
+            {source}
+          </ReactMarkdown>
+          {provisional && <span className="ml-0.5 animate-pulse text-muted-foreground">▍</span>}
+        </div>
+      )}
 
       {result && <Footer result={result} />}
     </div>
   );
 }
 
-function segments(
-  text: string,
-  result: QueryResult | null,
-  provisional: boolean,
-  onCitation: (citation: Citation) => void,
-) {
-  return text.split(MARKER).map((part, index) => {
-    const match = /^\[(\d+)\]$/.exec(part);
-    if (!match || !result || provisional) {
-      // While streaming, a marker is plain text. It is not a broken link — the citations
-      // simply have not arrived yet, and rendering it as a dead button would be a lie
-      // about what is clickable.
-      return <span key={index}>{part}</span>;
-    }
-    const citation = result.citations.find((item) => item.marker === Number(match[1]));
-    if (!citation) return <span key={index}>{part}</span>;
-
-    return (
-      <button
-        key={index}
-        type="button"
-        onClick={() => onCitation(citation)}
-        title={`${citation.filename}, page ${citation.page_num}`}
-        className="mx-0.5 rounded bg-sky-100 px-1 text-sm font-medium text-sky-800 hover:bg-sky-200"
-      >
-        {part}
-      </button>
-    );
+function linkCitations(text: string, citations: QueryResult["citations"]): string {
+  return text.replace(/\[(\d+)\]/g, (whole, digits: string) => {
+    const marker = Number(digits);
+    return citations.some((citation) => citation.marker === marker)
+      ? `[[${digits}]](#citation-${digits})`
+      : whole;
   });
+}
+
+/** Markdown element overrides — styled for contrast against the dark theme rather than a
+    generic `prose` reset: headings that read as headings, list markers and inline code with
+    real color instead of the same grey as the surrounding prose, the way Gemini's own web
+    client renders a streamed answer. The one element with actual logic is `a`, which has to
+    check whether it's really a citation link before deciding what to render. */
+function components(result: QueryResult | null, onCitation: (citation: Citation) => void): Components {
+  return {
+    p: ({ children }) => <p className="mb-3 text-foreground last:mb-0">{children}</p>,
+    // Coloured markers via Tailwind's `marker:` variant rather than a custom bullet
+    // element: `<li>` stays a plain `list-item` box, which is what makes `list-decimal`'s
+    // counters render at all — a `flex` list item, the more obvious way to build a custom
+    // bullet, silently drops the browser's own numbering the moment it's applied.
+    ul: ({ children }) => (
+      <ul className="mb-3 ml-5 list-disc space-y-1.5 pl-1 marker:text-zenith-cyan last:mb-0">{children}</ul>
+    ),
+    ol: ({ children }) => (
+      <ol className="mb-3 ml-5 list-decimal space-y-1.5 pl-1 marker:font-semibold marker:text-zenith-cyan last:mb-0">
+        {children}
+      </ol>
+    ),
+    li: ({ children }) => <li className="pl-1 text-foreground">{children}</li>,
+    // A visible rule under each heading, not just bigger text — the difference between
+    // "this word is bold" and "this is a new section", which matters once an answer has
+    // more than one of them.
+    h1: ({ children }) => (
+      <h3 className="mb-2.5 border-b border-border pb-1.5 text-base font-bold text-foreground">
+        {children}
+      </h3>
+    ),
+    h2: ({ children }) => (
+      <h3 className="mb-2.5 border-b border-border pb-1.5 text-base font-bold text-foreground">
+        {children}
+      </h3>
+    ),
+    h3: ({ children }) => <h4 className="mb-2 text-sm font-bold text-foreground">{children}</h4>,
+    strong: ({ children }) => <strong className="font-bold text-foreground">{children}</strong>,
+    em: ({ children }) => <em className="text-foreground/90 italic">{children}</em>,
+    blockquote: ({ children }) => (
+      <blockquote className="mb-3 rounded-r-md border-l-2 border-zenith-cyan/50 bg-zenith-cyan/5 py-1 pl-3 text-foreground/80 last:mb-0">
+        {children}
+      </blockquote>
+    ),
+    code: ({ children }) => (
+      <code className="rounded-md border border-zenith-cyan/20 bg-zenith-cyan/10 px-1.5 py-0.5 font-mono text-[0.85em] text-zenith-cyan">
+        {children}
+      </code>
+    ),
+    pre: ({ children }) => (
+      <pre className="mb-3 overflow-x-auto rounded-lg border border-border bg-background p-3 font-mono text-xs text-foreground last:mb-0 [&_code]:border-0 [&_code]:bg-transparent [&_code]:p-0 [&_code]:text-foreground">
+        {children}
+      </pre>
+    ),
+    table: ({ children }) => (
+      <div className="mb-3 overflow-x-auto rounded-lg border border-border last:mb-0">
+        <table className="w-full border-collapse text-sm">{children}</table>
+      </div>
+    ),
+    th: ({ children }) => (
+      <th className="border-b border-border bg-secondary px-3 py-1.5 text-left font-semibold text-foreground">
+        {children}
+      </th>
+    ),
+    td: ({ children }) => <td className="border-b border-border/60 px-3 py-1.5 text-foreground">{children}</td>,
+    a: ({ href, children }) => {
+      const marker = /^#citation-(\d+)$/.exec(href ?? "")?.[1];
+      const citation = marker && result?.citations.find((item) => item.marker === Number(marker));
+      if (citation) {
+        return (
+          <button
+            type="button"
+            onClick={() => onCitation(citation)}
+            title={`${citation.filename}, page ${citation.page_num}`}
+            className="mx-0.5 rounded-sm bg-primary/20 px-1 text-sm font-semibold text-primary hover:bg-primary/30"
+          >
+            {children}
+          </button>
+        );
+      }
+      // Not a citation — the model wrote an ordinary link. Rare given the system prompt
+      // (rule 1: passages only), but a dead click is worse than an opened tab.
+      return (
+        <a href={href} target="_blank" rel="noreferrer" className="font-medium text-primary underline">
+          {children}
+        </a>
+      );
+    },
+  };
 }
 
 function Footer({ result }: { result: QueryResult }) {
   return (
-    <div className="mt-3 space-y-1 text-xs text-slate-500">
+    <div className="mt-3 space-y-1 text-xs text-muted-foreground">
       {result.degraded && (
         // Never swallowed. F11 found a configuration where the reranker was silently
         // failing on every request for as long as nobody looked; the UI is the last place
         // that can make that visible to whoever can fix it.
-        <p className="text-amber-700">Answer quality reduced: {result.reason}</p>
+        <p className="text-zenith-amber">Answer quality reduced: {result.reason}</p>
       )}
       {result.abstained && result.consulted.length > 0 && (
         // mvp.md 2.10: an abstention says what it looked at. "I found nothing" and "I

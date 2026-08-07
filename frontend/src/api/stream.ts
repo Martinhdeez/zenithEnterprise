@@ -107,6 +107,17 @@ export async function streamQuery(
     const { done, value } = await reader.read();
     if (done) break;
     buffer += value;
+    // `sse-starlette` (the server's SSE library) terminates lines with `\r\n`, not bare
+    // `\n` — both are valid per the SSE spec, but every boundary and field check below
+    // was written assuming the latter. Without this, `buffer.indexOf("\n\n")` never
+    // matches inside a `\r\n\r\n` blank line, no frame is ever considered complete, and
+    // the whole answer sits in `buffer` until the connection closes and this loop exits
+    // having called neither `onToken` nor `onResult` — a client that looks like it's
+    // still waiting for an answer the server already finished sending. Safe to run every
+    // iteration on the full accumulated buffer: a `\r\n` split across two reads leaves a
+    // lone trailing `\r` that this same replace resolves as soon as the matching `\n`
+    // arrives in the next chunk.
+    buffer = buffer.replace(/\r\n/g, "\n");
 
     // Frames arrive split across chunks in arbitrary places, so the buffer is only ever
     // consumed up to the last complete frame boundary.
