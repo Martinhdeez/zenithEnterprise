@@ -10,7 +10,7 @@
 import { IN_FLIGHT, type TenantStatus } from "../api/client";
 
 export function StatusBadge({ status }: { status: TenantStatus | null }) {
-  if (!status) return <p className="text-sm text-slate-500">Loading…</p>;
+  if (!status) return <p className="text-sm text-muted-foreground">Loading…</p>;
 
   const ready = status.documents.ready ?? 0;
   const failed = status.documents.failed ?? 0;
@@ -21,31 +21,51 @@ export function StatusBadge({ status }: { status: TenantStatus | null }) {
   const processing = IN_FLIGHT.reduce((total, state) => total + (status.documents[state] ?? 0), 0);
 
   return (
-    <div className="space-y-2 text-sm">
-      <p>
-        <span className="font-medium">{ready}</span> document{ready === 1 ? "" : "s"} ready
+    <div
+      className="space-y-2.5 rounded-lg border border-border p-3 text-sm"
+      style={{
+        // A flat `bg-secondary` read as just another box in a sidebar full of them — this
+        // is the one panel that says "the product is alive right now", so it gets the one
+        // bit of color in the nav. Cyan because that's already `--zenith-cyan`'s job on the
+        // ready-dot above; the gradient just lets it bleed into its own container instead
+        // of stopping at a single pixel.
+        backgroundImage:
+          "linear-gradient(135deg, color-mix(in oklab, var(--zenith-cyan) 12%, transparent), color-mix(in oklab, var(--zenith-cyan) 2%, transparent) 60%)",
+      }}
+    >
+      <p className="flex items-center gap-1.5">
+        <span className="size-1.5 shrink-0 rounded-full bg-zenith-cyan shadow-[0_0_6px_rgba(0,229,229,0.9)]" />
+        <span className="font-medium text-foreground">{ready}</span>
+        <span className="text-muted-foreground">document{ready === 1 ? "" : "s"} ready</span>
       </p>
 
       {processing > 0 && (
-        // Worth its own line: while this is non-zero, every search on the box is slower,
-        // and a user who knows why is not a user reporting a fault.
-        <p className="text-sky-700">{processing} processing — searches will be slower</p>
+        // A pill rather than a plain line: while this is non-zero, every search on the box
+        // is slower, and it earns a bit more visual weight than the passive metrics below —
+        // without being alarming, which is what the amber text alone read as.
+        <p
+          className="inline-flex items-center gap-1.5 rounded-full bg-zenith-amber/10 px-2 py-0.5 text-xs font-medium text-zenith-amber"
+          title="Searches run more slowly while a document is being processed."
+        >
+          <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-zenith-amber" />
+          {processing} processing
+        </p>
       )}
 
       {failed > 0 && (
         // The most useful thing on this component. A failed document is invisible in
         // search — that is what failing means — so if the status does not surface it, the
         // only symptom is an answer that should have existed and did not.
-        <p className="font-medium text-red-700">
+        <p className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
           {failed} failed to process
         </p>
       )}
 
       {!status.searchable && (
-        <p className="text-slate-500">Nothing to search yet.</p>
+        <p className="text-muted-foreground">Nothing to search yet.</p>
       )}
 
-      <dl className="border-t border-slate-200 pt-2 text-xs text-slate-500">
+      <dl className="border-t border-border pt-2 text-xs text-muted-foreground">
         <div className="flex justify-between">
           <dt>Passages</dt>
           <dd>{status.chunks.toLocaleString()}</dd>

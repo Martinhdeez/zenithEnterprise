@@ -8,16 +8,31 @@
  */
 
 import { Suspense, lazy, useCallback, useEffect, useState } from "react";
+import {
+  Folder as FolderIcon,
+  History as HistoryIcon,
+  Maximize2,
+  MessageSquare,
+  Minimize2,
+  Search as SearchIcon,
+  Settings,
+  Upload as UploadIcon,
+  X,
+} from "lucide-react";
 
-import { tenantStatus, type TenantStatus } from "./api/client";
+import { refreshTokens, tenantStatus, type TenantStatus } from "./api/client";
 import type { Citation } from "./api/stream";
 import { Admin } from "./components/Admin";
 import { Chat } from "./components/Chat";
-import { Folders } from "./components/Folders";
+import { Folders, type FolderSelection } from "./components/Folders";
 import { History } from "./components/History";
 import { Login } from "./components/Login";
+import { Search } from "./components/Search";
+import { Section } from "./components/Section";
 import { StatusBadge } from "./components/StatusBadge";
 import { Upload } from "./components/Upload";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { Button } from "@/components/ui/button";
 
 // Lazily loaded, and for a measured reason: `pdf.js` is roughly 1.4 MB of worker plus its
 // own runtime, and none of it is needed until someone clicks a citation. F11 made
@@ -27,22 +42,55 @@ const PdfViewer = lazy(() =>
   import("./components/PdfViewer").then((module) => ({ default: module.PdfViewer })),
 );
 
-// Session storage rather than local storage: the token is short-lived (15 minutes, F2) and
-// this keeps it out of other tabs and out of the profile after the browser closes. Not a
-// substitute for the httpOnly cookie an eventual hardening pass wants, and recorded as
-// such rather than quietly treated as sufficient.
+// Session storage rather than local storage: it keeps both tokens out of other tabs and out
+// of the profile after the browser closes. Not a substitute for the httpOnly cookie an
+// eventual hardening pass wants, and recorded as such rather than quietly treated as
+// sufficient.
 const TOKEN_KEY = "zenith.token";
+const REFRESH_KEY = "zenith.refresh";
+
+// The access token lives 15 minutes (F2) — deliberately short, so a leaked one is only ever
+// briefly useful. The *session* is meant to last as long as the refresh token does (14
+// days), and that requires actually using it: refreshing every 10 minutes keeps a 5-minute
+// margin against the access token's own expiry without hammering `/auth/refresh` on every
+// render.
+const REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 
 export function App() {
   const [token, setToken] = useState<string | null>(() => sessionStorage.getItem(TOKEN_KEY));
   const [status, setStatus] = useState<TenantStatus | null>(null);
   const [citation, setCitation] = useState<Citation | null>(null);
-  // A plain union rather than a router. Three screens with no deep links and no back-button
+  // A plain union rather than a router. Four screens with no deep links and no back-button
   // expectations do not need one, and a router would be the largest dependency in the
   // bundle for a product whose first screen must render fast on a busy box.
-  const [view, setView] = useState<"chat" | "history" | "admin">("chat");
-  const [folder, setFolder] = useState<string | null>(null);
+  //
+  // "search" and "chat" are deliberately separate views rather than a toggle bolted onto
+  // one screen: Search runs the hybrid retrieval alone and shows what it ranked and why —
+  // no model reads it, nothing is generated. Chat is retrieval *plus* a model writing prose
+  // over what was found. Collapsing them into one screen would make the ask box lie about
+  // which of those two things a given answer is.
+  // Search is the landing screen, not Chat: it is the one screen that shows what the
+  // retrieval mechanism actually did, and that is the more useful first thing to see than
+  // an empty ask box — Chat is one click away in the same nav, never removed.
+  const [view, setView] = useState<"chat" | "search" | "folders" | "upload" | "history" | "admin">(
+    "search",
+  );
+  // Owned here, not inside `Folders`, so the breadcrumb in the main header can show *and*
+  // drive it ("Folders / Tax", each segment clickable) — a second "back" control living
+  // only inside that panel would either duplicate the header's or drift from it.
+  const [folderSelection, setFolderSelection] = useState<FolderSelection>(null);
+  // Chat and Search's own filter, derived rather than tracked separately. Only a specific
+  // real folder counts: "All documents" (`filter: null`) and "Unlabelled"
+  // (`filter.labelId === null`) both mean "no id to narrow by" for these two — the search
+  // API has no way to ask for "only the unlabelled ones" — so both collapse to `null` here
+  // exactly the way "nothing selected" already does.
+  const folder = folderSelection?.filter?.labelId ?? null;
   const [uploads, setUploads] = useState(0);
+  // Set by History when a past question is clicked: a fresh object each time (even for the
+  // identical text) so asking the same question twice in a row still re-triggers Chat's
+  // effect rather than being a no-op React sees as "the same prop".
+  const [prefill, setPrefill] = useState<{ text: string; nonce: number } | null>(null);
+  const [pdfExpanded, setPdfExpanded] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!token) return;
@@ -68,91 +116,270 @@ export function App() {
     return () => clearInterval(timer);
   }, [token, refresh]);
 
+  useEffect(() => {
+    if (!token) return;
+    const timer = setInterval(() => {
+      const held = sessionStorage.getItem(REFRESH_KEY);
+      if (!held) return;
+      void refreshTokens(held)
+        .then((pair) => {
+          sessionStorage.setItem(TOKEN_KEY, pair.access_token);
+          sessionStorage.setItem(REFRESH_KEY, pair.refresh_token);
+          setToken(pair.access_token);
+        })
+        .catch(() => {
+          // The refresh token itself is gone or revoked — nothing left to do but ask the
+          // user to sign in again, same as if the access token had simply run out.
+          sessionStorage.removeItem(TOKEN_KEY);
+          sessionStorage.removeItem(REFRESH_KEY);
+          setToken(null);
+        });
+    }, REFRESH_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [token]);
+
   if (!token) {
     return (
       <Login
         onAuthenticated={(issued) => {
-          sessionStorage.setItem(TOKEN_KEY, issued);
-          setToken(issued);
+          sessionStorage.setItem(TOKEN_KEY, issued.access_token);
+          sessionStorage.setItem(REFRESH_KEY, issued.refresh_token);
+          setToken(issued.access_token);
         }}
       />
     );
   }
 
+  const initial = (status ? "Z" : "…").toUpperCase();
+
   return (
-    <div className="flex h-screen bg-white text-slate-900">
-      <nav className="flex w-64 shrink-0 flex-col gap-6 border-r border-slate-200 p-4">
-        <div>
-          <h1 className="text-lg font-semibold">Zenith</h1>
-          <p className="text-xs text-slate-500">Ask your documents</p>
+    // A gutter of plain background, and every region floats on it as its own rounded,
+    // bordered card — the sidebar, the workspace and the preview are three surfaces, not
+    // one shell with internal dividers, which is the difference between this and the flat
+    // edge-to-edge layout it replaced.
+    <div className="dark flex h-screen gap-3 bg-background p-3 text-foreground">
+      {/* Layout, not a workspace: Folders and Upload used to live here as their own
+          sections, each with its own scroll, competing with navigation for the same
+          narrow column. Both are full screens in the main panel now, reached the same way
+          Chat or Admin are — this bar's only job left is getting you there and showing
+          what's currently ready, which is why Status is the one thing that stayed. */}
+      <nav className="flex w-64 shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm">
+        <div className="panel-accent flex shrink-0 items-center gap-2 rounded-t-xl border-b border-border px-4 py-3.5">
+          <img src="/zenith-mark.png" alt="Zenith" width={22} height={22} className="size-[22px] object-contain" />
+          <div className="min-w-0">
+            <p className="text-sm leading-tight font-semibold text-foreground">Zenith</p>
+            <p className="text-xs leading-tight text-muted-foreground">Ask your documents</p>
+          </div>
         </div>
 
-        <StatusBadge status={status} />
+        <div className="scrollbar-none flex-1 overflow-y-auto">
+          <Section label="Status">
+            <StatusBadge status={status} />
+          </Section>
 
-        <Folders
-          token={token}
-          selected={folder}
-          onSelect={setFolder}
-          refreshKey={uploads}
-        />
-
-        <Upload
-          token={token}
-          onUploaded={() => {
-            void refresh();
-            // Bumped so the folder counts follow ingestion. The tree is server-computed,
-            // so refreshing it is a fetch rather than a recount.
-            setUploads((count) => count + 1);
-          }}
-        />
-
-        <div className="flex flex-col gap-1 text-sm">
-          {(["chat", "history", "admin"] as const).map((name) => (
-            <button
-              key={name}
-              type="button"
-              onClick={() => setView(name)}
-              className={`rounded px-2 py-1 text-left capitalize ${
-                view === name ? "bg-slate-100 font-medium" : "hover:bg-slate-50"
-              }`}
-            >
-              {name}
-            </button>
-          ))}
+          <div className="flex flex-col gap-0.5 px-2 py-3 text-sm">
+            {(
+              [
+                { name: "search", icon: SearchIcon },
+                { name: "chat", icon: MessageSquare },
+                { name: "folders", icon: FolderIcon },
+                { name: "upload", icon: UploadIcon },
+                { name: "history", icon: HistoryIcon },
+                { name: "admin", icon: Settings },
+              ] as const
+            ).map(({ name, icon: Icon }) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => setView(name)}
+                className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left capitalize transition-colors ${
+                  view === name
+                    ? "bg-primary/10 font-medium text-primary"
+                    : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                }`}
+              >
+                <Icon className="size-3.5 shrink-0" />
+                {name}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            sessionStorage.removeItem(TOKEN_KEY);
-            setToken(null);
-          }}
-          className="mt-auto text-left text-sm text-slate-500 hover:text-slate-900"
-        >
-          Sign out
-        </button>
+        <div className="panel-accent flex shrink-0 items-center gap-2 rounded-b-xl border-t border-border px-4 py-3">
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-medium text-muted-foreground">
+            {initial}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              sessionStorage.removeItem(TOKEN_KEY);
+              sessionStorage.removeItem(REFRESH_KEY);
+              setToken(null);
+            }}
+            className="text-left text-sm text-muted-foreground hover:text-foreground"
+          >
+            Sign out
+          </button>
+        </div>
       </nav>
 
-      <main className="flex-1 overflow-auto p-6">
-        {view === "chat" && (
-          <Chat
-            token={token}
-            onCitation={setCitation}
-            searchable={status?.searchable ?? true}
-            labels={folder ? [folder] : undefined}
-          />
-        )}
-        {view === "history" && <History token={token} />}
-        {view === "admin" && <Admin token={token} />}
-      </main>
-
-      <div className="w-[38rem] shrink-0 border-l border-slate-200">
-        <Suspense
-          fallback={<p className="p-6 text-sm text-slate-500">Opening the document…</p>}
+      {/* Every size below is a string on purpose: this library reads a bare number as
+          pixels, not percent — `defaultSize={65}` is a 65-pixel-wide panel on a 1440px
+          screen, which is the bug that made the preview panel render as a sliver. */}
+      <ResizablePanelGroup orientation="horizontal" className="min-w-0 flex-1 gap-3">
+        <ResizablePanel
+          defaultSize="65%"
+          minSize="0%"
+          className="flex min-w-0 flex-col rounded-xl border border-border bg-card shadow-sm"
         >
-          <PdfViewer citation={citation} token={token} />
-        </Suspense>
-      </div>
+          <header className="panel-accent flex h-12 shrink-0 items-center gap-1.5 rounded-t-xl border-b border-border px-6 text-sm">
+            <span className="text-muted-foreground">Zenith</span>
+            <span className="text-muted-foreground/50">/</span>
+            {view === "folders" ? (
+              // A real breadcrumb rather than a static label: `Folders` is one segment when
+              // the grid is showing, two once something is selected, and clicking either
+              // is a valid destination — the folder browser's whole path lives here now,
+              // not behind a "← back" button buried inside the panel below.
+              <>
+                <button
+                  type="button"
+                  onClick={() => setFolderSelection(null)}
+                  className={
+                    folderSelection
+                      ? "text-muted-foreground transition-colors hover:text-foreground"
+                      : "font-medium text-foreground"
+                  }
+                >
+                  Folders
+                </button>
+                {folderSelection && (
+                  <>
+                    <span className="text-muted-foreground/50">/</span>
+                    <span className="font-medium text-foreground">{folderSelection.name}</span>
+                  </>
+                )}
+              </>
+            ) : (
+              <span className="font-medium text-foreground capitalize">{view}</span>
+            )}
+            {/* Only Chat and Search actually read `folder` — shown only there, so a filter
+                picked up in Folders doesn't look like it's still following you into Admin
+                or History, where it does nothing. */}
+            {folder && (view === "chat" || view === "search") && (
+              <button
+                type="button"
+                onClick={() => setFolderSelection(null)}
+                className="ml-auto flex items-center gap-1.5 rounded-full bg-primary/10 py-1 pl-2.5 pr-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
+              >
+                {folderSelection?.name ?? "filtered"}
+                <X className="size-3" />
+              </button>
+            )}
+          </header>
+
+          {/* Chat manages its own scroll region internally — a thread that scrolls with an
+              input pinned below it, the way every chat interface this is modelled on does
+              — so it gets the bare `overflow-hidden` box that layout requires and none of
+              the padding or scrolling every other view here still wants from `main`. */}
+          {view === "chat" ? (
+            <div className="flex-1 overflow-hidden rounded-b-xl bg-card">
+              <Chat
+                token={token}
+                onCitation={setCitation}
+                searchable={status?.searchable ?? true}
+                labels={folder ? [folder] : undefined}
+                prefill={prefill}
+              />
+            </div>
+          ) : (
+            <main className="flex-1 overflow-auto rounded-b-xl bg-card p-6">
+            {view === "search" && (
+              <Search
+                token={token}
+                onCitation={setCitation}
+                searchable={status?.searchable ?? true}
+                labels={folder ? [folder] : undefined}
+              />
+            )}
+            {view === "folders" && (
+              <Folders
+                token={token}
+                onCitation={setCitation}
+                refreshKey={uploads}
+                selection={folderSelection}
+                onSelect={setFolderSelection}
+              />
+            )}
+            {view === "upload" && (
+              <div className="max-w-3xl">
+                <Upload
+                  token={token}
+                  onUploaded={() => {
+                    void refresh();
+                    // Bumped so Folders' and Documents' counts follow ingestion. Both are
+                    // server-computed, so refreshing them is a fetch rather than a recount.
+                    setUploads((count) => count + 1);
+                  }}
+                />
+              </div>
+            )}
+            {view === "history" && (
+              <History
+                token={token}
+                onAsk={(question) => {
+                  setPrefill({ text: question, nonce: Date.now() });
+                  setView("chat");
+                }}
+              />
+            )}
+            {view === "admin" && <Admin token={token} />}
+            </main>
+          )}
+        </ResizablePanel>
+
+        <ResizableHandle withHandle />
+
+        {/* Drag the handle above to resize; the button below goes properly fullscreen for
+            the moments dragging is too slow — checking a dense table or a signature page is
+            worth the whole viewport for a few seconds. `fixed inset-3` lifts this panel out
+            of the flex flow entirely rather than asking `ResizablePanelGroup` to size it to
+            100%, which only ever expanded it *within* the row next to the (still visible,
+            just squeezed to nothing) chat panel — expanding a share of the layout is not the
+            same thing as fullscreen. Position stays fixed on this same element rather than
+            porting the content to a portal/overlay, so `PdfViewer` never unmounts and the
+            open document doesn't re-fetch or lose its scroll position on the way in or out. */}
+        <ResizablePanel
+          defaultSize="35%"
+          minSize="20%"
+          maxSize="90%"
+          className={
+            pdfExpanded
+              ? "fixed inset-3 z-50 flex flex-col rounded-xl border border-border bg-card shadow-2xl"
+              : "flex flex-col rounded-xl border border-border bg-card shadow-sm"
+          }
+        >
+          <header className="panel-accent flex h-12 shrink-0 items-center justify-between rounded-t-xl border-b border-border px-4 text-sm font-medium text-foreground">
+            Document preview
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={pdfExpanded ? "Exit fullscreen" : "Fullscreen"}
+              onClick={() => setPdfExpanded((expanded) => !expanded)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              {pdfExpanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+            </Button>
+          </header>
+          <div className="flex-1 overflow-auto rounded-b-xl">
+            <Suspense
+              fallback={<p className="p-6 text-sm text-muted-foreground">Opening the document…</p>}
+            >
+              <PdfViewer citation={citation} token={token} />
+            </Suspense>
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }
