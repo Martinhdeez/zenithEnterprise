@@ -272,7 +272,14 @@ def reingest(
             typer.echo(f"\n{len(stranded)} document(s). Re-run with --apply to enqueue.")
             return
 
-        typer.echo(f"\nEnqueued {await requeue(stranded)} document(s).")
+        # The queue's connection pool has to be open before `defer_async` is called, or
+        # every enqueue raises `AppNotOpen` and the command reports success for work it
+        # never sent. `main.py` opens it for the API's lifetime; a CLI invocation is its
+        # own process and has to do the same for the length of this command.
+        from app.features.ingestion.tasks import app as queue
+
+        async with queue.open_async():
+            typer.echo(f"\nEnqueued {await requeue(stranded)} document(s).")
 
     _execute(run())
 
