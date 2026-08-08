@@ -23,6 +23,7 @@ import { inviteUser, llmConfig, roles as fetchRoles, saveLlmConfig, setRolePermi
 import { ApiError } from "@/shared/api/http";
 import { TagManager, labels as fetchLabels, type Label as LabelType } from "@/features/labels";
 import { AccessMatrix, GroupManager } from "./AccessMatrix";
+import { UserGroups } from "./UserGroups";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -65,6 +66,9 @@ export function Admin({ token }: { token: string }) {
       </Panel>
       <Panel title="Groups">
         <GroupManager token={token} onChanged={reloadLabels} />
+      </Panel>
+      <Panel title="People and groups">
+        <UserGroups token={token} />
       </Panel>
       <Panel title="Access matrix">
         <AccessMatrix token={token} labels={labels} onLabelsChanged={reloadLabels} />

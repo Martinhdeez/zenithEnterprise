@@ -128,6 +128,34 @@ export function setLabelClearance(
   });
 }
 
+/** Somebody in this tenant, with the access they hold. */
+export interface Member {
+  id: string;
+  email: string;
+  /** Null for anyone who never set one — render the address instead. */
+  name: string | null;
+  role_ids: string[];
+  group_ids: string[];
+}
+
+export function users(token: string): Promise<Member[]> {
+  return request<Member[]>("/users", token);
+}
+
+/**
+ * Replace one person's groups.
+ *
+ * The whole set, not a delta — the same contract every other access write in this API
+ * uses, so a caller always knows what the result will be without reading state first.
+ */
+export function setUserGroups(token: string, userId: string, groupIds: string[]): Promise<void> {
+  return request<void>(`/users/${userId}/groups`, token, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ group_ids: groupIds }),
+  });
+}
+
 export interface LlmConfig {
   endpoint_url: string;
   model_name: string;

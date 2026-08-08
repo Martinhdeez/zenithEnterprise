@@ -20,11 +20,14 @@ from app.features.admin.schemas import (
     InviteResponse,
     LlmConfigRequest,
     LlmConfigResponse,
+    MemberResponse,
     RoleClearanceRequest,
     RoleRequest,
     RoleResponse,
 )
 from app.features.auth.dependencies import CurrentProfile, requires
+from app.features.auth.directory import MANAGE as USERS_MANAGE
+from app.features.auth.directory import DirectoryService
 from app.features.auth.invitations import INVITE, InvitationService
 from app.features.auth.roles import MANAGE as ROLES_MANAGE
 from app.features.auth.roles import RoleService
@@ -138,6 +141,24 @@ async def set_permissions(
 )
 async def assign_roles(profile: CurrentProfile, user_id: UUID, request: AssignRolesRequest) -> None:
     await RoleService(profile).assign(user_id, request.role_ids)
+
+
+@router.get(
+    "/users",
+    operation_id="listUsers",
+    summary="Everyone in this tenant, with the roles and groups they hold",
+    dependencies=[Depends(requires(USERS_MANAGE))],
+)
+async def list_users(profile: CurrentProfile) -> list[MemberResponse]:
+    """The directory an administrator edits access from.
+
+    Roles and groups are returned as ids rather than names: the screen already holds both
+    catalogues to render its selectors, and sending names too would give it two sources for
+    one fact that can disagree.
+    """
+    return [
+        MemberResponse(**asdict(member)) for member in await DirectoryService(profile).members()
+    ]
 
 
 @router.get(

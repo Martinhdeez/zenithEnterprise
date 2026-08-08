@@ -42,6 +42,16 @@ class AssignRolesRequest(BaseModel):
     role_ids: list[UUID] = Field(default_factory=list[UUID])
 
 
+class MemberResponse(BaseModel):
+    id: UUID
+    email: str
+    #: What they chose to be called. Null for anyone who never set one — every screen falls
+    #: back to the address, which is the value that is always there.
+    name: str | None
+    role_ids: list[UUID]
+    group_ids: list[UUID]
+
+
 class LlmConfigResponse(BaseModel):
     endpoint_url: str
     model_name: str
