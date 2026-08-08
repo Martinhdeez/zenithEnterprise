@@ -208,3 +208,36 @@ export function inviteUser(
     body: JSON.stringify({ email, role_ids: roleIds }),
   });
 }
+
+/** What the installation has been asked, and what the answers read. */
+export interface Analytics {
+  window_days: number;
+  totals: {
+    queries: number;
+    users: number;
+    prompt_tokens: number;
+    completion_tokens: number;
+    /** Queries whose provider reported no usage. Not the same as costing nothing. */
+    queries_without_usage: number;
+    average_retrieval_ms: number;
+    average_generation_ms: number;
+    abstentions: number;
+  };
+  most_active: { user_id: string | null; email: string | null; queries: number }[];
+  top_cited: { document_id: string; filename: string; answers: number }[];
+  recent: {
+    query_id: string;
+    asked_at: string;
+    email: string | null;
+    question: string;
+    abstained: boolean;
+    model: string | null;
+    latency_ms: number;
+    /** The documents this answer read. */
+    documents: string[];
+  }[];
+}
+
+export function analytics(token: string): Promise<Analytics> {
+  return request<Analytics>("/analytics", token);
+}

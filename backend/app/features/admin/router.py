@@ -15,6 +15,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 
 from app.features.admin.schemas import (
+    AnalyticsResponse,
     AssignRolesRequest,
     InviteRequest,
     InviteResponse,
@@ -25,7 +26,7 @@ from app.features.admin.schemas import (
     RoleRequest,
     RoleResponse,
 )
-from app.features.auth.dependencies import CurrentProfile, requires
+from app.features.auth.dependencies import CurrentProfile, requires, requires_any
 from app.features.auth.directory import MANAGE as USERS_MANAGE
 from app.features.auth.directory import DirectoryService
 from app.features.auth.invitations import INVITE, InvitationService
@@ -33,6 +34,9 @@ from app.features.auth.roles import MANAGE as ROLES_MANAGE
 from app.features.auth.roles import RoleService
 from app.features.generation.config_service import MANAGE as LLM_MANAGE
 from app.features.generation.config_service import LlmConfigService
+from app.features.query.analytics import AnalyticsService
+from app.features.query.history import ANY as HISTORY_ANY
+from app.features.query.history import OWN as HISTORY_OWN
 
 router = APIRouter(tags=["admin"])
 
@@ -141,6 +145,24 @@ async def set_permissions(
 )
 async def assign_roles(profile: CurrentProfile, user_id: UUID, request: AssignRolesRequest) -> None:
     await RoleService(profile).assign(user_id, request.role_ids)
+
+
+@router.get(
+    "/analytics",
+    operation_id="getAnalytics",
+    summary="Usage, cost and the audit log of what answers read",
+    dependencies=[Depends(requires_any(HISTORY_OWN, HISTORY_ANY))],
+)
+async def analytics(profile: CurrentProfile) -> AnalyticsResponse:
+    """Everything here comes from `queries` and `query_citations`, which have logged it
+    since 0001 and had never been read.
+
+    Scoped by migration 0005's policy rather than by a filter written here: without
+    `query.history.any` the caller sees their own activity and the numbers are about them.
+    That is the honest answer to "show me the analytics" from somebody who may only read
+    their own history, and it is enforced in the database rather than remembered here.
+    """
+    return AnalyticsResponse(**asdict(await AnalyticsService(profile).overview()))
 
 
 @router.get(

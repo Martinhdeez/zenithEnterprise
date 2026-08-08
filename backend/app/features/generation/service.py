@@ -103,6 +103,8 @@ class AnswerService:
             # produce something this system must then refuse to show.
             bound = binding.Bound(prompt.ABSTENTION, [], abstained=True, fabricated=0)
             model, generation_ms = "", 0
+            # No model was called, so there is nothing it could have reported.
+            usage: tuple[int | None, int | None] | None = None
         else:
             started = time.perf_counter()
             completion = await provider.complete(
@@ -111,9 +113,10 @@ class AnswerService:
             generation_ms = int((time.perf_counter() - started) * 1000)
             model = completion.model
             bound = binding.bind(completion.text, found.hits)
+            usage = (completion.prompt_tokens, completion.completion_tokens)
 
         query_id = await self._record(
-            question, bound, found.hits, model, found.took_ms, generation_ms
+            question, bound, found.hits, model, found.took_ms, generation_ms, usage
         )
         log.info(
             "query",
@@ -193,8 +196,20 @@ class AnswerService:
         # two would drift.
         bound = binding.bind("".join(pieces), found.hits)
         model = getattr(provider, "model", "")
+        # A streamed response carries no usage object unless it was asked for, which the
+        # adapter now does (`stream_options.include_usage`). Read off the provider after
+        # the stream rather than yielded through it: the interface is an iterator of text,
+        # and widening it to carry a cost report would put a field in every adapter for
+        # something only one of them can answer. `(None, None)` for a provider that does
+        # not report — still not zero.
         query_id = await self._record(
-            question, bound, found.hits, model, found.took_ms, generation_ms
+            question,
+            bound,
+            found.hits,
+            model,
+            found.took_ms,
+            generation_ms,
+            getattr(provider, "last_usage", None),
         )
         log.info(
             "query_streamed",
@@ -234,7 +249,15 @@ class AnswerService:
         text_only, markers = binding.stripped(completion.text)
         bound = binding.Bound(text_only, [], abstained=False, fabricated=markers)
 
-        query_id = await self._record(message, bound, [], completion.model, 0, generation_ms)
+        query_id = await self._record(
+            message,
+            bound,
+            [],
+            completion.model,
+            0,
+            generation_ms,
+            (completion.prompt_tokens, completion.completion_tokens),
+        )
         log.info("query_conversational", query_id=str(query_id), generation_ms=generation_ms)
         return Answer(
             query_id=query_id,
@@ -315,6 +338,7 @@ class AnswerService:
         model: str,
         retrieval_ms: int,
         generation_ms: int,
+        usage: tuple[int | None, int | None] | None = None,
     ) -> UUID:
         """The query log — observability now, the audit trail in iteration 4 (mvp.md 2.13).
 
@@ -332,9 +356,10 @@ class AnswerService:
             query_id = await session.scalar(
                 text(
                     "INSERT INTO queries (tenant_id, user_id, question, answer, model_used, "
-                    "latency_retrieval_ms, latency_generation_ms) "
+                    "latency_retrieval_ms, latency_generation_ms, prompt_tokens, "
+                    "completion_tokens) "
                     "VALUES (:tenant, :user, :question, :answer, :model, :retrieval, "
-                    ":generation) RETURNING id"
+                    ":generation, :prompt_tokens, :completion_tokens) RETURNING id"
                 ),
                 {
                     "tenant": self.context.tenant_id,
@@ -344,6 +369,10 @@ class AnswerService:
                     "model": model or None,
                     "retrieval": retrieval_ms,
                     "generation": generation_ms,
+                    # NULL when the provider said nothing, which is not zero. See
+                    # `GenerationResponse` — a local binding reports no usage at all.
+                    "prompt_tokens": usage[0] if usage else None,
+                    "completion_tokens": usage[1] if usage else None,
                 },
             )
             assert query_id is not None

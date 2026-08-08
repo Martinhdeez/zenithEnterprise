@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
@@ -83,3 +84,50 @@ class InviteResponse(BaseModel):
     #: passes it on the way they already pass on credentials.
     password: str
     role_ids: list[UUID]
+
+
+class TotalsResponse(BaseModel):
+    queries: int
+    users: int
+    prompt_tokens: int
+    completion_tokens: int
+    #: How many of those queries reported no usage at all. Shown rather than folded into the
+    #: totals as zeros: a local model reports nothing, and an unknown cost is not a zero
+    #: cost. See `GenerationResponse`.
+    queries_without_usage: int
+    average_retrieval_ms: int
+    average_generation_ms: int
+    abstentions: int
+
+
+class ActiveUserResponse(BaseModel):
+    user_id: UUID | None
+    email: str | None
+    queries: int
+
+
+class CitedDocumentResponse(BaseModel):
+    document_id: UUID
+    filename: str
+    answers: int
+
+
+class AuditEntryResponse(BaseModel):
+    query_id: UUID
+    asked_at: datetime
+    email: str | None
+    question: str
+    abstained: bool
+    model: str | None
+    latency_ms: int
+    #: What the answer read. The part an auditor asks about, and not derivable from the
+    #: answer text.
+    documents: list[str]
+
+
+class AnalyticsResponse(BaseModel):
+    window_days: int
+    totals: TotalsResponse
+    most_active: list[ActiveUserResponse]
+    top_cited: list[CitedDocumentResponse]
+    recent: list[AuditEntryResponse]

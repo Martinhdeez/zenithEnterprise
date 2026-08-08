@@ -4,6 +4,7 @@ export {
   roles,
   groups,
   users,
+  analytics,
   setUserGroups,
   setRolePermissions,
   llmConfig,
@@ -12,6 +13,7 @@ export {
   type Role,
   type Group,
   type Member,
+  type Analytics,
   type LlmConfig,
   type Invitation,
 } from "./api";

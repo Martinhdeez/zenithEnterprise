@@ -23,6 +23,7 @@ import { inviteUser, llmConfig, roles as fetchRoles, saveLlmConfig, setRolePermi
 import { ApiError } from "@/shared/api/http";
 import { TagManager, labels as fetchLabels, type Label as LabelType } from "@/features/labels";
 import { AccessMatrix, GroupManager } from "./AccessMatrix";
+import { Analytics } from "./Analytics";
 import { UserGroups } from "./UserGroups";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +62,12 @@ export function Admin({ token }: { token: string }) {
 
   return (
     <div className="space-y-6">
+      {/* First, because it is the only panel that answers a question rather than setting
+          something — an administrator opening this screen usually wants to know what is
+          happening before changing anything. */}
+      <Panel title="Analytics">
+        <Analytics token={token} />
+      </Panel>
       <Panel title="Invite a colleague">
         <InvitePanel token={token} />
       </Panel>

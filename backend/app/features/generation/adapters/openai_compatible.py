@@ -43,6 +43,9 @@ TEMPERATURE = 0.1
 class OpenAIProvider(BaseLLMProvider):
     name = "openai"
 
+    #: Token counts from the last streamed call, or `(None, None)`. See `stream`.
+    last_usage: tuple[int | None, int | None] = (None, None)
+
     def __init__(
         self,
         endpoint_url: str,
@@ -93,15 +96,24 @@ class OpenAIProvider(BaseLLMProvider):
             )
 
         payload: object = response.json()
+        prompt_tokens, completion_tokens = usage_of(payload)
         return GenerationResponse(
             text=_first_message(payload),
             # What the server says it ran, falling back to what we asked for. A gateway
             # substituting a model silently is exactly what `queries.model_used` is for.
             model=_model_of(payload) or self.model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
         )
 
     async def stream(self, system: str, user: str) -> AsyncIterator[str]:
         """The same request with `stream: true`, decoded from SSE.
+
+        Sets `last_usage` as a side effect, read by the caller once the stream is done.
+        Stateful and therefore worth being explicit about: a provider is built per request
+        by `AnswerService._resolve`, so there is no sharing to race over — but a provider
+        reused across concurrent requests would report the wrong numbers, and that is the
+        constraint anybody moving this code has to keep.
 
         Parsed by hand rather than with a library: the response is `data: {...}` lines and a
         `data: [DONE]` sentinel, and a dependency that exists to split on a colon would be a
@@ -124,6 +136,13 @@ class OpenAIProvider(BaseLLMProvider):
                         "model": self.model,
                         "temperature": TEMPERATURE,
                         "stream": True,
+                        # Asked for explicitly, because a streamed response carries no
+                        # usage object otherwise — which is why every streamed answer
+                        # recorded NULL tokens and the cost dashboard had nothing to show
+                        # for the path the chat actually uses. An endpoint that does not
+                        # understand this key ignores it; one that does sends a final chunk
+                        # whose `choices` is empty and whose `usage` is the whole point.
+                        "stream_options": {"include_usage": True},
                         "messages": [
                             {"role": "system", "content": system},
                             {"role": "user", "content": user},
@@ -136,7 +155,13 @@ class OpenAIProvider(BaseLLMProvider):
                         f"the language model returned {response.status_code}."
                     )
                 async for line in response.aiter_lines():
-                    content = _streamed_delta(line)
+                    payload = decoded(line)
+                    if payload is None:
+                        continue
+                    self.last_usage = (
+                        usage_of(payload) if _field(payload, "usage") else (self.last_usage)
+                    )
+                    content = delta_of(payload)
                     if content:
                         yield content
         except httpx.HTTPError as exc:
@@ -146,17 +171,32 @@ class OpenAIProvider(BaseLLMProvider):
             ) from exc
 
 
-def _streamed_delta(line: str) -> str | None:
-    """One SSE line to the text it carries, or `None` for everything else."""
+# Public rather than underscored, and the three below with it. They are the SSE contract
+# this adapter implements — which chunk carries text, which carries the cost — and that is
+# a thing worth naming and testing directly rather than reaching into.
+def decoded(line: str) -> object | None:
+    """One SSE line to its JSON object, or `None` for everything that is not one.
+
+    Split from reading the delta because the final chunk of a stream with
+    `include_usage` has an *empty* `choices` and a populated `usage` — so a decoder that
+    returned only the text would throw away the one chunk the cost report needs.
+
+    A malformed line is skipped rather than fatal. Half a streamed answer that keeps
+    flowing is worth more than an exception thrown mid-sentence.
+    """
     if not line.startswith("data:"):
         return None
     payload = line[len("data:") :].strip()
     if not payload or payload == "[DONE]":
         return None
     try:
-        decoded: object = json.loads(payload)
+        return json.loads(payload)
     except json.JSONDecodeError:
         return None
+
+
+def delta_of(decoded: object) -> str | None:
+    """The text one streamed chunk carries, or `None` — including for the usage chunk."""
     choices = _field(decoded, "choices")
     if not isinstance(choices, list) or not choices:
         return None
@@ -199,3 +239,25 @@ def _field(value: object, key: str) -> object:
     if not isinstance(value, dict):
         return None
     return cast(dict[str, object], value).get(key)
+
+
+def usage_of(payload: object) -> tuple[int | None, int | None]:
+    """Token counts, if this endpoint reports any.
+
+    `(None, None)` when it does not, and that is a different answer from `(0, 0)`. A local
+    binding reports nothing and a gateway may strip `usage`; recording zero for either would
+    put a confident, wrong number in a cost report that somebody budgets against.
+
+    Read defensively rather than trusted: `usage` is not in the OpenAI *streaming* response
+    at all, and a proxy is free to send it as a string. Anything that is not an integer is
+    treated as not reported.
+    """
+    usage = _field(payload, "usage")
+    if not isinstance(usage, dict):
+        return None, None
+
+    def count(key: str) -> int | None:
+        value = cast(dict[str, object], usage).get(key)
+        return value if isinstance(value, int) else None
+
+    return count("prompt_tokens"), count("completion_tokens")

@@ -26,18 +26,30 @@ from app.common.exceptions import ZenithError
 class GenerationResponse:
     """What any provider returns, reduced to what this system uses.
 
-    Deliberately narrower than every vendor's response. Tools, JSON mode, logprobs, cached
-    token counts — each is something one provider has and another does not, and a field
-    here for any of them would be a field that is `None` on half the installations and load-
-    bearing on the other half.
+    Deliberately narrower than every vendor's response. Tools, JSON mode, logprobs — each is
+    something one provider has and another does not, and a field here for any of them would
+    be a field that is `None` on half the installations and load-bearing on the other half.
 
     `model` is what the provider says it ran, not what was asked for: it lands in
     `queries.model_used`, and a gateway silently substituting a model is exactly the thing
     that column exists to catch.
+
+    **Token counts are the one exception, and they are `None` on purpose.** An installation
+    that pays per token needs to know what it spent, which the analytics dashboard exists to
+    answer — so the field is here. But the objection above still stands: a local llama.cpp
+    binding reports nothing, and a gateway may strip `usage` entirely. So nothing treats
+    absence as zero. The dashboard says the provider did not report it rather than showing a
+    confident 0, because a cost of zero and an unknown cost are different answers and only
+    one of them is ever true.
     """
 
     text: str
     model: str
+    #: What the provider said it spent, when it says anything. Never inferred, never
+    #: estimated from character counts — a made-up number in a cost report is worse than no
+    #: number, because somebody will budget against it.
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
