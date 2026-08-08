@@ -64,9 +64,9 @@ describe("choosing a group", () => {
     render(<AccessMatrix token="t" labels={LABELS} />);
     fireEvent.click(await screen.findByRole("button", { name: /Engineering/ }));
 
-    const mapped = screen.getByLabelText("Engineering may reach hr/payroll") as HTMLInputElement;
+    const mapped = screen.getByLabelText("Engineering may reach hr/payroll");
 
-    expect(mapped.checked).toBe(false);
+    expect(mapped.getAttribute("aria-checked")).toBe("false");
   });
 });
 
@@ -96,7 +96,7 @@ describe("searching the labels", () => {
     render(<AccessMatrix token="t" labels={LABELS} />);
     await screen.findByLabelText("Human Resources may reach hr/payroll");
 
-    const names = screen.getAllByRole("checkbox").map((box) => box.getAttribute("aria-label"));
+    const names = screen.getAllByRole("checkbox").map((row) => row.getAttribute("aria-label"));
 
     expect(names[0]).toContain("hr/payroll");
   });
@@ -140,9 +140,9 @@ describe("saving", () => {
     fireEvent.click(await screen.findByLabelText("Human Resources may reach finance/routine"));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-    const box = screen.getByLabelText("Human Resources may reach finance/routine");
+    const row = screen.getByLabelText("Human Resources may reach finance/routine");
 
-    expect((box as HTMLInputElement).checked).toBe(false);
+    expect(row.getAttribute("aria-checked")).toBe("false");
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   });
 
@@ -237,5 +237,43 @@ describe("clearance", () => {
     render(<AccessMatrix token="t" labels={LABELS} />);
 
     expect(await screen.findByText(/the two are independent/i)).toBeTruthy();
+  });
+});
+
+
+describe("the row itself", () => {
+  it("is the control, not a checkbox beside it", async () => {
+    // A native `<input type="checkbox">` is drawn by the operating system and cannot be
+    // made to match anything else on the page — and it puts a 16-pixel target beside a row
+    // four hundred wide.
+    render(<AccessMatrix token="t" labels={LABELS} />);
+    const row = await screen.findByLabelText("Human Resources may reach finance/routine");
+
+    expect(row.tagName).toBe("BUTTON");
+    expect(row.getAttribute("role")).toBe("checkbox");
+  });
+
+  it("toggles when the label text is clicked", async () => {
+    render(<AccessMatrix token="t" labels={LABELS} />);
+    await screen.findByLabelText("Human Resources may reach finance/routine");
+
+    fireEvent.click(screen.getByText("finance/routine"));
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
+  });
+
+  it("keeps the clearance control out of the toggle", async () => {
+    // A control nested inside a control is invalid HTML and unreachable by keyboard, and
+    // changing a level must not also tick the row.
+    render(<AccessMatrix token="t" labels={LABELS} />);
+    const row = await screen.findByLabelText("Human Resources may reach hr/payroll");
+
+    expect(row.querySelector("select")).toBeNull();
+
+    fireEvent.change(screen.getByLabelText("Clearance required by hr/payroll"), {
+      target: { value: "5" },
+    });
+
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   });
 });

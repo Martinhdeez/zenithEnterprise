@@ -19,7 +19,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Search, ShieldAlert } from "lucide-react";
+import { Check, Loader2, Search, ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { Label } from "@/features/labels";
@@ -190,18 +190,52 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
           </div>
 
           <ul className="max-h-96 divide-y divide-border overflow-y-auto rounded-md border border-input">
-            {shown.map((label) => (
-              <li key={label.id} className="flex items-center gap-3 px-3 py-2">
-                <input
-                  type="checkbox"
-                  checked={held.has(label.id)}
-                  onChange={() => toggle(label.id)}
+            {shown.map((label) => {
+              const on = held.has(label.id);
+              return (
+              <li
+                key={label.id}
+                className={`flex items-center gap-2 transition-colors ${
+                  on ? "bg-primary/10" : "hover:bg-secondary/60"
+                }`}
+              >
+                {/* The whole row toggles, not a 16-pixel box beside it. A native checkbox
+                    is drawn by the operating system — it cannot be made to match anything
+                    else on the page, which is what makes it look like it belongs to a
+                    different decade of the web.
+
+                    `role="checkbox"` and `aria-checked` rather than a styled `<input>`: the
+                    thing being clicked is the row, so the row is what should announce its
+                    state. The select sits outside this button rather than inside it,
+                    because a control nested in a control is invalid and unreachable by
+                    keyboard. */}
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={on}
+                  onClick={() => toggle(label.id)}
                   aria-label={`${group?.name ?? ""} may reach ${label.name}`}
-                  className="size-4 shrink-0 accent-primary"
-                />
-                <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-                  {label.name}
-                </span>
+                  className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2 text-left"
+                >
+                  {/* A filled disc with a check, or an empty ring. The ring matters: an
+                      unticked row with nothing in it reads as a row that cannot be ticked. */}
+                  <span
+                    className={`flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                      on
+                        ? "border-primary bg-primary text-white"
+                        : "border-muted-foreground/40"
+                    }`}
+                  >
+                    {on && <Check className="size-2.5" strokeWidth={3.5} />}
+                  </span>
+                  <span
+                    className={`min-w-0 flex-1 truncate text-sm transition-colors ${
+                      on ? "font-medium text-foreground" : "text-muted-foreground"
+                    }`}
+                  >
+                    {label.name}
+                  </span>
+                </button>
                 {/* The clearance the label demands, beside it rather than in a column
                     header. A tick alone opens nothing without it, and that is the one thing
                     this screen must not let anybody misread. */}
@@ -215,7 +249,7 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
                   onChange={(event) => void classify(label.id, Number(event.target.value))}
                   aria-label={`Clearance required by ${label.name}`}
                   title="Applies to this label everywhere, not just to this group — saved as soon as you change it."
-                  className="shrink-0 rounded border border-input bg-card px-1.5 py-0.5 text-xs text-muted-foreground"
+                  className="mr-3 shrink-0 rounded-md border border-input bg-card px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
                 >
                   <option value={0}>no clearance</option>
                   {Array.from({ length: 10 }, (_, index) => index + 1).map((level) => (
@@ -225,7 +259,8 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
                   ))}
                 </select>
               </li>
-            ))}
+              );
+            })}
           </ul>
 
           {shown.length === 0 && (

@@ -21,7 +21,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, Loader2, Merge, Search, Trash2 } from "lucide-react";
+import { ArrowRight, Check, Loader2, Merge, Search, Trash2 } from "lucide-react";
 
 import { deleteLabel, mergeLabels, searchLabels, type LabelMergeResult, type LabelSearchItem, type LabelSort } from "./api";
 import { ApiError } from "@/shared/api/http";
@@ -178,15 +178,29 @@ export function TagManager({ token }: { token: string }) {
         {items.map((item) => (
           <li
             key={item.id}
-            className="flex items-center gap-3 rounded-md border border-border bg-secondary px-3 py-2"
+            className={`flex items-center gap-3 rounded-md border px-3 py-2 transition-colors ${
+              chosen.has(item.id)
+                ? "border-primary/40 bg-primary/10"
+                : "border-border bg-secondary"
+            }`}
           >
-            <input
-              type="checkbox"
-              checked={chosen.has(item.id)}
-              onChange={() => toggle(item.id)}
+            {/* The same disc as the access list and the staging table. A native checkbox is
+                drawn by the operating system, so it is the one control on the page that
+                cannot be made to look like the rest of it. */}
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={chosen.has(item.id)}
+              onClick={() => toggle(item.id)}
               aria-label={`Select ${item.name}`}
-              className="size-4 accent-primary"
-            />
+              className={`flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                chosen.has(item.id)
+                  ? "border-primary bg-primary text-white"
+                  : "border-muted-foreground/40 hover:border-primary/60"
+              }`}
+            >
+              {chosen.has(item.id) && <Check className="size-2.5" strokeWidth={3.5} />}
+            </button>
             <span className="min-w-0 flex-1 truncate text-sm text-foreground">
               {item.name}
               {item.is_default && (

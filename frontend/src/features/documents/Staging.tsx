@@ -19,7 +19,7 @@
  */
 
 import { useCallback, useMemo, useState } from "react";
-import { Loader2, Sparkles, Trash2 } from "lucide-react";
+import { Check, Loader2, Sparkles, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { LabelPicker, TagChips, type Label } from "@/features/labels";
@@ -123,16 +123,23 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
       {/* The toolbar acts on the selection, so it says what the selection is. A bulk action
           whose scope is implicit is how somebody tags nine hundred files by accident. */}
       <div className="flex flex-wrap items-center gap-2 rounded-md border border-input bg-secondary p-2">
-        <label className="flex items-center gap-2 px-1 text-sm">
-          <input
-            type="checkbox"
-            checked={allSelected}
-            aria-label="Select all staged files"
-            onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)))}
-            className="size-4 accent-primary"
-          />
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={allSelected}
+          aria-label="Select all staged files"
+          onClick={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)))}
+          className="flex items-center gap-2 rounded-md px-1.5 py-1 text-sm text-foreground transition-colors hover:bg-card"
+        >
+          <span
+            className={`flex size-4 items-center justify-center rounded-full border transition-colors ${
+              allSelected ? "border-primary bg-primary text-white" : "border-muted-foreground/40"
+            }`}
+          >
+            {allSelected && <Check className="size-2.5" strokeWidth={3.5} />}
+          </span>
           {selected.size > 0 ? `${selected.size} selected` : "Select all"}
-        </label>
+        </button>
 
         <div className="flex-1" />
 
@@ -205,14 +212,25 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
       <ul className="max-h-96 divide-y divide-border overflow-y-auto rounded-md border border-input">
         {painted.map((row) => (
           <li key={row.id} className="flex items-center gap-3 px-3 py-2 text-sm">
-            <input
-              type="checkbox"
-              checked={selected.has(row.id)}
+            {/* The same disc the access list uses, for the same reason: a native
+                checkbox is drawn by the operating system and matches nothing else here.
+                Kept as its own control rather than making the whole row a toggle — this
+                list has shift-click ranges, and a row that toggles on click cannot also
+                extend a selection without fighting the file name for the same gesture. */}
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={selected.has(row.id)}
               aria-label={`Select ${row.file.name}`}
-              onChange={() => {}}
               onClick={(event) => click(row.id, event.shiftKey)}
-              className="size-4 shrink-0 accent-primary"
-            />
+              className={`flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                selected.has(row.id)
+                  ? "border-primary bg-primary text-white"
+                  : "border-muted-foreground/40 hover:border-primary/60"
+              }`}
+            >
+              {selected.has(row.id) && <Check className="size-2.5" strokeWidth={3.5} />}
+            </button>
             <span className="min-w-0 flex-1 truncate text-foreground">{row.file.name}</span>
             <span className="shrink-0">
               {row.labelIds.length > 0 ? (
