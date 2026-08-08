@@ -92,7 +92,12 @@ export function System({ token }: { token: string }) {
         </p>
       )}
 
-      <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-secondary shadow-sm">
+      {/* `divide-input`, not `divide-border`, and two pixels rather than one. `--border`
+          (#1e293b) sits almost on top of the `--secondary` panel it divides (#182238), so a
+          hairline in it was a line nobody could see; `--input` (#334155) is a real step away
+          from both. Each row here is an organisation somebody may be about to suspend, and
+          telling one row from the next is not a decorative concern. */}
+      <ul className="divide-y-2 divide-input overflow-hidden rounded-lg border border-border bg-secondary shadow-sm">
         {items.map((organisation) => (
           <li key={organisation.id} className="flex flex-wrap items-center gap-3 p-4">
             <Building2 className="size-4 shrink-0 text-muted-foreground" />

@@ -201,7 +201,7 @@ function Rows({
 }) {
   if (rows.length === 0) return <p className="text-sm text-muted-foreground">{empty}</p>;
   return (
-    <ul className="divide-y divide-border rounded-md border border-input bg-card">
+    <ul className="divide-y-2 divide-input rounded-md border border-input bg-card">
       {rows.map((row) => (
         <li key={row.key} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
           <span className="min-w-0 truncate text-foreground">{row.left}</span>
@@ -262,7 +262,7 @@ function AuditLog({ token }: { token: string }) {
         <div className="overflow-x-auto rounded-md border border-input bg-card">
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="border-b border-border text-left text-xs text-muted-foreground">
+              <tr className="border-b-2 border-input text-left text-xs text-muted-foreground">
                 <th className="p-2 font-medium">When</th>
                 <th className="p-2 font-medium">Who</th>
                 <th className="p-2 font-medium">Question</th>
@@ -271,7 +271,7 @@ function AuditLog({ token }: { token: string }) {
             </thead>
             <tbody>
               {entries.map((entry) => (
-                <tr key={entry.query_id} className="border-b border-border/60 last:border-0">
+                <tr key={entry.query_id} className="border-b-2 border-input last:border-0">
                   <td className="p-2 align-top whitespace-nowrap text-xs text-muted-foreground">
                     {new Date(entry.asked_at).toLocaleString()}
                   </td>
