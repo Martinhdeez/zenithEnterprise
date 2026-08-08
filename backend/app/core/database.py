@@ -49,6 +49,8 @@ _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
 _owner_engine: AsyncEngine | None = None
 _owner_session_factory: async_sessionmaker[AsyncSession] | None = None
+_platform_engine: AsyncEngine | None = None
+_platform_session_factory: async_sessionmaker[AsyncSession] | None = None
 
 # The configuration is remembered separately from the engines built from it, so that
 # connections can be dropped without losing where they pointed. `dispose_engines` needs
@@ -58,6 +60,7 @@ _owner_session_factory: async_sessionmaker[AsyncSession] | None = None
 _url: str | None = None
 _pool_size: int | None = None
 _owner_url: str | None = None
+_platform_url: str | None = None
 
 
 def configure_engine(url: str, pool_size: int | None = None) -> None:
@@ -86,6 +89,17 @@ def configure_owner_engine(url: str) -> None:
     _owner_session_factory = async_sessionmaker(_owner_engine, expire_on_commit=False)
 
 
+def configure_platform_engine(url: str) -> None:
+    global _platform_engine, _platform_session_factory, _platform_url
+    _platform_url = url
+    if _platform_engine is not None:
+        _platform_engine.sync_engine.dispose()
+    # Small pool, same reasoning as the owner engine: this connection bypasses RLS and the
+    # operations that need it are rare and sequential.
+    _platform_engine = create_async_engine(url, pool_size=2, max_overflow=0, pool_pre_ping=True)
+    _platform_session_factory = async_sessionmaker(_platform_engine, expire_on_commit=False)
+
+
 def get_engine() -> AsyncEngine:
     if _engine is None:
         configure_engine(_url or settings.database_url, _pool_size)
@@ -107,6 +121,13 @@ def get_owner_session_factory() -> async_sessionmaker[AsyncSession]:
     return _owner_session_factory
 
 
+def get_platform_session_factory() -> async_sessionmaker[AsyncSession]:
+    if _platform_session_factory is None:
+        configure_platform_engine(_platform_url or settings.database_platform_url)
+    assert _platform_session_factory is not None
+    return _platform_session_factory
+
+
 async def dispose_engines() -> None:
     """Close every pooled connection, keeping the configuration.
 
@@ -116,12 +137,16 @@ async def dispose_engines() -> None:
     what makes one process able to run several commands, each in its own loop.
     """
     global _engine, _session_factory, _owner_engine, _owner_session_factory
+    global _platform_engine, _platform_session_factory
     if _engine is not None:
         await _engine.dispose()
     if _owner_engine is not None:
         await _owner_engine.dispose()
+    if _platform_engine is not None:
+        await _platform_engine.dispose()
     _engine = _session_factory = None
     _owner_engine = _owner_session_factory = None
+    _platform_engine = _platform_session_factory = None
 
 
 async def set_rls_context(session: AsyncSession, context: "TenantContext") -> None:
@@ -221,4 +246,25 @@ async def owner_session() -> AsyncGenerator[AsyncSession]:
     bug regardless of what the handler does.
     """
     async with get_owner_session_factory()() as session, session.begin():
+        yield session
+
+
+@asynccontextmanager
+async def platform_session() -> AsyncGenerator[AsyncSession]:
+    """Session as `zenith_platform`. **Bypasses RLS, and cannot touch the schema.**
+
+    The second bypass surface, and the only one reachable over HTTP. It exists for the
+    system administration panel, whose entire job is the question RLS is built to refuse:
+    what is in every tenant at once.
+
+    Separate from `owner_session` rather than reusing it, and the difference is the point.
+    The owner can `DROP TABLE`; this role holds DML and `USAGE` and nothing else (migration
+    0010). A bug in a system handler can therefore destroy data — which is what the panel is
+    for — but not the schema it lives in.
+
+    Kept greppable for the same reason as `owner_session`: searching for `platform_session`
+    is a complete audit of what the panel can reach. Every caller must sit behind
+    `requires_system_admin`; one that does not is a bug regardless of what it does.
+    """
+    async with get_platform_session_factory()() as session, session.begin():
         yield session

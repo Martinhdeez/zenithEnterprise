@@ -102,6 +102,10 @@ services:
       # policy, which `verify_rls_active()` refuses to start against. See db.7's role setup.
       ZENITH_DATABASE_URL: postgresql+psycopg://zenith_app:${ZENITH_APP_PASSWORD:-zenith_app}@db:5432/${POSTGRES_DB:-zenith}
       ZENITH_DATABASE_OWNER_URL: postgresql+psycopg://${POSTGRES_USER:-zenith}:${POSTGRES_PASSWORD:-zenith}@db:5432/${POSTGRES_DB:-zenith}
+      # Bypasses RLS and holds no DDL: the system administration panel only, via
+      # `platform_session`. Migration 0010 creates the role NOLOGIN — the operator sets
+      # the password, exactly as with zenith_app.
+      ZENITH_DATABASE_PLATFORM_URL: postgresql+psycopg://zenith_platform:${ZENITH_PLATFORM_PASSWORD:-zenith_platform}@db:5432/${POSTGRES_DB:-zenith}
       ZENITH_TEI_EMBED_URL: http://tei-embed:80
       ZENITH_TEI_RERANK_URL: http://tei-rerank:80
     ports:
@@ -135,6 +139,7 @@ services:
       # an API reading them (see `core.database.verify_rls_active`).
       ZENITH_DATABASE_URL: postgresql+psycopg://zenith_app:${ZENITH_APP_PASSWORD:-zenith_app}@db:5432/${POSTGRES_DB:-zenith}
       ZENITH_DATABASE_OWNER_URL: postgresql+psycopg://${POSTGRES_USER:-zenith}:${POSTGRES_PASSWORD:-zenith}@db:5432/${POSTGRES_DB:-zenith}
+      ZENITH_DATABASE_PLATFORM_URL: postgresql+psycopg://zenith_platform:${ZENITH_PLATFORM_PASSWORD:-zenith_platform}@db:5432/${POSTGRES_DB:-zenith}
       ZENITH_TEI_EMBED_URL: http://tei-embed:80
       ZENITH_TEI_RERANK_URL: http://tei-rerank:80
     volumes:

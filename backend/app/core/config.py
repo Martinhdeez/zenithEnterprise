@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://zenith_app:change-me@localhost:5432/zenith"
     # Schema owner, bypasses RLS. Migrations and the install CLI only.
     database_owner_url: str = "postgresql+psycopg://zenith:zenith@localhost:5432/zenith"
+    # Bypasses RLS, holds no DDL. The system administration panel only — the one bypass
+    # that is reachable over HTTP, which is why it is a role of its own rather than the
+    # owner: it can destroy a tenant's data, and it cannot destroy the schema.
+    database_platform_url: str = (
+        "postgresql+psycopg://zenith_platform:change-me@localhost:5432/zenith"
+    )
     tei_embed_url: str = "http://localhost:8081"
     tei_rerank_url: str = "http://localhost:8082"
 

@@ -30,6 +30,18 @@ class PermissionDeniedError(ZenithError):
     code = "permission_denied"
 
 
+class TenantSuspendedError(ZenithError):
+    """The caller's organisation is suspended.
+
+    403 rather than 401: the credentials are perfectly valid and re-authenticating will not
+    help. Distinct from `PermissionDeniedError` because the remedy is different and the
+    screen should say so — nobody can fix this by being granted a permission.
+    """
+
+    status_code = 403
+    code = "tenant_suspended"
+
+
 class RateLimitedError(ZenithError):
     status_code = 429
     code = "rate_limited"

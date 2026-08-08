@@ -40,6 +40,21 @@ to know if it's needed again (e.g. after `docker compose down -v`).
    Must match `ZENITH_APP_PASSWORD` in `.env`. Without this, `api`/`worker` fall back to
    connecting as the schema owner and `verify_rls_active()` refuses to start — by design,
    silently disabling RLS is the one failure mode that check exists to prevent.
+4. Migration `0010` creates a second role the same way, for the same reason. `zenith_platform`
+   bypasses RLS and holds no DDL; it is what the system administration panel connects as
+   (`app/core/database.py`'s `platform_session`):
+   ```bash
+   docker compose exec db psql -U zenith -d zenith -c \
+     "ALTER ROLE zenith_platform LOGIN PASSWORD 'zenith_platform';"
+   ```
+   Must match `ZENITH_PLATFORM_PASSWORD` in `.env` (default `zenith_platform`). Only the
+   `/system/*` routes use it, so the rest of the app runs fine without it — the panel is
+   where the omission shows up.
+5. Nobody can reach `/system` until somebody is granted it, and it cannot be granted from
+   inside the product (that is the point — see migration 0010). Bootstrap the first one:
+   ```bash
+   docker compose exec api uv run python -m app.cli grant-system-admin you@example.com
+   ```
 
 ## Start it
 
@@ -97,6 +112,10 @@ until the image is rebuilt:
 ```bash
 docker compose up -d --build api worker
 ```
+**Rebuild `worker` too, not just `api`.** They are separate images from the same source, and
+a new Procrastinate task registered in `ingestion/tasks.py` exists only in the image that was
+rebuilt. A stale worker accepts the job and fails it with `Task was not found` — which reads
+like a queue problem and is a build problem.
 And if the change added an Alembic migration, apply it the same way as initial setup:
 ```bash
 docker compose exec api alembic upgrade head

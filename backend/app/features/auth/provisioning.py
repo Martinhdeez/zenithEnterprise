@@ -7,6 +7,8 @@ places: the install CLI, on the owner connection, before any context exists (mvp
 copy, and neither gets to widen the other's reach.
 """
 
+import secrets
+import string
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +18,21 @@ from app.features.auth.model import Role, RolePermission, User, UserRole
 from app.features.auth.permissions import SYSTEM_ROLES
 from app.features.auth.service import normalise_email
 from app.features.auth.throttle import run_hash
+
+# Unambiguous alphabet: no O/0, no l/1/I. These passwords get read aloud over the phone and
+# typed from a screenshot, and a character nobody can identify is a support call.
+_ALPHABET = "".join(c for c in string.ascii_letters + string.digits if c not in "O0oIl1")
+
+
+def generate_password(length: int = 20) -> str:
+    """A one-time credential for somebody who has none yet.
+
+    Lives beside `create_user` rather than in the CLI because it is no longer only the CLI
+    that provisions people: the system panel creates an organisation's first administrator
+    over HTTP, and two implementations of "how strong is a generated password" is one more
+    than a product should have.
+    """
+    return "".join(secrets.choice(_ALPHABET) for _ in range(length))
 
 
 async def seed_system_roles(session: AsyncSession, tenant_id: UUID) -> dict[str, Role]:

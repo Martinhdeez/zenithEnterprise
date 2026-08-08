@@ -2,7 +2,7 @@
  * Login, the silent refresh behind it, and who you are once you are in.
  */
 
-import { ApiError, request, type ApiErrorBody } from "@/shared/api/http";
+import { ApiError, request, type ApiErrorBody, readable } from "@/shared/api/http";
 
 export interface TokenPair {
   access_token: string;
@@ -22,7 +22,7 @@ export function login(email: string, password: string): Promise<TokenPair> {
       // Deliberately not distinguishing "no such user" from "wrong password" in the UI
       // either. The API refuses to, because telling them apart turns a login form into an
       // account-enumeration tool, and a helpful client would undo that.
-      throw new ApiError(response.status, body.code, body.detail ?? body.message);
+      throw new ApiError(response.status, body.code, readable(body.detail ?? body.message));
     }
     return response.json() as Promise<TokenPair>;
   });
@@ -48,7 +48,7 @@ export function refreshTokens(refreshToken: string): Promise<TokenPair> {
       const body: ApiErrorBody = await response
         .json()
         .catch(() => ({ code: "unknown", message: "Session expired." }));
-      throw new ApiError(response.status, body.code, body.detail ?? body.message);
+      throw new ApiError(response.status, body.code, readable(body.detail ?? body.message));
     }
     return response.json() as Promise<TokenPair>;
   });
@@ -70,6 +70,12 @@ export interface UserProfile {
    */
   labels: string[];
   documents_uploaded: number;
+  /**
+   * Authority above every tenant. Decides whether the system nav item is drawn — nothing
+   * more: the API refuses `/system/*` on its own, so hiding it only spares somebody a
+   * screen full of 403s.
+   */
+  is_system_admin: boolean;
   created_at: string;
 }
 

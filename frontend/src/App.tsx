@@ -9,6 +9,7 @@
 
 import { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import {
+  Building2,
   Folder as FolderIcon,
   History as HistoryIcon,
   Maximize2,
@@ -31,6 +32,7 @@ import {
   type UserProfile,
 } from "@/features/auth";
 import { Chat, type Citation } from "@/features/chat";
+import { System } from "@/features/system";
 import { History } from "@/features/history";
 import {
   Folders,
@@ -98,7 +100,7 @@ export function App() {
   // Search is the landing screen, not Chat: it is the one screen that shows what the
   // retrieval mechanism actually did, and that is the more useful first thing to see than
   // an empty ask box — Chat is one click away in the same nav, never removed.
-  const [view, setView] = useState<"chat" | "search" | "folders" | "upload" | "history" | "admin" | "profile">(
+  const [view, setView] = useState<"chat" | "search" | "folders" | "upload" | "history" | "admin" | "system" | "profile">(
     "search",
   );
   // Owned here, not inside `Folders`, so the breadcrumb in the main header can show *and*
@@ -329,8 +331,15 @@ export function App() {
                 { name: "upload", icon: UploadIcon },
                 { name: "history", icon: HistoryIcon },
                 { name: "admin", icon: Settings },
+                // Above every tenant, so it is above every tenant's nav too: drawn only
+                // for the handful of people who hold it. Hiding it is courtesy rather than
+                // security — `/system/*` refuses everyone else on its own — but a nav item
+                // that always 403s is a worse product than one that is not there.
+                { name: "system", icon: Building2 },
               ] as const
-            ).map(({ name, icon: Icon }) => (
+            )
+              .filter(({ name }) => name !== "system" || me?.is_system_admin)
+              .map(({ name, icon: Icon }) => (
               <button
                 key={name}
                 type="button"
@@ -522,6 +531,7 @@ export function App() {
               />
             )}
             {view === "admin" && <Admin token={token} />}
+            {view === "system" && <System token={token} />}
             {view === "profile" && (
               <Profile token={token} onSignedOut={signOut} onProfile={setMe} />
             )}

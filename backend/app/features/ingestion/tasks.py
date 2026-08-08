@@ -80,6 +80,28 @@ async def ingest_document(tenant_id: str, document_id: str, label_ids: list[str]
     return {"status": result.status, "chunks": str(result.chunks)}
 
 
+@app.task(name="purge_tenant", queue="ingestion", retry=2)
+async def purge_tenant(tenant_id: str) -> dict[str, int]:
+    """Destroy one organisation's data. Runs here rather than in the request that asked.
+
+    Not because a caller would mind waiting, but because of what the wait is made of:
+    cascading `document_labels` fires a per-row trigger for every label on every document,
+    and on a real corpus that is a burst of thousands. An HTTP request is the wrong place to
+    hold a connection open for it.
+
+    `retry=2` is safe because the work is idempotent — the deletes are by `tenant_id`, the
+    storage removal treats missing as success, and the tombstone update is a fixed value.
+    A retry after a partial run finishes the job rather than repeating damage.
+
+    Shares the `ingestion` queue on purpose. `low-spec` runs one worker at concurrency 1, so
+    a separate queue would need a second worker process to be served at all — and a purge
+    queued behind the ingestion it just cancelled is the correct order anyway.
+    """
+    from app.features.system.purge import purge_tenant as run_purge
+
+    return await run_purge(UUID(tenant_id))
+
+
 def worker_concurrency() -> int:
     """One document at a time on `low-spec`, and that is not a suggestion.
 

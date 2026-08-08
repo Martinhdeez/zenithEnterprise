@@ -19,33 +19,23 @@ it safe:
 
 import asyncio
 import json
-import secrets
-import string
 from collections.abc import Coroutine
 from typing import Annotated, Any
 
 import typer
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.common.exceptions import ConflictError, NotFoundError
 from app.core.config import generate_secret
 from app.core.database import dispose_engines, owner_session
 from app.core.diagnostics import run_diagnostics
 from app.features.auth.model import Role, User
-from app.features.auth.provisioning import create_user
+from app.features.auth.provisioning import create_user, generate_password
 from app.features.auth.service import normalise_email
 from app.features.tenancy.model import Tenant
 from app.features.tenancy.service import TenantService
 
 app = typer.Typer(help="Zenith Enterprise installation and recovery commands.")
-
-# Unambiguous alphabet: no O/0, no l/1/I. These passwords get read aloud over the phone
-# and typed from a screenshot, and a character nobody can identify is a support call.
-_ALPHABET = "".join(c for c in string.ascii_letters + string.digits if c not in "O0oIl1")
-
-
-def _generate_password(length: int = 20) -> str:
-    return "".join(secrets.choice(_ALPHABET) for _ in range(length))
 
 
 def _execute(work: Coroutine[Any, Any, None]) -> None:
@@ -95,7 +85,7 @@ def create_tenant(
             typer.secho(str(exc), fg=typer.colors.RED, err=True)
             raise typer.Exit(1) from exc
 
-        password = _generate_password()
+        password = generate_password()
         async with owner_session() as session:
             admin_role = await session.scalar(
                 select(Role).where(Role.tenant_id == tenant.id, Role.name == "admin")
@@ -124,7 +114,7 @@ def invite(
             typer.secho(str(exc), fg=typer.colors.RED, err=True)
             raise typer.Exit(1) from exc
 
-        password = _generate_password()
+        password = generate_password()
         async with owner_session() as session:
             target = await session.scalar(
                 select(Role).where(Role.tenant_id == found.id, Role.name == role)
@@ -155,7 +145,7 @@ def reset_password(
     async def run() -> None:
         from app.core.security import hash_password
 
-        password = _generate_password()
+        password = generate_password()
         async with owner_session() as session:
             user = await session.scalar(
                 select(User)
@@ -315,6 +305,81 @@ def generate_jwt_secret() -> None:
     the choice, which is the only reliable fix.
     """
     typer.echo(generate_secret())
+
+
+@app.command("grant-system-admin")
+def grant_system_admin(
+    email: str = typer.Argument(..., help="Address of an existing user"),
+) -> None:
+    """Give a user authority above every tenant.
+
+    The only way to make the first one, and necessarily so: the flag cannot be granted from
+    the product, because a tenant's administrator editing their own roles must never be able
+    to reach out of their own tenant. `zenith_app` has no UPDATE privilege on the column
+    (migration 0010), so this runs on the owner connection.
+
+    The address must be unique across the installation. If two tenants both have a user with
+    it, this refuses rather than guessing — the same reasoning as login, where an ambiguous
+    address is treated as no match.
+    """
+
+    async def work() -> None:
+        async with owner_session() as session:
+            matches = list(
+                await session.scalars(
+                    text("SELECT id FROM users WHERE email = :e"),
+                    {"e": normalise_email(email)},
+                )
+            )
+            if not matches:
+                typer.secho(f"No user with address {email!r}.", fg=typer.colors.RED, err=True)
+                raise typer.Exit(1)
+            if len(matches) > 1:
+                typer.secho(
+                    f"{email!r} exists in {len(matches)} organisations. "
+                    f"Resolve that before granting system administration.",
+                    fg=typer.colors.RED,
+                    err=True,
+                )
+                raise typer.Exit(1)
+
+            await session.execute(
+                text("UPDATE users SET is_system_admin = true WHERE id = :u"), {"u": matches[0]}
+            )
+
+        typer.secho(f"{email} is now a system administrator.", fg=typer.colors.GREEN)
+        typer.echo("They reach /system in the product on their next request.")
+
+    _execute(work())
+
+
+@app.command("revoke-system-admin")
+def revoke_system_admin(
+    email: str = typer.Argument(..., help="Address of a system admin"),
+) -> None:
+    """Take that authority away.
+
+    Effective on the holder's next request, not when their token expires: the flag is read
+    per request in `AuthService.profile` rather than carried in the token.
+    """
+
+    async def work() -> None:
+        async with owner_session() as session:
+            updated = list(
+                await session.scalars(
+                    text(
+                        "UPDATE users SET is_system_admin = false "
+                        "WHERE email = :e AND is_system_admin RETURNING id"
+                    ),
+                    {"e": normalise_email(email)},
+                )
+            )
+        if not updated:
+            typer.secho(f"{email!r} was not a system administrator.", fg=typer.colors.YELLOW)
+            return
+        typer.secho(f"{email} is no longer a system administrator.", fg=typer.colors.GREEN)
+
+    _execute(work())
 
 
 if __name__ == "__main__":

@@ -29,6 +29,7 @@ from testcontainers.community.postgres import PostgresContainer
 BACKEND_DIR = Path(__file__).resolve().parent
 IMAGE = "paradedb/paradedb:0.15.26-pg17"
 APP_PASSWORD = "app-test"
+PLATFORM_PASSWORD = "platform-test"
 
 
 def _async_url(container: PostgresContainer, user: str, password: str) -> str:
@@ -72,6 +73,11 @@ def migrated(postgres: PostgresContainer, owner_url: str) -> str:
     async def _grant_credentials() -> None:
         async with engine.begin() as conn:
             await conn.execute(text(f"ALTER ROLE zenith_app LOGIN PASSWORD '{APP_PASSWORD}'"))
+            # Migration 0010 creates this one NOLOGIN too, for the same reason: the
+            # credential belongs to the installer, not the repository.
+            await conn.execute(
+                text(f"ALTER ROLE zenith_platform LOGIN PASSWORD '{PLATFORM_PASSWORD}'")
+            )
         await engine.dispose()
 
     asyncio.run(_grant_credentials())
@@ -100,18 +106,29 @@ async def seed_session(owner_engine: AsyncEngine) -> AsyncIterator[AsyncSession]
         yield session
 
 
+@pytest.fixture(scope="session")
+def platform_url(postgres: PostgresContainer, migrated: str) -> str:
+    """The role the system panel connects as: bypasses RLS, holds no DDL."""
+    return _async_url(postgres, "zenith_platform", PLATFORM_PASSWORD)
+
+
 @pytest.fixture
-def configured_engines(migrated: str, owner_url: str) -> Iterator[None]:
+def configured_engines(migrated: str, owner_url: str, platform_url: str) -> Iterator[None]:
     """Point the application's own engines at the test container.
 
     Anything exercising `tenant_session` or `owner_session` goes through the module
     level factories, so they have to be redirected or the test would talk to
     whatever `.env` happens to say.
     """
-    from app.core.database import configure_engine, configure_owner_engine
+    from app.core.database import (
+        configure_engine,
+        configure_owner_engine,
+        configure_platform_engine,
+    )
 
     configure_engine(migrated)
     configure_owner_engine(owner_url)
+    configure_platform_engine(platform_url)
     yield
 
 

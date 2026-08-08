@@ -71,3 +71,22 @@ def requires_any(*permissions: str) -> Callable[[AccessProfile], Awaitable[Acces
         return profile
 
     return guard
+
+
+async def requires_system_admin(profile: CurrentProfile) -> AccessProfile:
+    """Declare that an endpoint is above every tenant.
+
+        @router.get("/system/tenants", dependencies=[Depends(requires_system_admin)])
+
+    Not a permission, and it cannot be one. `requires("...")` compares against what the
+    caller's roles grant, and a tenant's own administrator edits those roles freely from the
+    roles screen — so any code in `CATALOGUE` is a route out of your own tenant, held open by
+    the very people it is meant to bound. This reads `users.is_system_admin`, which migration
+    0010 made unwritable on the application connection.
+
+    A tenant administrator holding the entire catalogue gets 403 here. There is a test that
+    says exactly that, because it is the property the whole panel rests on.
+    """
+    if not profile.is_system_admin:
+        raise PermissionDeniedError("this action requires system administration")
+    return profile

@@ -147,6 +147,34 @@ class DocumentStorage:
             lambda: self.path_for(tenant_id, sha256).unlink(missing_ok=True)
         )
 
+    async def purge_tenant(self, tenant_id: UUID) -> int:
+        """Remove everything one organisation ever stored. Returns how many files went.
+
+        One recursive removal of `root/<tenant_id>/`, which is possible only because
+        `path_for` puts the tenant first — the layout was chosen for exactly this (see its
+        docstring) and this is the operation it was chosen for.
+
+        **No reference counting, deliberately.** A purge elsewhere might ask "is this blob
+        still needed by somebody else?"; here the question cannot arise. Two organisations
+        uploading identical bytes get two files in two subtrees, and `UNIQUE(tenant_id,
+        sha256)` means one organisation never has two rows for one file. Writing the check
+        anyway would imply blobs are shared, which is false, and would invite somebody to
+        make it true later.
+
+        Missing is success, same as `delete`: the intended state is that nothing of theirs
+        remains on disk, and if the directory was never created, nothing does.
+        """
+
+        def remove() -> int:
+            directory = self.root / str(tenant_id)
+            if not directory.exists():
+                return 0
+            removed = sum(1 for path in directory.rglob("*") if path.is_file())
+            shutil.rmtree(directory, ignore_errors=True)
+            return removed
+
+        return await anyio.to_thread.run_sync(remove)
+
     async def free_bytes(self) -> int:
         """For `zenith diagnose`.
 

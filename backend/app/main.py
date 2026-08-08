@@ -19,6 +19,7 @@ from app.features.ingestion.tasks import app as procrastinate_app
 from app.features.labels.router import router as labels_router
 from app.features.query.router import router as query_router
 from app.features.retrieval.router import router as search_router
+from app.features.system.router import router as system_router
 from app.features.tenancy.router import router as tenancy_router
 
 # Import-only, and load-bearing rather than tidiness: `app.models` is the one place every
@@ -135,6 +136,7 @@ app.include_router(query_router)
 app.include_router(tenancy_router)
 app.include_router(admin_router)
 app.include_router(groups_router)
+app.include_router(system_router)
 
 
 @app.get("/health")

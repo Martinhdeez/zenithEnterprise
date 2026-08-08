@@ -7,7 +7,7 @@ from app.features.auth.model import Role, RolePermission, User, UserRole
 from app.features.documents.model import Document
 from app.features.groups.model import GroupLabel, UserGroup
 from app.features.labels.model import AccessLabel, RoleLabel
-from app.features.tenancy.model import Tenant
+from app.features.tenancy.model import ACTIVE, Tenant
 
 
 class UserRepository(ScopedRepository[User]):
@@ -84,6 +84,26 @@ class UserRepository(ScopedRepository[User]):
             )
         )
         return tuple(await self.session.scalars(granted.union(through_group)))
+
+    async def tenant_status(self) -> str:
+        """The lifecycle state of the tenant this session is scoped to.
+
+        No `WHERE tenant_id` — there is no need. `tenants` carries the policy
+        `id = zenith_current_tenant()`, so this session can see exactly one row, and asking
+        for it by filter would restate a rule the database is already enforcing.
+        """
+        return await self.session.scalar(select(Tenant.status)) or ACTIVE
+
+    async def is_system_admin(self, user_id: UUID) -> bool:
+        """Authority above every tenant.
+
+        Readable here, and only readable: migration 0010 narrows `zenith_app`'s UPDATE
+        grant on `users` to a column list that omits this one, so no code path reachable
+        from a request can set it.
+        """
+        return bool(
+            await self.session.scalar(select(User.is_system_admin).where(User.id == user_id))
+        )
 
     async def role_names(self, user_id: UUID) -> list[str]:
         """The roles this user holds, by the names their administrator chose.

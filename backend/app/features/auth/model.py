@@ -40,6 +40,15 @@ class User(Base):
     # Immediate revocation without Redis: bumping this invalidates live tokens.
     token_version: Mapped[int] = mapped_column(default=0, server_default="0")
     created_at: Mapped[created_at]
+    #: Authority above every tenant, and the one field on this table the application
+    #: connection cannot write.
+    #:
+    #: It is not a permission in `CATALOGUE` on purpose: a tenant's administrator edits
+    #: `role_permissions` freely from the roles screen, so a permission would be a route out
+    #: of their own tenant. Migration 0010 narrows `zenith_app`'s UPDATE grant to a column
+    #: list that omits this one, so promoting yourself fails at the database whatever code
+    #: path tries it. Granted from the CLI only.
+    is_system_admin: Mapped[bool] = mapped_column(default=False, server_default="false")
 
 
 class Role(Base):

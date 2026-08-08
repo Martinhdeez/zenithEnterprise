@@ -4,6 +4,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 
+import { request } from "./http";
 import { IN_FLIGHT } from "./tenant";
 
 describe("document statuses", () => {
@@ -59,5 +60,52 @@ describe("error handling", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("not json", { status: 502 })));
 
     await expect(tenantStatus("token")).rejects.toMatchObject({ code: "unknown" });
+  });
+});
+
+describe("what a failure says", () => {
+  it("shows the sentence this API's own errors carry", async () => {
+    globalThis.fetch = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ code: "conflict", detail: "Suspend it first" }), {
+          status: 409,
+        }),
+      ),
+    ) as unknown as typeof fetch;
+
+    await expect(request("/x", "t")).rejects.toThrow("Suspend it first");
+  });
+
+  it("turns FastAPI's validation array into readable text", async () => {
+    // A 422 answers with `[{loc, msg, type}]`, not a string. Rendered straight it put the
+    // literal `[object Object]` on screen where the reason should be — on every form in
+    // the product, not just the one that happened to find it.
+    globalThis.fetch = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            detail: [
+              { loc: ["body", "admin_email"], msg: "value is not a valid email address" },
+              { loc: ["body", "name"], msg: "String should have at least 1 character" },
+            ],
+          }),
+          { status: 422 },
+        ),
+      ),
+    ) as unknown as typeof fetch;
+
+    // Both, joined: a form can fail two fields at once, and hearing about one means
+    // submitting again to discover the other.
+    await expect(request("/x", "t")).rejects.toThrow(
+      "value is not a valid email address. String should have at least 1 character",
+    );
+  });
+
+  it("falls back to a sentence when the shape is unrecognisable", async () => {
+    globalThis.fetch = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify({ detail: { odd: true } }), { status: 500 })),
+    ) as unknown as typeof fetch;
+
+    await expect(request("/x", "t")).rejects.toThrow("The request failed.");
   });
 });

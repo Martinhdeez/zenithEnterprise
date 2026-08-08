@@ -63,6 +63,9 @@ class ProfileResponse(BaseModel):
     labels: list[str]
     documents_uploaded: int
     created_at: datetime
+    #: Authority above every tenant. The system panel's nav item hangs off this; the API
+    #: refuses those routes on its own regardless.
+    is_system_admin: bool = False
 
 
 class MeResponse(BaseModel):
