@@ -190,14 +190,47 @@ describe("clearance", () => {
   });
 
   it("saves immediately, unlike a tick", async () => {
-    // A clearance is a property of the label rather than of this group's mapping, so it is
-    // not part of the draft the Save button commits.
+    // A clearance belongs to the *label*, not to this group's mapping: raising it changes
+    // what every group opens. Putting a change that wide behind a button labelled for one
+    // group would imply a scope it does not have.
     render(<AccessMatrix token="t" labels={LABELS} />);
     fireEvent.change(await screen.findByLabelText("Clearance required by hr/payroll"), {
       target: { value: "5" },
     });
 
     await waitFor(() => expect(setLabelClearance).toHaveBeenCalledWith("t", "l1", 5));
+  });
+
+  it("says that it saved, since no button is going to", async () => {
+    // Without a mark, a control that writes on change is indistinguishable from one that
+    // does nothing — which is exactly what the tick boxes looked like before they grew a
+    // Save button, and what prompted this.
+    render(<AccessMatrix token="t" labels={LABELS} />);
+    fireEvent.change(await screen.findByLabelText("Clearance required by hr/payroll"), {
+      target: { value: "5" },
+    });
+
+    expect((await screen.findByRole("status")).textContent).toBe("saved");
+  });
+
+  it("does not offer Save for a clearance change", async () => {
+    // The question this answers: a level change and a tick sit on the same row and behave
+    // differently, and the difference is that one of them is not about this group at all.
+    render(<AccessMatrix token="t" labels={LABELS} />);
+    fireEvent.change(await screen.findByLabelText("Clearance required by hr/payroll"), {
+      target: { value: "5" },
+    });
+
+    await waitFor(() => expect(setLabelClearance).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+  });
+
+  it("explains which control is which", async () => {
+    render(<AccessMatrix token="t" labels={LABELS} />);
+
+    expect(
+      await screen.findByText(/applies to that label everywhere and saves straight away/i),
+    ).toBeTruthy();
   });
 
   it("states that the two halves are independent", async () => {

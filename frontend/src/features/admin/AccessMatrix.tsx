@@ -40,6 +40,11 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The label whose clearance was just written, so the row can say so. A clearance saves on
+  // change rather than on Save, and without a mark that is indistinguishable from a control
+  // that did nothing — which is exactly what the ticks used to look like before they grew a
+  // Save button.
+  const [justSaved, setJustSaved] = useState<string | null>(null);
 
   const load = useCallback(() => {
     void fetchGroups(token)
@@ -98,6 +103,13 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
     try {
       await setLabelClearance(token, labelId, level);
       onLabelsChanged?.();
+      // Deliberately *not* part of the draft the Save button commits. A clearance belongs to
+      // the label, not to this group's mapping — raising it changes what every group opens,
+      // and the whole product with it. Putting a change that wide behind a button labelled
+      // for one group would imply a scope it does not have, which is worse than the
+      // inconsistency of two controls on one row behaving differently.
+      setJustSaved(labelId);
+      setTimeout(() => setJustSaved((current) => (current === labelId ? null : current)), 2000);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "That change was not saved.");
     }
@@ -193,10 +205,16 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
                 {/* The clearance the label demands, beside it rather than in a column
                     header. A tick alone opens nothing without it, and that is the one thing
                     this screen must not let anybody misread. */}
+                {justSaved === label.id && (
+                  <span className="shrink-0 text-xs text-zenith-cyan" role="status">
+                    saved
+                  </span>
+                )}
                 <select
                   value={label.priority_level ?? 0}
                   onChange={(event) => void classify(label.id, Number(event.target.value))}
                   aria-label={`Clearance required by ${label.name}`}
+                  title="Applies to this label everywhere, not just to this group — saved as soon as you change it."
                   className="shrink-0 rounded border border-input bg-card px-1.5 py-0.5 text-xs text-muted-foreground"
                 >
                   <option value={0}>no clearance</option>
@@ -219,7 +237,9 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
           <div className="flex items-center justify-between gap-3 pt-1">
             <p className="text-xs text-muted-foreground">
               Members still need their role&apos;s clearance to reach the level each label
-              demands — the two are independent.
+              demands — the two are independent. Changing a level applies to that label
+              everywhere and saves straight away; the tick boxes are this group only and
+              wait for Save.
             </p>
             {dirty && (
               <div className="flex shrink-0 gap-2">
