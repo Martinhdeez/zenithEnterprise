@@ -126,8 +126,15 @@ class AuditEntryResponse(BaseModel):
 
 
 class AnalyticsResponse(BaseModel):
+    """The aggregates. The audit log is its own page — see `GET /analytics/audit`."""
+
     window_days: int
     totals: TotalsResponse
     most_active: list[ActiveUserResponse]
     top_cited: list[CitedDocumentResponse]
-    recent: list[AuditEntryResponse]
+
+
+class AuditPageResponse(BaseModel):
+    entries: list[AuditEntryResponse]
+    #: Opaque. Pass it back as `cursor`; `null` means this is the last page.
+    next_cursor: str | None

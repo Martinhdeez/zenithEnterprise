@@ -26,6 +26,7 @@ from sqlalchemy import text
 
 from app.core.database import tenant_session
 from app.features.auth.service import AccessProfile
+from app.features.documents.pagination import Cursor, clamp
 from app.features.query.history import ANY
 
 #: How far back the dashboard looks. Not configurable yet, and a fixed window is the honest
@@ -33,9 +34,10 @@ from app.features.query.history import ANY
 #: being true the moment two of them answer different questions about different periods.
 WINDOW_DAYS = 30
 
-#: Rows in the audit table. It is a *recent* activity list, not an export — a screen that
-#: renders a year of questions is a screen nobody opens twice.
-RECENT = 50
+#: Rows per page of the audit log. Ten rather than fifty, and the reason is the screen
+#: rather than the query: fifty rows push every other panel on the admin page far below the
+#: fold, so an administrator scrolls past a wall of questions to reach the access matrix.
+AUDIT_PAGE = 10
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,11 +94,24 @@ class AuditEntry:
 
 @dataclass(frozen=True, slots=True)
 class Analytics:
+    """The aggregates. The audit log is `AuditPage`, fetched separately.
+
+    Split because they answer different questions and change at different rates: the
+    aggregates are one row of numbers that a page turn cannot alter, and recomputing four
+    of them to hand back ten different log rows is work nobody asked for.
+    """
+
     window_days: int
     totals: Totals
     most_active: list[ActiveUser]
     top_cited: list[CitedDocument]
-    recent: list[AuditEntry]
+
+
+@dataclass(frozen=True, slots=True)
+class AuditPage:
+    entries: list[AuditEntry]
+    #: Opaque. Pass it back as `cursor`; `None` means this is the last page.
+    next_cursor: str | None
 
 
 class AnalyticsService:
@@ -160,27 +175,6 @@ class AnalyticsService:
                 )
             )
 
-            recent = await session.execute(
-                text(
-                    "SELECT q.id, q.created_at, u.email, q.question, q.model_used, "
-                    "  coalesce(q.latency_retrieval_ms, 0) + "
-                    "  coalesce(q.latency_generation_ms, 0) AS latency_ms, "
-                    # Aggregated in the same pass rather than a query per row: fifty rows
-                    # is fifty round trips otherwise, on a screen that is refreshed.
-                    "  coalesce(array_agg(DISTINCT d.filename) "
-                    "    FILTER (WHERE d.filename IS NOT NULL), '{}') AS documents "
-                    "FROM queries q "
-                    "LEFT JOIN users u ON u.id = q.user_id "
-                    "LEFT JOIN query_citations c ON c.query_id = q.id "
-                    "LEFT JOIN chunks ch ON ch.id = c.chunk_id "
-                    "LEFT JOIN documents d ON d.id = ch.document_id "
-                    f"WHERE q.created_at >= {since} "
-                    "GROUP BY q.id, q.created_at, u.email, q.question, q.model_used, "
-                    "  q.latency_retrieval_ms, q.latency_generation_ms "
-                    f"ORDER BY q.created_at DESC LIMIT {RECENT}"
-                )
-            )
-
             return Analytics(
                 window_days=WINDOW_DAYS,
                 totals=Totals(
@@ -203,19 +197,75 @@ class AnalyticsService:
                     )
                     for row in cited
                 ],
-                recent=[
-                    AuditEntry(
-                        query_id=row.id,
-                        asked_at=row.created_at,
-                        email=row.email,
-                        question=row.question,
-                        # No citations means the answer cited nothing, which is what an
-                        # abstention is once it has been bound.
-                        abstained=len(row.documents) == 0,
-                        model=row.model_used,
-                        latency_ms=int(row.latency_ms),
-                        documents=sorted(row.documents),
-                    )
-                    for row in recent
-                ],
             )
+
+    async def audit(self, cursor: Cursor | None = None, limit: int | None = None) -> AuditPage:
+        """One page of the log, newest first, resumed from a cursor rather than an offset.
+
+        `OFFSET` would make Postgres produce and discard every row before this page — and
+        under RLS the policy is evaluated on each of those discarded rows too, so page ten
+        costs ten pages of access checks nobody sees. `documents/pagination.Cursor` already
+        encodes `(created_at, id)`, which is exactly the key this needs and exactly the index
+        migration 0013 added.
+
+        `id` is in the key rather than the timestamp alone because `created_at` is not
+        unique: two questions asked in the same millisecond would make a timestamp-only
+        cursor skip one of them or repeat it forever. `LabelCursor` learned that the hard
+        way when migration 0007 backfilled every label with one timestamp.
+        """
+        size = clamp(limit) if limit is not None else AUDIT_PAGE
+        since = f"now() - interval '{WINDOW_DAYS} days'"
+        # Strictly older than the last row of the previous page, in the same ordering. The
+        # row comparison is what makes it one index seek rather than a scan with a filter.
+        after = "AND (q.created_at, q.id) < (:cursor_at, :cursor_id) " if cursor else ""
+        parameters = {"cursor_at": cursor.created_at, "cursor_id": cursor.id} if cursor else {}
+
+        async with tenant_session(self.context) as session:
+            rows = list(
+                await session.execute(
+                    text(
+                        "SELECT q.id, q.created_at, u.email, q.question, q.model_used, "
+                        "  coalesce(q.latency_retrieval_ms, 0) + "
+                        "  coalesce(q.latency_generation_ms, 0) AS latency_ms, "
+                        # Aggregated in the same pass rather than a query per row: ten rows
+                        # would otherwise be ten round trips, on a screen that is refreshed.
+                        "  coalesce(array_agg(DISTINCT d.filename) "
+                        "    FILTER (WHERE d.filename IS NOT NULL), '{}') AS documents "
+                        "FROM queries q "
+                        "LEFT JOIN users u ON u.id = q.user_id "
+                        "LEFT JOIN query_citations c ON c.query_id = q.id "
+                        "LEFT JOIN chunks ch ON ch.id = c.chunk_id "
+                        "LEFT JOIN documents d ON d.id = ch.document_id "
+                        f"WHERE q.created_at >= {since} {after}"
+                        "GROUP BY q.id, q.created_at, u.email, q.question, q.model_used, "
+                        "  q.latency_retrieval_ms, q.latency_generation_ms "
+                        # One more than asked for: whether another page exists is knowable
+                        # from the overshoot, and a count(*) to answer it would scan the
+                        # whole window on every page turn.
+                        f"ORDER BY q.created_at DESC, q.id DESC LIMIT {size + 1}"
+                    ),
+                    parameters,
+                )
+            )
+
+        entries = [
+            AuditEntry(
+                query_id=row.id,
+                asked_at=row.created_at,
+                email=row.email,
+                question=row.question,
+                abstained=len(row.documents) == 0,
+                model=row.model_used,
+                latency_ms=int(row.latency_ms),
+                documents=sorted(row.documents),
+            )
+            for row in rows[:size]
+        ]
+        return AuditPage(
+            entries=entries,
+            next_cursor=(
+                Cursor(created_at=entries[-1].asked_at, id=entries[-1].query_id).encode()
+                if len(rows) > size and entries
+                else None
+            ),
+        )

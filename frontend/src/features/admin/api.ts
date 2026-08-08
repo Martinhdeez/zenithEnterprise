@@ -225,17 +225,36 @@ export interface Analytics {
   };
   most_active: { user_id: string | null; email: string | null; queries: number }[];
   top_cited: { document_id: string; filename: string; answers: number }[];
-  recent: {
-    query_id: string;
-    asked_at: string;
-    email: string | null;
-    question: string;
-    abstained: boolean;
-    model: string | null;
-    latency_ms: number;
-    /** The documents this answer read. */
-    documents: string[];
-  }[];
+}
+
+export interface AuditEntry {
+  query_id: string;
+  asked_at: string;
+  email: string | null;
+  question: string;
+  abstained: boolean;
+  model: string | null;
+  latency_ms: number;
+  /** The documents this answer read. */
+  documents: string[];
+}
+
+export interface AuditPage {
+  entries: AuditEntry[];
+  /** Opaque. Pass it back as `cursor`; null means this is the last page. */
+  next_cursor: string | null;
+}
+
+/**
+ * One page of the audit log, newest first.
+ *
+ * Its own request rather than a field on `analytics()`: a page turn cannot change a single
+ * aggregate up there, and re-running four of them to fetch ten log rows is work nobody
+ * asked for.
+ */
+export function auditLog(token: string, cursor?: string | null): Promise<AuditPage> {
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+  return request<AuditPage>(`/analytics/audit${query}`, token);
 }
 
 export function analytics(token: string): Promise<Analytics> {

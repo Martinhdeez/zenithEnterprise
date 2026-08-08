@@ -5,6 +5,7 @@ export {
   groups,
   users,
   analytics,
+  auditLog,
   setUserGroups,
   setRolePermissions,
   llmConfig,
@@ -14,6 +15,8 @@ export {
   type Group,
   type Member,
   type Analytics,
+  type AuditEntry,
+  type AuditPage,
   type LlmConfig,
   type Invitation,
 } from "./api";

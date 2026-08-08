@@ -17,10 +17,17 @@
  * is the most actionable thing on this page.
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FileText, Loader2, MessageSquare, ShieldAlert, Timer, Users } from "lucide-react";
 
-import { type Analytics as Data, analytics as fetchAnalytics } from "./api";
+import { Button } from "@/components/ui/button";
+
+import {
+  type AuditEntry,
+  type Analytics as Data,
+  analytics as fetchAnalytics,
+  auditLog,
+} from "./api";
 
 export function Analytics({ token }: { token: string }) {
   const [data, setData] = useState<Data | null>(null);
@@ -137,54 +144,7 @@ export function Analytics({ token }: { token: string }) {
         </Panel>
       </div>
 
-      <Panel title="Audit log">
-        {data.recent.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No questions in this window.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <th className="p-2 font-medium">When</th>
-                  <th className="p-2 font-medium">Who</th>
-                  <th className="p-2 font-medium">Question</th>
-                  <th className="p-2 font-medium">Read</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.recent.map((entry) => (
-                  <tr key={entry.query_id} className="border-b border-border/60 last:border-0">
-                    <td className="p-2 align-top whitespace-nowrap text-xs text-muted-foreground">
-                      {new Date(entry.asked_at).toLocaleString()}
-                    </td>
-                    <td className="max-w-40 truncate p-2 align-top text-xs text-muted-foreground">
-                      {entry.email ?? "—"}
-                    </td>
-                    <td className="p-2 align-top">
-                      <span className="text-foreground">{entry.question}</span>
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        {entry.model} · {(entry.latency_ms / 1000).toFixed(1)}s
-                      </span>
-                    </td>
-                    <td className="p-2 align-top">
-                      {/* The column an auditor actually reads. What an answer opened is
-                          not derivable from the answer text, which is the whole reason
-                          `query_citations` exists. */}
-                      {entry.documents.length === 0 ? (
-                        <span className="text-xs text-zenith-amber">found nothing</span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          {entry.documents.join(", ")}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Panel>
+      <AuditLog token={token} />
     </div>
   );
 }
@@ -246,5 +206,111 @@ function Rows({
         </li>
       ))}
     </ul>
+  );
+}
+
+
+/**
+ * The log, one page at a time.
+ *
+ * Ten rows, not fifty, and the reason is the page rather than the query: fifty pushed every
+ * other admin panel far below the fold, so reaching the access matrix meant scrolling past a
+ * wall of questions nobody had asked to read.
+ *
+ * Pages accumulate rather than replace. "Load more" that swapped the rows out would make
+ * comparing two periods impossible without going back — and going back is exactly what a
+ * keyset cursor does not offer, since it names a position forward and nothing else.
+ */
+function AuditLog({ token }: { token: string }) {
+  const [entries, setEntries] = useState<AuditEntry[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(
+    async (from: string | null) => {
+      setLoading(true);
+      try {
+        const page = await auditLog(token, from);
+        // Appended, so the cursor is the only thing that decides what arrives next — a
+        // reload that replaced the list would silently discard pages already read.
+        setEntries((current) => (from ? [...current, ...page.entries] : page.entries));
+        setCursor(page.next_cursor);
+      } catch (problem) {
+        setError(problem instanceof Error ? problem.message : "The audit log did not load.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [token],
+  );
+
+  useEffect(() => {
+    void load(null);
+  }, [load]);
+
+  return (
+    <Panel title="Audit log">
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {entries.length === 0 && !loading ? (
+        <p className="text-sm text-muted-foreground">No questions in this window.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                <th className="p-2 font-medium">When</th>
+                <th className="p-2 font-medium">Who</th>
+                <th className="p-2 font-medium">Question</th>
+                <th className="p-2 font-medium">Read</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((entry) => (
+                <tr key={entry.query_id} className="border-b border-border/60 last:border-0">
+                  <td className="p-2 align-top whitespace-nowrap text-xs text-muted-foreground">
+                    {new Date(entry.asked_at).toLocaleString()}
+                  </td>
+                  <td className="max-w-40 truncate p-2 align-top text-xs text-muted-foreground">
+                    {entry.email ?? "—"}
+                  </td>
+                  <td className="p-2 align-top">
+                    <span className="text-foreground">{entry.question}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {entry.model} · {(entry.latency_ms / 1000).toFixed(1)}s
+                    </span>
+                  </td>
+                  <td className="p-2 align-top">
+                    {/* The column an auditor actually reads. What an answer opened is not
+                        derivable from the answer text, which is why `query_citations`
+                        exists. */}
+                    {entry.documents.length === 0 ? (
+                      <span className="text-xs text-zenith-amber">found nothing</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        {entry.documents.join(", ")}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {cursor && (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={loading}
+          onClick={() => void load(cursor)}
+          className="w-full"
+        >
+          {loading ? "Cargando…" : "Cargar más"}
+        </Button>
+      )}
+    </Panel>
   );
 }

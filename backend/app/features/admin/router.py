@@ -10,13 +10,16 @@ must survive it.
 """
 
 from dataclasses import asdict
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from app.features.admin.schemas import (
     AnalyticsResponse,
     AssignRolesRequest,
+    AuditEntryResponse,
+    AuditPageResponse,
     InviteRequest,
     InviteResponse,
     LlmConfigRequest,
@@ -32,6 +35,7 @@ from app.features.auth.directory import DirectoryService
 from app.features.auth.invitations import INVITE, InvitationService
 from app.features.auth.roles import MANAGE as ROLES_MANAGE
 from app.features.auth.roles import RoleService
+from app.features.documents.pagination import Cursor
 from app.features.generation.config_service import MANAGE as LLM_MANAGE
 from app.features.generation.config_service import LlmConfigService
 from app.features.query.analytics import AnalyticsService
@@ -163,6 +167,36 @@ async def analytics(profile: CurrentProfile) -> AnalyticsResponse:
     their own history, and it is enforced in the database rather than remembered here.
     """
     return AnalyticsResponse(**asdict(await AnalyticsService(profile).overview()))
+
+
+@router.get(
+    "/analytics/audit",
+    operation_id="getAuditLog",
+    summary="Recent questions and the documents each answer read, newest first",
+    responses={400: {"description": "A cursor we did not issue"}},
+    dependencies=[Depends(requires_any(HISTORY_OWN, HISTORY_ANY))],
+)
+async def audit_log(
+    profile: CurrentProfile,
+    cursor: Annotated[str | None, Query(description="From the previous page.")] = None,
+    limit: Annotated[int | None, Query(ge=1, le=200)] = None,
+) -> AuditPageResponse:
+    """Its own route rather than a field on `/analytics`.
+
+    A page turn cannot change a single aggregate up there, so recomputing four of them to
+    return ten different log rows is work nobody asked for — and the audit log is the one
+    part of that screen somebody reads more than one page of.
+
+    Keyset, not `OFFSET`: under RLS the policy is evaluated on every row an offset discards,
+    so a deep page costs access checks nobody sees the result of.
+    """
+    page = await AnalyticsService(profile).audit(
+        cursor=Cursor.decode(cursor) if cursor else None, limit=limit
+    )
+    return AuditPageResponse(
+        entries=[AuditEntryResponse(**asdict(entry)) for entry in page.entries],
+        next_cursor=page.next_cursor,
+    )
 
 
 @router.get(
