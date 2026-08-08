@@ -201,3 +201,22 @@ export interface FolderTree {
 export function folders(token: string): Promise<FolderTree> {
   return request<FolderTree>("/documents/folders", token);
 }
+
+/**
+ * Which of *your* labels this text belongs under, according to the configured model.
+ *
+ * A suggestion, not an assignment: nothing is written. The staging area sends an excerpt
+ * extracted in the browser rather than the file, so a document that is only being
+ * considered never leaves the machine.
+ *
+ * The server resolves candidates from the caller's own reach, so this can only ever name
+ * labels they already hold — and answers with an empty list rather than an error when no
+ * model is configured, because an installation without generation still uploads documents.
+ */
+export function suggestLabels(token: string, excerpt: string): Promise<string[]> {
+  return request<{ label_ids: string[] }>("/labels/suggest", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ excerpt }),
+  }).then((response) => response.label_ids);
+}

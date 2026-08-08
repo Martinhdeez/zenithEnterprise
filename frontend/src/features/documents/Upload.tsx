@@ -27,14 +27,20 @@ import { getDocument, uploadDocument, type DocumentSummary } from "./api";
 import { LabelPicker, labels as fetchLabels, type Label } from "@/features/labels";
 import { IN_FLIGHT } from "@/shared/api/tenant";
 import {
-  IDLE,
   PROCESSING,
-  formatEta,
-  formatRate,
   processing,
   progress,
-  type UploadStats,
 } from "./uploadProgress";
+import {
+  CONCURRENCY,
+  enqueue,
+  pooled,
+  summarise,
+  update,
+  type QueueItem,
+} from "./uploadQueue";
+import { Staging } from "./Staging";
+import { stage, type StagedFile } from "./stagingState";
 import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,7 +69,12 @@ export function Upload({ token, onUploaded }: Props) {
   const [known, setKnown] = useState<Map<string, Label>>(new Map());
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [staged, setStaged] = useState<Staged | null>(null);
-  const [stats, setStats] = useState<UploadStats>(IDLE);
+  // One row per file. Replaces the single progress bar: a batch has no one percentage
+  // worth showing, and the question during a migration is which files are stuck, not how
+  // far along the average is.
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  // Files waiting on a decision. Nothing here has left the browser.
+  const [staging, setStaging] = useState<StagedFile[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -119,58 +130,101 @@ export function Upload({ token, onUploaded }: Props) {
   }, []);
 
   const send = useCallback(
-    async (files: File[], options?: { filename?: string; description?: string }) => {
+    async (
+      files: File[],
+      options?: { filename?: string; description?: string },
+      perFile?: Map<File, string[]>,
+    ) => {
       if (!files.length) return;
       setBusy(true);
       setMessage(null);
-      const labelIds = [...selected];
-      const started = Date.now();
-      try {
-        for (const file of files) {
-          const uploaded = await uploadDocument(file, token, labelIds, {
+      const items = enqueue(files);
+      setQueue(items);
+
+      // Bounded concurrency, and the bytes only. Waiting for the *server* to finish
+      // ingesting each file before starting the next — which is what the single-file path
+      // does, correctly, for one file — turns a migration into an overnight job: ingestion
+      // is minutes per document on `low-spec`, and the server queues it regardless of what
+      // the browser does. So uploads race, ingestion is watched.
+      await pooled(items, CONCURRENCY, async (item) => {
+        const started = Date.now();
+        try {
+          setQueue((current) => update(current, item.id, { phase: "uploading" }));
+          // Per file, from the staging table. `selected` is the fallback for the
+          // single-file path, which has no table and one set of labels for the one file.
+          const forThisFile = perFile?.get(item.file) ?? [...selected];
+          const uploaded = await uploadDocument(item.file, token, forThisFile, {
             ...options,
             onProgress: ({ loaded, total }) =>
-              setStats(progress(loaded, total, Date.now() - started)),
+              setQueue((current) =>
+                update(current, item.id, { percent: progress(loaded, total, Date.now() - started).percent }),
+              ),
           });
-          // The bytes are in, and the request is already answered: `POST /documents`
-          // returns once the row exists, and the worker parses, chunks and embeds
-          // afterwards. So the wait the user actually notices starts *here*, and holding
-          // this phase means asking the server when it is over — the first version set it
-          // and cleared it in the same tick, which showed nothing at all.
-          setStats(PROCESSING);
-          setRecent((current) => [uploaded.document, ...current].slice(0, 10));
-          const settled = await untilSettled(token, uploaded.document, (status) =>
-            setStats(processing(status)),
+
+          // The bytes are in and the request is already answered: `POST /documents`
+          // returns once the row exists. The wait the user notices starts *here*.
+          setQueue((current) =>
+            update(current, item.id, {
+              phase: "processing",
+              percent: 100,
+              documentId: uploaded.document.id,
+              stage: PROCESSING.stage,
+            }),
           );
-          setRecent((current) =>
-            current.map((item) => (item.id === settled.id ? settled : item)),
+          setRecent((current) => [uploaded.document, ...current].slice(0, 10));
+
+          const settled = await untilSettled(token, uploaded.document, (status) =>
+            setQueue((current) => update(current, item.id, { stage: processing(status).stage })),
+          );
+          setRecent((current) => current.map((row) => (row.id === settled.id ? settled : row)));
+          setQueue((current) =>
+            update(current, item.id, {
+              phase: settled.status === "failed" ? "error" : "done",
+              message: settled.status_detail ?? undefined,
+            }),
+          );
+        } catch (error) {
+          // Per file, not per batch. One duplicate in two hundred must not abandon the
+          // other hundred and ninety-nine, and the API's own message — a duplicate, a file
+          // that is not a PDF, a tenant at its limit — is the only part the user can act on.
+          setQueue((current) =>
+            update(current, item.id, {
+              phase: "error",
+              message: error instanceof ApiError ? error.message : "The upload failed.",
+            }),
           );
         }
-        onUploaded();
-      } catch (error) {
-        // Every one of these is a message the API wrote for a person: a duplicate, a file
-        // that is not a PDF, a tenant at its document limit. Replacing them with a generic
-        // failure would throw away the only part the user can act on.
-        setMessage(error instanceof ApiError ? error.message : "The upload failed.");
-      } finally {
-        setBusy(false);
-        setStats(IDLE);
-      }
+      });
+
+      setBusy(false);
+      onUploaded();
     },
     [token, onUploaded, selected],
   );
 
+  const confirmBatch = useCallback(() => {
+    const perFile = new Map(staging.map((row) => [row.file, row.labelIds]));
+    void send(
+      staging.map((row) => row.file),
+      undefined,
+      perFile,
+    ).then(() => setStaging([]));
+  }, [staging, send]);
+
   const choose = useCallback((files: FileList | null) => {
     if (!files?.length) return;
     const file = files[0];
-    if (files.length === 1 && file) {
-      // Pause for the optional name/description — a batch of several skips straight to
-      // upload below, since there's no single filename to prefill against.
+    if (files.length === 1 && file && staging.length === 0) {
+      // One file, nothing staged: the review step that lets somebody rename it and write a
+      // description. A batch has no single filename to prefill against, and nobody is going
+      // to write a description a thousand times.
       setStaged({ file, filename: file.name, description: "" });
       return;
     }
-    void send(Array.from(files));
-  }, [send]);
+    // Everything else stages. Uploading on drop is what put a thousand documents under the
+    // default label before anybody had said what any of them were.
+    setStaging((current) => stage(Array.from(files), current));
+  }, [staging.length]);
 
   const confirmStaged = useCallback(() => {
     if (!staged) return;
@@ -326,9 +380,21 @@ export function Upload({ token, onUploaded }: Props) {
         {/* `busy && !staged` is the several-files-at-once path — those upload immediately
             with no review step, so the button itself stays disabled (nothing staged) while
             this still needs to say what's happening. */}
-        {stats.phase === "processing" ? "Processing…" : busy ? "Uploading…" : "Upload"}
+        {busy ? "Uploading…" : "Upload"}
       </Button>
-      {stats.phase !== "idle" && <UploadBar stats={stats} />}
+
+      {staging.length > 0 && (
+        <Staging
+          token={token}
+          rows={staging}
+          known={known}
+          onChange={setStaging}
+          onConfirm={confirmBatch}
+          busy={busy}
+        />
+      )}
+
+      {queue.length > 0 && <UploadQueue items={queue} />}
 
       {message && (
         <p role="alert" className="text-sm text-destructive">
@@ -353,59 +419,6 @@ export function Upload({ token, onUploaded }: Props) {
   );
 }
 
-/**
- * The bar, and the two things it says besides a percentage.
- *
- * Rate and estimate appear only once there is enough of a transfer to derive them from —
- * `uploadProgress` returns null for both until then, and an empty string is better than a
- * confident "0s remaining" on an upload that has barely started.
- *
- * The processing phase has no percentage because ingestion reports no fraction. It gets an
- * indeterminate stripe and a label instead: a full bar that stops moving is the shape of a
- * hang, and this stretch is longer than the upload on the hardware this runs on.
- */
-function UploadBar({ stats }: { stats: UploadStats }) {
-  const isProcessing = stats.phase === "processing";
-
-  return (
-    <div className="space-y-2 rounded-md border border-input bg-secondary p-4">
-      <div className="flex items-baseline justify-between gap-4 text-sm">
-        <span className="text-foreground">
-          {isProcessing ? (stats.stage ?? "Processing") : "Uploading"}
-        </span>
-        {/* Shown in both phases. While uploading it is bytes; while processing it is which
-            of the four ingestion stages the server last reported — a coarser measure, but
-            a real one, and the alternative was a bar that stopped moving. */}
-        <span className="tabular-nums text-muted-foreground">{stats.percent}%</span>
-      </div>
-
-      <div className="h-1.5 overflow-hidden rounded-full bg-background">
-        <div
-          // One bar for both phases. Transitions over a second while processing, because
-          // the stages arrive as steps and a jump from 25% to 45% reads as a glitch;
-          // uploading moves continuously and needs no smoothing beyond the frame.
-          className={`h-full rounded-full bg-primary ease-out ${
-            isProcessing ? "transition-[width] duration-1000" : "transition-[width] duration-200"
-          }`}
-          style={{ width: `${stats.percent}%` }}
-        />
-      </div>
-
-      <p className="flex gap-3 text-xs text-muted-foreground">
-        {isProcessing ? (
-          <span>The document is being indexed — searchable once this finishes.</span>
-        ) : (
-          <>
-            {stats.bytesPerSecond !== null && <span>{formatRate(stats.bytesPerSecond)}</span>}
-            {stats.secondsRemaining !== null && (
-              <span>{formatEta(stats.secondsRemaining)} remaining</span>
-            )}
-          </>
-        )}
-      </p>
-    </div>
-  );
-}
 
 /**
  * Wait for the worker to finish with a document.
@@ -441,4 +454,71 @@ async function untilSettled(
     }
   }
   return latest;
+}
+
+/**
+ * One row per file, and a count above them.
+ *
+ * A batch has no single percentage worth showing. The question during a migration is not
+ * "how far along is the average" — it is *which files are stuck and which failed*, and an
+ * averaged bar answers neither while looking like it answers both.
+ *
+ * The list scrolls in its own box rather than growing the page: two hundred rows below a
+ * dropzone pushes the dropzone off screen, and the dropzone is where the next batch goes.
+ * Not virtualised — two hundred rows of two spans is nothing, and a windowing library here
+ * would be a dependency bought against a cost nobody has measured.
+ */
+function UploadQueue({ items }: { items: QueueItem[] }) {
+  const summary = summarise(items);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-baseline justify-between text-xs">
+        <span className="text-muted-foreground">
+          {summary.done} of {summary.total} done
+          {summary.failed > 0 && (
+            <span className="text-destructive"> · {summary.failed} failed</span>
+          )}
+        </span>
+        {!summary.finished && (
+          <span className="text-muted-foreground">{summary.active} in progress</span>
+        )}
+      </div>
+
+      {/* Counted by file, not by byte: "14 of 200" is actionable, and a byte percentage
+          moves in jumps that do not match what the rows are doing. */}
+      <div className="h-1 overflow-hidden rounded-full bg-secondary">
+        <div
+          className="h-full rounded-full bg-primary transition-[width] duration-300"
+          style={{ width: `${summary.percent}%` }}
+        />
+      </div>
+
+      <ul className="max-h-72 space-y-1 overflow-y-auto rounded-md border border-input p-1.5">
+        {items.map((item) => (
+          <li key={item.id} className="flex items-center gap-2 px-2 py-1.5 text-sm">
+            <span className="min-w-0 flex-1 truncate text-foreground">{item.file.name}</span>
+            <span
+              className={`shrink-0 text-xs ${
+                item.phase === "error"
+                  ? "text-destructive"
+                  : item.phase === "done"
+                    ? "text-zenith-cyan"
+                    : "text-muted-foreground"
+              }`}
+              // The API's own sentence, on the row it belongs to. A failure in a batch of
+              // two hundred is unfindable if it is reported once at the top.
+              title={item.message}
+            >
+              {item.phase === "queued" && "Queued"}
+              {item.phase === "uploading" && `${item.percent}%`}
+              {item.phase === "processing" && (item.stage ?? "Processing")}
+              {item.phase === "done" && "Done"}
+              {item.phase === "error" && (item.message ?? "Failed")}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }

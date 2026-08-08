@@ -36,6 +36,22 @@ class LabelResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class LabelSuggestion(BaseModel):
+    """An excerpt of a document that has not been uploaded yet.
+
+    Text rather than the file: the staging area holds files in the browser until the user
+    confirms, and sending the bytes to get a suggestion would upload everything twice — once
+    to be read, once to be kept.
+    """
+
+    excerpt: str = Field(min_length=1, max_length=8000)
+
+
+class SuggestedLabels(BaseModel):
+    #: Ids from the caller's own reach, or empty. Never a name, and never a new label.
+    label_ids: list[UUID]
+
+
 class LabelClearance(BaseModel):
     priority_level: int = Field(ge=0, le=10)
 

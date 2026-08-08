@@ -1,0 +1,106 @@
+/**
+ * A batch of uploads, and why it is not a loop.
+ *
+ * The single-file screen sent one file, waited for the bytes, then waited for the *server*
+ * to finish parsing, chunking and embedding it before touching the next one. For one file
+ * that is exactly right — the wait is the thing the user is watching. For a migration it is
+ * ruinous: ingestion on `low-spec` takes minutes per document, and two hundred files
+ * serialised behind each other is a browser tab somebody has to leave open overnight.
+ *
+ * So the two waits are separated. Bytes go up with bounded concurrency; ingestion is
+ * *watched*, not waited on, because the server queues it anyway — one worker, one document
+ * at a time, whatever the browser does.
+ *
+ * **Concurrency is bounded rather than unlimited**, and the bound is small on purpose. The
+ * API pool is ten connections for every user of the installation, so a client that opens
+ * two hundred parallel uploads is a client that takes the pool away from everybody else.
+ * Three is enough to hide the round trips and small enough to be a good neighbour.
+ */
+
+export type ItemPhase = "queued" | "uploading" | "processing" | "done" | "error";
+
+export interface QueueItem {
+  /** Stable across the item's life. `File` has no id and two files may share a name. */
+  id: string;
+  file: File;
+  phase: ItemPhase;
+  /** 0–100, meaningful while `uploading`. */
+  percent: number;
+  /** Which ingestion stage the server last reported. Only while `processing`. */
+  stage?: string;
+  /** The document id, once the server has one. */
+  documentId?: string;
+  message?: string;
+}
+
+/** How many files have their bytes in flight at once. See the note above. */
+export const CONCURRENCY = 3;
+
+export function enqueue(files: File[]): QueueItem[] {
+  return files.map((file, index) => ({
+    // Index included: dropping the same file twice is a thing people do, and two items
+    // sharing an id would update each other.
+    id: `${index}-${file.name}-${file.size}`,
+    file,
+    phase: "queued",
+    percent: 0,
+  }));
+}
+
+export function update(items: QueueItem[], id: string, patch: Partial<QueueItem>): QueueItem[] {
+  return items.map((item) => (item.id === id ? { ...item, ...patch } : item));
+}
+
+export interface QueueSummary {
+  total: number;
+  done: number;
+  failed: number;
+  /** Everything that has not settled — queued, uploading or processing. */
+  active: number;
+  /** 0–100 across the whole batch. */
+  percent: number;
+  finished: boolean;
+}
+
+/**
+ * The one line above the list.
+ *
+ * Counted by file rather than by byte. A batch is usually many similar documents, and "14
+ * of 200" is a number somebody can act on — "38% of 4.1 GB" is not, and it moves in jumps
+ * that do not match what the rows are doing.
+ */
+export function summarise(items: QueueItem[]): QueueSummary {
+  const done = items.filter((item) => item.phase === "done").length;
+  const failed = items.filter((item) => item.phase === "error").length;
+  const settled = done + failed;
+  return {
+    total: items.length,
+    done,
+    failed,
+    active: items.length - settled,
+    percent: items.length === 0 ? 0 : Math.round((settled / items.length) * 100),
+    finished: items.length > 0 && settled === items.length,
+  };
+}
+
+/**
+ * Run `work` over the queue, at most `limit` at a time.
+ *
+ * Workers pull from a shared cursor rather than the batch being sliced into fixed groups.
+ * With slices, a group containing one large file holds up the two that finished instantly
+ * beside it; pulling means a worker that finishes early takes the next thing waiting.
+ */
+export async function pooled<T>(
+  items: T[],
+  limit: number,
+  work: (item: T) => Promise<void>,
+): Promise<void> {
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const item = items[cursor++];
+      if (item !== undefined) await work(item);
+    }
+  });
+  await Promise.all(workers);
+}

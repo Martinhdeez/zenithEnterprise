@@ -23,7 +23,7 @@ from pathlib import Path
 from uuid import UUID
 
 import structlog
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import tenant_session
@@ -35,6 +35,7 @@ from app.features.documents.storage import DocumentStorage
 from app.features.embeddings.client import DIMENSION, MODEL, VERSION, TeiClient
 from app.features.embeddings.model import ChunkEmbedding, EmbeddingSpace
 from app.features.ingestion.chunking.chunker import Chunk, chunk_page
+from app.features.ingestion.classification import Classifier
 from app.features.ingestion.parsers.base import ParsedPage
 from app.features.ingestion.parsers.pdfplumber_parser import PdfPlumberParser
 from app.features.ingestion.routing import Route, decide
@@ -68,11 +69,18 @@ class IngestionPipeline:
         storage: DocumentStorage | None = None,
         embedder: TeiClient | None = None,
         profile: Profile | None = None,
+        classifier: Classifier | None = None,
     ) -> None:
         self.context = context
         self.profile = profile or active_profile()
         self.storage = storage or DocumentStorage()
         self.embedder = embedder or TeiClient(profile=self.profile)
+        # Injected like the embedder rather than constructed inside `_file`: a test that
+        # cannot choose the model reaching this step is a test of whatever the installation
+        # default happens to answer, which for `MockProvider` is a sentence containing "[1]"
+        # — a number, in range, that would file every document under its first label and
+        # look like a passing test.
+        self.classifier = classifier or Classifier(context)
 
     async def run(self, document_id: UUID) -> Result:
         async with tenant_session(self.context) as session:
@@ -119,7 +127,76 @@ class IngestionPipeline:
         vectors = await self.embedder.embed([chunk.text for chunk in chunks])
 
         await self._persist(document_id, routed, chunks, vectors)
+        await self._file(document_id, chunks)
         return Result(document_id, "ready", len(pages), len(chunks))
+
+    async def _file(self, document_id: UUID, chunks: list[Chunk]) -> None:
+        """Ask a model where a document belongs when nobody said, and file it there.
+
+        **Only a document carrying nothing but the tenant's default label**, which is what
+        "the uploader chose nothing" actually looks like. A document is never stored truly
+        unlabelled — `DocumentService` refuses that, because an empty `label_ids` publishes
+        it to the whole tenant — so the default label *is* the signal, and the absence of
+        labels is not.
+
+        **The default is replaced, not added to.** Labels are a union: holding any one of a
+        document's labels opens it, so adding a label always widens. The default is granted
+        to every seeded role, so a document carrying it is already tenant-wide; leaving it
+        in place beside a compartment would mean the compartment bought nothing. Swapping it
+        for the model's choice is exactly the outcome the uploader would have got by ticking
+        those labels by hand, and it is the only arrangement here that narrows.
+
+        A document the uploader *did* label is never touched. Not out of deference to manual
+        choice — because there is no rearrangement of somebody's deliberate compartments
+        that a guess is allowed to make.
+
+        **After `_persist`, not before.** Writing `document_labels` fires
+        `zenith_sync_document_labels`, SECURITY DEFINER, which updates `documents.label_ids`
+        and propagates onto the chunks that now exist. Doing it earlier would leave the
+        chunk inserts failing their own policy, since this session's context still carries
+        the labels the document had when the job was queued.
+        """
+        async with tenant_session(self.context) as session:
+            row = (
+                await session.execute(
+                    text(
+                        "SELECT d.uploaded_by, d.label_ids, "
+                        "  (SELECT id FROM access_labels WHERE is_default) AS default_id "
+                        "FROM documents d WHERE d.id = :d"
+                    ),
+                    {"d": document_id},
+                )
+            ).first()
+
+        if row is None or row.default_id is None:
+            return
+        # Anything other than exactly the default means somebody chose, and what they chose
+        # is not this code's to rearrange.
+        if list(row.label_ids) != [row.default_id]:
+            return
+
+        excerpt = "\n".join(chunk.text for chunk in chunks[:6])
+        applied = await self.classifier.file(document_id, row.uploaded_by, excerpt)
+        if not applied:
+            return
+
+        async with tenant_session(self.context) as session:
+            for label_id in applied:
+                await session.execute(
+                    text(
+                        "INSERT INTO document_labels (document_id, label_id) "
+                        "VALUES (:d, :l) ON CONFLICT DO NOTHING"
+                    ),
+                    {"d": document_id, "l": label_id},
+                )
+            # Last, and only once the chosen labels are in place: dropping it first would
+            # leave a window where the document carried no label at all, which is the one
+            # state that means "visible to the whole tenant" rather than "visible to
+            # nobody".
+            await session.execute(
+                text("DELETE FROM document_labels WHERE document_id = :d AND label_id = :l"),
+                {"d": document_id, "l": row.default_id},
+            )
 
     def _route(self, pages: list[ParsedPage]) -> tuple[list[ParsedPage], str | None]:
         """Apply the per-page decision and record what it saw.

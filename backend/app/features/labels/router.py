@@ -15,6 +15,8 @@ from app.features.labels.schemas import (
     LabelResponse,
     LabelSearchItem,
     LabelSearchPage,
+    LabelSuggestion,
+    SuggestedLabels,
 )
 from app.features.labels.service import MANAGE, LabelService
 
@@ -150,6 +152,29 @@ async def delete_label(label_id: UUID, profile: CurrentProfile) -> None:
 @router.put("/roles/{role_id}/labels", dependencies=[manage])
 async def set_role_labels(role_id: UUID, request: LabelAssignment, profile: CurrentProfile) -> None:
     await LabelService(profile.context).set_role_labels(role_id, request.label_ids)
+
+
+@router.post("/labels/suggest")
+async def suggest_labels(request: LabelSuggestion, profile: CurrentProfile) -> SuggestedLabels:
+    """Which of *your* labels this text belongs under, according to the configured model.
+
+    A suggestion, not an assignment: nothing is written, and the client is free to ignore it.
+    The staging area calls this per file so somebody can review a hundred guesses before
+    committing any of them, which is the difference between assistance and a model quietly
+    filing a corpus.
+
+    Gated on nothing beyond being signed in, deliberately. The candidate list is the
+    caller's own reach — resolved by `Classifier` through `UserRepository.label_ids`, the
+    single function that answers that question — so this can only ever name labels they
+    already hold, and a suggestion of a label you hold tells you nothing you did not know.
+
+    Answers with an empty list rather than an error when no model is configured. An
+    installation without generation still uploads documents.
+    """
+    from app.features.ingestion.classification import Classifier
+
+    suggested = await Classifier(profile.context).suggest(profile.user_id, request.excerpt)
+    return SuggestedLabels(label_ids=suggested)
 
 
 @router.put("/labels/{label_id}/clearance", dependencies=[manage])
