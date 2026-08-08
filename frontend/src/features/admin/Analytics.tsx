@@ -163,7 +163,10 @@ function Kpi({
   tone?: "warn";
 }) {
   return (
-    <div className="space-y-1 rounded-lg border border-border p-3">
+    // A step above the panel it sits in, which is itself a step above the page. Three
+    // surfaces of the same navy rather than three borders on one flat one: depth is what
+    // tells the eye these are four separate readings and not one paragraph of numbers.
+    <div className="space-y-1 rounded-lg border border-input bg-card p-3 shadow-sm">
       <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
         {icon}
         {label}
@@ -198,7 +201,7 @@ function Rows({
 }) {
   if (rows.length === 0) return <p className="text-sm text-muted-foreground">{empty}</p>;
   return (
-    <ul className="divide-y divide-border rounded-md border border-border">
+    <ul className="divide-y divide-border rounded-md border border-input bg-card">
       {rows.map((row) => (
         <li key={row.key} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
           <span className="min-w-0 truncate text-foreground">{row.left}</span>
@@ -256,7 +259,7 @@ function AuditLog({ token }: { token: string }) {
       {entries.length === 0 && !loading ? (
         <p className="text-sm text-muted-foreground">No questions in this window.</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-md border border-input bg-card">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs text-muted-foreground">

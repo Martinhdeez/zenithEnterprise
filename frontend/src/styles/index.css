@@ -52,6 +52,18 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* The application is exactly one viewport tall and scrolls *inside* itself: the shell in
+     `App.tsx` is `h-screen` and the main panel owns the only scrollbar. Without this the
+     document scrolls too, so pushing past the bottom of a long page slides the whole
+     interface up and leaves a band of background where the sidebar and the panel used to
+     be — nothing to read and no way to tell what happened.
+
+     `overscroll-behavior: none` is the other half: it stops the scroll chaining out of the
+     panel once it reaches its end, which is what produces the rubber-band on a trackpad. */
+  html,
+  body {
+    @apply h-full overflow-hidden overscroll-none;
+  }
   html {
     @apply font-sans;
   }

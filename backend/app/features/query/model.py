@@ -9,7 +9,17 @@ class Query(Base):
 
     __tablename__ = "queries"
     # The analytics dashboard's every statement is "this tenant, this window, newest first".
-    __table_args__ = (Index("ix_queries_tenant_created", "tenant_id", text("created_at DESC")),)
+    __table_args__ = (
+        Index("ix_queries_tenant_created", "tenant_id", text("created_at DESC")),
+        # Trigram, for the history search box. `ILIKE '%term%'` has no prefix to seek on, so
+        # without this every search scans every question the tenant ever asked.
+        Index(
+            "ix_queries_question_trgm",
+            "question",
+            postgresql_using="gin",
+            postgresql_ops={"question": "gin_trgm_ops"},
+        ),
+    )
 
     id: Mapped[uuid_pk]
     tenant_id: Mapped[uuid_col] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))

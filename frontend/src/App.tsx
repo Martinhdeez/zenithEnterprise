@@ -252,7 +252,7 @@ export function App() {
     // bordered card — the sidebar, the workspace and the preview are three surfaces, not
     // one shell with internal dividers, which is the difference between this and the flat
     // edge-to-edge layout it replaced.
-    <div className="dark flex h-screen gap-3 bg-background p-3 text-foreground">
+    <div className="dark flex h-screen overflow-hidden gap-3 bg-background p-3 text-foreground">
       {/* Layout, not a workspace: Folders and Upload used to live here as their own
           sections, each with its own scroll, competing with navigation for the same
           narrow column. Both are full screens in the main panel now, reached the same way

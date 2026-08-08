@@ -150,16 +150,29 @@ async def history(
     profile: CurrentProfile,
     limit: Annotated[int | None, Query(ge=1, le=200)] = None,
     cursor: Annotated[str | None, Query(description="From a previous page.")] = None,
+    search: Annotated[
+        str | None, Query(max_length=200, description="Match against the question text.")
+    ] = None,
+    mine: Annotated[
+        bool, Query(description="Only your own questions, even if you may read everyone's.")
+    ] = False,
+    unanswered: Annotated[bool, Query(description="Only questions no document answered.")] = False,
 ) -> HistoryResponse:
     """Whose history is returned is decided by the caller's permissions, never by a
     parameter.
 
     `query.history.any` reads the whole tenant's; `query.history.own` reads only the
-    caller's. That distinction is enforced in the service rather than by RLS, because RLS
-    models tenant and label and not "mine versus my colleagues'" — and the questions people
-    ask are more revealing than the documents they read.
+    caller's. That distinction is enforced by migration 0005's policy rather than here,
+    because the questions people ask — *"what is my severance?"* — are more revealing than
+    the documents they read.
+
+    The three parameters below narrow that set and can never widen it. `mine=true` is
+    somebody who may read everyone's asking to look away from it; there is no parameter for
+    the opposite, because that is a fact about the caller rather than a request.
     """
-    page = await HistoryService(profile).page(limit, cursor)
+    page = await HistoryService(profile).page(
+        limit, cursor, search=search, mine_only=mine, unanswered_only=unanswered
+    )
     return HistoryResponse(
         entries=[HistoryEntryResponse(**asdict(entry)) for entry in page.entries],
         next_cursor=page.next_cursor,

@@ -29,13 +29,25 @@ export function History({
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // What is typed, and what has been asked for. Separate because the request is debounced:
+  // firing on every keystroke would put a query per character on a table that grows with
+  // every question anybody asks.
+  const [typed, setTyped] = useState("");
+  const [search, setSearch] = useState("");
+  const [mine, setMine] = useState(false);
+  const [unanswered, setUnanswered] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(typed), 250);
+    return () => clearTimeout(timer);
+  }, [typed]);
 
   const load = useCallback(
     async (from: string | null) => {
       setLoading(true);
       setError(null);
       try {
-        const page = await history(token, from);
+        const page = await history(token, from, { search, mine, unanswered });
         // Appended rather than replaced: this is keyset pagination, so each page is the
         // continuation of the last and re-fetching from the top would be a different list.
         setEntries((current) => (from ? [...current, ...page.entries] : page.entries));
@@ -46,33 +58,71 @@ export function History({
         setLoading(false);
       }
     },
-    [token],
+    [token, search, mine, unanswered],
   );
 
   useEffect(() => {
+    // From the top whenever a filter changes. A cursor names a position in the *previous*
+    // result set, and resuming a narrowed list from it would start partway down a list
+    // nobody has seen the beginning of.
     void load(null);
   }, [load]);
 
   const shared = entries.some((entry) => !entry.mine);
 
+  const filtering = search.trim() !== "" || mine || unanswered;
+
+  const controls = (
+    <div className="space-y-2">
+      <input
+        value={typed}
+        onChange={(event) => setTyped(event.target.value)}
+        placeholder="Search your questions"
+        aria-label="Search questions"
+        className="w-full rounded-full border border-input bg-input/30 px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary/40 focus-visible:outline-none"
+      />
+      <div className="flex flex-wrap gap-1.5">
+        {/* Only offered when there is somebody else's question to look away from. A filter
+            that never changes anything is a control that teaches people to ignore controls. */}
+        {shared && (
+          <Chip active={mine} onClick={() => setMine((on) => !on)}>
+            Only mine
+          </Chip>
+        )}
+        <Chip active={unanswered} onClick={() => setUnanswered((on) => !on)}>
+          Found nothing
+        </Chip>
+      </div>
+    </div>
+  );
+
   if (error) {
     return (
-      <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-        {error}
-      </p>
+      <div className="space-y-3">
+        {controls}
+        <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+          {error}
+        </p>
+      </div>
     );
   }
 
   if (!loading && entries.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-        You have not asked anything yet.
+      <div className="space-y-3">
+        {controls}
+        <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+          {/* The two empty states are different questions. "Nothing matched" is answered by
+              changing the filter; "you have not asked anything" is answered by asking. */}
+          {filtering ? "No question matches that." : "You have not asked anything yet."}
+        </div>
       </div>
     );
   }
 
   return (
     <section className="space-y-4">
+      {controls}
       {/* Separate cards rather than one ruled block, matching the document list. A history
           entry is a question *and* the answer it got — two or three lines of prose each —
           and hairline dividers between paragraphs of running text leave the eye with
@@ -115,5 +165,32 @@ export function History({
         </Button>
       )}
     </section>
+  );
+}
+
+
+/** A filter you can see the state of without reading the results. */
+function Chip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+        active
+          ? "border-primary/50 bg-primary/10 text-foreground"
+          : "border-input bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
