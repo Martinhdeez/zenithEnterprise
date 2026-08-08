@@ -7,10 +7,11 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { FileText, Trash2 } from "lucide-react";
+import { FileText, ShieldCheck, Trash2 } from "lucide-react";
 
 import { deleteDocument, listDocuments, type DocumentSummary } from "./api";
-import { TagChips, labels as fetchLabels } from "@/features/labels";
+import { TagChips, labels as fetchLabels, type Label as LabelType } from "@/features/labels";
+import { AccessInspector } from "./AccessInspector";
 import { ApiError } from "@/shared/api/http";
 import type { Citation } from "@/features/chat";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,13 @@ interface Props {
   onCitation: (citation: Citation) => void;
   /** Clicking a chip narrows the view to that label. Omitted where nothing can filter. */
   onSelectTag?: (name: string) => void;
+  /**
+   * The caller's permission codes. The access inspector is offered only to somebody who
+   * holds `roles.manage`, because it names groups and roles — and a screen that lists the
+   * groups a viewer is not in tells them those groups exist, which is the inference
+   * mvp.md 3.1 forbids. The API refuses them anyway; this stops the affordance appearing.
+   */
+  permissions?: string[];
   /** From `Folders`. `null` (no object at all) means every reachable document; `{ labelId:
       null }` means specifically the ones carrying no label. */
   filter?: { labelId: string | null } | null;
@@ -46,17 +54,33 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function Documents({ token, onCitation, onSelectTag, filter, refreshKey = 0 }: Props) {
+export function Documents({
+  token,
+  onCitation,
+  onSelectTag,
+  filter,
+  refreshKey = 0,
+  permissions = [],
+}: Props) {
+  const mayInspect = permissions.includes("roles.manage");
+  const [inspecting, setInspecting] = useState<string | null>(null);
   // Label ids resolve to names only for the labels this caller reaches — `GET /labels`
   // already applies that rule. A document may carry an id absent from this map, which
   // means RLS admitted the document through some *other* label; that name is not theirs
   // to learn, so it is dropped rather than shown as a uuid.
   const [known, setKnown] = useState<Map<string, string>>(new Map());
+  // The same labels, unflattened, for the access inspector — it needs each one's clearance
+  // as well as its name, and deriving a level from a name is not a thing that can be done.
+  const [reachable, setReachable] = useState<LabelType[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     void fetchLabels(token)
-      .then((all) => !cancelled && setKnown(new Map(all.map((label) => [label.id, label.name]))))
+      .then((all) => {
+        if (cancelled) return;
+        setKnown(new Map(all.map((label) => [label.id, label.name])));
+        setReachable(all);
+      })
       .catch(() => !cancelled && setKnown(new Map()));
     return () => {
       cancelled = true;
@@ -188,6 +212,21 @@ export function Documents({ token, onCitation, onSelectTag, filter, refreshKey =
                   is silently absent rather than rendered as an id. */}
               <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
                 <TagChips names={namesFor(document_)} onSelect={onSelectTag} short />
+                {mayInspect && (
+                  <button
+                    type="button"
+                    aria-label={`Who can open ${document_.filename}`}
+                    title="Who can open this"
+                    onClick={() =>
+                      setInspecting((current) =>
+                        current === document_.id ? null : document_.id,
+                      )
+                    }
+                    className="rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <ShieldCheck className="size-3.5" />
+                  </button>
+                )}
               </div>
               <span
                 className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
@@ -208,6 +247,17 @@ export function Documents({ token, onCitation, onSelectTag, filter, refreshKey =
                 <Trash2 className="size-4" />
               </Button>
             </div>
+
+            {inspecting === document_.id && (
+              <div className="border-t border-border p-3">
+                <AccessInspector
+                  token={token}
+                  filename={document_.filename}
+                  labelIds={document_.label_ids}
+                  labels={reachable}
+                />
+              </div>
+            )}
           </li>
         ))}
       </ul>

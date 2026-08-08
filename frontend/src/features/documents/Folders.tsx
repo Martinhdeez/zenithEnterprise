@@ -45,6 +45,8 @@ interface Props {
   onSelectTag?: (name: string) => void;
   /** Bumped by the shell after an upload, so the counts follow ingestion. */
   refreshKey?: number;
+  /** Passed through so the document list can offer the access inspector to an administrator. */
+  permissions?: string[];
 }
 
 export function Folders({
@@ -54,6 +56,7 @@ export function Folders({
   onSelect,
   onSelectTag,
   refreshKey = 0,
+  permissions,
 }: Props) {
   const [tree, setTree] = useState<FolderTree | null>(null);
 
@@ -75,6 +78,7 @@ export function Folders({
         onSelectTag={onSelectTag}
         filter={selection.filter}
         refreshKey={refreshKey}
+        permissions={permissions}
       />
     );
   }

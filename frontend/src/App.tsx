@@ -493,6 +493,7 @@ export function App() {
                 token={token}
                 onCitation={setCitation}
                 refreshKey={uploads}
+                permissions={me?.permissions}
                 selection={folderSelection}
                 onSelect={setFolderSelection}
                 onSelectTag={selectTag}
