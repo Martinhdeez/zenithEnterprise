@@ -12,6 +12,7 @@
  */
 export { Folders, type FolderSelection } from "./Folders";
 export { Documents } from "./Documents";
+export { Ingesting, inFlight, ready } from "./Ingesting";
 export { Upload } from "./Upload";
 export { StatusBadge } from "./StatusBadge";
 export {

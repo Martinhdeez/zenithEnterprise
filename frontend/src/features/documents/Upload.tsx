@@ -363,6 +363,20 @@ export function Upload({ token, onUploaded }: Props) {
           while `staged` is null — there's nothing to send yet — on once a single file is
           chosen; the several-files-at-once path never sets `staged` at all, since those
           upload immediately with no review step for this button to gate. */}
+
+      {staging.length > 0 && (
+        <Staging
+          token={token}
+          rows={staging}
+          known={known}
+          onChange={setStaging}
+          onConfirm={confirmBatch}
+          busy={busy}
+        />
+      )}
+
+      {queue.length > 0 && <UploadQueue items={queue} />}
+
       <Button
         type="button"
         onClick={confirmStaged}
@@ -377,24 +391,11 @@ export function Upload({ token, onUploaded }: Props) {
         // signal — visibly boxed, visibly not the vivid action colour.
         className="w-full rounded-md disabled:cursor-not-allowed disabled:border-input disabled:bg-secondary disabled:text-muted-foreground disabled:opacity-100"
       >
-        {/* `busy && !staged` is the several-files-at-once path — those upload immediately
-            with no review step, so the button itself stays disabled (nothing staged) while
-            this still needs to say what's happening. */}
+        {/* Below the file list rather than above it. It is the last control pressed, and
+            a button that sits before the thing it acts on asks somebody to scroll back up
+            to check what they are about to send. */}
         {busy ? "Uploading…" : "Upload"}
       </Button>
-
-      {staging.length > 0 && (
-        <Staging
-          token={token}
-          rows={staging}
-          known={known}
-          onChange={setStaging}
-          onConfirm={confirmBatch}
-          busy={busy}
-        />
-      )}
-
-      {queue.length > 0 && <UploadQueue items={queue} />}
 
       {message && (
         <p role="alert" className="text-sm text-destructive">

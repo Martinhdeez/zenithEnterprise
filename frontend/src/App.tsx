@@ -33,6 +33,7 @@ import {
 } from "@/features/auth";
 import { Chat, type Citation } from "@/features/chat";
 import { System } from "@/features/system";
+import { Ingesting, inFlight } from "@/features/documents";
 import { History } from "@/features/history";
 import {
   Folders,
@@ -197,9 +198,14 @@ export function App() {
     // Thirty seconds is slow enough to be invisible on the network and fast enough that a
     // finished upload appears before anyone reaches for a reload.
     if (!token) return;
-    const timer = setInterval(() => void refresh(), 30_000);
+    // Adaptive, because the two states want opposite things. Idle, this is a background
+    // heartbeat and thirty seconds is already more often than anything changes. Mid-batch
+    // it is the only thing telling somebody their thousand files are moving, and half a
+    // minute between updates makes a working system look stalled.
+    const busy = inFlight(status) > 0;
+    const timer = setInterval(() => void refresh(), busy ? 5_000 : 30_000);
     return () => clearInterval(timer);
-  }, [token, refresh]);
+  }, [token, refresh, status]);
 
   useEffect(() => {
     if (!token) return;
@@ -369,13 +375,23 @@ export function App() {
               to search", which is worth glancing at and never the reason you came to this
               bar. Dropped entirely when collapsed — it is prose and a set of numbers, and
               there is no honest way to render either in 64 pixels. */}
-          {!collapsed && (
-            <div className="mt-auto">
-              <Section label="Status">
-                <StatusBadge status={status} />
-              </Section>
-            </div>
-          )}
+          {/* Above the status panel and outside the `!collapsed` guard: ingestion is the
+              one thing here worth seeing from a narrow sidebar, because it is the only
+              number that changes while you are looking at another screen. */}
+          <div className="mt-auto">
+            {collapsed ? (
+              <Ingesting status={status} collapsed />
+            ) : (
+              <>
+                <Section label="Ingestion">
+                  <Ingesting status={status} collapsed={false} />
+                </Section>
+                <Section label="Status">
+                  <StatusBadge status={status} />
+                </Section>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Just the profile now. Signing out moved onto that screen, next to "sign out

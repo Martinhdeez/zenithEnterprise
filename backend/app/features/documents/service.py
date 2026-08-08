@@ -16,6 +16,7 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from uuid import UUID
 
+import structlog
 from sqlalchemy.exc import IntegrityError
 
 from app.common.exceptions import (
@@ -44,6 +45,9 @@ DELETE_ANY = "documents.delete.any"
 assert {UPLOAD, DELETE_OWN, DELETE_ANY} <= set(CATALOGUE), (
     "the permissions this service is gated on must exist"
 )
+
+
+log = structlog.get_logger()
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,13 +192,22 @@ class DocumentService:
 
         default = await labels.default()
         if default is None:
-            # F3 guarantees one per tenant at provisioning, so reaching this means the
-            # installation was altered. Refusing is the only safe answer: storing the
-            # document unlabelled would publish it to the whole tenant.
-            raise ConflictError(
-                "this tenant has no default access label, so an upload with no label "
-                "specified cannot be classified. Set one before uploading."
-            )
+            # Provisioning guarantees one per tenant, so reaching this means somebody
+            # deleted it — the label screen removes any label, that one included. Refusing
+            # was the original answer and it is the wrong one: it locks the product's most
+            # common action for every user of the tenant, and it says so in terms of a
+            # concept nobody outside this codebase has heard of.
+            #
+            # Restoring is safe in the way refusing was trying to be. `ensure_default_label`
+            # recreates exactly what provisioning would have — granted to the system roles
+            # and to nothing else — so no document becomes readable by anybody who could not
+            # have read an unclassified upload the day the tenant was made. What it is *not*
+            # is a precedent for inventing labels elsewhere: the classifier still cannot,
+            # and a label that carries meaning is somebody's decision, not a repair.
+            from app.features.labels.provisioning import ensure_default_label
+
+            log.warning("default_label_restored", tenant_id=str(self.context.tenant_id))
+            default = await ensure_default_label(labels.session, self.context.tenant_id)
         return {default.id}
 
     async def delete(self, document_id: UUID) -> None:
