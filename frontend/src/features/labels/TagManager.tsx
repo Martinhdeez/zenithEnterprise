@@ -21,7 +21,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, Check, Loader2, Merge, Search, Trash2 } from "lucide-react";
+import { ArrowRight, Check, Loader2, Merge, Trash2 } from "lucide-react";
 
 import { deleteLabel, mergeLabels, searchLabels, type LabelMergeResult, type LabelSearchItem, type LabelSort } from "./api";
 import { ApiError } from "@/shared/api/http";
@@ -34,7 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { SearchField } from "@/shared/ui/SearchField";
 import {
   Select,
   SelectContent,
@@ -134,14 +134,12 @@ export function TagManager({ token }: { token: string }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-56 flex-1">
-          <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
+        <div className="flex min-w-56 flex-1">
+          <SearchField
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={setQuery}
+            label="Search labels"
             placeholder="Search labels"
-            aria-label="Search labels"
-            className="h-9 rounded-md border-input bg-card pl-8 text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/40 dark:bg-card"
           />
         </div>
         <Select value={sort} onValueChange={(value) => setSort(value as LabelSort)}>

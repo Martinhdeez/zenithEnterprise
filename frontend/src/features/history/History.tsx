@@ -14,10 +14,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Search as SearchIcon, X } from "lucide-react";
-
 import { history, type HistoryEntry } from "./api";
 import { Button } from "@/components/ui/button";
+import { SearchField } from "@/shared/ui/SearchField";
 
 export function History({
   token,
@@ -84,37 +83,20 @@ export function History({
           debounce. It is here because a search box without one looks like it has not
           understood you yet, and pressing something is what tells a person the box is a
           search box rather than a filter that might be broken. */}
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          // Commits what is typed now rather than waiting out the debounce. Same value, no
-          // pause — which is the whole point of pressing it.
-          setSearch(typed);
-        }}
-        className="flex items-center gap-1 rounded-full border border-input bg-input/30 py-1 pr-1 pl-3.5 transition-colors focus-within:border-primary/40"
-      >
-        <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
-        <input
-          value={typed}
-          onChange={(event) => setTyped(event.target.value)}
-          placeholder="Search your questions"
-          aria-label="Search questions"
-          className="min-w-0 flex-1 bg-transparent px-2 py-1 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none"
-        />
-        {typed && (
-          <button
-            type="button"
-            aria-label="Clear search"
-            onClick={() => setTyped("")}
-            className="shrink-0 rounded-full p-1 text-muted-foreground hover:text-foreground"
-          >
-            <X className="size-3.5" />
-          </button>
-        )}
-        <Button type="submit" size="sm" className="shrink-0 rounded-full">
-          Search
-        </Button>
-      </form>
+      <SearchField
+        value={typed}
+        onChange={setTyped}
+        label="Search questions"
+        placeholder="Search your questions"
+        // Commits what is typed now rather than waiting out the debounce. Same value, no
+        // pause — which is the whole point of pressing it.
+        onSubmit={() => setSearch(typed)}
+        action={
+          <Button type="submit" size="sm" className="shrink-0 rounded-full">
+            Search
+          </Button>
+        }
+      />
       <div className="flex flex-wrap gap-1.5">
         {/* Only offered when there is somebody else's question to look away from. A filter
             that never changes anything is a control that teaches people to ignore controls. */}

@@ -19,9 +19,10 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, Loader2, Search, ShieldAlert } from "lucide-react";
+import { Check, Loader2, ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { SearchField } from "@/shared/ui/SearchField";
 import type { Label } from "@/features/labels";
 import { type Group, groups as fetchGroups, setGroupLabels, setLabelClearance } from "./api";
 
@@ -182,16 +183,12 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
         {/* Labels: the unbounded axis, running vertically where length is allowed. */}
         <div className="space-y-2 rounded-md border border-input bg-card p-3">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search labels"
-                aria-label="Search labels to map"
-                className="w-full rounded-full border border-input bg-input/30 py-1.5 pr-3 pl-8 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary/40 focus-visible:outline-none"
-              />
-            </div>
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              label="Search labels to map"
+              placeholder="Search labels"
+            />
             {/* About the group being edited, which is where it belongs — a segment has
                 room for a name and a count, and "how many people this affects" is a fact
                 about the thing open in front of you rather than about the tab. */}
