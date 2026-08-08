@@ -11,6 +11,14 @@ export interface Label {
   id: string;
   name: string;
   is_default: boolean;
+  /**
+   * How much clearance this label demands of anyone reaching it through a group.
+   *
+   * Zero demands none, which is not the same as public: a label mapped to no group and
+   * granted to no role is still reachable by nobody. Clearance narrows the group route, it
+   * is never a route of its own.
+   */
+  priority_level: number;
 }
 
 /**

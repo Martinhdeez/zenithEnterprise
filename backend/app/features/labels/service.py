@@ -45,7 +45,11 @@ class LabelService:
         self.context = context
 
     async def create(
-        self, name: str, is_default: bool = False, created_by: UUID | None = None
+        self,
+        name: str,
+        is_default: bool = False,
+        created_by: UUID | None = None,
+        priority_level: int = 0,
     ) -> AccessLabel:
         """Create a label, and give its creator's roles access to it.
 
@@ -72,13 +76,34 @@ class LabelService:
             labels = LabelRepository(session)
             if is_default:
                 await labels.clear_default()
-            label = AccessLabel(tenant_id=self.context.tenant_id, name=name, is_default=is_default)
+            label = AccessLabel(
+                tenant_id=self.context.tenant_id,
+                name=name,
+                is_default=is_default,
+                priority_level=priority_level,
+            )
             session.add(label)
             try:
                 await session.flush()
             except IntegrityError as exc:
                 raise ConflictError(f"a label named {name!r} already exists") from exc
             await labels.grant_to_creator(label.id, created_by)
+            await session.refresh(label)
+            return label
+
+    async def set_clearance(self, label_id: UUID, priority_level: int) -> AccessLabel:
+        """How much clearance this label demands of anyone reaching it through a group.
+
+        Zero means it demands none, which is not the same as being public: a label reachable
+        by no group and granted to no role is still reachable by nobody. Clearance narrows
+        the group route; it never opens anything on its own.
+        """
+        async with tenant_session(self.context) as session:
+            label = await session.get(AccessLabel, label_id)
+            if label is None:
+                raise NotFoundError(f"no label {label_id}")
+            label.priority_level = priority_level
+            await session.flush()
             await session.refresh(label)
             return label
 

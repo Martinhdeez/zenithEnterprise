@@ -10,6 +10,7 @@ from app.features.auth.model import Permission, Role, RolePermission, User, User
 from app.features.documents.model import Chunk, Document, Page
 from app.features.embeddings.model import ChunkEmbedding, EmbeddingSpace
 from app.features.generation.model import LlmConfig
+from app.features.groups.model import Group, GroupLabel, UserGroup
 from app.features.labels.model import AccessLabel, DocumentLabel, RoleLabel
 from app.features.query.model import Query, QueryCitation
 from app.features.tenancy.model import Tenant
@@ -22,6 +23,8 @@ __all__ = [
     "Document",
     "DocumentLabel",
     "EmbeddingSpace",
+    "Group",
+    "GroupLabel",
     "LlmConfig",
     "Page",
     "Permission",
@@ -32,5 +35,6 @@ __all__ = [
     "RolePermission",
     "Tenant",
     "User",
+    "UserGroup",
     "UserRole",
 ]

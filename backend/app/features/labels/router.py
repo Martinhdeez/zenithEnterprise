@@ -7,6 +7,7 @@ from app.features.auth.dependencies import CurrentProfile, requires
 from app.features.labels.pagination import DEFAULT_SORT, MAX_LIMIT, Sort
 from app.features.labels.schemas import (
     LabelAssignment,
+    LabelClearance,
     LabelCreate,
     LabelMerge,
     LabelMergeResult,
@@ -149,6 +150,21 @@ async def delete_label(label_id: UUID, profile: CurrentProfile) -> None:
 @router.put("/roles/{role_id}/labels", dependencies=[manage])
 async def set_role_labels(role_id: UUID, request: LabelAssignment, profile: CurrentProfile) -> None:
     await LabelService(profile.context).set_role_labels(role_id, request.label_ids)
+
+
+@router.put("/labels/{label_id}/clearance", dependencies=[manage])
+async def set_label_clearance(
+    label_id: UUID, request: LabelClearance, profile: CurrentProfile
+) -> LabelResponse:
+    """Classify a label, or declassify it back to zero.
+
+    Zero is the default and means the group route asks for no clearance — not that the
+    label is public. Clearance only ever narrows what a group opens; it is not a route of
+    its own, so raising it can take access away and lowering it can never give access to
+    somebody outside the group.
+    """
+    label = await LabelService(profile.context).set_clearance(label_id, request.priority_level)
+    return LabelResponse.model_validate(label)
 
 
 @router.put("/documents/{document_id}/labels", dependencies=[manage])

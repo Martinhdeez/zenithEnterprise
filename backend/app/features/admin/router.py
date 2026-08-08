@@ -20,6 +20,7 @@ from app.features.admin.schemas import (
     InviteResponse,
     LlmConfigRequest,
     LlmConfigResponse,
+    RoleClearanceRequest,
     RoleRequest,
     RoleResponse,
 )
@@ -60,8 +61,46 @@ async def create_role(profile: CurrentProfile, request: RoleRequest) -> RoleResp
     A permission nobody checks is a lie in the administration screen: it appears granted
     and grants nothing.
     """
-    role = await RoleService(profile).create(request.name, request.permissions)
+    role = await RoleService(profile).create(
+        request.name, request.permissions, request.priority_level
+    )
     return RoleResponse(**asdict(role))
+
+
+@router.put(
+    "/roles/{role_id}/clearance",
+    operation_id="setRoleClearance",
+    summary="Set how much clearance this role carries",
+    responses={404: {"description": "No such role in this tenant"}},
+    dependencies=[roles_manage],
+)
+async def set_clearance(
+    profile: CurrentProfile, role_id: UUID, request: RoleClearanceRequest
+) -> RoleResponse:
+    """Allowed on system roles, unlike permissions.
+
+    Stripping `admin` of `roles.manage` can lock a tenant out of its own administration and
+    is refused for that reason. Changing what an administrator may *read* locks nobody out
+    of anything, and a customer whose admin role should carry no clearance is entitled to
+    say so.
+    """
+    role = await RoleService(profile).set_clearance(role_id, request.priority_level)
+    return RoleResponse(**asdict(role))
+
+
+@router.delete(
+    "/roles/{role_id}",
+    operation_id="deleteRole",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a role",
+    responses={
+        404: {"description": "No such role in this tenant"},
+        409: {"description": "A system role, or the tenant's last administrator"},
+    },
+    dependencies=[roles_manage],
+)
+async def delete_role(profile: CurrentProfile, role_id: UUID) -> None:
+    await RoleService(profile).delete(role_id)
 
 
 @router.put(

@@ -43,6 +43,17 @@ class AccessLabel(Base):
     # `tenants.default_label_id` because that column would close a foreign-key cycle
     # between the two tables.
     is_default: Mapped[bool] = mapped_column(default=False, server_default="false")
+    #: How much clearance this label demands, 0 to 10.
+    #:
+    #: **0 means compartment**, and it is the default: no clearance reaches this label, only
+    #: an explicit `role_labels` grant. That is the model the product shipped with, and it
+    #: is what a label should be unless somebody decides otherwise — a compartment is not
+    #: "low security", it is "orthogonal to seniority", and HR salary data is the example
+    #: that makes the distinction matter.
+    #:
+    #: 1 to 10 makes it a classification: any role whose `priority_level` is at or above it
+    #: reaches it without a grant.
+    priority_level: Mapped[int] = mapped_column(default=0, server_default="0")
 
 
 class RoleLabel(Base):

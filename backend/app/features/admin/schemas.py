@@ -11,12 +11,28 @@ class RoleResponse(BaseModel):
     is_system: bool
     permissions: list[str]
     users: int
+    #: Clearance, 1 to 10: the highest label level this role's holders reach through a
+    #: group. Vertical only — it moves nobody into a group they are not in.
+    priority_level: int
+    #: Labels granted outright, ignoring both group and clearance. The exception route,
+    #: recorded as its own rows so an access review can see somebody chose it.
+    label_ids: list[UUID]
 
 
 class RoleRequest(BaseModel):
     name: str = Field(min_length=1, max_length=100, default="")
     #: The complete set the role should hold afterwards, not a delta.
     permissions: list[str] = Field(default_factory=list[str])
+    priority_level: int = Field(default=1, ge=1, le=10)
+
+
+class RoleClearanceRequest(BaseModel):
+    priority_level: int = Field(ge=1, le=10)
+
+
+class RoleLabelsRequest(BaseModel):
+    #: The complete set of outright grants afterwards, not a delta.
+    label_ids: list[UUID] = Field(default_factory=list[UUID])
 
 
 class AssignRolesRequest(BaseModel):

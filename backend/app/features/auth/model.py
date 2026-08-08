@@ -54,6 +54,10 @@ class Role(Base):
     # System roles cannot be deleted: stops an administrator from removing the
     # last role holding administration permissions.
     is_system: Mapped[bool] = mapped_column(default=False, server_default="false")
+    #: How much clearance the holder has, 1 (lowest) to 10. Reaches every label whose own
+    #: level is at or below it — and no label at all by that route until an administrator
+    #: gives one a level, since labels start at 0. See `AccessLabel.priority_level`.
+    priority_level: Mapped[int] = mapped_column(default=1, server_default="1")
 
 
 class RolePermission(Base):

@@ -124,7 +124,7 @@ describe("the filters that have to be server-side", () => {
 
 describe("the filter that is deliberately local", () => {
   it("shows the selection without asking the server", async () => {
-    const known = [{ id: "z", name: "Elegida", is_default: false }];
+    const known = [{ id: "z", name: "Elegida", is_default: false, priority_level: 0 }];
     const urls = server();
     picker(["z"], known);
     await screen.findByRole("button", { name: "Contratos" });
@@ -164,7 +164,7 @@ describe("what the parent is told", () => {
     // `known` is what makes this possible: the selected row is drawn from the parent's map
     // rather than from the current page of results.
     server();
-    picker(["z"], [{ id: "z", name: "Fuera de la búsqueda", is_default: false }]);
+    picker(["z"], [{ id: "z", name: "Fuera de la búsqueda", is_default: false, priority_level: 0 }]);
 
     expect(
       await screen.findByRole("button", { name: /remove fuera de la búsqueda/i }),

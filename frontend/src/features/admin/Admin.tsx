@@ -21,7 +21,8 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { inviteUser, llmConfig, roles as fetchRoles, saveLlmConfig, setRolePermissions, type Invitation, type LlmConfig, type Role } from "./api";
 import { ApiError } from "@/shared/api/http";
-import { TagManager } from "@/features/labels";
+import { TagManager, labels as fetchLabels, type Label as LabelType } from "@/features/labels";
+import { AccessMatrix, GroupManager } from "./AccessMatrix";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,10 +47,27 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
 }
 
 export function Admin({ token }: { token: string }) {
+  const [labels, setLabels] = useState<LabelType[]>([]);
+  // Reloaded rather than mutated in place: a label's clearance is edited from inside the
+  // matrix, and the matrix is drawn from this list, so the change has to come back through
+  // the same fetch everything else reads.
+  const reloadLabels = useCallback(() => {
+    void fetchLabels(token)
+      .then(setLabels)
+      .catch(() => setLabels([]));
+  }, [token]);
+  useEffect(reloadLabels, [reloadLabels]);
+
   return (
     <div className="space-y-6">
       <Panel title="Invite a colleague">
         <InvitePanel token={token} />
+      </Panel>
+      <Panel title="Groups">
+        <GroupManager token={token} onChanged={reloadLabels} />
+      </Panel>
+      <Panel title="Access matrix">
+        <AccessMatrix token={token} labels={labels} onLabelsChanged={reloadLabels} />
       </Panel>
       <Panel title="Roles">
         <RolePanel token={token} />

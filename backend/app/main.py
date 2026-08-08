@@ -14,6 +14,7 @@ from app.core.request_context import RequestContextMiddleware
 from app.features.admin.router import router as admin_router
 from app.features.auth.router import router as auth_router
 from app.features.documents.router import router as documents_router
+from app.features.groups.router import router as groups_router
 from app.features.ingestion.tasks import app as procrastinate_app
 from app.features.labels.router import router as labels_router
 from app.features.query.router import router as query_router
@@ -133,6 +134,7 @@ app.include_router(search_router)
 app.include_router(query_router)
 app.include_router(tenancy_router)
 app.include_router(admin_router)
+app.include_router(groups_router)
 
 
 @app.get("/health")

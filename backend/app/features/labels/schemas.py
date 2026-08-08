@@ -28,8 +28,16 @@ class LabelResponse(BaseModel):
     id: UUID
     name: str
     is_default: bool
+    #: How much clearance this label demands of anyone reaching it through a group. Zero
+    #: demands none — which is not the same as public: a label mapped to no group and
+    #: granted to no role is still reachable by nobody.
+    priority_level: int = 0
 
     model_config = {"from_attributes": True}
+
+
+class LabelClearance(BaseModel):
+    priority_level: int = Field(ge=0, le=10)
 
 
 class LabelSearchItem(BaseModel):

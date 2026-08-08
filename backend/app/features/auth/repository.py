@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from app.common.repositories.base import ScopedRepository
 from app.features.auth.model import Role, RolePermission, User, UserRole
 from app.features.documents.model import Document
+from app.features.groups.model import GroupLabel, UserGroup
 from app.features.labels.model import AccessLabel, RoleLabel
 from app.features.tenancy.model import Tenant
 
@@ -36,19 +37,53 @@ class UserRepository(ScopedRepository[User]):
         return frozenset(await self.session.scalars(statement))
 
     async def label_ids(self, user_id: UUID) -> tuple[UUID, ...]:
-        """The union of the labels the user's roles reach.
+        """Every label the user reaches, by either of the two routes.
 
         This is the value RLS is handed for the rest of the request. Too many labels
         here is a data leak that the policies will enforce with complete confidence,
         which is why it is resolved in one place and tested directly.
+
+        **Grant**: somebody put the label in `role_labels` for a role this user holds. The
+        original route, unconditional, and still the only one that opens a label belonging
+        to no group.
+
+        **Group and clearance**: the label is mapped to a group the user is in, *and* the
+        user's clearance is at or above what the label demands. Both, not either. Being in
+        Finance does not by itself open `finance/confidential`, and being senior does not
+        put anybody in Finance — those are the horizontal and vertical halves, and a model
+        where one implies the other is not an access model.
+
+        A label mapped to no group is unreachable by the second route no matter whose
+        clearance is what, so every label that predates groups behaves exactly as it did.
+
+        The two routes are a union rather than a precedence: a clearance cannot take away a
+        grant and a grant cannot take away a clearance. Anything else would mean the order
+        rows happened to be written in decides what somebody can read.
         """
-        statement = (
+        granted = (
             select(RoleLabel.label_id)
             .join(UserRole, UserRole.role_id == RoleLabel.role_id)
             .where(UserRole.user_id == user_id)
-            .distinct()
         )
-        return tuple(await self.session.scalars(statement))
+        # `max` over the roles held rather than a sum: holding two roles at level 3 is
+        # level 3. NULL when the user holds no role, which makes the comparison below false
+        # rather than raising — so a user with no roles reaches nothing this way.
+        clearance = (
+            select(func.max(Role.priority_level))
+            .join(UserRole, UserRole.role_id == Role.id)
+            .where(UserRole.user_id == user_id)
+            .scalar_subquery()
+        )
+        through_group = (
+            select(GroupLabel.label_id)
+            .join(UserGroup, UserGroup.group_id == GroupLabel.group_id)
+            .join(AccessLabel, AccessLabel.id == GroupLabel.label_id)
+            .where(
+                UserGroup.user_id == user_id,
+                AccessLabel.priority_level <= clearance,
+            )
+        )
+        return tuple(await self.session.scalars(granted.union(through_group)))
 
     async def role_names(self, user_id: UUID) -> list[str]:
         """The roles this user holds, by the names their administrator chose.
