@@ -53,16 +53,18 @@ describe("choosing a group", () => {
     expect(await screen.findByLabelText("Human Resources may reach hr/payroll")).toBeTruthy();
   });
 
-  it("says how much each group holds without opening it", async () => {
+  it("says how much the open group holds and who it affects", async () => {
+    // The member count is about the group in front of you rather than about the tab — a
+    // segment has room for a name and a number, and "how many people this affects" is the
+    // fact that matters once you are editing.
     render(<AccessMatrix token="t" labels={LABELS} />);
 
-    expect(await screen.findByText("1 label · 3 members")).toBeTruthy();
-    expect(screen.getByText("0 labels · 12 members")).toBeTruthy();
+    expect(await screen.findByText(/3 members · 1 of 3 mapped/)).toBeTruthy();
   });
 
   it("shows the labels of whichever group is open", async () => {
     render(<AccessMatrix token="t" labels={LABELS} />);
-    fireEvent.click(await screen.findByRole("button", { name: /Engineering/ }));
+    fireEvent.click(await screen.findByRole("tab", { name: /Engineering/ }));
 
     const mapped = screen.getByLabelText("Engineering may reach hr/payroll");
 
@@ -151,7 +153,7 @@ describe("saving", () => {
     // somebody's intent to the wrong group.
     render(<AccessMatrix token="t" labels={LABELS} />);
     fireEvent.click(await screen.findByLabelText("Human Resources may reach finance/routine"));
-    fireEvent.click(screen.getByRole("button", { name: /Engineering/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /Engineering/ }));
 
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   });

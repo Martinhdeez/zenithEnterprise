@@ -141,36 +141,44 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
         </p>
       )}
 
-      <div className="grid gap-3 md:grid-cols-[minmax(0,14rem)_1fr]">
-        {/* Groups: the bounded axis, so it can be a plain list that fits. */}
-        <ul className="divide-y divide-border overflow-hidden rounded-md border border-input bg-card">
-          {groups.map((one) => (
-            <li key={one.id}>
-              <button
-                type="button"
-                aria-pressed={one.id === selected}
-                onClick={() => {
-                  // Unsaved ticks belong to the group they were made on; carrying them to
-                  // another group would apply somebody's intent to the wrong one.
-                  setDraft(null);
-                  setSelected(one.id);
-                }}
-                className={`w-full px-3 py-2.5 text-left text-sm transition-colors ${
-                  one.id === selected
-                    ? "bg-primary/10 text-foreground"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                }`}
-              >
-                <span className="block truncate font-medium">{one.name}</span>
-                <span className="block text-xs text-muted-foreground">
-                  {one.label_ids.length} label{one.label_ids.length === 1 ? "" : "s"} ·{" "}
-                  {one.members} member{one.members === 1 ? "" : "s"}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+      {/* Groups run across the top rather than down a column. They are the *bounded* axis —
+          a tenant has departments, not thousands of them — and giving them a full-height
+          sidebar meant a 14rem panel stretched to the height of the label list beside it,
+          mostly empty, reading as a region that had failed to load. A row of segments says
+          the same thing in one line and hands the width back to the labels, which are the
+          part with long names. */}
+      <div
+        role="tablist"
+        aria-label="Groups"
+        className="flex flex-wrap gap-1.5 rounded-md border border-input bg-card p-1.5"
+      >
+        {groups.map((one) => (
+          <button
+            key={one.id}
+            type="button"
+            role="tab"
+            aria-selected={one.id === selected}
+            onClick={() => {
+              // Unsaved ticks belong to the group they were made on; carrying them to
+              // another group would apply somebody's intent to the wrong one.
+              setDraft(null);
+              setSelected(one.id);
+            }}
+            className={`rounded px-3 py-1.5 text-sm transition-colors ${
+              one.id === selected
+                ? "bg-primary/15 font-medium text-foreground"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            {one.name}
+            <span className="ml-2 text-xs text-muted-foreground">
+              {one.label_ids.length}
+            </span>
+          </button>
+        ))}
+      </div>
 
+      <div>
         {/* Labels: the unbounded axis, running vertically where length is allowed. */}
         <div className="space-y-2 rounded-md border border-input bg-card p-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -184,7 +192,11 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
                 className="w-full rounded-full border border-input bg-input/30 py-1.5 pr-3 pl-8 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary/40 focus-visible:outline-none"
               />
             </div>
+            {/* About the group being edited, which is where it belongs — a segment has
+                room for a name and a count, and "how many people this affects" is a fact
+                about the thing open in front of you rather than about the tab. */}
             <span className="shrink-0 text-xs text-muted-foreground">
+              {group?.members ?? 0} member{group?.members === 1 ? "" : "s"} ·{" "}
               {held.size} of {labels.length} mapped
             </span>
           </div>
