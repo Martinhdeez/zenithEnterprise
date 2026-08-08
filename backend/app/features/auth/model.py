@@ -21,6 +21,11 @@ class User(Base):
     __tablename__ = "users"
     __table_args__ = (
         UniqueConstraint("tenant_id", "email"),
+        # Installation-wide since 0011, and not a tightening for tidiness:
+        # `AuthService.authenticate` refuses any address that matches more than one row, so
+        # a duplicate did not create two usable accounts — it created two unusable ones,
+        # visible only as `login_ambiguous_email` in the server log.
+        Index("uq_users_email_global", "email", unique=True),
         # The unique constraint above cannot serve login, which knows the email but
         # not yet the tenant. Declared here as well as in migration 0002 so the drift
         # test keeps them in step.

@@ -20,13 +20,22 @@ is a password in a chat log. The eventual answer is an invitation token and a se
 page, which needs a public unauthenticated route and a token table — a milestone, not a
 line. Recorded rather than pretended away.
 
-## What the response deliberately does not do
+## One address, one account — and what that costs
 
-It does not say whether the address already existed anywhere else. Within a tenant a
-duplicate is a plain conflict, because the administrator is entitled to know about their own
-users. Across tenants it must not be one: `users` is unique per `(tenant_id, email)`
-precisely so that two customers may employ the same person, and an error that distinguished
-"taken here" from "taken elsewhere" would leak one customer's staff list to another.
+This module used to argue the opposite, and the argument was good: `users` was unique per
+`(tenant_id, email)` so two customers could employ the same person, and an error telling one
+administrator that an address was "taken elsewhere" would leak the other customer's staff.
+
+It was wrong about the premise. A duplicate address did not produce two working accounts, it
+produced two broken ones: `AuthService.authenticate` treats anything other than exactly one
+match as a failed login, so both sides answered 401 forever and the only trace was a log
+line. Migration 0011 makes the address unique installation-wide.
+
+The leak the old design avoided is now real and is accepted deliberately. Refusing to create
+an address that exists elsewhere reveals that it exists elsewhere — by the refusal itself,
+whatever wording the message uses; a vaguer message would hide the reason from the
+administrator without hiding the signal from anybody probing for it. The trade is a
+disclosure an administrator can probe for, against an account that silently cannot be used.
 """
 
 import secrets
@@ -38,7 +47,7 @@ from sqlalchemy.exc import IntegrityError
 from app.common.exceptions import ConflictError, NotFoundError
 from app.core.database import tenant_session
 from app.features.auth.provisioning import create_user
-from app.features.auth.service import AccessProfile
+from app.features.auth.service import AccessProfile, normalise_email
 
 INVITE = "users.invite"
 
@@ -81,14 +90,27 @@ class InvitationService:
                     # here, and the difference between the two answers would confirm it.
                     raise NotFoundError(f"no role(s): {', '.join(missing)}")
 
+            # Asked before the insert so the two conflicts can be told apart in the
+            # message. Under RLS this sees only this tenant's users, so a match here is
+            # unambiguously one of the administrator's own — and a miss followed by a
+            # constraint violation is unambiguously somebody else's.
+            from sqlalchemy import text
+
+            here = await session.scalar(
+                text("SELECT 1 FROM users WHERE email = :e"), {"e": normalise_email(email)}
+            )
+            if here:
+                raise ConflictError(f"{email} is already a user here")
+
             try:
                 user = await create_user(session, self.context.tenant_id, email, password, role_ids)
             except IntegrityError as exc:
-                # Within the tenant this is an ordinary conflict and the administrator is
-                # entitled to it — they can see their own users. The uniqueness constraint
-                # is per `(tenant_id, email)`, so this can never fire for an address that
-                # only exists in another customer's tenant.
-                raise ConflictError(f"{email} is already a user here") from exc
+                # The global index from 0011. The address exists in another organisation,
+                # and one address is one account across the installation — see this
+                # module's docstring for why, and for what it costs.
+                raise ConflictError(
+                    f"{email} is already registered in another organisation"
+                ) from exc
 
         return Invitation(
             user_id=user.id,

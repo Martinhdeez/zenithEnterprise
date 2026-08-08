@@ -97,6 +97,20 @@ class SystemService:
         from app.features.auth.service import normalise_email
         from app.features.tenancy.service import TenantService
 
+        # Checked before the tenant is created, not after. `TenantService.create` commits
+        # its own transaction, so a duplicate address discovered later would leave an
+        # organisation behind with no administrator and no obvious way to notice.
+        async with platform_session() as session:
+            taken = await session.scalar(
+                text("SELECT 1 FROM users WHERE email = :e"),
+                {"e": normalise_email(admin_email)},
+            )
+        if taken:
+            raise ConflictError(
+                f"{admin_email} is already registered in another organisation. "
+                f"One address is one account across this installation."
+            )
+
         tenant = await TenantService().create(name)
         password = generate_password()
 

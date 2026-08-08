@@ -66,6 +66,30 @@ def _print_credentials(email: str, password: str) -> None:
     typer.echo("")
 
 
+async def _refuse_if_taken(email: str) -> None:
+    """One address is one account across the installation (migration 0011).
+
+    Checked here as well as by the constraint so the operator gets a sentence naming the
+    organisation, rather than a driver error naming an index. The constraint is still what
+    guarantees it — this only explains it.
+    """
+    async with owner_session() as session:
+        existing = await session.scalar(
+            text(
+                "SELECT t.name FROM users u JOIN tenants t ON t.id = u.tenant_id WHERE u.email = :e"
+            ),
+            {"e": normalise_email(email)},
+        )
+    if existing:
+        typer.secho(
+            f"{email} already has an account in {existing!r}. "
+            f"One address is one account across this installation.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(1)
+
+
 @app.command()
 def create_tenant(
     name: Annotated[str, typer.Argument(help="Company name.")],
@@ -79,6 +103,10 @@ def create_tenant(
     """
 
     async def run() -> None:
+        # Before the tenant exists: a duplicate found afterwards would leave an
+        # organisation with no administrator and nothing to say so.
+        await _refuse_if_taken(admin_email)
+
         try:
             tenant = await TenantService().create(name)
         except ConflictError as exc:
@@ -113,6 +141,8 @@ def invite(
         except NotFoundError as exc:
             typer.secho(str(exc), fg=typer.colors.RED, err=True)
             raise typer.Exit(1) from exc
+
+        await _refuse_if_taken(email)
 
         password = generate_password()
         async with owner_session() as session:

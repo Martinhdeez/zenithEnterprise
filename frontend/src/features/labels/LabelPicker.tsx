@@ -255,14 +255,21 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
                 : "border-input bg-card text-muted-foreground hover:border-muted-foreground/60 hover:text-foreground"
             }`}
           >
-            {/* Equal padding on both sides — the delete button is an absolute overlay
-                rather than a flex sibling precisely so it does not eat into the right side
-                and leave the label text looking shoved left. */}
+            {/* Equal padding on both sides at rest — the delete button is an absolute
+                overlay rather than a flex sibling precisely so it does not eat into the
+                right side and leave the label text looking shoved left.
+
+                On hover the chip makes room for it instead. An overlay with nothing behind
+                it sat on top of the last character or two of every name long enough to fill
+                the chip, so the moment you reached for the delete button was the moment you
+                could no longer read what you were deleting. The padding is animated for the
+                same reason it is added: the chip growing is the thing that explains where
+                the button came from. */}
             <button
               type="button"
               aria-pressed={selected.has(label.id)}
               onClick={() => onToggle(label)}
-              className="px-3.5 py-1.5"
+              className="py-1.5 pr-3.5 pl-3.5 transition-[padding] duration-150 group-hover:pr-7"
             >
               {label.name}
             </button>
