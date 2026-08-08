@@ -1,11 +1,11 @@
 /**
- * The grid, and the sentence it must not let anybody misread.
+ * Mapping labels to a group, one group at a time.
  *
- * A ticked cell maps a label to a group. It does *not* mean the group's members can read
- * that label — they still need the clearance the label demands. The screen is the only
- * place that distinction is visible before somebody files a support ticket about it, so
- * the clearance control and the explanation are asserted here rather than treated as
- * decoration.
+ * This was a grid — groups down the side, labels across the top — and the shape was wrong:
+ * a matrix grows in two directions and only one of these axes is bounded, so it got wider
+ * than the screen and stayed there. The assertions below are about the shape that replaced
+ * it: one dimension at a time, a search over the unbounded one, and a Save that means
+ * something because ticking no longer writes.
  */
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -16,6 +16,7 @@ import { AccessMatrix } from "./AccessMatrix";
 const LABELS = [
   { id: "l1", name: "hr/payroll", is_default: false, priority_level: 8 },
   { id: "l2", name: "finance/routine", is_default: false, priority_level: 0 },
+  { id: "l3", name: "legal/contracts", is_default: false, priority_level: 2 },
 ];
 
 const GROUPS = [
@@ -23,87 +24,150 @@ const GROUPS = [
   { id: "g2", name: "Engineering", description: null, members: 12, label_ids: [] },
 ];
 
+const groups = vi.fn();
 const setGroupLabels = vi.fn();
 const setLabelClearance = vi.fn();
 
 vi.mock("./api", () => ({
-  groups: () => Promise.resolve(GROUPS),
-  setGroupLabels: (...args: unknown[]) => setGroupLabels(...args),
-  setLabelClearance: (...args: unknown[]) => setLabelClearance(...args),
+  groups: (...a: unknown[]) => groups(...a),
+  setGroupLabels: (...a: unknown[]) => setGroupLabels(...a),
+  setLabelClearance: (...a: unknown[]) => setLabelClearance(...a),
   createGroup: vi.fn(),
   deleteGroup: vi.fn(),
 }));
 
 beforeEach(() => {
   vi.clearAllMocks();
-  setGroupLabels.mockImplementation((_t, id, labelIds) =>
+  groups.mockResolvedValue(GROUPS);
+  setGroupLabels.mockImplementation((_t: string, id: string, labelIds: string[]) =>
     Promise.resolve({ ...GROUPS.find((g) => g.id === id)!, label_ids: labelIds }),
   );
   setLabelClearance.mockResolvedValue({ id: "l1", name: "hr/payroll", priority_level: 5 });
 });
 
-describe("the grid", () => {
-  it("puts every group against every label", async () => {
+describe("choosing a group", () => {
+  it("starts on the first one rather than on nothing", async () => {
+    // An empty right-hand pane on load is a screen that looks broken.
     render(<AccessMatrix token="t" labels={LABELS} />);
 
-    expect(await screen.findByText("Human Resources")).toBeTruthy();
-    expect(screen.getByText("Engineering")).toBeTruthy();
-    expect(screen.getByText("hr/payroll")).toBeTruthy();
-    expect(screen.getByText("finance/routine")).toBeTruthy();
+    expect(await screen.findByLabelText("Human Resources may reach hr/payroll")).toBeTruthy();
   });
 
-  it("shows an existing mapping as ticked and an absent one as not", async () => {
+  it("says how much each group holds without opening it", async () => {
     render(<AccessMatrix token="t" labels={LABELS} />);
 
-    const mapped = await screen.findByLabelText("Human Resources may reach hr/payroll");
-    const unmapped = screen.getByLabelText("Engineering may reach hr/payroll");
-
-    expect((mapped as HTMLInputElement).checked).toBe(true);
-    expect((unmapped as HTMLInputElement).checked).toBe(false);
+    expect(await screen.findByText("1 label · 3 members")).toBeTruthy();
+    expect(screen.getByText("0 labels · 12 members")).toBeTruthy();
   });
 
-  it("says how many people a group is", async () => {
-    // The number that makes a revocation reviewable before it is made.
+  it("shows the labels of whichever group is open", async () => {
     render(<AccessMatrix token="t" labels={LABELS} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Engineering/ }));
 
-    expect(await screen.findByText("3 members")).toBeTruthy();
+    const mapped = screen.getByLabelText("Engineering may reach hr/payroll") as HTMLInputElement;
+
+    expect(mapped.checked).toBe(false);
   });
 });
 
-describe("changing a mapping", () => {
-  it("sends the whole set the group should have afterwards", async () => {
+describe("searching the labels", () => {
+  it("narrows the list, because thousands of them is the real case", async () => {
+    render(<AccessMatrix token="t" labels={LABELS} />);
+    await screen.findByLabelText("Human Resources may reach hr/payroll");
+
+    fireEvent.change(screen.getByLabelText("Search labels to map"), { target: { value: "legal" } });
+
+    expect(screen.getByText("legal/contracts")).toBeTruthy();
+    expect(screen.queryByText("finance/routine")).toBeNull();
+  });
+
+  it("says so when nothing matches", async () => {
+    render(<AccessMatrix token="t" labels={LABELS} />);
+    await screen.findByLabelText("Human Resources may reach hr/payroll");
+
+    fireEvent.change(screen.getByLabelText("Search labels to map"), { target: { value: "zzz" } });
+
+    expect(screen.getByText("No label matches that.")).toBeTruthy();
+  });
+
+  it("puts what the group already opens at the top", async () => {
+    // The question this screen answers most often is "what does this group open", and that
+    // answer should not be somewhere down an alphabetical list of everything else.
+    render(<AccessMatrix token="t" labels={LABELS} />);
+    await screen.findByLabelText("Human Resources may reach hr/payroll");
+
+    const names = screen.getAllByRole("checkbox").map((box) => box.getAttribute("aria-label"));
+
+    expect(names[0]).toContain("hr/payroll");
+  });
+});
+
+describe("saving", () => {
+  it("does not write on a tick", async () => {
+    // It used to, and that read as nothing having happened: there was no moment where the
+    // screen said "this is now true".
+    render(<AccessMatrix token="t" labels={LABELS} />);
+    fireEvent.click(await screen.findByLabelText("Human Resources may reach finance/routine"));
+
+    expect(setGroupLabels).not.toHaveBeenCalled();
+  });
+
+  it("offers Save only once something has changed", async () => {
+    render(<AccessMatrix token="t" labels={LABELS} />);
+    await screen.findByLabelText("Human Resources may reach hr/payroll");
+
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+
+    fireEvent.click(screen.getByLabelText("Human Resources may reach finance/routine"));
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
+  });
+
+  it("sends the whole set the group should open afterwards", async () => {
     // Replace, not patch: the server takes the complete set, and a delta computed from
     // stale state would silently revoke a mapping somebody else had just made.
     render(<AccessMatrix token="t" labels={LABELS} />);
+    fireEvent.click(await screen.findByLabelText("Human Resources may reach finance/routine"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    fireEvent.click(await screen.findByLabelText("Engineering may reach hr/payroll"));
-
-    await waitFor(() => expect(setGroupLabels).toHaveBeenCalledWith("t", "g2", ["l1"]));
+    await waitFor(() =>
+      expect(setGroupLabels).toHaveBeenCalledWith("t", "g1", expect.arrayContaining(["l1", "l2"])),
+    );
   });
 
-  it("removes a label by sending the set without it", async () => {
+  it("puts the ticks back when the edit is cancelled", async () => {
     render(<AccessMatrix token="t" labels={LABELS} />);
+    fireEvent.click(await screen.findByLabelText("Human Resources may reach finance/routine"));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-    fireEvent.click(await screen.findByLabelText("Human Resources may reach hr/payroll"));
+    const box = screen.getByLabelText("Human Resources may reach finance/routine");
 
-    await waitFor(() => expect(setGroupLabels).toHaveBeenCalledWith("t", "g1", []));
+    expect((box as HTMLInputElement).checked).toBe(false);
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   });
 
-  it("reports a refusal instead of leaving the tick where the server did not put it", async () => {
-    setGroupLabels.mockRejectedValue(new Error("no label(s): l1"));
+  it("discards unsaved ticks when another group is opened", async () => {
+    // They belong to the group they were made on. Carrying them across would apply
+    // somebody's intent to the wrong group.
     render(<AccessMatrix token="t" labels={LABELS} />);
+    fireEvent.click(await screen.findByLabelText("Human Resources may reach finance/routine"));
+    fireEvent.click(screen.getByRole("button", { name: /Engineering/ }));
 
-    fireEvent.click(await screen.findByLabelText("Engineering may reach hr/payroll"));
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+  });
 
-    expect(await screen.findByText("no label(s): l1")).toBeTruthy();
-    expect(
-      (screen.getByLabelText("Engineering may reach hr/payroll") as HTMLInputElement).checked,
-    ).toBe(false);
+  it("reports a refusal instead of showing the change as made", async () => {
+    setGroupLabels.mockRejectedValue(new Error("no label(s): l2"));
+    render(<AccessMatrix token="t" labels={LABELS} />);
+    fireEvent.click(await screen.findByLabelText("Human Resources may reach finance/routine"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByRole("alert")).toBeTruthy();
   });
 });
 
 describe("clearance", () => {
-  it("is shown per label, because a tick alone does not grant access", async () => {
+  it("sits beside each label rather than in a column header", async () => {
     render(<AccessMatrix token="t" labels={LABELS} />);
 
     const control = (await screen.findByLabelText(
@@ -114,23 +178,21 @@ describe("clearance", () => {
   });
 
   it("distinguishes demanding no clearance from being public", async () => {
-    // `finance/routine` is at 0 — it asks for no clearance, which is not the same as being
-    // readable by anyone: a label mapped to no group is still reachable by nobody.
     render(<AccessMatrix token="t" labels={LABELS} />);
+    await screen.findByLabelText("Search labels to map");
 
     const control = (await screen.findByLabelText(
       "Clearance required by finance/routine",
     )) as HTMLSelectElement;
 
     expect(control.value).toBe("0");
-    // Worded rather than shown as "0": a bare zero in a column header reads as "no
-    // restriction at all", which is the misreading this whole screen exists to prevent.
     expect(screen.getAllByText("no clearance").length).toBe(LABELS.length);
   });
 
-  it("classifies a label in place", async () => {
+  it("saves immediately, unlike a tick", async () => {
+    // A clearance is a property of the label rather than of this group's mapping, so it is
+    // not part of the draft the Save button commits.
     render(<AccessMatrix token="t" labels={LABELS} />);
-
     fireEvent.change(await screen.findByLabelText("Clearance required by hr/payroll"), {
       target: { value: "5" },
     });
@@ -139,10 +201,8 @@ describe("clearance", () => {
   });
 
   it("states that the two halves are independent", async () => {
-    // The one sentence that stops an administrator reading a ticked row as "these people
-    // can see this".
     render(<AccessMatrix token="t" labels={LABELS} />);
 
-    expect(await screen.findByText(/clearance is at or above/i)).toBeTruthy();
+    expect(await screen.findByText(/the two are independent/i)).toBeTruthy();
   });
 });

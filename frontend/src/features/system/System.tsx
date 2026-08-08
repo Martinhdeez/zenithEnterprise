@@ -92,7 +92,7 @@ export function System({ token }: { token: string }) {
         </p>
       )}
 
-      <ul className="divide-y divide-border rounded-lg border border-border">
+      <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-secondary shadow-sm">
         {items.map((organisation) => (
           <li key={organisation.id} className="flex flex-wrap items-center gap-3 p-4">
             <Building2 className="size-4 shrink-0 text-muted-foreground" />
@@ -178,7 +178,9 @@ function NewOrganisation({ token, onCreated }: { token: string; onCreated: () =>
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <section className="space-y-3 rounded-lg border border-border p-4">
+    // Raised off the page like every other panel in the product. It was transparent, which
+    // on a `bg-card` page means it was the page.
+    <section className="space-y-3 rounded-lg border border-border bg-secondary p-4 shadow-sm">
       <p className="text-sm font-medium text-foreground">New organisation</p>
       <div className="flex flex-wrap gap-2">
         <input

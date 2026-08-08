@@ -366,10 +366,14 @@ function Sessions({ token, onSignedOut }: { token: string; onSignedOut: () => vo
   );
 }
 
+/** `bg-secondary`, not `bg-card`: the page's own `<main>` is already `bg-card`, so a panel
+    painted the same navy is invisible but for its hairline. The palette has three steps and
+    a panel is the third — the same frame the administration screens use, so the two read as
+    one product rather than two screens built by different hands. */
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-lg border border-border bg-card">
-      <h2 className="flex items-center gap-2 border-b border-border px-5 py-3.5 text-sm font-semibold text-foreground">
+    <section className="rounded-lg border border-border bg-secondary shadow-sm">
+      <h2 className="flex items-center gap-2 rounded-t-lg border-b border-border bg-card px-5 py-3.5 text-sm font-semibold text-foreground">
         {title === "Access" && <ShieldCheck className="size-4 text-primary" />}
         {title}
       </h2>

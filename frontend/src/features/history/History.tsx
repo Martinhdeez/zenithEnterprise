@@ -14,6 +14,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { Search as SearchIcon, X } from "lucide-react";
+
 import { history, type HistoryEntry } from "./api";
 import { Button } from "@/components/ui/button";
 
@@ -74,13 +76,45 @@ export function History({
 
   const controls = (
     <div className="space-y-2">
-      <input
-        value={typed}
-        onChange={(event) => setTyped(event.target.value)}
-        placeholder="Search your questions"
-        aria-label="Search questions"
-        className="w-full rounded-full border border-input bg-input/30 px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary/40 focus-visible:outline-none"
-      />
+      {/* One surface, the way the Search screen's composer is built: the border lives on
+          the wrapper and the field is borderless inside it, so a field and a button read as
+          one control rather than two shapes side by side.
+
+          The button is deliberately not the only way to search — typing still searches, on a
+          debounce. It is here because a search box without one looks like it has not
+          understood you yet, and pressing something is what tells a person the box is a
+          search box rather than a filter that might be broken. */}
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          // Commits what is typed now rather than waiting out the debounce. Same value, no
+          // pause — which is the whole point of pressing it.
+          setSearch(typed);
+        }}
+        className="flex items-center gap-1 rounded-full border border-input bg-input/30 py-1 pr-1 pl-3.5 transition-colors focus-within:border-primary/40"
+      >
+        <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
+        <input
+          value={typed}
+          onChange={(event) => setTyped(event.target.value)}
+          placeholder="Search your questions"
+          aria-label="Search questions"
+          className="min-w-0 flex-1 bg-transparent px-2 py-1 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none"
+        />
+        {typed && (
+          <button
+            type="button"
+            aria-label="Clear search"
+            onClick={() => setTyped("")}
+            className="shrink-0 rounded-full p-1 text-muted-foreground hover:text-foreground"
+          >
+            <X className="size-3.5" />
+          </button>
+        )}
+        <Button type="submit" size="sm" className="shrink-0 rounded-full">
+          Search
+        </Button>
+      </form>
       <div className="flex flex-wrap gap-1.5">
         {/* Only offered when there is somebody else's question to look away from. A filter
             that never changes anything is a control that teaches people to ignore controls. */}
