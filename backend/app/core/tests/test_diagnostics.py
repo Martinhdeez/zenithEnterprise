@@ -175,3 +175,56 @@ def test_the_exit_code_reports_failure(
 
     assert result.exit_code == 1
     assert "FAIL" in result.output
+
+
+def _serving(monkeypatch: pytest.MonkeyPatch, info: dict[str, str] | None) -> None:
+    """Stand in for every TEI container: healthy, and `/info` answering or absent."""
+    import httpx
+
+    class Fake:
+        async def __aenter__(self) -> "Fake":
+            return self
+
+        async def __aexit__(self, *_exc: object) -> None:
+            return None
+
+        async def get(self, url: str) -> httpx.Response:
+            if url.endswith("/info"):
+                return httpx.Response(200, json=info) if info else httpx.Response(404)
+            return httpx.Response(200)
+
+    def client(**_kwargs: object) -> Fake:
+        return Fake()
+
+    monkeypatch.setattr(httpx, "AsyncClient", client)
+
+
+async def test_a_model_service_reports_which_model_it_is_serving(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ "Responding" hid the failure that cost this project a working reranker twice.
+
+    A TEI container serving the wrong weights answers `/health` exactly like one serving the
+    right ones. The only symptoms are quality, which nobody can see, and latency, which
+    everybody blames on something else. Naming the model turns both into a line of
+    `zenith diagnose`.
+    """
+    _serving(monkeypatch, {"model_id": "BAAI/bge-reranker-v2-m3"})
+
+    checks = await run_diagnostics()
+    rerank = next(check for check in checks if check.name == "reranking service")
+
+    assert "BAAI/bge-reranker-v2-m3" in rerank.detail
+
+
+async def test_a_model_service_without_an_info_route_is_still_healthy(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An older TEI is a working service. Failing it over a missing label would cry wolf."""
+    _serving(monkeypatch, None)
+
+    checks = await run_diagnostics()
+    rerank = next(check for check in checks if check.name == "reranking service")
+
+    assert rerank.status == "ok"
+    assert "responding" in rerank.detail

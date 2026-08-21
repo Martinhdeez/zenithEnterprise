@@ -201,12 +201,36 @@ async def _vector_space() -> tuple[Status, str]:
 
 
 def _model_service(name: str, url: str) -> Callable[[], Awaitable[tuple[Status, str]]]:
+    """Reachable, and **serving what**.
+
+    "Responding" was not enough. A TEI container serving a different model than the
+    deployment intends looks identical to a correct one from the outside: it answers
+    `/health`, it returns scores, and nothing anywhere says which weights produced them. The
+    two ways that goes wrong are both real — a cross-encoder swapped for a faster one is a
+    quality change nobody can see, and one swapped for a heavier one is the difference
+    between a search that takes 800 ms and one that takes fourteen seconds.
+
+    Reported rather than checked against an expected value: the model is a deployment
+    decision, and this file's job is to make decisions visible, not to have opinions about
+    them.
+    """
+
     async def check() -> tuple[Status, str]:
+        base = url.rstrip("/")
         async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(f"{url.rstrip('/')}/health")
-        if response.status_code == 200:
-            return "ok", f"{redact(url)} responding"
-        return "fail", f"{redact(url)} returned {response.status_code}"
+            response = await client.get(f"{base}/health")
+            if response.status_code != 200:
+                return "fail", f"{redact(url)} returned {response.status_code}"
+            # Best effort. An older TEI without `/info` is still a working service, and
+            # failing the check over a missing label would cry wolf.
+            served = ""
+            try:
+                info = await client.get(f"{base}/info")
+                if info.status_code == 200:
+                    served = str(info.json().get("model_id") or "")
+            except Exception:  # noqa: BLE001 - the health answer is what decides the status
+                served = ""
+        return "ok", f"{redact(url)} responding{f', serving {served}' if served else ''}"
 
     check.__name__ = name
     return check
