@@ -95,6 +95,10 @@ describe("<Answer />", () => {
 
     expect(screen.getByText(/no answer was found/i)).toBeTruthy();
     expect(screen.getByText(/gdpr\.pdf/)).toBeTruthy();
+    // And *only* the banner. The sentence the model was handed is a contract the backend
+    // matches on, not prose for a reader: printing it says the same thing twice, and says
+    // the second one in English however the question was asked.
+    expect(screen.queryByText(/documents provided do not contain/i)).toBeNull();
   });
 
   it("surfaces a degraded answer rather than swallowing it", () => {

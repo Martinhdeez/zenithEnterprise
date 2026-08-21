@@ -49,7 +49,14 @@ export function Answer({ state, onCitation }: Props) {
   // that doesn't match any citation (which `citations.py` would already have caught server
   // side, but this is the last line of defence) stays inert text rather than a link to
   // nothing.
-  const source = result ? linkCitations(displayed(state), result.citations) : displayed(state);
+  // An abstention renders as the banner below and nothing else. The sentence the model was
+  // handed — "The documents provided do not contain an answer to this question." — is a
+  // *contract*: `citations.py` matches it exactly to decide that the model refused. Printing
+  // it as prose says the same thing twice, and says the second one in English however the
+  // question was asked, which is what a Spanish reader notices first when the answer above
+  // it was in Spanish.
+  const prose = result?.abstained ? "" : displayed(state);
+  const source = result ? linkCitations(prose, result.citations) : prose;
 
   return (
     <div>
