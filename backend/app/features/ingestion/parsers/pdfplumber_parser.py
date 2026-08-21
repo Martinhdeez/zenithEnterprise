@@ -32,6 +32,7 @@ import pdfplumber
 
 from app.features.ingestion.columns import gutters
 from app.features.ingestion.parsers.base import Box, ParsedPage, Word
+from app.features.ingestion.parsers.tables import is_table, to_markdown
 
 
 class PdfPlumberParser:
@@ -61,6 +62,17 @@ class PdfPlumberParser:
         height = float(getattr(page, "height", 0)) or 1.0
 
         raw = page.extract_words() or []  # type: ignore[attr-defined]
+
+        grids = self._tables(page)
+        if grids:
+            # Tables win over column splitting, and they have to. A table spanning the full
+            # width of a two-column page puts words in the gutter, which is exactly the
+            # evidence `gutters` reads — so a page with a wide table often looks
+            # single-column, and a page with a narrow one looks like it has a gutter where
+            # the table's own middle rule is. Neither reading helps, and cropping a table
+            # down the middle destroys the rows this path exists to preserve.
+            return self._with_tables(page, page_num, width, height, grids, raw)
+
         centres = [(float(word["x0"]) + float(word["x1"])) / 2 / width for word in raw]
         splits = gutters(centres)
 
@@ -72,6 +84,80 @@ class PdfPlumberParser:
             return ParsedPage(page_num=page_num, text=text, words=words, method=self.name)
 
         return self._by_column(page, page_num, width, height, splits)
+
+    def _tables(self, page: object) -> list[tuple[tuple[float, float], str]]:
+        """The page's real tables, each as its vertical extent and its Markdown.
+
+        `find_tables` rather than `extract_tables`, because the position is half of what is
+        needed: a table has to go back into the text where it was, and `extract_tables`
+        returns the cells and throws the geometry away.
+
+        Anything that fails `is_table` is dropped here and its region is left to ordinary
+        text extraction, so a page border mistaken for a grid costs nothing at all.
+        """
+        found: list[tuple[tuple[float, float], str]] = []
+        for table in page.find_tables() or []:  # type: ignore[attr-defined]
+            rows = table.extract() or []
+            if not is_table(rows):
+                continue
+            _, top, _, bottom = table.bbox
+            found.append(((float(top), float(bottom)), to_markdown(rows)))
+        return sorted(found, key=lambda item: item[0][0])
+
+    def _with_tables(
+        self,
+        page: object,
+        page_num: int,
+        width: float,
+        height: float,
+        grids: list[tuple[tuple[float, float], str]],
+        raw: list[object],
+    ) -> ParsedPage:
+        """The page read in vertical bands: prose, table, prose, table, prose.
+
+        Injection rather than appending. Appending the Markdown to the end of the page would
+        leave the flattened version of the same table in the prose above it, and the two
+        disagree — the flattened one has lost which number belongs to which column, so the
+        chunk would contain both a correct table and a scrambled one, and nothing tells the
+        model which to believe. Reading the non-table bands and dropping the table bands
+        means each value appears exactly once, in the form that keeps its meaning.
+
+        The words are the page's own, untouched and in reading order. `_boxes_for` walks
+        them forward through the text looking for each one in turn, so the pipes and dashes
+        between them are simply skipped, and a citation into a table still highlights the
+        rows it came from.
+        """
+        pieces: list[str] = []
+        cursor = 0.0
+
+        for (top, bottom), markdown in grids:
+            if top > cursor:
+                band = page.crop((0, cursor, width, top))  # type: ignore[attr-defined]
+                above = (band.extract_text() or "").strip()
+                if above:
+                    pieces.append(above)
+            pieces.append(markdown)
+            cursor = max(cursor, bottom)
+
+        if cursor < height:
+            band = page.crop((0, cursor, width, height))  # type: ignore[attr-defined]
+            below = (band.extract_text() or "").strip()
+            if below:
+                pieces.append(below)
+
+        return ParsedPage(
+            page_num=page_num,
+            # A blank line between bands: prose and a table are not continuous, and the
+            # chunker treats "\n\n" as the strongest break it can cut on — which is what
+            # keeps a table from being split down the middle when it can be avoided.
+            text="\n\n".join(pieces),
+            words=tuple(self._word(word, page_num, width, height) for word in raw),
+            method=self.name,
+            # No warning. `warnings` means "this text is suspect" — `_summarise` turns them
+            # into a document-level "N of M pages extracted with warnings" that a user
+            # reads as damage — and a rendered table is the opposite of damage. It is also
+            # moot: `_routed` replaces the parser's warnings with the router's.
+        )
 
     def _by_column(
         self,
