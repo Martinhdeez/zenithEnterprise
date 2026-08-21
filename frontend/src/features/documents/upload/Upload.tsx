@@ -33,6 +33,7 @@ import {
 } from "./uploadProgress";
 import {
   CONCURRENCY,
+  cancellable,
   enqueue,
   pooled,
   summarise,
@@ -75,6 +76,10 @@ export function Upload({ token, onUploaded }: Props) {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   // Files waiting on a decision. Nothing here has left the browser.
   const [staging, setStaging] = useState<StagedFile[]>([]);
+  // One controller per queued file, so a cancel reaches the row it was clicked on rather
+  // than the batch. A ref and not state: aborting must not wait for a render, and these
+  // are read inside the upload pool, which closes over whatever it was given at call time.
+  const controllers = useRef(new Map<string, AbortController>());
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -140,6 +145,9 @@ export function Upload({ token, onUploaded }: Props) {
       setMessage(null);
       const items = enqueue(files);
       setQueue(items);
+      // Built before the pool starts, so a cancel clicked on a row that has not begun
+      // uploading yet still has something to abort.
+      controllers.current = new Map(items.map((item) => [item.id, new AbortController()]));
 
       // Bounded concurrency, and the bytes only. Waiting for the *server* to finish
       // ingesting each file before starting the next — which is what the single-file path
@@ -148,6 +156,14 @@ export function Upload({ token, onUploaded }: Props) {
       // the browser does. So uploads race, ingestion is watched.
       await pooled(items, CONCURRENCY, async (item) => {
         const started = Date.now();
+        const controller = controllers.current.get(item.id);
+        // Cancelled while it sat in the queue. The pool still hands it over — it holds a
+        // plain list and knows nothing about cancellation — so the check belongs here,
+        // before any bytes are read off disk.
+        if (controller?.signal.aborted) {
+          setQueue((current) => update(current, item.id, { phase: "cancelled" }));
+          return;
+        }
         try {
           setQueue((current) => update(current, item.id, { phase: "uploading" }));
           // Per file, from the staging table. `selected` is the fallback for the
@@ -155,6 +171,7 @@ export function Upload({ token, onUploaded }: Props) {
           const forThisFile = perFile?.get(item.file) ?? [...selected];
           const uploaded = await uploadDocument(item.file, token, forThisFile, {
             ...options,
+            signal: controller?.signal,
             onProgress: ({ loaded, total }) =>
               setQueue((current) =>
                 update(current, item.id, { percent: progress(loaded, total, Date.now() - started).percent }),
@@ -184,6 +201,17 @@ export function Upload({ token, onUploaded }: Props) {
             }),
           );
         } catch (error) {
+          // A cancellation arrives here as a rejection like any other, but it is not a
+          // failure and must not be counted as one — somebody asked for it.
+          // `aborted` from the XHR path this screen always takes; `AbortError` is what
+          // `fetch` raises, for the caller that passes no progress handler.
+          const stopped =
+            (error instanceof ApiError && error.code === "aborted") ||
+            (error instanceof DOMException && error.name === "AbortError");
+          if (stopped) {
+            setQueue((current) => update(current, item.id, { phase: "cancelled" }));
+            return;
+          }
           // Per file, not per batch. One duplicate in two hundred must not abandon the
           // other hundred and ninety-nine, and the API's own message — a duplicate, a file
           // that is not a PDF, a tenant at its limit — is the only part the user can act on.
@@ -201,6 +229,37 @@ export function Upload({ token, onUploaded }: Props) {
     },
     [token, onUploaded, selected],
   );
+
+  /**
+   * Stop one file.
+   *
+   * The row is marked here rather than waiting for the abort to come back through the
+   * `catch`, because a file still sitting in the queue has no request in flight to reject —
+   * for that one, this is the only thing that will ever move it off "Queued".
+   */
+  const cancelOne = useCallback((id: string) => {
+    controllers.current.get(id)?.abort();
+    setQueue((current) =>
+      current.map((item) =>
+        item.id === id && cancellable(item.phase) ? { ...item, phase: "cancelled" } : item,
+      ),
+    );
+  }, []);
+
+  /**
+   * Stop everything still stoppable. Files already being ingested are left alone.
+   *
+   * Every controller is aborted, not only the ones belonging to stoppable rows: aborting
+   * an `XMLHttpRequest` that has already settled does nothing, and the alternative — asking
+   * which rows are stoppable from inside the state updater — puts a side effect somewhere
+   * React is free to run twice.
+   */
+  const cancelAll = useCallback(() => {
+    for (const controller of controllers.current.values()) controller.abort();
+    setQueue((current) =>
+      current.map((item) => (cancellable(item.phase) ? { ...item, phase: "cancelled" } : item)),
+    );
+  }, []);
 
   const confirmBatch = useCallback(() => {
     const perFile = new Map(staging.map((row) => [row.file, row.labelIds]));
@@ -335,7 +394,7 @@ export function Upload({ token, onUploaded }: Props) {
               accept="application/pdf"
               multiple
               className="sr-only"
-              aria-label="Upload PDF"
+              aria-label="Upload PDFs"
               onChange={(event) => {
                 choose(event.target.files);
                 if (fileInput.current) fileInput.current.value = "";
@@ -345,11 +404,22 @@ export function Upload({ token, onUploaded }: Props) {
             <div className="flex size-12 items-center justify-center rounded-md border border-input bg-card">
               <UploadCloud className="size-6 text-muted-foreground" />
             </div>
+            {/* Plural, because the control is. The singular copy this replaced ("Choose a
+                PDF or drop one here") described a dropzone that had accepted `multiple`
+                since it was written, and people believed it: nobody tries to drag five
+                files at something that asks for one. */}
             <p className="text-sm">
-              <span className="font-semibold text-primary">Choose a PDF</span>
-              <span className="text-muted-foreground"> or drop one here</span>
+              <span className="font-semibold text-primary">Choose PDFs</span>
+              <span className="text-muted-foreground"> or drop them here</span>
             </p>
-            <p className="text-xs text-muted-foreground">Several files at once upload immediately.</p>
+            {/* The line here used to read "Several files at once upload immediately", which
+                was true of the flow the staging area replaced and is now the opposite of
+                what happens — a batch is held in the browser until Confirm & Process. Stale
+                copy that contradicts the product is worse than no copy: it teaches people
+                the screen is not to be trusted. */}
+            <p className="text-xs text-muted-foreground">
+              Drop several to tag them together before anything is sent.
+            </p>
           </label>
           <p className="mt-6 text-xs text-muted-foreground">
             Searches run more slowly while a document is being processed.
@@ -375,7 +445,9 @@ export function Upload({ token, onUploaded }: Props) {
         />
       )}
 
-      {queue.length > 0 && <UploadQueue items={queue} />}
+      {queue.length > 0 && (
+        <UploadQueue items={queue} onCancel={cancelOne} onCancelAll={cancelAll} />
+      )}
 
       <Button
         type="button"
@@ -469,21 +541,47 @@ async function untilSettled(
  * Not virtualised — two hundred rows of two spans is nothing, and a windowing library here
  * would be a dependency bought against a cost nobody has measured.
  */
-function UploadQueue({ items }: { items: QueueItem[] }) {
+function UploadQueue({
+  items,
+  onCancel,
+  onCancelAll,
+}: {
+  items: QueueItem[];
+  onCancel: (id: string) => void;
+  onCancelAll: () => void;
+}) {
   const summary = summarise(items);
+  const stoppable = items.some((item) => cancellable(item.phase));
 
   return (
     <div className="space-y-2">
-      <div className="flex items-baseline justify-between text-xs">
+      <div className="flex items-baseline justify-between gap-3 text-xs">
         <span className="text-muted-foreground">
           {summary.done} of {summary.total} done
           {summary.failed > 0 && (
             <span className="text-destructive"> · {summary.failed} failed</span>
           )}
+          {/* Neither "done" nor "failed". A batch where somebody stopped forty on purpose
+              should not read as forty things having gone wrong. */}
+          {summary.cancelled > 0 && <span> · {summary.cancelled} cancelled</span>}
         </span>
-        {!summary.finished && (
-          <span className="text-muted-foreground">{summary.active} in progress</span>
-        )}
+        <span className="flex shrink-0 items-center gap-3">
+          {!summary.finished && (
+            <span className="text-muted-foreground">{summary.active} in progress</span>
+          )}
+          {/* Disappears once nothing can be stopped, rather than greying out: while files
+              are ingesting there is still activity on screen, and a permanently dimmed
+              Cancel beside it invites clicks that cannot do anything. */}
+          {stoppable && (
+            <button
+              type="button"
+              onClick={onCancelAll}
+              className="rounded-full px-2 py-0.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              Cancel remaining
+            </button>
+          )}
+        </span>
       </div>
 
       {/* Counted by file, not by byte: "14 of 200" is actionable, and a byte percentage
@@ -516,6 +614,21 @@ function UploadQueue({ items }: { items: QueueItem[] }) {
               {item.phase === "processing" && (item.stage ?? "Processing")}
               {item.phase === "done" && "Done"}
               {item.phase === "error" && (item.message ?? "Failed")}
+              {item.phase === "cancelled" && "Cancelled"}
+            </span>
+            {/* Reserved whether or not this row can be stopped, so the percentages beside
+                it stay on one vertical line instead of shifting as rows settle. */}
+            <span className="flex size-6 shrink-0 items-center justify-center">
+              {cancellable(item.phase) && (
+                <button
+                  type="button"
+                  onClick={() => onCancel(item.id)}
+                  aria-label={`Cancel ${item.file.name}`}
+                  className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
             </span>
           </li>
         ))}

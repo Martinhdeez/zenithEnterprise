@@ -9,7 +9,15 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import { CONCURRENCY, enqueue, pooled, summarise, update, type QueueItem } from "./uploadQueue";
+import {
+  CONCURRENCY,
+  cancellable,
+  enqueue,
+  pooled,
+  summarise,
+  update,
+  type QueueItem,
+} from "./uploadQueue";
 
 const file = (name: string, size = 100) => new File(["x".repeat(size)], name);
 
@@ -152,5 +160,51 @@ describe("running the batch", () => {
     });
 
     expect(done.sort()).toEqual([1, 3]);
+  });
+});
+
+describe("cancelling", () => {
+  it("can stop a file that has not started and one that is uploading", () => {
+    expect(cancellable("queued")).toBe(true);
+    expect(cancellable("uploading")).toBe(true);
+  });
+
+  it("cannot stop a file the server is already ingesting", () => {
+    // `POST /documents` has answered, the row exists and the worker holds the job. A
+    // cancel button here would claim the work stops when nothing in the browser can stop
+    // it; undoing one of these means deleting the document.
+    expect(cancellable("processing")).toBe(false);
+  });
+
+  it("offers nothing to stop on a settled row", () => {
+    expect(cancellable("done")).toBe(false);
+    expect(cancellable("error")).toBe(false);
+    expect(cancellable("cancelled")).toBe(false);
+  });
+
+  it("counts a cancellation apart from a failure", () => {
+    // The whole reason `cancelled` is its own phase. Someone who stopped two files on
+    // purpose has not had two files fail, and the line above the list is what they read
+    // to decide whether the migration went well.
+    const summary = summarise([
+      item("a", "done"),
+      item("b", "cancelled"),
+      item("c", "cancelled"),
+      item("d", "error"),
+    ]);
+
+    expect(summary.cancelled).toBe(2);
+    expect(summary.failed).toBe(1);
+    expect(summary.done).toBe(1);
+  });
+
+  it("treats a cancelled row as settled so the batch can finish", () => {
+    // Otherwise a cancelled batch sits at "2 in progress" for ever, over rows nobody is
+    // waiting for, and the progress bar never reaches the end.
+    const summary = summarise([item("a", "done"), item("b", "cancelled")]);
+
+    expect(summary.active).toBe(0);
+    expect(summary.finished).toBe(true);
+    expect(summary.percent).toBe(100);
   });
 });

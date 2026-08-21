@@ -17,7 +17,26 @@
  * Three is enough to hide the round trips and small enough to be a good neighbour.
  */
 
-export type ItemPhase = "queued" | "uploading" | "processing" | "done" | "error";
+/**
+ * `cancelled` is its own phase rather than a flavour of `error`.
+ *
+ * A batch of two hundred where somebody stopped forty on purpose must not report forty
+ * failures — the count above the list is what tells them whether the migration went well,
+ * and a deliberate stop is not a thing that went wrong.
+ */
+export type ItemPhase = "queued" | "uploading" | "processing" | "done" | "error" | "cancelled";
+
+/**
+ * Whether this row can still be stopped from the browser.
+ *
+ * **`processing` cannot.** By then `POST /documents` has answered, the row exists and the
+ * worker has the job; the browser has nothing left to abort. Offering a cancel button there
+ * would claim the work stops when it does not — the honest route to undoing one of those is
+ * deleting the document, which the library already does.
+ */
+export function cancellable(phase: ItemPhase): boolean {
+  return phase === "queued" || phase === "uploading";
+}
 
 export interface QueueItem {
   /** Stable across the item's life. `File` has no id and two files may share a name. */
@@ -55,6 +74,8 @@ export interface QueueSummary {
   total: number;
   done: number;
   failed: number;
+  /** Stopped on purpose. Counted apart from `failed` — see `ItemPhase`. */
+  cancelled: number;
   /** Everything that has not settled — queued, uploading or processing. */
   active: number;
   /** 0–100 across the whole batch. */
@@ -72,11 +93,15 @@ export interface QueueSummary {
 export function summarise(items: QueueItem[]): QueueSummary {
   const done = items.filter((item) => item.phase === "done").length;
   const failed = items.filter((item) => item.phase === "error").length;
-  const settled = done + failed;
+  // Settled, not successful: a cancelled row is finished with, so the batch can report
+  // itself complete instead of hanging at "3 in progress" over rows nobody is waiting for.
+  const cancelled = items.filter((item) => item.phase === "cancelled").length;
+  const settled = done + failed + cancelled;
   return {
     total: items.length,
     done,
     failed,
+    cancelled,
     active: items.length - settled,
     percent: items.length === 0 ? 0 : Math.round((settled / items.length) * 100),
     finished: items.length > 0 && settled === items.length,

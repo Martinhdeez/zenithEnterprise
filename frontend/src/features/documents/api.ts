@@ -50,6 +50,8 @@ export function uploadDocument(
     description?: string;
     /** Supplied to watch the bytes go up; switches the call to XHR. */
     onProgress?: (progress: UploadProgress) => void;
+    /** Aborts the request in flight. Rejects with `ApiError(0, "aborted")`. */
+    signal?: AbortSignal;
   },
 ): Promise<UploadResponse> {
   const body = new FormData();
@@ -63,9 +65,9 @@ export function uploadDocument(
   // multipart boundary it generated. Setting it by hand produces a body the server cannot
   // parse, and the error says nothing about why.
   if (!options?.onProgress) {
-    return request<UploadResponse>("/documents", token, { method: "POST", body });
+    return request<UploadResponse>("/documents", token, { method: "POST", body, signal: options?.signal });
   }
-  return uploadWithProgress(body, token, options.onProgress);
+  return uploadWithProgress(body, token, options.onProgress, options.signal);
 }
 
 export interface UploadProgress {
@@ -90,8 +92,15 @@ function uploadWithProgress(
   body: FormData,
   token: string,
   onProgress: (progress: UploadProgress) => void,
+  signal?: AbortSignal,
 ): Promise<UploadResponse> {
   return new Promise((resolve, reject) => {
+    // Already cancelled before the pool reached this file. Sending the bytes and aborting
+    // a moment later would upload a whole document to throw it away.
+    if (signal?.aborted) {
+      reject(new ApiError(0, "aborted", "The upload was cancelled."));
+      return;
+    }
     const request = new XMLHttpRequest();
     request.open("POST", "/documents");
     request.setRequestHeader("Authorization", `Bearer ${token}`);
@@ -130,6 +139,13 @@ function uploadWithProgress(
     request.addEventListener("abort", () =>
       reject(new ApiError(0, "aborted", "The upload was cancelled.")),
     );
+
+    // `once`, and removed when the request settles: a controller may outlive the upload it
+    // cancelled, and a listener still holding this XHR keeps the whole `FormData` — the
+    // file's bytes included — reachable for as long as the batch is on screen.
+    const stop = () => request.abort();
+    signal?.addEventListener("abort", stop, { once: true });
+    request.addEventListener("loadend", () => signal?.removeEventListener("abort", stop));
 
     request.send(body);
   });
