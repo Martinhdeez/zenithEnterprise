@@ -25,6 +25,14 @@ import { ProgressBar } from "@/shared/components/ProgressBar";
 interface Props {
   token: string;
   onCitation: (citation: Citation) => void;
+  /**
+   * The chunk the PDF panel is currently showing, or null when it is closed.
+   *
+   * Owned by the parent, which owns the viewer. A result list that remembered its own last
+   * click would keep a row lit after somebody closed the panel — pointing at something that
+   * is not on screen, which is worse than pointing at nothing.
+   */
+  openChunkId?: string | null;
   searchable: boolean;
   labels?: string[];
   /** Clicking a chip on a result narrows the workspace to that label. */
@@ -74,11 +82,21 @@ function remember(query: string): string[] {
   // Most recent first, no duplicates: searching the same thing twice should move it to the
   // top rather than fill the list with one word.
   const next = [query, ...readRecent().filter((item) => item !== query)].slice(0, RECENT_LIMIT);
-  localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  } catch {
+    // Reading was already guarded and writing was not, which is the asymmetry that mattered:
+    // `setItem` throws when the quota is full or the browser refuses storage outright —
+    // Safari in private browsing, or an enterprise policy — and this call sits inside the
+    // `try` around the search. So a search that worked perfectly reported "The search
+    // failed", because a convenience nobody asked for could not save a string.
+    // The list is a nicety; the results are the product. Losing the first is not worth
+    // failing the second.
+  }
   return next;
 }
 
-export function Search({ token, onCitation, searchable, labels, onSelectTag }: Props) {
+export function Search({ token, onCitation, openChunkId, searchable, labels, onSelectTag }: Props) {
   // Resolved from what this caller reaches; an unknown id belongs to a label they see the
   // passage through some other route, and is not theirs to learn the name of.
   const [known, setKnown] = useState<Map<string, string>>(new Map());
@@ -283,7 +301,9 @@ export function Search({ token, onCitation, searchable, labels, onSelectTag }: P
               rule gives the eye nothing to tell it where one result stops and the next
               starts. */}
           <ul className="space-y-2">
-            {state.hits.map((hit, index) => (
+            {state.hits.map((hit, index) => {
+              const open = hit.chunk_id === openChunkId;
+              return (
               <li key={hit.chunk_id}>
                 <button
                   type="button"
@@ -298,7 +318,22 @@ export function Search({ token, onCitation, searchable, labels, onSelectTag }: P
                       bboxes: hit.bboxes,
                     })
                   }
-                  className="w-full rounded-lg border border-border bg-secondary px-4 py-3.5 text-left transition-colors hover:bg-secondary/70"
+                  // Announced, not just drawn. Colour alone would leave somebody on a
+                  // screen reader — or anybody who cannot separate these two greys — with
+                  // no way to tell which result is open.
+                  aria-current={open ? "true" : undefined}
+                  // Brighter *and* bluer, which the first attempt at this got wrong. An
+                  // unselected row is `--secondary` (#182238); indigo at 10% over the panel
+                  // lands near #171b34 — the same lightness, a different hue, and on a dark
+                  // screen that is no difference at all. At 25% the row genuinely lifts off
+                  // the page, and the full-strength border and the 4px bar down the left
+                  // edge give the eye two more things to catch. The bar is what survives a
+                  // glance: it breaks the straight edge every other row shares.
+                  className={`w-full rounded-lg border px-4 py-3.5 text-left transition-colors ${
+                    open
+                      ? "border-primary bg-primary/25 shadow-[inset_4px_0_0_0_var(--color-primary)]"
+                      : "border-border bg-secondary hover:bg-secondary/70"
+                  }`}
                 >
                   <div className="flex items-baseline justify-between gap-4">
                     <p className="truncate text-sm font-medium text-foreground">
@@ -326,7 +361,8 @@ export function Search({ token, onCitation, searchable, labels, onSelectTag }: P
                   </p>
                 </button>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </div>
       )}

@@ -529,6 +529,11 @@ export function App() {
               <Search
                 token={token}
                 onCitation={setCitation}
+                // Which result the viewer is showing, so the list can mark it. Read from
+                // the citation rather than tracked inside `Search`: closing the viewer sets
+                // this to null, and a copy kept in the list would stay lit over a panel
+                // that is no longer open.
+                openChunkId={citation?.chunk_id ?? null}
                 searchable={status?.searchable ?? true}
                 labels={folder ? [folder] : undefined}
                 onSelectTag={selectTag}
