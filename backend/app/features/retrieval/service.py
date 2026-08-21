@@ -17,6 +17,7 @@ from dataclasses import dataclass, replace
 from uuid import UUID
 
 import structlog
+from sqlalchemy import text
 
 from app.common.exceptions import PermissionDeniedError
 from app.core.database import tenant_session
@@ -86,16 +87,24 @@ class SearchService:
         )
 
     async def search(
-        self, question: str, limit: int = DEFAULT_LIMIT, labels: list[UUID] | None = None
+        self,
+        question: str,
+        limit: int = DEFAULT_LIMIT,
+        labels: list[UUID] | None = None,
+        documents: list[UUID] | None = None,
     ) -> SearchResult:
         started = time.perf_counter()
         limit = max(1, min(limit, MAX_LIMIT))
         context = self._narrowed(labels)
+        documents = documents or None
 
         embedding, degraded_reason = await self._embed(question)
 
+        if documents:
+            await self._reachable(documents)
+
         async with tenant_session(context) as session:
-            lexical_scored = await lexical(session, question, CANDIDATES)
+            lexical_scored = await lexical(session, question, CANDIDATES, documents)
             dense_scored = (
                 await dense(
                     session,
@@ -104,6 +113,7 @@ class SearchService:
                     VERSION,
                     CANDIDATES,
                     self.hardware.hnsw_ef_search,
+                    documents,
                 )
                 if embedding
                 else []
@@ -116,7 +126,7 @@ class SearchService:
             # case it exists for — a chunk holding the exact identifier ranked 52nd by
             # `ts_rank_cd`, two places outside the candidate set, because frequency
             # ranking has no notion of how rare a term is.
-            exact_scored = await exact(session, question)
+            exact_scored = await exact(session, question, documents=documents)
             lexical_ids = [chunk_id for chunk_id, _ in lexical_scored]
             dense_ids = [chunk_id for chunk_id, _ in dense_scored]
             exact_ids = [chunk_id for chunk_id, _ in exact_scored]
@@ -146,6 +156,7 @@ class SearchService:
             lexical=len(lexical_ids),
             dense=len(dense_ids),
             exact=len(exact_ids),
+            scoped=len(documents or []),
             returned=len(hits),
             degraded=bool(degraded_reason),
             took_ms=took,
@@ -204,6 +215,37 @@ class SearchService:
         except Exception as exc:  # noqa: BLE001 - degrading is the point
             log.warning("search_embedding_failed", error=str(exc))
             return [], f"semantic search unavailable ({type(exc).__name__}); lexical only"
+
+    async def _reachable(self, documents: list[UUID]) -> None:
+        """Scoping to a document you cannot open is a 403, not an empty answer.
+
+        The filter itself is already safe — it narrows a set the policies produced, so an
+        unreachable id can only ever match nothing. This check is about what the caller is
+        told. A scoped question that silently returns nothing reads as *"that fact is not in
+        this document"*, which is a claim about the corpus rather than about permissions,
+        and it is the wrong one.
+
+        It leaks nothing: the lookup runs inside a `tenant_session`, so a document in another
+        tenant and a document that does not exist are indistinguishable here, and both
+        produce the same message. That is the same trade `_narrowed` makes for labels.
+
+        **Against the caller's full reach, not the narrowed context.** Narrowing to `finance`
+        and naming a document filed under `default` is a contradiction rather than a
+        permission problem — the caller can read that document and has just asked to look
+        away from it — so the two filters compose and the answer is empty. Checking inside
+        the narrowed context would report that as a 403 and tell them they cannot read a
+        document they can.
+        """
+        async with tenant_session(self.context) as session:
+            found = set(
+                await session.scalars(
+                    text("SELECT id FROM documents WHERE id = ANY(:ids)"),
+                    {"ids": [str(document) for document in documents]},
+                )
+            )
+        beyond = [str(document) for document in documents if document not in found]
+        if beyond:
+            raise PermissionDeniedError(f"you cannot read document(s): {', '.join(sorted(beyond))}")
 
     def _narrowed(self, labels: list[UUID] | None) -> TenantContext:
         """A caller may filter down to a subset of what they reach. Never up.

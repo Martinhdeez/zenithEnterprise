@@ -12,6 +12,7 @@ from sqlalchemy import text
 
 from app.common.exceptions import PermissionDeniedError
 from app.core.database import owner_session, tenant_session
+from app.core.hardware import PROFILES
 from app.features.auth.service import AccessProfile
 from app.features.embeddings.client import DIMENSION, MODEL, VERSION
 from app.features.retrieval.search import RRF_K, fuse
@@ -279,3 +280,38 @@ def test_rrf_uses_positions_never_scores() -> None:
     first, second = uuid4(), uuid4()
 
     assert fuse([first, second], [], 2)[0][1] == pytest.approx(1 / (RRF_K + 1))
+
+
+async def test_an_identifier_survives_a_dense_half_that_disagrees(account: Account) -> None:
+    """Milestone 1's acceptance case: an exact alphanumeric id wins even when meaning does
+    not.
+
+    The embedding stub points at chunk 0 — the data-protection passage — so the dense half
+    ranks the identifier's chunk last or not at all, which is exactly what a real embedder
+    does with a question that is a bare serial number: it has no semantics to work with.
+    Only the lexical and exact halves can find it, and the fused result has to keep it
+    anyway.
+
+    This is the case RRF alone gets wrong, and it is why `_promote_leaders` exists: agreement
+    between two mediocre semantic matches outscores a single decisive exact one, so the right
+    passage is found, ranked, and then buried by arithmetic.
+    """
+    from conftest import WorkingEmbedder
+
+    await seed(account.tenant_id, account.default_label)
+    profile = await profile_for(account)
+
+    # A profile without a cross-encoder, stated rather than inherited. This test is about
+    # what fusion does with the two halves, and `degraded` is asserted below — left to the
+    # ambient profile it would instead report whether a reranker happened to be listening,
+    # which passes on a developer's machine with `ZENITH_HARDWARE=low-spec` in `.env` and
+    # fails in CI for a reason that has nothing to do with ranking.
+    result = await SearchService(
+        profile,
+        embedder=WorkingEmbedder(),  # type: ignore[arg-type]
+        hardware=PROFILES["low-spec"],
+    ).search("1545-0074", limit=3)
+
+    assert result.hits, "an exact identifier must be findable"
+    assert result.hits[0].page_num == 2, "and it must be first, not merely present"
+    assert not result.degraded, "both halves ran; this is not a fallback"

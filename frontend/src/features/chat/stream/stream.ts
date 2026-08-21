@@ -83,7 +83,14 @@ export async function streamQuery(
   question: string,
   token: string,
   handlers: StreamHandlers,
-  options: { labels?: string[]; signal?: AbortSignal; history?: Turn[] } = {},
+  options: {
+    labels?: string[];
+    signal?: AbortSignal;
+    history?: Turn[];
+    /** Document ids from the composer's `@` mentions. The answer is then grounded in
+        these documents and nothing else — enforced in the retrieval SQL, not here. */
+    documents?: string[];
+  } = {},
 ): Promise<void> {
   // A relative path deliberately. The client is served next to the API inside the
   // customer's network, and a baked-in host is a value that is wrong on every installation
@@ -97,6 +104,10 @@ export async function streamQuery(
       question,
       labels: options.labels ?? null,
       history: options.history ?? [],
+      // `null` rather than `[]` when nothing is mentioned: an empty array and "no scope"
+      // are the same thing to this API, but sending the field only when it means something
+      // keeps an unscoped request byte-identical to what it was before mentions existed.
+      documents: options.documents?.length ? options.documents : null,
     }),
     signal: options.signal,
   });

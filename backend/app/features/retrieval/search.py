@@ -23,6 +23,16 @@ from app.features.retrieval.lexical import CONFIGURATION, to_tsquery
 
 CANDIDATES = 50
 
+# pgvector 0.8's answer to the post-filter problem, and the reason a scoped search is not
+# quietly worse than an unscoped one. An HNSW scan walks the graph for the nearest `ef`
+# vectors and *then* applies `WHERE document_id = ANY(...)`; scoped to two documents out of
+# a thousand, every one of those neighbours can belong to some other document, and the
+# dense half returns nothing while the index is working perfectly. Iterative scan keeps
+# walking until it has enough rows that survive the filter. `relaxed_order` rather than
+# `strict_order` because the results are re-ranked by RRF and the cross-encoder anyway —
+# paying for a total order here would buy something that is immediately thrown away.
+ITERATIVE_SCAN = "relaxed_order"
+
 # Reciprocal Rank Fusion. `k` damps the influence of the very top positions, so a chunk
 # ranked first by one half and absent from the other does not automatically beat a chunk
 # ranked third by both. 60 is the value from the original paper and the one M0 measured at.
@@ -58,8 +68,27 @@ class Hit:
     label_ids: list[UUID] = field(default_factory=list[UUID])
 
 
+def scoped(clause: str, documents: list[UUID] | None) -> str:
+    """The document filter, appended to a `WHERE` that already exists.
+
+    A narrowing filter and nothing else: it is applied *on top of* the policies, never
+    instead of them, and it can only ever remove rows the caller was already entitled to.
+    The `chunks` alias is deliberate — filtering `chunk_embeddings.document_id` would work
+    and would be wrong, because that table's policy is tenant-scoped only and the join to
+    `chunks` is what carries label isolation.
+    """
+    return f"{clause} AND c.document_id = ANY(:documents)" if documents else clause
+
+
+def scope_params(documents: list[UUID] | None) -> dict[str, object]:
+    return {"documents": [str(document) for document in documents]} if documents else {}
+
+
 async def lexical(
-    session: AsyncSession, question: str, limit: int = CANDIDATES
+    session: AsyncSession,
+    question: str,
+    limit: int = CANDIDATES,
+    documents: list[UUID] | None = None,
 ) -> list[tuple[UUID, float]]:
     """Exact terms: identifiers, product codes, proper nouns, acronyms.
 
@@ -78,10 +107,10 @@ async def lexical(
         text(
             "SELECT c.id, ts_rank_cd(c.tsv, q) AS score FROM chunks c, "
             "to_tsquery(:config, :query) q "
-            "WHERE c.tsv @@ q "
+            f"{scoped('WHERE c.tsv @@ q', documents)} "
             "ORDER BY score DESC, c.id LIMIT :limit"
         ),
-        {"config": CONFIGURATION, "query": query, "limit": limit},
+        {"config": CONFIGURATION, "query": query, "limit": limit, **scope_params(documents)},
     )
     return [(row.id, float(row.score)) for row in rows]
 
@@ -93,6 +122,7 @@ async def dense(
     version: str,
     limit: int = CANDIDATES,
     ef_search: int | None = None,
+    documents: list[UUID] | None = None,
 ) -> list[tuple[UUID, float]]:
     """Meaning: intent, synonyms, paraphrase — everything the lexical half cannot reach.
 
@@ -106,6 +136,16 @@ async def dense(
         # caps below what the data supports.
         await session.execute(text(f"SET LOCAL hnsw.ef_search = {int(ef_search)}"))
 
+    if documents:
+        # Only when scoped. Iterative scan costs nothing on a query with no filter — there
+        # is nothing to discard — but it is a behaviour change to the hot path, and the hot
+        # path is not what this is for.
+        await session.execute(text(f"SET LOCAL hnsw.iterative_scan = {ITERATIVE_SCAN}"))
+
+    # One embedding space only. `embedding_spaces` exists so several can coexist during a
+    # reindex, and vectors from two models rank against each other as confident nonsense.
+    space = "WHERE e.embedding_model = :model AND e.embedding_version = :version"
+
     rows = await session.execute(
         text(
             # Reported as *similarity* rather than distance, so both score columns in
@@ -115,7 +155,7 @@ async def dense(
             # Not decoration: `chunk_embeddings` is filtered by tenant only, so this join is
             # where label isolation is enforced for the dense half.
             "JOIN chunks c ON c.id = e.chunk_id "
-            "WHERE e.embedding_model = :model AND e.embedding_version = :version "
+            f"{scoped(space, documents)} "
             "ORDER BY e.embedding <=> CAST(:embedding AS vector) LIMIT :limit"
         ),
         {
@@ -123,6 +163,7 @@ async def dense(
             "version": version,
             "embedding": str(embedding),
             "limit": limit,
+            **scope_params(documents),
         },
     )
     return [(row.id, float(row.score)) for row in rows]

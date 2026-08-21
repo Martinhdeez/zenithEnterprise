@@ -18,6 +18,9 @@ import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState }
 import { ArrowUp, MessageSquare, Quote, Search as SearchIcon, ShieldCheck, Square } from "lucide-react";
 
 import { history } from "@/features/history";
+import { listDocuments, type DocumentSummary } from "@/features/documents";
+import { complete, mentionAt, mentioned, type Mention } from "./compose/mentions";
+import { MentionMenu } from "./compose/MentionMenu";
 import { asThread, reduce, type AnswerState } from "./answer/answerState";
 import { streamQuery, type Citation } from "./stream/stream";
 import { Answer } from "./answer/Answer";
@@ -25,6 +28,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 const INITIAL: AnswerState = { phase: "idle" };
+
+/** Long enough that typing a word is one request, short enough to feel immediate — the same
+    value the command palette settled on, for the same reason. */
+const MENTION_DEBOUNCE_MS = 200;
+
+/** How many documents the mention menu offers at once. More than fits without scrolling is
+    a list to read rather than a menu to pick from; the answer to "mine isn't here" is to
+    type another letter, which is cheaper than scrolling. */
+const MENTION_LIMIT = 6;
 
 /** Shapes of question this corpus can answer, for somebody who has never used it. Kept
     generic — the tenant's documents are not known here — and only shown until there is
@@ -158,6 +170,54 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
   const [question, setQuestion] = useState("");
   const inflight = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // The mention being typed, the documents offered for it, and the row the keyboard is on.
+  const [mention, setMention] = useState<Mention | null>(null);
+  const [matches, setMatches] = useState<DocumentSummary[]>([]);
+  const [active, setActive] = useState(0);
+  // Every document mentioned so far this session. Kept rather than replaced by each search
+  // so that `mentioned()` — which resolves the ids from the text — can still find a file
+  // that was named three edits ago and no longer matches what is in the box.
+  const [known, setKnown] = useState<DocumentSummary[]>([]);
+
+  // Searched on the server, like the palette. Filtering one page in the browser finds the
+  // documents near the top of the list and silently misses the rest, which reads as the
+  // document not existing.
+  useEffect(() => {
+    if (!mention) return;
+    const timer = setTimeout(() => {
+      void listDocuments(token, null, null, mention.query.trim() || undefined)
+        .then((page) => {
+          setMatches(page.items.slice(0, MENTION_LIMIT));
+          setActive(0);
+          setKnown((current) => {
+            const seen = new Set(current.map((document) => document.id));
+            return [...current, ...page.items.filter((document) => !seen.has(document.id))];
+          });
+        })
+        .catch(() => setMatches([]));
+    }, MENTION_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [token, mention]);
+
+  // The scope, derived from the text on every render rather than held in its own state.
+  // Deleting `@handbook.pdf` from the box has to un-scope the question, and a separate list
+  // of chips would have to be kept in step with the words by hand — which is the bug where
+  // an answer is quietly restricted to a document the user cannot see mentioned anywhere.
+  const scope = mentioned(question, known);
+
+  const pick = useCallback(
+    (document: DocumentSummary) => {
+      setQuestion((current) => {
+        const at = mentionAt(current, inputRef.current?.selectionStart ?? current.length);
+        return at ? complete(current, at, document.filename) : current;
+      });
+      setMention(null);
+      inputRef.current?.focus();
+    },
+    [],
+  );
 
   const ask = useCallback(
     async (asked: string) => {
@@ -177,7 +237,12 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
             onResult: (result) => dispatch({ type: "result", result }),
             onError: (message) => dispatch({ type: "error", message }),
           },
-          { labels, signal: controller.signal, history: asThread(thread) },
+          {
+            labels,
+            signal: controller.signal,
+            history: asThread(thread),
+            documents: scope.map((document) => document.id),
+          },
         );
       } catch (error) {
         // An abort is the user asking something else, not a failure to report.
@@ -194,8 +259,10 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
     // the moment a new question starts — to carry the live turn into `turns`, and to send
     // the finished ones as the context the next answer is allowed to refer to. Omitting
     // `turns` would send a thread frozen at the first question.
+    // `scope` too: it is derived from the composer's text, and an `ask` closed over a
+    // stale one would send the previous turn's mentions with this turn's question.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [token, labels, state, turns],
+    [token, labels, state, turns, question],
   );
 
   const cancel = useCallback(() => {
@@ -273,6 +340,34 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
         }}
         className="mx-auto w-full max-w-3xl shrink-0 p-4 2xl:max-w-4xl"
       >
+        {mention && (
+          <MentionMenu
+            documents={matches}
+            active={active}
+            onPick={pick}
+            onHover={setActive}
+          />
+        )}
+
+        {/* What the question is restricted to, in the same words the composer uses. The
+            answer will be grounded in these documents and nothing else, and a scope the
+            user cannot see is a scope they cannot correct — this is the only place that
+            says so before they press send. */}
+        {scope.length > 0 && (
+          <p className="mb-2 flex flex-wrap items-center gap-1.5 px-1 text-xs text-muted-foreground">
+            <span>Answering from</span>
+            {scope.map((document) => (
+              <span
+                key={document.id}
+                className="max-w-[16rem] truncate rounded-md border border-primary/40 bg-primary/15 px-1.5 py-0.5 text-foreground"
+              >
+                {document.filename}
+              </span>
+            ))}
+            <span>only</span>
+          </p>
+        )}
+
         {/* One rounded pill rather than an input-plus-button row — the border lives on
             this wrapper and the input itself is borderless inside it, which is the
             difference between "a text field next to a button" and the single composer
@@ -280,9 +375,42 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
             takes the field's own colour so the two do not read as stacked shapes. */}
         <div className="flex items-center gap-2 rounded-3xl border border-input bg-input/30 py-1.5 pr-1.5 pl-4 shadow-sm transition-colors focus-within:border-primary/40">
           <Input
+            ref={inputRef}
             value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            placeholder="Ask a question about your documents"
+            onChange={(event) => {
+              setQuestion(event.target.value);
+              setMention(mentionAt(event.target.value, event.target.selectionStart ?? 0));
+            }}
+            // The cursor can move without the text changing — an arrow key, a click into
+            // the middle of a word — and the menu has to follow it, or it stays open over
+            // a mention the caret has already left.
+            onSelect={(event) => {
+              const field = event.target as HTMLInputElement;
+              setMention(mentionAt(field.value, field.selectionStart ?? 0));
+            }}
+            onKeyDown={(event) => {
+              if (!mention) return;
+              if (event.key === "Escape") {
+                event.preventDefault();
+                setMention(null);
+              } else if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setActive((current) => (current + 1) % Math.max(matches.length, 1));
+              } else if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setActive(
+                  (current) => (current - 1 + matches.length) % Math.max(matches.length, 1),
+                );
+              } else if ((event.key === "Enter" || event.key === "Tab") && matches[active]) {
+                // Enter accepts the highlighted document rather than sending the question.
+                // Sending a half-typed mention is the one outcome nobody wants: the
+                // question goes off unscoped with `@han` sitting in the middle of it.
+                event.preventDefault();
+                pick(matches[active]);
+              }
+            }}
+            onBlur={() => setMention(null)}
+            placeholder="Ask a question — @ to answer from one document"
             aria-label="Question"
             maxLength={1000}
             // `dark:bg-transparent` is load-bearing, same as the search bar: the base

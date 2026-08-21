@@ -33,10 +33,19 @@ class Watching(SearchService):
     def __init__(self, *args: object, **kwargs: object) -> None:
         super().__init__(*args, **kwargs)  # type: ignore[arg-type]
         self.queries: list[str] = []
+        #: The `documents` each call was scoped to — `None` for an ordinary question.
+        self.scopes: list[list[UUID] | None] = []
 
-    async def search(self, question: str, limit: int, labels: list[UUID] | None = None):  # type: ignore[override]
+    async def search(  # type: ignore[override]
+        self,
+        question: str,
+        limit: int,
+        labels: list[UUID] | None = None,
+        documents: list[UUID] | None = None,
+    ):
         self.queries.append(question)
-        return await super().search(question, limit, labels)
+        self.scopes.append(documents)
+        return await super().search(question, limit, labels, documents)
 
 
 async def service(account: Account, model: MockProvider) -> tuple[AnswerService, Watching]:
@@ -150,3 +159,65 @@ async def test_the_first_message_of_a_conversation_is_searched_directly(account:
 
     assert search.queries == ["What must the controller implement?"]
     assert len(model.calls) == 1
+
+
+async def test_a_scoped_question_is_answered_only_from_the_named_document(
+    account: Account,
+) -> None:
+    """The `@` mention, end to end: the model never sees the other document.
+
+    Asserted on the passages that reached the prompt rather than on the prose that came
+    back, because a mock provider's answer proves nothing about what it was given. The
+    context is where the guarantee lives — a fact the model was never shown is one it cannot
+    repeat.
+    """
+    handbook = await seed(
+        account.tenant_id,
+        account.default_label,
+        [("The severance allowance is thirty days of salary per year.", 1)],
+    )
+    await seed(
+        account.tenant_id,
+        account.default_label,
+        [("The severance allowance is twenty days of salary per year.", 1)],
+    )
+    model = MockProvider(script=["SEARCH severance allowance", "Thirty days [1]."])
+    answering, search = await service(account, model)
+
+    answer = await answering.answer("severance allowance", documents=[handbook])
+
+    assert search.scopes[-1] == [handbook]
+    assert {hit.document_id for hit in answer.consulted} == {handbook}
+    assert all("twenty" not in hit.text for hit in answer.consulted)
+
+
+async def test_naming_a_document_forces_retrieval_on_a_conversational_turn(
+    account: Account,
+) -> None:
+    """ "And what about this one?" with a document attached is not a conversational turn.
+
+    The router is right to classify those words as chat — in a thread they usually are — but
+    a caller who attached `@handbook.pdf` has said explicitly which document they mean, and
+    answering from the thread alone would ignore the only unambiguous thing in the request.
+    """
+    handbook = await seed(account.tenant_id, account.default_label)
+    model = MockProvider(script=["CHAT", "Technical measures [1]."])
+    answering, search = await service(account, model)
+
+    await answering.answer("and what about this one?", history=THREAD, documents=[handbook])
+
+    assert search.queries, "a named document must send the turn to retrieval"
+    assert search.scopes[-1] == [handbook]
+
+
+async def test_an_unscoped_question_still_reads_the_whole_corpus(account: Account) -> None:
+    """The regression guard: mentions are opt-in, and the default is unchanged."""
+    await seed(account.tenant_id, account.default_label)
+    await seed(account.tenant_id, account.default_label, [("A second document's passage.", 3)])
+    model = MockProvider(script=["SEARCH controller measures", "Technical measures [1]."])
+    answering, search = await service(account, model)
+
+    answer = await answering.answer("what must the controller implement?")
+
+    assert search.scopes[-1] is None
+    assert len({hit.document_id for hit in answer.consulted}) == 2

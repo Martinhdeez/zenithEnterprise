@@ -86,15 +86,21 @@ class AnswerService:
         question: str,
         labels: list[UUID] | None = None,
         history: list[conversation.Turn] | None = None,
+        documents: list[UUID] | None = None,
     ) -> Answer:
         provider = self._provider or await self._resolve()
         thread = conversation.bounded(history or [])
         intent = await routing.resolve(thread, question, provider)
 
-        if intent.conversational:
+        # `and not documents`: naming a document is an instruction to read it. The router
+        # classifies "and what about the second one?" as conversational — correctly, in a
+        # thread — but a caller who attached `@handbook.pdf` to that turn is asking for
+        # retrieval, and answering from the thread alone would ignore the one thing they
+        # said explicitly. Same reasoning in `stream`.
+        if intent.conversational and not documents:
             return await self._conversational(question, thread, provider)
 
-        found = await self.search.search(intent.query or question, PASSAGES, labels)
+        found = await self.search.search(intent.query or question, PASSAGES, labels, documents)
 
         if not found.hits:
             # Nothing retrieved, so nothing to ground an answer in. Calling the model here
@@ -147,6 +153,7 @@ class AnswerService:
         question: str,
         labels: list[UUID] | None = None,
         history: list[conversation.Turn] | None = None,
+        documents: list[UUID] | None = None,
     ) -> AsyncIterator[Streamed]:
         """The same answer, delivered in pieces, with one guarantee weakened on purpose.
 
@@ -163,7 +170,7 @@ class AnswerService:
         thread = conversation.bounded(history or [])
         intent = await routing.resolve(thread, question, provider)
 
-        if intent.conversational:
+        if intent.conversational and not documents:
             # Streamed as one piece rather than token by token. The conversational path has
             # no passages, so `MarkerFilter` has no marker range to validate against and the
             # buffered call is the honest way to get text that is already whole.
@@ -172,7 +179,7 @@ class AnswerService:
             yield Streamed(result=answered)
             return
 
-        found = await self.search.search(intent.query or question, PASSAGES, labels)
+        found = await self.search.search(intent.query or question, PASSAGES, labels, documents)
 
         if not found.hits:
             bound = binding.Bound(prompt.ABSTENTION, [], abstained=True, fabricated=0)

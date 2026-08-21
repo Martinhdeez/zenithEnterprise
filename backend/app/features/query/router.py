@@ -45,7 +45,9 @@ async def ask(profile: CurrentProfile, request: QueryRequest) -> QueryResponse:
     stripped before the answer leaves this process.
     """
     return _rendered(
-        await AnswerService(profile).answer(request.question, request.labels, _thread(request))
+        await AnswerService(profile).answer(
+            request.question, request.labels, _thread(request), request.documents
+        )
     )
 
 
@@ -130,7 +132,9 @@ async def ask_streaming(profile: CurrentProfile, request: QueryRequest) -> Event
     service = AnswerService(profile)
 
     async def events() -> AsyncIterator[dict[str, str]]:
-        async for piece in service.stream(request.question, request.labels, _thread(request)):
+        async for piece in service.stream(
+            request.question, request.labels, _thread(request), request.documents
+        ):
             if piece.token is not None:
                 yield {"event": "token", "data": piece.token}
             elif piece.result is not None:

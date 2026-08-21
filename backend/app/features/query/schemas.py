@@ -27,6 +27,19 @@ class QueryRequest(BaseModel):
     #: `generation.conversation.bounded`, so a client cannot enlarge the prompt by sending
     #: more.
     history: list[TurnRequest] = Field(default_factory=list[TurnRequest], max_length=50)
+    #: Answer from these documents and nothing else — what the chat box's `@` mentions
+    #: send. A narrowing filter on top of the policies, never instead of them: an id the
+    #: caller cannot read is a 403 rather than an empty answer, because "nothing found in
+    #: that document" and "you may not read that document" are different statements and
+    #: only one of them is about the corpus.
+    #:
+    #: Capped because every id is a parameter in the retrieval query and a mention list
+    #: longer than this is not a person scoping a question.
+    documents: list[UUID] | None = Field(
+        default=None,
+        max_length=20,
+        description="Restrict retrieval to these documents.",
+    )
 
 
 class CitationResponse(BaseModel):

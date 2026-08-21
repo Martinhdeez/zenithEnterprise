@@ -19,6 +19,9 @@ async def search(
     labels: Annotated[
         list[UUID] | None, Query(description="Narrow to a subset of the labels you reach.")
     ] = None,
+    documents: Annotated[
+        list[UUID] | None, Query(description="Restrict the search to these documents.")
+    ] = None,
 ) -> SearchResponse:
     """Hybrid search over the passages this caller is allowed to read.
 
@@ -30,7 +33,7 @@ async def search(
     `degraded` says so. That is the honest half-answer, and it is what makes the response
     trustworthy when the box is busy ingesting.
     """
-    result = await SearchService(profile).search(q, limit, labels)
+    result = await SearchService(profile).search(q, limit, labels, documents)
     return SearchResponse(
         hits=[HitResponse(**asdict(hit)) for hit in result.hits],
         degraded=result.degraded,
