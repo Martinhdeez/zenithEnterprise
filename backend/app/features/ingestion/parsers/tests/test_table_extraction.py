@@ -121,3 +121,32 @@ def test_the_words_still_carry_boxes_for_the_table(tmp_path: Path) -> None:
 
     assert {"Region", "South", "774"} <= values
     assert all(0.0 <= word.box.x0 <= 1.0 for word in pages[0].words)
+
+
+def test_a_page_whose_box_does_not_start_at_the_origin(tmp_path: Path) -> None:
+    """The bug this file did not catch until a real scanned report hit it.
+
+    `_with_tables` used to read its bands as `(0, cursor, width, top)`, which assumes the
+    mediabox starts at the origin. Nothing in the format promises that, and scanners
+    routinely produce pages that do not — `nasa-scanned-report.pdf` starts at x0=1.43921.
+    pdfplumber refuses a crop that falls outside its parent:
+
+        ValueError: Bounding box (0.0, 0, …) is not fully within parent page bounding box
+
+    Raised during ingestion, so the whole document failed rather than the page, and the
+    corpus silently lost a file. The bands are now read from the page's own `bbox`.
+    """
+    source = table_pdf(tmp_path / "grid.pdf", intro="Billings by region", outro="Unaudited.")
+
+    # The mediabox is shifted by patching the bytes rather than by rewriting the file with
+    # another library: `[0 0 612 792]` -> `[1 0 612 792]` is the same length, so every
+    # offset in the xref table stays valid and the document needs no repair.
+    raw = source.read_bytes()
+    assert b"/MediaBox [ 0 0 612 792 ]" in raw, "reportlab's mediabox is not where we expect"
+    shifted = tmp_path / "offset.pdf"
+    shifted.write_bytes(raw.replace(b"/MediaBox [ 0 0 612 792 ]", b"/MediaBox [ 1 0 612 792 ]"))
+
+    pages = PdfPlumberParser().parse(shifted)  # must not raise
+
+    assert pages
+    assert "| Region" in pages[0].text, "the table is still found and rendered"

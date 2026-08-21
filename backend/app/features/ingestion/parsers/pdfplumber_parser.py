@@ -127,20 +127,35 @@ class PdfPlumberParser:
         between them are simply skipped, and a citation into a table still highlights the
         rows it came from.
         """
+        # The page's own frame, not `(0, 0, width, height)`. A mediabox is not obliged to
+        # start at the origin, and scanned documents routinely do not: `nasa-scanned-report`
+        # begins at x0=1.43921, and cropping from 0 raises
+        #
+        #   ValueError: Bounding box (0.0, 0, …) is not fully within parent page bounding box
+        #
+        # which fails the whole document rather than the page. Reading the bounds from the
+        # page means the bands are always inside it whatever the producer chose.
+        left, top_edge, right, bottom_edge = (
+            float(value) for value in getattr(page, "bbox", (0.0, 0.0, width, height))
+        )
         pieces: list[str] = []
-        cursor = 0.0
+        cursor = top_edge
 
         for (top, bottom), markdown in grids:
-            if top > cursor:
-                band = page.crop((0, cursor, width, top))  # type: ignore[attr-defined]
+            # Clamped as well as framed: `find_tables` reports a table's own geometry, and
+            # a rule drawn fractionally outside the mediabox would put the band's edge
+            # outside it too.
+            edge = min(max(top, top_edge), bottom_edge)
+            if edge > cursor:
+                band = page.crop((left, cursor, right, edge))  # type: ignore[attr-defined]
                 above = (band.extract_text() or "").strip()
                 if above:
                     pieces.append(above)
             pieces.append(markdown)
-            cursor = max(cursor, bottom)
+            cursor = min(max(cursor, bottom), bottom_edge)
 
-        if cursor < height:
-            band = page.crop((0, cursor, width, height))  # type: ignore[attr-defined]
+        if cursor < bottom_edge:
+            band = page.crop((left, cursor, right, bottom_edge))  # type: ignore[attr-defined]
             below = (band.extract_text() or "").strip()
             if below:
                 pieces.append(below)
