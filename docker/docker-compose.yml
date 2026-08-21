@@ -78,9 +78,15 @@ services:
     # They share the embedder's variables deliberately. One TEI setting must never be
     # configurable in two places that can disagree — that is the mistake this comment
     # exists to prevent from recurring.
+    # The model is a variable because it is a latency decision, not a constant.
+    # `bge-reranker-v2-m3` is 568M parameters and multilingual, and F11 measured what that
+    # costs on a CPU: 7.0 s for a batch of four, so an eight-candidate rerank is two
+    # batches and roughly fourteen seconds of the query. `hardware.py` already says the way
+    # out is a smaller cross-encoder rather than a smaller candidate set. This is the knob
+    # that lets one be chosen without editing the deployment.
     command:
       - "--model-id"
-      - "BAAI/bge-reranker-v2-m3"
+      - "${TEI_RERANK_MODEL:-BAAI/bge-reranker-v2-m3}"
       - "--auto-truncate"
       - "--max-batch-tokens"
       - "${TEI_MAX_BATCH_TOKENS:-2048}"
