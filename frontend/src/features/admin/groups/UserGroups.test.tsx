@@ -22,7 +22,7 @@ const users = vi.fn();
 const groups = vi.fn();
 const setUserGroups = vi.fn();
 
-vi.mock("./api", () => ({
+vi.mock("../api", () => ({
   users: (...a: unknown[]) => users(...a),
   groups: (...a: unknown[]) => groups(...a),
   setUserGroups: (...a: unknown[]) => setUserGroups(...a),

@@ -37,7 +37,7 @@ const entry = (id: string, question: string) => ({
 const analytics = vi.fn();
 const auditLog = vi.fn();
 
-vi.mock("./api", () => ({
+vi.mock("../api", () => ({
   analytics: (...a: unknown[]) => analytics(...a),
   auditLog: (...a: unknown[]) => auditLog(...a),
 }));

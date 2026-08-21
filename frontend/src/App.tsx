@@ -60,7 +60,7 @@ import { Button } from "@/components/ui/button";
 // imported through their public surface"; a code-splitting boundary is the exception, and
 // the build output is where it shows: `PdfViewer-*.js` has to stay its own chunk.
 const PdfViewer = lazy(() =>
-  import("@/features/documents/PdfViewer").then((module) => ({ default: module.PdfViewer })),
+  import("@/features/documents/viewer/PdfViewer").then((module) => ({ default: module.PdfViewer })),
 );
 
 // Session storage rather than local storage: it keeps both tokens out of other tabs and out

@@ -33,7 +33,7 @@ import {
   type Label,
   type LabelSearchItem,
   type LabelSort,
-} from "./api";
+} from "../api";
 import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

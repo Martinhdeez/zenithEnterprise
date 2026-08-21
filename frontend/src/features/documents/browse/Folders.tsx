@@ -28,7 +28,7 @@ import { FileStack, Folder as FolderIcon } from "lucide-react";
 
 import { leaf, parentPath } from "@/features/labels";
 
-import { folders, type FolderTree } from "./api";
+import { folders, type FolderTree } from "../api";
 import type { Citation } from "@/features/chat";
 import { Documents } from "./Documents";
 

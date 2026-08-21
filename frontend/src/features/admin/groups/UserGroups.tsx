@@ -22,7 +22,7 @@ import {
   groups as fetchGroups,
   users as fetchUsers,
   setUserGroups,
-} from "./api";
+} from "../api";
 
 export function UserGroups({ token }: { token: string }) {
   const [members, setMembers] = useState<Member[]>([]);

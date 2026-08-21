@@ -1,6 +1,6 @@
 /** Choosing labels for a document, and administering the set itself. */
-export { LabelPicker } from "./LabelPicker";
-export { TagChip, TagChips } from "./TagChip";
+export { LabelPicker } from "./picker/LabelPicker";
+export { TagChip, TagChips } from "./tags/TagChip";
 export {
   SEPARATOR,
   descendants,
@@ -11,7 +11,7 @@ export {
   within,
   type TagNode,
 } from "./namespace";
-export { TagManager } from "./TagManager";
+export { TagManager } from "./manager/TagManager";
 export {
   labels,
   createLabel,

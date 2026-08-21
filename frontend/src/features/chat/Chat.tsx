@@ -18,9 +18,9 @@ import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState }
 import { ArrowUp, MessageSquare, Quote, Search as SearchIcon, ShieldCheck, Square } from "lucide-react";
 
 import { history } from "@/features/history";
-import { asThread, reduce, type AnswerState } from "./answerState";
-import { streamQuery, type Citation } from "./stream";
-import { Answer } from "./Answer";
+import { asThread, reduce, type AnswerState } from "./answer/answerState";
+import { streamQuery, type Citation } from "./stream/stream";
+import { Answer } from "./answer/Answer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 

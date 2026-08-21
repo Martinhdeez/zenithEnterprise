@@ -28,7 +28,7 @@ const groups = vi.fn();
 const setGroupLabels = vi.fn();
 const setLabelClearance = vi.fn();
 
-vi.mock("./api", () => ({
+vi.mock("../api", () => ({
   groups: (...a: unknown[]) => groups(...a),
   setGroupLabels: (...a: unknown[]) => setGroupLabels(...a),
   setLabelClearance: (...a: unknown[]) => setLabelClearance(...a),

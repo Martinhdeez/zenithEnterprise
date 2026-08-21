@@ -6,7 +6,7 @@
  * decision should be testable without rendering anything.
  */
 
-import type { QueryResult } from "./stream";
+import type { QueryResult } from "../stream/stream";
 
 export type AnswerState =
   | { phase: "idle" }

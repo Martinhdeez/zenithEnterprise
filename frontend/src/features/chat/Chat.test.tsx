@@ -10,8 +10,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("./stream", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./stream")>()),
+vi.mock("./stream/stream", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./stream/stream")>()),
   // Never resolves on its own: the assertion is about the composer at the moment the
   // question is sent, not about what comes back, and a stream that settles would race it.
   streamQuery: vi.fn(() => new Promise<void>(() => {})),
@@ -56,7 +56,7 @@ describe("after a question is sent", () => {
   });
 
   it("does not send an empty question", async () => {
-    const { streamQuery } = await import("./stream");
+    const { streamQuery } = await import("./stream/stream");
     render(<Chat token="t" onCitation={() => {}} searchable />);
 
     fireEvent.change(composer(), { target: { value: "   " } });

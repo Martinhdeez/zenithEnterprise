@@ -19,7 +19,7 @@
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import type { Citation, QueryResult } from "./stream";
+import type { Citation, QueryResult } from "../stream/stream";
 import { displayed, isProvisional, type AnswerState } from "./answerState";
 import { ProgressBar } from "@/shared/components/ProgressBar";
 

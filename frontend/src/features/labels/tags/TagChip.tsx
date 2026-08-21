@@ -16,7 +16,7 @@
  * sit on.
  */
 
-import { leaf } from "./namespace";
+import { leaf } from "../namespace";
 
 const PALETTE = [
   "border-sky-400/30 bg-sky-400/10 text-sky-300",

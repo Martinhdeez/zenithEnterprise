@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 
 import { asThread, displayed, isProvisional, reduce, type AnswerState } from "./answerState";
-import type { QueryResult } from "./stream";
+import type { QueryResult } from "../stream/stream";
 
 const result = (over: Partial<QueryResult> = {}): QueryResult => ({
   query_id: "q1",

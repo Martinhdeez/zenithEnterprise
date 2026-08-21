@@ -24,7 +24,7 @@ import { Check, Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchField } from "@/shared/ui/SearchField";
 import type { Label } from "@/features/labels";
-import { type Group, groups as fetchGroups, setGroupLabels, setLabelClearance } from "./api";
+import { type Group, groups as fetchGroups, setGroupLabels, setLabelClearance } from "../api";
 
 interface Props {
   token: string;
@@ -326,7 +326,7 @@ export function GroupManager({ token, onChanged }: { token: string; onChanged?: 
           onClick={async () => {
             setError(null);
             try {
-              const { createGroup } = await import("./api");
+              const { createGroup } = await import("../api");
               await createGroup(token, { name: name.trim() });
               setName("");
               reload();
@@ -355,7 +355,7 @@ export function GroupManager({ token, onChanged }: { token: string; onChanged?: 
               size="sm"
               className="text-destructive"
               onClick={async () => {
-                const { deleteGroup } = await import("./api");
+                const { deleteGroup } = await import("../api");
                 // Deleting removes the access rather than transferring it, so the count of
                 // people it affects goes in the confirmation.
                 if (

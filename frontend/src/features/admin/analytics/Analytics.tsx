@@ -27,7 +27,7 @@ import {
   type Analytics as Data,
   analytics as fetchAnalytics,
   auditLog,
-} from "./api";
+} from "../api";
 
 export function Analytics({ token }: { token: string }) {
   const [data, setData] = useState<Data | null>(null);

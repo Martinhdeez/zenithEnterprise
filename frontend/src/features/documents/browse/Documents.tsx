@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { FileText, ShieldCheck, Trash2 } from "lucide-react";
 
-import { deleteDocument, listDocuments, type DocumentSummary } from "./api";
+import { deleteDocument, listDocuments, type DocumentSummary } from "../api";
 import { TagChips, labels as fetchLabels, type Label as LabelType } from "@/features/labels";
 import { AccessInspector } from "./AccessInspector";
 import { ApiError } from "@/shared/api/http";

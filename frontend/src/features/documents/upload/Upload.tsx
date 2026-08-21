@@ -23,7 +23,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FileText, UploadCloud, X } from "lucide-react";
 
-import { getDocument, uploadDocument, type DocumentSummary } from "./api";
+import { getDocument, uploadDocument, type DocumentSummary } from "../api";
 import { LabelPicker, labels as fetchLabels, type Label } from "@/features/labels";
 import { IN_FLIGHT } from "@/shared/api/tenant";
 import {

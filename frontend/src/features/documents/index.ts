@@ -8,13 +8,14 @@
  * the barrel and stops splitting it, silently, with only a build warning to say so. It was
  * measured: adding this one line moved the main chunk from 615 kB to 983 kB.
  *
- * Import it as `@/features/documents/PdfViewer`, the one sanctioned deep import in the app.
+ * Import it as `@/features/documents/viewer/PdfViewer`, the one sanctioned deep import
+ * in the app.
  */
-export { Folders, type FolderSelection } from "./Folders";
-export { Documents } from "./Documents";
-export { Ingesting, inFlight, ready } from "./Ingesting";
-export { Upload } from "./Upload";
-export { StatusBadge } from "./StatusBadge";
+export { Folders, type FolderSelection } from "./browse/Folders";
+export { Documents } from "./browse/Documents";
+export { Ingesting, inFlight, ready } from "./status/Ingesting";
+export { Upload } from "./upload/Upload";
+export { StatusBadge } from "./status/StatusBadge";
 export {
   uploadDocument,
   listDocuments,

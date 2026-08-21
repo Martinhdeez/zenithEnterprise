@@ -24,7 +24,7 @@ import { Check, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LabelPicker, TagChips, type Label } from "@/features/labels";
 import { excerpt } from "./excerpt";
-import { suggestLabels } from "./api";
+import { suggestLabels } from "../api";
 import {
   addToSelected,
   range,
