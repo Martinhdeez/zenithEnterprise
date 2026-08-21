@@ -170,7 +170,10 @@ async def dense(
 
 
 def candidates(
-    lexical_ids: list[UUID], dense_ids: list[UUID], exact_ids: list[UUID] | None = None
+    lexical_ids: list[UUID],
+    dense_ids: list[UUID],
+    exact_ids: list[UUID] | None = None,
+    limit: int | None = None,
 ) -> list[tuple[UUID, float]]:
     """Everything either half proposed, in fused order.
 
@@ -181,14 +184,23 @@ def candidates(
 
     Measured: identifier questions scored 0% at rank 8, and two of six were not in the fused
     top-50 at all — found by the lexical half, ranked out of existence by agreement.
+
+    **`limit` is the cut the caller will actually take, and passing it is what keeps the
+    leader floor alive.** The reranker's budget is smaller than the union — 8 candidates
+    against a union of up to 110 — so the caller truncates. Truncating *afterwards* silently
+    undoes `_promote_leaders`: with no limit here nothing is ever missing, no leader is
+    promoted, and the caller's slice is a plain RRF top-N, which is the exact ordering this
+    function exists to avoid.
+
+    It was not theoretical. Asked *"¿cuánto tiempo máximo puede durar la detención
+    preventiva?"* over a Spanish legal corpus, the passage answering it — Constitución
+    article 17, **rank 1 in the dense half** — scored 1/61 for its single first place while
+    seven passages ranked mediocrely by *both* halves scored more, and the slice to 8 threw
+    it away. The answer was assembled from the Código Penal instead.
     """
     exact_ids = exact_ids or []
-    return fuse(
-        lexical_ids,
-        dense_ids,
-        limit=len(lexical_ids) + len(dense_ids) + len(exact_ids),
-        exact_ids=exact_ids,
-    )
+    total = len(lexical_ids) + len(dense_ids) + len(exact_ids)
+    return fuse(lexical_ids, dense_ids, limit=limit or total, exact_ids=exact_ids)
 
 
 def fuse(

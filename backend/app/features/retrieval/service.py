@@ -135,7 +135,10 @@ class SearchService:
             # good at the second.
             reranking = self.reranker is not None and self.hardware.rerank_candidates > 0
             ranked = (
-                candidates(lexical_ids, dense_ids, exact_ids)[: self.hardware.rerank_candidates]
+                # The limit goes *into* `candidates`, not around it. Slicing afterwards
+                # discards the promoted leaders and turns this back into a plain RRF
+                # top-N — see `candidates`.
+                candidates(lexical_ids, dense_ids, exact_ids, self.hardware.rerank_candidates)
                 if reranking
                 else fuse(lexical_ids, dense_ids, limit, exact_ids)
             )

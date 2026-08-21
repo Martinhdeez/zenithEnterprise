@@ -15,7 +15,7 @@ from app.core.database import owner_session, tenant_session
 from app.core.hardware import PROFILES
 from app.features.auth.service import AccessProfile
 from app.features.embeddings.client import DIMENSION, MODEL, VERSION
-from app.features.retrieval.search import RRF_K, fuse
+from app.features.retrieval.search import RRF_K, candidates, fuse
 from app.features.retrieval.service import SearchService
 from app.features.tenancy.context import TenantContext
 from conftest import Account, LexicalOnlyEmbedder
@@ -315,3 +315,37 @@ async def test_an_identifier_survives_a_dense_half_that_disagrees(account: Accou
     assert result.hits, "an exact identifier must be findable"
     assert result.hits[0].page_num == 2, "and it must be first, not merely present"
     assert not result.degraded, "both halves ran; this is not a fallback"
+
+
+def test_the_leader_floor_survives_the_reranker_budget() -> None:
+    """The bug that put the Código Penal where the Constitución belonged.
+
+    `_promote_leaders` guarantees each half's top hit a place. It is applied inside `fuse`,
+    against the limit `fuse` was given — so calling `candidates()` with no limit and slicing
+    the result afterwards makes it a no-op: nothing is ever missing from an unbounded list,
+    so nothing is promoted, and the slice is a plain RRF top-N.
+
+    That is not a hypothetical ordering. RRF rewards agreement, so seven passages ranked
+    mediocrely by both halves outscore one ranked *first* by a single half — 1/61 against
+    1/106 + 1/83 — and the single-half leader falls outside a budget of eight.
+
+    Asserted on the arithmetic rather than on a corpus: the dense leader here appears in no
+    other ranking, which is exactly the shape RRF discards and the reranker most needs to
+    see.
+    """
+    dense_leader = uuid4()
+    shared = [uuid4() for _ in range(8)]
+
+    # Every shared chunk is ranked by both halves, so each collects two reciprocal scores
+    # and outranks the leader's single one.
+    result = candidates(
+        lexical_ids=[*shared],
+        dense_ids=[dense_leader, *shared],
+        exact_ids=[],
+        limit=8,
+    )
+
+    assert len(result) == 8
+    assert dense_leader in {chunk_id for chunk_id, _ in result}, (
+        "the dense half's first choice must survive the reranker's budget"
+    )
