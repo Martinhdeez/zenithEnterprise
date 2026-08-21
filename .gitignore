@@ -37,3 +37,6 @@ backend/.data/
 
 # Claude Code scratch screenshots; the skills/ directory below is real project config.
 .claude/*.png
+
+# Backups hold customer documents and a full database dump. Never in the repository.
+backups/

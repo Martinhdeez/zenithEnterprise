@@ -111,7 +111,45 @@ left every `POST /labels` answering `500 UndefinedColumn` in the running app.
 
 ## Backups
 
-**There are none yet, and this is the largest outstanding risk on this list.** Purging an
-organisation is irreversible by design; a disk failure is irreversible by accident. Until
-`pg_dump` is scheduled and the document root under `backend/.data/documents` is copied
-somewhere else, a lost volume is a lost customer.
+Purging an organisation is irreversible by design; a disk failure is irreversible by
+accident. Two things have to be copied, and neither is sufficient alone — the database holds
+the tenants, grants, audit trail, chunks and vectors, while `backend/.data/documents` holds
+the PDFs themselves. The vectors cannot be regenerated without the files, and the files mean
+nothing without the rows that say who may read them.
+
+```bash
+./scripts/backup.sh                  # -> ./backups/<utc-timestamp>/
+./scripts/backup.sh /mnt/elsewhere   # anywhere else
+```
+
+Each run writes `database.dump` (pg_dump custom format), `documents.tar.gz` and a
+`manifest.txt`, then **verifies what it wrote**: it asks `pg_restore` to parse the archive
+and counts the rows against the files. A backup nobody has read is a hope rather than a
+backup.
+
+**The database is dumped before the files, and the order is deliberate.**
+`DocumentService.create` commits the row and *then* writes the PDF, so dumping the database
+first means a document uploaded mid-backup is missing from the dump but present on disk — an
+unreferenced file, which is harmless. The reverse order produces a row pointing at a file
+that was never copied. Neither order snapshots a live system perfectly; stop `api` and
+`worker` first if you need a guaranteed-consistent copy.
+
+Restoring:
+
+```bash
+./scripts/restore.sh backups/2026-08-21T15-00-53Z
+```
+
+It stops `api` and `worker`, replaces the documents, restores the database in a single
+transaction, restarts, and then checks that every document row has its file. It asks you to
+type the backup's directory name first, because it destroys what is there.
+
+**Verified rather than assumed.** The dump was restored into a scratch database and checked:
+21,295 chunks and their vectors, the HNSW and tsvector indexes, 20 tables with row-level
+security and their 20 policies, and — the one that matters most — `audit_events` coming back
+with `INSERT, SELECT` and nothing else, so the log is still append-only after a recovery.
+
+What is still missing: **this is not scheduled and it is not off-site.** A cron entry and a
+copy to another machine are the remaining work; a backup on the disk that fails is not a
+backup. `backups/` is git-ignored — it holds customer data and must never reach the
+repository.
