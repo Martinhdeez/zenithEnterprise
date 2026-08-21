@@ -19,6 +19,8 @@ from app.features.admin.schemas import (
     AnalyticsResponse,
     AssignRolesRequest,
     AuditEntryResponse,
+    AuditEventPageResponse,
+    AuditEventResponse,
     AuditPageResponse,
     InviteRequest,
     InviteResponse,
@@ -29,6 +31,8 @@ from app.features.admin.schemas import (
     RoleRequest,
     RoleResponse,
 )
+from app.features.audit.service import READ as AUDIT_READ
+from app.features.audit.service import AuditService, record
 from app.features.auth.dependencies import CurrentProfile, requires, requires_any
 from app.features.auth.directory import MANAGE as USERS_MANAGE
 from app.features.auth.directory import DirectoryService
@@ -75,6 +79,15 @@ async def create_role(profile: CurrentProfile, request: RoleRequest) -> RoleResp
     role = await RoleService(profile).create(
         request.name, request.permissions, request.priority_level
     )
+    await record(
+        profile,
+        "role.created",
+        target_type="role",
+        target_id=role.id,
+        target_name=role.name,
+        permissions=sorted(request.permissions),
+        clearance=request.priority_level,
+    )
     return RoleResponse(**asdict(role))
 
 
@@ -96,6 +109,14 @@ async def set_clearance(
     say so.
     """
     role = await RoleService(profile).set_clearance(role_id, request.priority_level)
+    await record(
+        profile,
+        "role.clearance_set",
+        target_type="role",
+        target_id=role.id,
+        target_name=role.name,
+        clearance=request.priority_level,
+    )
     return RoleResponse(**asdict(role))
 
 
@@ -111,7 +132,11 @@ async def set_clearance(
     dependencies=[roles_manage],
 )
 async def delete_role(profile: CurrentProfile, role_id: UUID) -> None:
+    # Read before the delete: afterwards there is no name left to record, and a row naming
+    # only a uuid is a row nobody can act on.
+    name = next((r.name for r in await RoleService(profile).visible() if r.id == role_id), None)
     await RoleService(profile).delete(role_id)
+    await record(profile, "role.deleted", target_type="role", target_id=role_id, target_name=name)
 
 
 @router.put(
@@ -135,7 +160,23 @@ async def set_permissions(
     Refuse, because recovering from "nobody holds roles.manage" on an on-premise install
     means somebody in `psql` on the customer's server.
     """
+    nothing: list[str] = []
+    before = next(
+        (r.permissions for r in await RoleService(profile).visible() if r.id == role_id), nothing
+    )
     role = await RoleService(profile).set_permissions(role_id, request.permissions)
+    # Both sides, because "who has access to what" is answered by the difference and
+    # reconstructing it from a chain of end-states is exactly the work an auditor should
+    # not have to do.
+    await record(
+        profile,
+        "role.permissions_set",
+        target_type="role",
+        target_id=role.id,
+        target_name=role.name,
+        before=sorted(before),
+        after=sorted(request.permissions),
+    )
     return RoleResponse(**asdict(role))
 
 
@@ -149,6 +190,16 @@ async def set_permissions(
 )
 async def assign_roles(profile: CurrentProfile, user_id: UUID, request: AssignRolesRequest) -> None:
     await RoleService(profile).assign(user_id, request.role_ids)
+    # Names, not ids: "who made this person an administrator" is the other question this
+    # table exists to answer, and it is not answered by four uuids.
+    named = {role.id: role.name for role in await RoleService(profile).visible()}
+    await record(
+        profile,
+        "user.roles_assigned",
+        target_type="user",
+        target_id=user_id,
+        roles=sorted(named.get(role_id, str(role_id)) for role_id in request.role_ids),
+    )
 
 
 @router.get(
@@ -287,4 +338,40 @@ async def invite_user(profile: CurrentProfile, request: InviteRequest) -> Invite
     answer and needs a public unauthenticated route and a token table.
     """
     invitation = await InvitationService(profile).invite(request.email, request.role_ids)
+    await record(
+        profile,
+        "user.invited",
+        target_type="user",
+        target_id=invitation.user_id,
+        target_name=invitation.email,
+    )
     return InviteResponse(**asdict(invitation))
+
+
+@router.get(
+    "/analytics/audit-events",
+    operation_id="getAuditEvents",
+    summary="Who changed access to what, newest first",
+    responses={400: {"description": "A cursor we did not issue"}},
+    dependencies=[Depends(requires(AUDIT_READ))],
+)
+async def audit_events(
+    profile: CurrentProfile,
+    cursor: Annotated[str | None, Query(description="From the previous page.")] = None,
+    limit: Annotated[int | None, Query(ge=1, le=200)] = None,
+) -> AuditEventPageResponse:
+    """A separate route from `/analytics/audit`, and a separate permission.
+
+    The neighbouring endpoint returns questions people asked. This returns changes people
+    made to who can read what. They were one word for a while, which is how a product ends
+    up believing it has an audit trail because a screen is called one.
+
+    `audit.read` rather than `query.history.any`: reading colleagues' questions and reading
+    the grant history are different powers, and an organisation that wants to separate them
+    should be able to.
+    """
+    page = await AuditService(profile).page(cursor=cursor, limit=limit)
+    return AuditEventPageResponse(
+        events=[AuditEventResponse(**asdict(event)) for event in page.events],
+        next_cursor=page.next_cursor,
+    )

@@ -16,7 +16,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
-from app.features.auth.dependencies import requires_system_admin
+from app.features.audit.service import record_system
+from app.features.auth.dependencies import CurrentProfile, requires_system_admin
 from app.features.system.schemas import (
     OrganisationResponse,
     ProvisionRequest,
@@ -44,7 +45,7 @@ async def list_organisations() -> list[OrganisationResponse]:
     summary="Create an organisation and its first administrator",
     responses={409: {"description": "An organisation with that name already exists"}},
 )
-async def provision(request: ProvisionRequest) -> ProvisionResponse:
+async def provision(profile: CurrentProfile, request: ProvisionRequest) -> ProvisionResponse:
     """The password comes back once and is never recoverable.
 
     Same contract as inviting a colleague, and for the same reason: this product ships into
@@ -52,6 +53,14 @@ async def provision(request: ProvisionRequest) -> ProvisionResponse:
     make the feature undeployable exactly where the product is sold.
     """
     result = await SystemService().provision(request.name, request.admin_email)
+    await record_system(
+        profile.user_id,
+        profile.email,
+        "tenant.provisioned",
+        tenant_id=result.organisation.id,
+        target_name=result.organisation.name,
+        admin_email=result.admin_email,
+    )
     return ProvisionResponse(
         organisation=OrganisationResponse(**asdict(result.organisation)),
         admin_email=result.admin_email,
@@ -68,13 +77,21 @@ async def provision(request: ProvisionRequest) -> ProvisionResponse:
         409: {"description": "An organisation being purged cannot be suspended"},
     },
 )
-async def suspend(tenant_id: UUID) -> OrganisationResponse:
+async def suspend(profile: CurrentProfile, tenant_id: UUID) -> OrganisationResponse:
     """Takes effect on the caller's very next request, not when their token expires.
 
     The check lives in `AuthService.profile`, which every authenticated route resolves, so
     an active browser session stops working immediately rather than in fifteen minutes.
     """
-    return OrganisationResponse(**asdict(await SystemService().suspend(tenant_id)))
+    organisation = await SystemService().suspend(tenant_id)
+    await record_system(
+        profile.user_id,
+        profile.email,
+        "tenant.suspended",
+        tenant_id=tenant_id,
+        target_name=organisation.name,
+    )
+    return OrganisationResponse(**asdict(organisation))
 
 
 @router.post(
@@ -86,8 +103,16 @@ async def suspend(tenant_id: UUID) -> OrganisationResponse:
         409: {"description": "A purged organisation cannot be restored"},
     },
 )
-async def activate(tenant_id: UUID) -> OrganisationResponse:
-    return OrganisationResponse(**asdict(await SystemService().activate(tenant_id)))
+async def activate(profile: CurrentProfile, tenant_id: UUID) -> OrganisationResponse:
+    organisation = await SystemService().activate(tenant_id)
+    await record_system(
+        profile.user_id,
+        profile.email,
+        "tenant.activated",
+        tenant_id=tenant_id,
+        target_name=organisation.name,
+    )
+    return OrganisationResponse(**asdict(organisation))
 
 
 @router.post(
@@ -100,7 +125,9 @@ async def activate(tenant_id: UUID) -> OrganisationResponse:
         409: {"description": "Not suspended first, or the name does not match"},
     },
 )
-async def purge(tenant_id: UUID, request: PurgeRequest) -> OrganisationResponse:
+async def purge(
+    profile: CurrentProfile, tenant_id: UUID, request: PurgeRequest
+) -> OrganisationResponse:
     """202, not 200: the rows and files are still going when this answers.
 
     Two brakes, both re-checked here rather than trusted to the screen — the organisation
@@ -108,6 +135,17 @@ async def purge(tenant_id: UUID, request: PurgeRequest) -> OrganisationResponse:
     front end must not be able to destroy a customer on its own.
     """
     organisation = await SystemService().begin_purge(tenant_id, request.confirm_name)
+
+    # Written *before* the rows go, and it survives them: `audit_events.tenant_id` is
+    # `ON DELETE SET NULL`, so the one irreversible action in the product keeps its record
+    # of who ordered it after everything it destroyed is gone.
+    await record_system(
+        profile.user_id,
+        profile.email,
+        "tenant.purged",
+        tenant_id=tenant_id,
+        target_name=organisation.name,
+    )
 
     from app.features.ingestion.tasks import app as queue
     from app.features.ingestion.tasks import purge_tenant

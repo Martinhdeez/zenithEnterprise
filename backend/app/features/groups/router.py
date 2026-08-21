@@ -11,6 +11,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
+from app.features.audit.service import record
 from app.features.auth.dependencies import CurrentProfile, requires
 from app.features.groups.schemas import (
     GroupLabelsRequest,
@@ -20,6 +21,7 @@ from app.features.groups.schemas import (
     UserGroupsRequest,
 )
 from app.features.groups.service import MANAGE, GroupService
+from app.features.labels.service import LabelService
 
 router = APIRouter(tags=["admin"])
 
@@ -46,6 +48,9 @@ async def list_groups(profile: CurrentProfile) -> list[GroupResponse]:
 )
 async def create_group(profile: CurrentProfile, request: GroupRequest) -> GroupResponse:
     group = await GroupService(profile).create(request.name, request.description)
+    await record(
+        profile, "group.created", target_type="group", target_id=group.id, target_name=group.name
+    )
     return GroupResponse(**asdict(group))
 
 
@@ -60,6 +65,9 @@ async def update_group(
     profile: CurrentProfile, group_id: UUID, request: GroupRequest
 ) -> GroupResponse:
     group = await GroupService(profile).rename(group_id, request.name, request.description)
+    await record(
+        profile, "group.renamed", target_type="group", target_id=group.id, target_name=group.name
+    )
     return GroupResponse(**asdict(group))
 
 
@@ -73,7 +81,13 @@ async def update_group(
 )
 async def delete_group(profile: CurrentProfile, group_id: UUID) -> None:
     """Every member loses whatever this group opened. Nothing is transferred."""
+    # Named before it goes: this event revokes access for everyone in it, which makes it one
+    # of the rows most likely to be read back, and a uuid alone answers nothing.
+    name = next((g.name for g in await GroupService(profile).visible() if g.id == group_id), None)
     await GroupService(profile).delete(group_id)
+    await record(
+        profile, "group.deleted", target_type="group", target_id=group_id, target_name=name
+    )
 
 
 @router.put(
@@ -93,6 +107,20 @@ async def set_group_labels(
     sensitive the material is, and neither implies the other.
     """
     group = await GroupService(profile).set_labels(group_id, request.label_ids)
+    # The event that actually opens documents to people. If only one row in this table were
+    # ever read, it would be this one — which is why it records label *names*. The question
+    # this screen exists to answer is "who gave them access to Legal", and a row of uuids
+    # answers it only for somebody willing to go and resolve four of them by hand.
+    visible = await LabelService(profile.context).visible(may_manage=True)
+    named = {label.id: label.name for label in visible}
+    await record(
+        profile,
+        "group.labels_set",
+        target_type="group",
+        target_id=group.id,
+        target_name=group.name,
+        labels=sorted(named.get(label_id, str(label_id)) for label_id in request.label_ids),
+    )
     return GroupResponse(**asdict(group))
 
 
@@ -107,6 +135,14 @@ async def set_group_members(
     profile: CurrentProfile, group_id: UUID, request: GroupMembersRequest
 ) -> GroupResponse:
     group = await GroupService(profile).set_members(group_id, request.user_ids)
+    await record(
+        profile,
+        "group.members_set",
+        target_type="group",
+        target_id=group.id,
+        target_name=group.name,
+        members=[str(user_id) for user_id in request.user_ids],
+    )
     return GroupResponse(**asdict(group))
 
 
@@ -128,3 +164,11 @@ async def set_user_groups(
     caller did not ask about.
     """
     await GroupService(profile).set_user_groups(user_id, request.group_ids)
+    named = {group.id: group.name for group in await GroupService(profile).visible()}
+    await record(
+        profile,
+        "user.groups_set",
+        target_type="user",
+        target_id=user_id,
+        groups=sorted(named.get(group_id, str(group_id)) for group_id in request.group_ids),
+    )

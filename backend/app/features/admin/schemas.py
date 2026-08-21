@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
@@ -137,4 +138,31 @@ class AnalyticsResponse(BaseModel):
 class AuditPageResponse(BaseModel):
     entries: list[AuditEntryResponse]
     #: Opaque. Pass it back as `cursor`; `null` means this is the last page.
+    next_cursor: str | None
+
+
+class AuditEventResponse(BaseModel):
+    """One change to who can see what.
+
+    Distinct from `AuditEntryResponse` above, which is a *question somebody asked*. The two
+    sat under one word for a while and that was the whole problem: a screen labelled "Audit
+    Log" that recorded reads and not grants.
+    """
+
+    id: UUID
+    #: Copied at write time, so a departed administrator's actions still name them.
+    actor_email: str
+    #: A stable `subject.verb` token — `role.created`, `group.members_set`. The screen turns
+    #: it into a sentence; the API never sends prose it would have to translate later.
+    action: str
+    target_type: str | None
+    target_id: UUID | None
+    #: What the target was called at the time, since it may since have been renamed.
+    target_name: str | None
+    details: dict[str, Any]
+    created_at: datetime
+
+
+class AuditEventPageResponse(BaseModel):
+    events: list[AuditEventResponse]
     next_cursor: str | None

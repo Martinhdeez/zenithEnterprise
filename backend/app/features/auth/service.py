@@ -96,6 +96,9 @@ class AccessProfile:
     #: the token, so revoking it takes effect on the next request instead of whenever the
     #: access token happens to expire.
     is_system_admin: bool = False
+    #: The caller's own address, stamped onto audit rows so the record survives their
+    #: deletion. Resolved in the same session that reads permissions, so it is free.
+    email: str = ""
 
 
 class AuthService:
@@ -163,6 +166,7 @@ class AuthService:
             labels = await users.label_ids(user_id)
             status = await users.tenant_status()
             is_system_admin = await users.is_system_admin(user_id)
+            email = await users.email(user_id)
 
         # System administrators are exempt, and must be: the panel that reactivates a
         # suspended organisation is reachable from an account that lives in one, and a
@@ -177,6 +181,7 @@ class AuthService:
             context=TenantContext.for_tenant(tenant_id, labels),
             permissions=permissions,
             is_system_admin=is_system_admin,
+            email=email,
         )
 
     async def describe(self, profile: AccessProfile) -> Profile:

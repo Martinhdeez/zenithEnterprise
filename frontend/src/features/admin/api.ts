@@ -257,6 +257,38 @@ export function auditLog(token: string, cursor?: string | null): Promise<AuditPa
   return request<AuditPage>(`/analytics/audit${query}`, token);
 }
 
+/**
+ * One change to who can see what.
+ *
+ * Deliberately not merged with `AuditEntry` above, which is a question somebody *asked*.
+ * The two lived under the single word "audit" for a while, and that is precisely how a
+ * product comes to believe it has an audit trail because a screen is called one.
+ */
+export interface AuditEvent {
+  id: string;
+  /** Copied at write time, so a departed administrator's actions still name them. */
+  actor_email: string;
+  /** A stable `subject.verb` token. `describe()` in AuditTrail.tsx turns it into English —
+      the API never sends prose, because prose cannot be filtered or counted. */
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+  /** What the target was called at the time, since it may have been renamed since. */
+  target_name: string | null;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface AuditEventPage {
+  events: AuditEvent[];
+  next_cursor: string | null;
+}
+
+export function auditEvents(token: string, cursor?: string | null): Promise<AuditEventPage> {
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+  return request<AuditEventPage>(`/analytics/audit-events${query}`, token);
+}
+
 export function analytics(token: string): Promise<Analytics> {
   return request<Analytics>("/analytics", token);
 }

@@ -105,6 +105,16 @@ class UserRepository(ScopedRepository[User]):
             await self.session.scalar(select(User.is_system_admin).where(User.id == user_id))
         )
 
+    async def email(self, user_id: UUID) -> str:
+        """The caller's own address, for stamping onto audit rows.
+
+        Read here rather than looked up when an event is written: `profile()` already opens
+        a session and reads this user's row, so it costs nothing, and an audit record must
+        never depend on a second query that could fail after the change it describes has
+        already been committed.
+        """
+        return await self.session.scalar(select(User.email).where(User.id == user_id)) or ""
+
     async def role_names(self, user_id: UUID) -> list[str]:
         """The roles this user holds, by the names their administrator chose.
 

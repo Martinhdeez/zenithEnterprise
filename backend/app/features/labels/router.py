@@ -3,6 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
+from app.features.audit.service import record
 from app.features.auth.dependencies import CurrentProfile, requires
 from app.features.labels.pagination import DEFAULT_SORT, MAX_LIMIT, Sort
 from app.features.labels.schemas import (
@@ -127,6 +128,9 @@ async def create_label(request: LabelCreate, profile: CurrentProfile) -> LabelRe
     label = await LabelService(profile.context).create(
         request.name, request.is_default, created_by=profile.user_id
     )
+    await record(
+        profile, "label.created", target_type="label", target_id=label.id, target_name=label.name
+    )
     return LabelResponse.model_validate(label)
 
 
@@ -135,18 +139,29 @@ async def rename_label(
     label_id: UUID, request: LabelRename, profile: CurrentProfile
 ) -> LabelResponse:
     label = await LabelService(profile.context).rename(label_id, request.name)
+    await record(
+        profile, "label.renamed", target_type="label", target_id=label.id, target_name=label.name
+    )
     return LabelResponse.model_validate(label)
 
 
 @router.put("/labels/{label_id}/default", dependencies=[manage])
 async def set_default_label(label_id: UUID, profile: CurrentProfile) -> LabelResponse:
     label = await LabelService(profile.context).set_default(label_id)
+    await record(
+        profile,
+        "label.default_set",
+        target_type="label",
+        target_id=label.id,
+        target_name=label.name,
+    )
     return LabelResponse.model_validate(label)
 
 
 @router.delete("/labels/{label_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[manage])
 async def delete_label(label_id: UUID, profile: CurrentProfile) -> None:
     await LabelService(profile.context).delete(label_id)
+    await record(profile, "label.deleted", target_type="label", target_id=label_id)
 
 
 @router.put("/roles/{role_id}/labels", dependencies=[manage])
@@ -189,6 +204,16 @@ async def set_label_clearance(
     somebody outside the group.
     """
     label = await LabelService(profile.context).set_clearance(label_id, request.priority_level)
+    # Raising this can take access away from people who had it a moment ago, which is
+    # precisely the kind of change somebody comes looking for an explanation of later.
+    await record(
+        profile,
+        "label.clearance_set",
+        target_type="label",
+        target_id=label.id,
+        target_name=label.name,
+        clearance=request.priority_level,
+    )
     return LabelResponse.model_validate(label)
 
 
@@ -204,3 +229,10 @@ async def set_document_labels(
     to read — and it means an administrator needs the labels they intend to manage.
     """
     await LabelService(profile.context).set_document_labels(document_id, request.label_ids)
+    await record(
+        profile,
+        "document.labels_set",
+        target_type="document",
+        target_id=document_id,
+        labels=[str(label_id) for label_id in request.label_ids],
+    )

@@ -23,6 +23,10 @@ CATALOGUE: Final[dict[str, str]] = {
     "roles.manage": "Create and edit roles",
     "labels.manage": "Create and assign access labels",
     "llm_config.manage": "Configure the generation connector",
+    # Held apart from `query.history.any`, and the distinction is the point: reading what
+    # colleagues asked and reading who granted whom access to what are different powers,
+    # and an organisation that separates them should be able to.
+    "audit.read": "Read the record of who changed access to what",
 }
 
 # The pair that, if nobody holds it, locks the tenant out of its own administration.

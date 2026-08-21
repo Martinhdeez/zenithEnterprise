@@ -24,6 +24,7 @@ import { ApiError } from "@/shared/api/http";
 import { TagManager, labels as fetchLabels, type Label as LabelType } from "@/features/labels";
 import { AccessMatrix, GroupManager } from "./access/AccessMatrix";
 import { Analytics } from "./analytics/Analytics";
+import { AuditTrail } from "./audit/AuditTrail";
 import { UserGroups } from "./groups/UserGroups";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +75,12 @@ export function Admin({ token }: { token: string }) {
           happening before changing anything. */}
       <Panel title="Analytics">
         <Analytics token={token} />
+      </Panel>
+      {/* Directly under the analytics it is easily confused with, and named for what it
+          actually holds. The panel above records questions asked; this one records changes
+          to who may ask them of what. */}
+      <Panel title="Access record">
+        <AuditTrail token={token} />
       </Panel>
       <Panel title="Invite a colleague">
         <InvitePanel token={token} />
