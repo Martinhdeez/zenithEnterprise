@@ -150,3 +150,63 @@ def test_a_page_whose_box_does_not_start_at_the_origin(tmp_path: Path) -> None:
 
     assert pages
     assert "| Region" in pages[0].text, "the table is still found and rendered"
+
+
+def test_a_tightly_kerned_page_recovers_its_spaces(tmp_path: Path) -> None:
+    """The failure that made a whole document unsearchable without ever reporting anything.
+
+    pdfplumber's default `x_tolerance` of 3 points merges words in tightly kerned fonts.
+    `attention-is-all-you-need.pdf` page 7 came out as
+
+        WeusedtheAdamoptimizer[20]withβ =0.9,β =0.98andϵ=10−9.
+
+    Every word on the page was unsearchable, the embedding was of a run-on blob, and the
+    passage rendered as that in the viewer. Nothing warned: the page had text, so it was not
+    suspect by any measure the router had.
+
+    Drawn here with a negative character space rather than checked in, so the test owns the
+    condition it is about instead of depending on a 2 MB PDF.
+    """
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+    from reportlab.pdfgen import canvas
+
+    # Words placed with a 2.0 pt gap: under pdfplumber's default tolerance of 3, so they are
+    # read as one word, and over the 1.5 the parser retries with. That is exactly the
+    # condition, expressed as geometry rather than as a font quirk that might change.
+    gap = 2.0
+    buffer = io.BytesIO()
+    drawing = canvas.Canvas(buffer, pagesize=letter)
+    drawing.setFont("Helvetica", 10)
+    words = [
+        "We",
+        "used",
+        "the",
+        "Adam",
+        "optimizer",
+        "with",
+        "beta",
+        "values",
+        "of",
+        "nine",
+        "and",
+        "ninety",
+        "eight",
+    ]
+    for line in range(12):
+        x = 60.0
+        for word in words:
+            drawing.drawString(x, 720 - line * 14, word)
+            x += stringWidth(word, "Helvetica", 10) + gap
+    drawing.showPage()
+    drawing.save()
+    squeezed = tmp_path / "kerned.pdf"
+    squeezed.write_bytes(buffer.getvalue())
+
+    text = PdfPlumberParser().parse(squeezed)[0].text
+
+    assert "Adam optimizer" in text, f"words are still glued: {text[:120]!r}"
+    # And the words behind the citation boxes were split the same way, or `_boxes_for`
+    # would walk a word list that does not appear in the text and highlight nothing.
+    parsed = PdfPlumberParser().parse(squeezed)[0]
+    assert {"Adam", "optimizer"} <= {word.text for word in parsed.words}

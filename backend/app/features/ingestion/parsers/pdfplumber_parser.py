@@ -34,6 +34,34 @@ from app.features.ingestion.columns import gutters
 from app.features.ingestion.parsers.base import Box, ParsedPage, Word
 from app.features.ingestion.parsers.tables import is_table, to_markdown
 
+# Below this many spaces per character, a page is assumed to have come out glued rather
+# than to be genuinely sparse. Measured across the thirteen documents in `eval/documents`:
+# healthy pages sit between **0.108 and 0.204**, and the two LaTeX papers whose spaces were
+# lost sit at **0.028 and 0.034**. The threshold is above the broken band and below every
+# healthy median, and it only decides whether the second extraction is *attempted* — what
+# decides whether it is kept is the improvement below.
+GLUED_SPACE_RATIO = 0.12
+
+# pdfplumber's default `x_tolerance` is 3 points, which merges words in tightly kerned
+# fonts. `WeusedtheAdamoptimizer[20]withβ =0.9` is a real passage from
+# `attention-is-all-you-need.pdf` as this parser used to read it: no word on that page was
+# searchable, the embedding was of a run-on blob, and the passage was unreadable in the
+# viewer. 1.5 recovers it as "We used the Adam optimizer [20] with β = 0.9".
+TIGHT_X_TOLERANCE = 1.5
+
+# How much better the retry has to be before it is believed. Measured on the same corpus:
+# the two broken documents improve 5.16x and 4.16x, a third partially glued one 1.43x, and
+# every healthy document 1.00x-1.03x. A gate at 1.25 separates them with room on both sides.
+#
+# The gate is the point. A page that is legitimately sparse — a form, a table of figures, a
+# language that does not space words — gains nothing from a tighter tolerance and keeps the
+# default, so this can rescue a broken page and cannot damage a working one.
+RETRY_IMPROVEMENT = 1.25
+
+
+def space_ratio(text: str) -> float:
+    return text.count(" ") / len(text) if text else 0.0
+
 
 class PdfPlumberParser:
     name = "pdfplumber"
@@ -57,11 +85,33 @@ class PdfPlumberParser:
                 page.close()  # type: ignore[attr-defined]
         return pages
 
+    def _spacing(self, page: object) -> dict[str, float]:
+        """The word-splitting tolerance this page needs, decided by reading it once.
+
+        Returned as keyword arguments so every extraction on the page — the text, the words
+        behind the citation boxes, each column, each band between tables — uses the same
+        one. They must agree: `_boxes_for` walks the word list forward through the text
+        looking for each word in turn, so text split one way and words split another would
+        match nothing and every citation would highlight an empty page.
+        """
+        text = page.extract_text() or ""  # type: ignore[attr-defined]
+        # Too short to judge. A cover page or a mostly-blank one has no stable ratio, and
+        # guessing from forty characters is how a working page gets "rescued" into a worse
+        # one.
+        if len(text) < 200 or space_ratio(text) >= GLUED_SPACE_RATIO:
+            return {}
+
+        tighter = page.extract_text(x_tolerance=TIGHT_X_TOLERANCE) or ""  # type: ignore[attr-defined]
+        if space_ratio(tighter) < space_ratio(text) * RETRY_IMPROVEMENT:
+            return {}
+        return {"x_tolerance": TIGHT_X_TOLERANCE}
+
     def _page(self, page: object, page_num: int) -> ParsedPage:
         width = float(getattr(page, "width", 0)) or 1.0
         height = float(getattr(page, "height", 0)) or 1.0
 
-        raw = page.extract_words() or []  # type: ignore[attr-defined]
+        spacing = self._spacing(page)
+        raw = page.extract_words(**spacing) or []  # type: ignore[attr-defined]
 
         grids = self._tables(page)
         if grids:
@@ -71,7 +121,7 @@ class PdfPlumberParser:
             # single-column, and a page with a narrow one looks like it has a gutter where
             # the table's own middle rule is. Neither reading helps, and cropping a table
             # down the middle destroys the rows this path exists to preserve.
-            return self._with_tables(page, page_num, width, height, grids, raw)
+            return self._with_tables(page, page_num, width, height, grids, raw, spacing)
 
         centres = [(float(word["x0"]) + float(word["x1"])) / 2 / width for word in raw]
         splits = gutters(centres)
@@ -79,11 +129,11 @@ class PdfPlumberParser:
         if not splits:
             # Single column: hand the whole page to pdfplumber, exactly as before. Cropping
             # a page that has no gutter would be a way to introduce error, not remove it.
-            text = page.extract_text() or ""  # type: ignore[attr-defined]
+            text = page.extract_text(**spacing) or ""  # type: ignore[attr-defined]
             words = tuple(self._word(word, page_num, width, height) for word in raw)
             return ParsedPage(page_num=page_num, text=text, words=words, method=self.name)
 
-        return self._by_column(page, page_num, width, height, splits)
+        return self._by_column(page, page_num, width, height, splits, spacing)
 
     def _tables(self, page: object) -> list[tuple[tuple[float, float], str]]:
         """The page's real tables, each as its vertical extent and its Markdown.
@@ -112,6 +162,7 @@ class PdfPlumberParser:
         height: float,
         grids: list[tuple[tuple[float, float], str]],
         raw: list[object],
+        spacing: dict[str, float],
     ) -> ParsedPage:
         """The page read in vertical bands: prose, table, prose, table, prose.
 
@@ -148,7 +199,7 @@ class PdfPlumberParser:
             edge = min(max(top, top_edge), bottom_edge)
             if edge > cursor:
                 band = page.crop((left, cursor, right, edge))  # type: ignore[attr-defined]
-                above = (band.extract_text() or "").strip()
+                above = (band.extract_text(**spacing) or "").strip()
                 if above:
                     pieces.append(above)
             pieces.append(markdown)
@@ -156,7 +207,7 @@ class PdfPlumberParser:
 
         if cursor < bottom_edge:
             band = page.crop((left, cursor, right, bottom_edge))  # type: ignore[attr-defined]
-            below = (band.extract_text() or "").strip()
+            below = (band.extract_text(**spacing) or "").strip()
             if below:
                 pieces.append(below)
 
@@ -181,6 +232,7 @@ class PdfPlumberParser:
         width: float,
         height: float,
         splits: tuple[float, ...],
+        spacing: dict[str, float],
     ) -> ParsedPage:
         """Read each column separately and concatenate in reading order.
 
@@ -199,13 +251,14 @@ class PdfPlumberParser:
 
         for left, right in zip(bounds, bounds[1:], strict=False):
             column = page.crop((left * width, 0, right * width, height))  # type: ignore[attr-defined]
-            text = (column.extract_text() or "").strip()
+            text = (column.extract_text(**spacing) or "").strip()
             if text:
                 texts.append(text)
             # `crop` keeps the original page's coordinate space, so these are already in
             # the same frame as an uncropped read — no offset to add back.
             words.extend(
-                self._word(word, page_num, width, height) for word in column.extract_words() or []
+                self._word(word, page_num, width, height)
+                for word in column.extract_words(**spacing) or []
             )
 
         return ParsedPage(
