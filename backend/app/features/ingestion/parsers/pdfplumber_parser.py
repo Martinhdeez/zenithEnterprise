@@ -63,6 +63,26 @@ def space_ratio(text: str) -> float:
     return text.count(" ") / len(text) if text else 0.0
 
 
+def frame(page: object, width: float, height: float) -> tuple[float, float, float, float]:
+    """The page's own rectangle: `(left, top, right, bottom)` in absolute points.
+
+    Read from the page rather than assumed to be `(0, 0, width, height)`. A mediabox is not
+    obliged to start at the origin and scanned documents routinely do not —
+    `nasa-scanned-report.pdf` starts at x0=1.43921. Two things broke because of that
+    assumption, and both failed the *whole document* rather than the page: a crop taken
+    from 0 is outside the parent and pdfplumber refuses it, and a coordinate normalised by
+    dividing by the width alone lands outside `[0, 1]` and puts a citation highlight in the
+    wrong place.
+    """
+    left, top, right, bottom = (
+        float(value) for value in getattr(page, "bbox", (0.0, 0.0, width, height))
+    )
+    # A degenerate box would divide by zero downstream; fall back to the reported size.
+    if right - left <= 0 or bottom - top <= 0:
+        return 0.0, 0.0, width, height
+    return left, top, right, bottom
+
+
 class PdfPlumberParser:
     name = "pdfplumber"
 
@@ -110,6 +130,7 @@ class PdfPlumberParser:
         width = float(getattr(page, "width", 0)) or 1.0
         height = float(getattr(page, "height", 0)) or 1.0
 
+        box = frame(page, width, height)
         spacing = self._spacing(page)
         raw = page.extract_words(**spacing) or []  # type: ignore[attr-defined]
 
@@ -121,19 +142,22 @@ class PdfPlumberParser:
             # single-column, and a page with a narrow one looks like it has a gutter where
             # the table's own middle rule is. Neither reading helps, and cropping a table
             # down the middle destroys the rows this path exists to preserve.
-            return self._with_tables(page, page_num, width, height, grids, raw, spacing)
+            return self._with_tables(page, page_num, box, grids, raw, spacing)
 
-        centres = [(float(word["x0"]) + float(word["x1"])) / 2 / width for word in raw]
+        centres = [
+            ((float(word["x0"]) + float(word["x1"])) / 2 - box[0]) / (box[2] - box[0])
+            for word in raw
+        ]
         splits = gutters(centres)
 
         if not splits:
             # Single column: hand the whole page to pdfplumber, exactly as before. Cropping
             # a page that has no gutter would be a way to introduce error, not remove it.
             text = page.extract_text(**spacing) or ""  # type: ignore[attr-defined]
-            words = tuple(self._word(word, page_num, width, height) for word in raw)
+            words = tuple(self._word(word, page_num, box) for word in raw)
             return ParsedPage(page_num=page_num, text=text, words=words, method=self.name)
 
-        return self._by_column(page, page_num, width, height, splits, spacing)
+        return self._by_column(page, page_num, box, splits, spacing)
 
     def _tables(self, page: object) -> list[tuple[tuple[float, float], str]]:
         """The page's real tables, each as its vertical extent and its Markdown.
@@ -158,8 +182,7 @@ class PdfPlumberParser:
         self,
         page: object,
         page_num: int,
-        width: float,
-        height: float,
+        box: tuple[float, float, float, float],
         grids: list[tuple[tuple[float, float], str]],
         raw: list[object],
         spacing: dict[str, float],
@@ -186,9 +209,7 @@ class PdfPlumberParser:
         #
         # which fails the whole document rather than the page. Reading the bounds from the
         # page means the bands are always inside it whatever the producer chose.
-        left, top_edge, right, bottom_edge = (
-            float(value) for value in getattr(page, "bbox", (0.0, 0.0, width, height))
-        )
+        left, top_edge, right, bottom_edge = box
         pieces: list[str] = []
         cursor = top_edge
 
@@ -217,7 +238,7 @@ class PdfPlumberParser:
             # chunker treats "\n\n" as the strongest break it can cut on — which is what
             # keeps a table from being split down the middle when it can be avoided.
             text="\n\n".join(pieces),
-            words=tuple(self._word(word, page_num, width, height) for word in raw),
+            words=tuple(self._word(word, page_num, box) for word in raw),
             method=self.name,
             # No warning. `warnings` means "this text is suspect" — `_summarise` turns them
             # into a document-level "N of M pages extracted with warnings" that a user
@@ -229,8 +250,7 @@ class PdfPlumberParser:
         self,
         page: object,
         page_num: int,
-        width: float,
-        height: float,
+        box: tuple[float, float, float, float],
         splits: tuple[float, ...],
         spacing: dict[str, float],
     ) -> ParsedPage:
@@ -245,20 +265,27 @@ class PdfPlumberParser:
         running them together would hand the chunker a sentence boundary that does not
         exist.
         """
+        page_left, page_top, page_right, page_bottom = box
+        span = page_right - page_left
         bounds = [0.0, *splits, 1.0]
         texts: list[str] = []
         words: list[Word] = []
 
         for left, right in zip(bounds, bounds[1:], strict=False):
-            column = page.crop((left * width, 0, right * width, height))  # type: ignore[attr-defined]
+            # The split fractions are of the page's own width, so they are mapped back into
+            # its own rectangle. `(left * width, 0, ...)` assumed both origins were zero and
+            # raised on any page whose mediabox is offset — the crash that failed
+            # `nasa-scanned-report.pdf` in full.
+            column = page.crop(  # type: ignore[attr-defined]
+                (page_left + left * span, page_top, page_left + right * span, page_bottom)
+            )
             text = (column.extract_text(**spacing) or "").strip()
             if text:
                 texts.append(text)
             # `crop` keeps the original page's coordinate space, so these are already in
             # the same frame as an uncropped read — no offset to add back.
             words.extend(
-                self._word(word, page_num, width, height)
-                for word in column.extract_words(**spacing) or []
+                self._word(word, page_num, box) for word in column.extract_words(**spacing) or []
             )
 
         return ParsedPage(
@@ -268,17 +295,20 @@ class PdfPlumberParser:
             method=self.name,
         )
 
-    def _word(self, word: object, page_num: int, width: float, height: float) -> Word:
+    def _word(self, word: object, page_num: int, box: tuple[float, float, float, float]) -> Word:
+        left, top, right, bottom = box
+        span, extent = right - left, bottom - top
         return Word(
             text=str(word["text"]),  # type: ignore[index]
             box=Box(
                 page=page_num,
                 # Normalised here rather than at the point of use, so no consumer can
                 # forget. A box in absolute points is correct exactly once — on the page
-                # size that produced it.
-                x0=float(word["x0"]) / width,  # type: ignore[index]
-                y0=float(word["top"]) / height,  # type: ignore[index]
-                x1=float(word["x1"]) / width,  # type: ignore[index]
-                y1=float(word["bottom"]) / height,  # type: ignore[index]
+                # size that produced it. Relative to the page's own origin, not to zero,
+                # or a page whose mediabox starts at x0=1.44 puts every highlight 0.2% out.
+                x0=(float(word["x0"]) - left) / span,  # type: ignore[index]
+                y0=(float(word["top"]) - top) / extent,  # type: ignore[index]
+                x1=(float(word["x1"]) - left) / span,  # type: ignore[index]
+                y1=(float(word["bottom"]) - top) / extent,  # type: ignore[index]
             ),
         )
