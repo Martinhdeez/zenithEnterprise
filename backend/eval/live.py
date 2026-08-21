@@ -13,9 +13,10 @@ because that is where the reranker, the hardware profile, TEI's batch limits and
 circuit breaker all exist. Every one of those has silently degraded search at least once in
 this project's history, and none of them is reachable from a unit test.
 
-The credit rule is `questions.toml`'s: a hand-verified `anchor` phrase appearing in a
-returned passage. The anchors are re-derived from the documents by `tests/test_questions.py`,
-so this is not grading against something somebody typed from memory.
+The credit rule is `production.py`'s, deliberately: a returned passage counts when its
+`(document, page)` is one the question records. Those pages are re-derived from the
+extracted text by `tests/test_questions.py`, so this is not grading against something
+somebody typed from memory — and sharing the rule is what makes the two numbers comparable.
 
 **Questions whose source document is not in the corpus are excluded, not counted as
 misses.** Scoring them would measure which files happen to have been uploaded rather than
@@ -30,7 +31,6 @@ questions is not a great score.
 import json
 import statistics
 import time
-import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -60,23 +60,16 @@ FILENAMES = {
 REPORT = Path(__file__).parent / "live-recall.json"
 
 
-def flatten(text: str) -> str:
-    """Lowercased, accent-stripped, whitespace-collapsed.
-
-    Anchors are copied from the PDF and passages come back through extraction, so the two
-    disagree on line breaks and — for the Spanish documents — sometimes on accents. Matching
-    the raw strings would report misses that a reader looking at both would call hits.
-    """
-    lowered = unicodedata.normalize("NFKD", text.lower())
-    return " ".join("".join(c for c in lowered if not unicodedata.combining(c)).split())
-
-
 @dataclass(frozen=True, slots=True)
 class Outcome:
     question_id: str
     kind: str
     headline: bool
     rank: int | None
+    #: The right document came back, whatever page. Separates "retrieval never found the
+    #: file" from "it found the file and ranked the wrong passage" — two different problems
+    #: with two different fixes, and a single recall number cannot tell them apart.
+    document_hit: bool
     took_ms: int
     degraded: bool
 
@@ -107,21 +100,37 @@ def run(url: str, token: str, limit: int = 8) -> int:
             payload = response.json()
             wall = int((time.perf_counter() - started) * 1000)
 
-            anchors = [flatten(s.anchor) for s in question.sources]
+            # `(document, page)`, the same credit rule `production.py` uses, and it has to
+            # be the same or the two numbers are not comparable.
+            #
+            # Matching the anchor *text* inside the returned passage looks stricter and is
+            # simply wrong: a chunk is ~1,200 characters and a page holds several, so the
+            # chunk that answers the question frequently sits on the right page beside the
+            # sentence containing the anchor rather than containing it. Scored that way this
+            # corpus reported 50% where the page rule reports far more — a measurement
+            # artefact that would have been read as a retrieval collapse.
+            expected = {
+                (FILENAMES.get(s.document, s.document), page)
+                for s in question.sources
+                for page in s.pages
+            }
+            hits = payload.get("hits", [])
             rank = next(
                 (
                     position
-                    for position, hit in enumerate(payload.get("hits", []), start=1)
-                    if any(anchor in flatten(hit.get("text", "")) for anchor in anchors)
+                    for position, hit in enumerate(hits, start=1)
+                    if (hit.get("filename"), hit.get("page_num")) in expected
                 ),
                 None,
             )
+            wanted_files = {filename for filename, _ in expected}
             outcomes.append(
                 Outcome(
                     question.id,
                     question.type,
                     question.counts_towards_headline,
                     rank,
+                    any(hit.get("filename") in wanted_files for hit in hits),
                     payload.get("took_ms", wall),
                     bool(payload.get("degraded")),
                 )
@@ -160,6 +169,7 @@ def report(outcomes: list[Outcome], skipped: list[str], corpus: int) -> int:
     # p95 rather than the mean: the mean hides the one query that takes ten seconds, and
     # that is the query somebody will run in front of an audience.
     p95_ms = latencies[min(len(latencies) - 1, int(len(latencies) * 0.95))]
+    document_recall = sum(o.document_hit for o in headline) / len(headline) if headline else 0.0
     degraded = sum(o.degraded for o in outcomes)
     missed = [o.question_id for o in outcomes if o.rank is None]
 
@@ -170,6 +180,10 @@ def report(outcomes: list[Outcome], skipped: list[str], corpus: int) -> int:
         f"over {len(headline)} factual/cross-document"
     )
     print(f"  all questions Recall@8 {overall_recall:.1%}, Recall@1 {first_place:.1%}")
+    # The gap between this and the headline is the diagnosis: a high document recall with a
+    # low passage recall means retrieval is finding the file and ranking the wrong page,
+    # which is a chunking or reranking problem rather than a search one.
+    print(f"  right document in the page, whatever the page: {document_recall:.1%}")
     print(f"  mean rank:    {mean_rank:.2f}" if mean_rank else "  mean rank:    n/a")
     for kind, value in by_kind.items():
         print(f"     {kind:<16} {value:.1%}")
@@ -191,6 +205,7 @@ def report(outcomes: list[Outcome], skipped: list[str], corpus: int) -> int:
                 "headline_scored": len(headline),
                 "recall_at_8_all": round(overall_recall, 4),
                 "recall_at_1_all": round(first_place, 4),
+                "document_recall_at_8": round(document_recall, 4),
                 "mean_rank": round(mean_rank, 2) if mean_rank else None,
                 "by_type": {kind: round(value, 4) for kind, value in by_kind.items()},
                 "median_ms": median_ms,
