@@ -12,6 +12,7 @@ from app.features.auth.dependencies import CurrentProfile, requires, requires_an
 from app.features.documents.folders import tree
 from app.features.documents.pagination import MAX_LIMIT
 from app.features.documents.schemas import (
+    DocumentInsights,
     DocumentPage,
     DocumentResponse,
     FolderResponse,
@@ -188,3 +189,24 @@ def _reject_obviously_oversized(request: Request) -> None:
 async def _stream(file: UploadFile) -> AsyncIterator[bytes]:
     while data := await file.read(CHUNK_BYTES):
         yield data
+
+
+@router.get(
+    "/documents/{document_id}/insights",
+    operation_id="getDocumentInsights",
+    summary="What this document is made of, and how much it has been used",
+    responses={404: {"description": "No such document, or one this caller cannot reach"}},
+)
+async def document_insights(document_id: UUID, profile: CurrentProfile) -> DocumentInsights:
+    """The numbers a document detail panel needs and `GET /documents/{id}` does not carry.
+
+    Kept off the list endpoint deliberately. Both counts are aggregates over other tables,
+    and paying for them on every row of every page — to render a list that shows neither —
+    is work nobody asked for. A detail panel is opened one document at a time.
+
+    `answers` is the interesting one: how many generated answers have cited this document.
+    It is the difference between a corpus somebody has to trust and one they can see being
+    used, and it comes from `query_citations`, which is scoped by the same policy as the
+    query log itself — so this counts answers in this tenant and no other.
+    """
+    return await DocumentService(profile).insights(document_id)

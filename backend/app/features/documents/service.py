@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 import structlog
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from app.common.exceptions import (
@@ -33,6 +34,7 @@ from app.features.auth.service import AccessProfile
 from app.features.documents.model import DOCUMENT_STATUSES, Document
 from app.features.documents.pagination import Cursor, clamp
 from app.features.documents.repository import DocumentRepository
+from app.features.documents.schemas import DocumentInsights
 from app.features.documents.storage import DocumentStorage, Staged
 from app.features.ingestion.enqueue import enqueue_ingestion
 from app.features.labels.repository import LabelRepository
@@ -236,6 +238,51 @@ class DocumentService:
             await documents.delete(document)
 
         await self.storage.delete(self.context.tenant_id, sha256)
+
+    async def insights(self, document_id: UUID) -> DocumentInsights:
+        """Passage count and how many answers have cited this document.
+
+        Both aggregates run inside the caller's own tenant session, so RLS answers the
+        access question before the arithmetic does: a document this caller cannot reach
+        raises rather than returning zeros, because "no passages" and "not yours to see"
+        are different statements and only one of them is about the document.
+        """
+        async with tenant_session(self.profile.context) as session:
+            exists = await session.scalar(
+                text("SELECT 1 FROM documents WHERE id = :d"), {"d": document_id}
+            )
+            if not exists:
+                raise NotFoundError("no such document")
+
+            chunks = await session.scalar(
+                text("SELECT count(*) FROM chunks WHERE document_id = :d"), {"d": document_id}
+            )
+            # The uploader by name, not by id. `documents.uploaded_by` is a foreign key and
+            # the panel was rendering it raw — "uploaded by 7b1c5fd3-a760…" tells a reader
+            # nothing at all, which is the same mistake the audit trail made with label ids.
+            # LEFT JOIN, because the column is `ON DELETE SET NULL`: somebody can leave the
+            # organisation and their uploads stay.
+            uploader = await session.scalar(
+                text(
+                    "SELECT u.email FROM documents d LEFT JOIN users u ON u.id = d.uploaded_by "
+                    "WHERE d.id = :d"
+                ),
+                {"d": document_id},
+            )
+
+            # Distinct queries, not citation rows: an answer that cited three passages from
+            # the same document used it once, and counting rows would report three.
+            answers = await session.scalar(
+                text(
+                    "SELECT count(DISTINCT c.query_id) FROM query_citations c "
+                    "JOIN chunks ch ON ch.id = c.chunk_id WHERE ch.document_id = :d"
+                ),
+                {"d": document_id},
+            )
+
+        return DocumentInsights(
+            chunks=int(chunks or 0), answers=int(answers or 0), uploaded_by=uploader
+        )
 
     async def page(
         self,

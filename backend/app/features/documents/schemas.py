@@ -72,3 +72,17 @@ class FolderResponse(BaseModel):
 class FolderTreeResponse(BaseModel):
     folders: list[FolderResponse]
     total_documents: int
+
+
+class DocumentInsights(BaseModel):
+    """What a document is made of, and how much it has been used."""
+
+    #: Passages after chunking. The unit retrieval actually searches, so it says more about
+    #: whether a document is findable than its page count does.
+    chunks: int
+    #: How many distinct generated answers have cited it. Zero on a document nobody's
+    #: question has reached yet — which is a fact worth showing rather than hiding.
+    answers: int
+    #: The uploader's address. Null when that user has since been deleted — `uploaded_by`
+    #: is `ON DELETE SET NULL`, so a document outlives the person who added it.
+    uploaded_by: str | None = None

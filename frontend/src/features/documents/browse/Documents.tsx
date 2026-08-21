@@ -12,6 +12,7 @@ import { FileText, ShieldCheck, Trash2 } from "lucide-react";
 import { deleteDocument, listDocuments, type DocumentSummary } from "../api";
 import { TagChips, labels as fetchLabels, type Label as LabelType } from "@/features/labels";
 import { AccessInspector } from "./AccessInspector";
+import { DocumentDetail } from "./DocumentDetail";
 import { ApiError } from "@/shared/api/http";
 import type { Citation } from "@/features/chat";
 import { Button } from "@/components/ui/button";
@@ -249,7 +250,17 @@ export function Documents({
             </div>
 
             {inspecting === document_.id && (
-              <div className="border-t border-border p-3">
+              <div className="space-y-3 border-t border-border p-3">
+                {/* What the document is, above who can read it. Somebody who opened this
+                    row wants to know whether the thing is any good before they ask which
+                    compartments it sits in — and if ingestion failed, that answers both
+                    questions at once. */}
+                <DocumentDetail
+                  token={token}
+                  document={document_}
+                  labelNames={namesFor(document_)}
+                  onSelectTag={onSelectTag}
+                />
                 <AccessInspector
                   token={token}
                   filename={document_.filename}

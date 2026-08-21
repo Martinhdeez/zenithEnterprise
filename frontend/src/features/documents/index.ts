@@ -13,6 +13,7 @@
  */
 export { Folders, type FolderSelection } from "./browse/Folders";
 export { Documents } from "./browse/Documents";
+export { DocumentDetail } from "./browse/DocumentDetail";
 export { Ingesting, inFlight, ready } from "./status/Ingesting";
 export { Upload } from "./upload/Upload";
 export { StatusBadge } from "./status/StatusBadge";
@@ -21,8 +22,10 @@ export {
   listDocuments,
   deleteDocument,
   folders,
+  documentInsights,
   type DocumentSummary,
   type DocumentPage,
+  type DocumentInsights,
   type Folder,
   type FolderTree,
   type UploadResponse,

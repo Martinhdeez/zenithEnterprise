@@ -225,3 +225,25 @@ export function suggestLabels(token: string, excerpt: string): Promise<string[]>
     body: JSON.stringify({ excerpt }),
   }).then((response) => response.label_ids);
 }
+
+/** What a document is made of, and how much it has been used. */
+export interface DocumentInsights {
+  /** Passages after chunking — the unit retrieval actually searches. */
+  chunks: number;
+  /** How many distinct answers have cited it. Zero is a fact worth showing. */
+  answers: number;
+  /** The uploader's address. Null once that user has been deleted — a document outlives
+      the person who added it. */
+  uploaded_by: string | null;
+}
+
+/**
+ * Its own request, not a field on the document.
+ *
+ * Both numbers are aggregates over other tables. Carrying them on every row of every page
+ * — to render a list that shows neither — is work nobody asked for; a detail panel is
+ * opened one document at a time.
+ */
+export function documentInsights(token: string, documentId: string): Promise<DocumentInsights> {
+  return request<DocumentInsights>(`/documents/${documentId}/insights`, token);
+}
