@@ -37,7 +37,13 @@ Rules:
    or "our" — the passages were written by their authors, not by you.
 9. [1] is a citation marker, not a name. When you name a document, write its filename and
    nothing else — not the marker, not the page number.
-10. Be brief, but never answer with only "yes" or "no". State the fact that makes it so."""
+10. Be brief, but never answer with only "yes" or "no". State the fact that makes it so.
+11. Write the answer in the language of the question, whatever language the passages are in.
+    A regulation in English asked about in Spanish is answered in Spanish, including its
+    units and ordinary words, and including the word "article". Keep in the original only
+    what a reader would search for verbatim: proper names, defined terms and codes —
+    "Bank Rate", "Form 941", "1545-0074". Translating one of those turns a reference into
+    something nobody can look up; translating "hours" or "article" does not."""
 
 
 # A turn that needs no passages: the user asked about the conversation itself, or asked for
