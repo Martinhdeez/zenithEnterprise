@@ -244,6 +244,7 @@ class DocumentService:
         status: str | None = None,
         label_id: UUID | None = None,
         unlabelled: bool = False,
+        search: str | None = None,
     ) -> tuple[list[Document], str | None]:
         """One page of documents, newest first.
 
@@ -267,6 +268,7 @@ class DocumentService:
                 status=status,
                 label_id=label_id,
                 unlabelled=unlabelled,
+                search=search,
             )
         return documents, next_cursor.encode() if next_cursor else None
 

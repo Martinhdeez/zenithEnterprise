@@ -103,6 +103,7 @@ async def list_documents(
     # "the parameter is present and its value is null" distinctly from "the parameter is
     # absent", so the one folder with no id needs its own flag to be requestable at all.
     unlabelled: bool = False,
+    search: Annotated[str | None, Query(description="Matched against the filename.")] = None,
 ) -> DocumentPage:
     """The documents the caller's labels reach, newest first, one page at a time.
 
@@ -124,6 +125,7 @@ async def list_documents(
         status=status_filter,
         label_id=label_id,
         unlabelled=unlabelled,
+        search=search,
     )
     return DocumentPage(
         items=[DocumentResponse.model_validate(document) for document in documents],

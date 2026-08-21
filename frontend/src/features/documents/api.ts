@@ -160,9 +160,14 @@ export function listDocuments(
   token: string,
   cursor?: string | null,
   filter?: { labelId: string | null } | null,
+  /** Matched against the filename on the server, never filtered in the browser: a client
+      filter over one page finds what is near the top and misses the rest, which reads as
+      the document not existing. */
+  search?: string,
 ): Promise<DocumentPage> {
   const params = new URLSearchParams();
   if (cursor) params.set("cursor", cursor);
+  if (search?.trim()) params.set("search", search.trim());
   if (filter) {
     if (filter.labelId === null) params.set("unlabelled", "true");
     else params.set("label_id", filter.labelId);
