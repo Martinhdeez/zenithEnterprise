@@ -45,6 +45,7 @@ import {
 } from "@/features/documents";
 import { Search } from "@/features/search";
 import { tenantStatus, type TenantStatus } from "@/shared/api/tenant";
+import { CommandPalette } from "@/shared/ui/CommandPalette";
 import { Section } from "@/shared/components/Section";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
@@ -448,6 +449,33 @@ export function App() {
       {/* Every size below is a string on purpose: this library reads a bare number as
           pixels, not percent — `defaultSize={65}` is a 65-pixel-wide panel on a 1440px
           screen, which is the bug that made the preview panel render as a sliver. */}
+      {/* Global, and mounted once: the shortcut is registered on the window, so it works
+          from every screen without each of them knowing about it. */}
+      <CommandPalette
+        token={token}
+        actions={{
+          go: (next) => open(next as typeof view),
+          openDocument: (document) => {
+            // The viewer wants a citation; a document opened from the palette has no
+            // passage behind it, so page one with no highlights is the honest shape —
+            // rather than inventing bounding boxes that point at nothing.
+            setCitation({
+              marker: 0,
+              chunk_id: "",
+              document_id: document.id,
+              filename: document.filename,
+              page_num: 1,
+              text: "",
+              bboxes: [],
+            });
+          },
+          ask: (question) => {
+            setPrefill({ text: question, nonce: Date.now() });
+            open("chat");
+          },
+        }}
+      />
+
       <ResizablePanelGroup orientation="horizontal" className="min-w-0 flex-1 gap-3">
         <ResizablePanel
           // Only meaningful while the preview is mounted; with nothing beside it this
