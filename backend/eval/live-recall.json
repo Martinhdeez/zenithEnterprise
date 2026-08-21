@@ -1,0 +1,26 @@
+{
+  "corpus_documents": 26,
+  "scored": 30,
+  "skipped": 1,
+  "headline_recall_at_8": 0.85,
+  "headline_scored": 20,
+  "recall_at_8_all": 0.8667,
+  "recall_at_1_all": 0.6667,
+  "document_recall_at_8": 1.0,
+  "mean_rank": 1.35,
+  "by_type": {
+    "cross-document": 0.8,
+    "factual": 0.8667,
+    "identifier": 1.0,
+    "table": 0.8
+  },
+  "median_ms": 768,
+  "p95_ms": 898,
+  "degraded": 0,
+  "missed": [
+    "rag-retriever",
+    "boe-bank-rate",
+    "cross-platform-obligations",
+    "table-form-1040-status"
+  ]
+}

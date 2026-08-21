@@ -132,9 +132,17 @@ PROFILES: Final[dict[str, Profile]] = {
     # buys reach into ranks nobody reads at 1.8 s per rank.
     #
     # The honest limit of this profile: 14 seconds is not interactive, and the way out is a
-    # smaller cross-encoder, not a bigger number here. `bge-reranker-v2-m3` is 568M
-    # parameters and multilingual, which the corpus needs; the trade is a real decision
-    # about ranking quality and is not made silently in a table.
+    # smaller cross-encoder, not a bigger number here. That was then taken —
+    # `TEI_RERANK_MODEL` now defaults to `mmarco-mMiniLMv2-L12`, and the measurements behind
+    # the choice are in `docker-compose.yml` beside it. **784 ms against 13,731, for
+    # identical Recall@8.**
+    #
+    # `rerank_candidates` stays at 8 with that model, and the reason is measured rather than
+    # inherited: raising it to 32 made ranking *worse* — Recall@1 66.7% -> 53.3%, mean rank
+    # 1.35 -> 1.62 — because a weaker judge given four times the candidates is wrong four
+    # times as often, and RRF's own top-eight beat its reordering of thirty-two. The latency
+    # headroom the smaller model bought cannot be spent on depth. It could be spent on a
+    # better cross-encoder, which is what a GPU deployment should do.
     "cpu": Profile(
         name="cpu",
         max_batch_tokens=2048,
