@@ -90,20 +90,60 @@ PROFILES: Final[dict[str, Profile]] = {
     # single request. On the same box the cross-encoder could not rerank even *ten*
     # passages inside the 5-second interactive timeout.
     #
-    # `rerank_candidates = 50` therefore remains **uncalibrated**. It has never run on
-    # hardware that can host this profile, and lowering it on the strength of a machine
-    # that cannot run the profile at all would repeat F7's mistake in the other direction.
-    # A box that meets the floor is what settles it. Until then the honest statement is
-    # that this number is a guess, and it is written down as one.
+    # A box that meets the floor has now settled `max_batch_tokens`, and the answer was not
+    # 8192. Measured on a 14-core, 24 GB machine with 11.7 GB given to the container VM:
+    #
+    #     max_batch_tokens=8192  ->  tei-embed alone reaches 10.44 GB and the pair are
+    #                                OOM-killed during warm-up, both at once
+    #     max_batch_tokens=2048  ->  tei-embed serves at 2.66 GB
+    #
+    # TEI reserves activation memory in proportion to this number, so two models at 8192
+    # want upwards of 20 GB between them — more than raising the VM's allocation could
+    # reasonably supply, on a machine whose real constraint is that the embedder and the
+    # cross-encoder must live side by side.
+    #
+    # **Lowering it costs throughput, not ranking.** What orders results is the reranker
+    # itself, the 50 candidates it reads, and `hnsw_ef_search`; the token budget decides
+    # only how many passages ride in one request. Trading batch size for a cross-encoder
+    # that actually runs is the whole point of this profile — a profile that OOMs reranks
+    # nothing at all.
+    #
+    # `max_client_batch_size` follows it down to 4, and not by choice: this module's own
+    # consistency test requires `max_client_batch_size * 400 <= max_batch_tokens`, because
+    # a full batch of target-sized chunks that exceeds the server's budget is a request
+    # guaranteed to be rejected. 16 × 400 is 6400 against a 2048 budget. Memory is not what
+    # rules the number out — the token budget is.
+    #
+    # `rerank_candidates` is no longer a guess either, and 50 was never reachable. Measured
+    # on the same machine, with all 14 cores saturated at 1415%: **1,785 ms per 400-token
+    # passage**, and linear — batching buys nothing, because one batch already occupies
+    # every core. So the depth *is* the latency, directly:
+    #
+    #     50 candidates -> 89 s      8 candidates -> 14 s      4 candidates -> 7 s
+    #
+    # 50 was not a slow setting, it was an impossible one: no timeout accommodates 89
+    # seconds on an interactive path, so every search spent five seconds failing and fell
+    # back to the fused order. A number that never runs is worse than a smaller one that
+    # does — it costs the latency and delivers none of the ranking.
+    #
+    # **8, because 8 is the page.** `SearchService` returns eight passages, and the
+    # complaint that sent us here was that the right passage was on the page but not at the
+    # top. Reranking exactly the shortlist that gets shown fixes that, and reranking deeper
+    # buys reach into ranks nobody reads at 1.8 s per rank.
+    #
+    # The honest limit of this profile: 14 seconds is not interactive, and the way out is a
+    # smaller cross-encoder, not a bigger number here. `bge-reranker-v2-m3` is 568M
+    # parameters and multilingual, which the corpus needs; the trade is a real decision
+    # about ranking quality and is not made silently in a table.
     "cpu": Profile(
         name="cpu",
-        max_batch_tokens=8192,
-        max_client_batch_size=16,
+        max_batch_tokens=2048,
+        max_client_batch_size=4,
         ingestion_concurrency=1,
         reranker=True,
         ocr=True,
         hnsw_ef_search=100,
-        rerank_candidates=50,
+        rerank_candidates=8,
     ),
     # Measured the hard way on a 4-core, 7.6 GB VPS. With these two flags TEI loads and
     # serves at 3.71 GB; with the defaults the kernel kills it at 6.59 GB. The difference

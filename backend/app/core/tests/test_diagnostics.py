@@ -157,12 +157,20 @@ def test_json_output_is_parseable(configured_engines: None) -> None:
     assert {check["name"] for check in payload["checks"]} >= {"migrations", "row-level security"}
 
 
-def test_the_exit_code_reports_failure(configured_engines: None) -> None:
+def test_the_exit_code_reports_failure(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Non-zero on any failure, so this doubles as a smoke test after an install.
 
-    The model services are not running in the test environment, so this run fails — which
-    is exactly the signal an operator who forgot to start them needs.
+    The unreachable service is **pointed at explicitly** rather than assumed. This test used
+    to rely on nothing listening on the default ports, and passed for as long as that was
+    true of the developer's machine: the day the reranker was started locally, `diagnose`
+    correctly reported everything healthy and the test failed for being right. A test whose
+    outcome depends on what the person running it happens to have open is not testing the
+    exit code, it is testing their laptop.
     """
+    monkeypatch.setattr(settings, "tei_embed_url", "http://127.0.0.1:1")
+
     result = runner.invoke(app, ["diagnose"])
 
     assert result.exit_code == 1
