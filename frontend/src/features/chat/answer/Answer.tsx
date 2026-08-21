@@ -16,11 +16,14 @@
  * `- fact [2]` — composes correctly instead of the two systems fighting over the same text.
  */
 
+import { useState } from "react";
+import { Check, Copy } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import type { Citation, QueryResult } from "../stream/stream";
 import { displayed, isProvisional, type AnswerState } from "./answerState";
+import { transcript } from "./transcript";
 import { ProgressBar } from "@/shared/components/ProgressBar";
 
 interface Props {
@@ -78,6 +81,7 @@ export function Answer({ state, onCitation }: Props) {
         </div>
       )}
 
+      {result && !provisional && <Actions answer={displayed(state)} result={result} />}
       {result && <Footer result={result} />}
     </div>
   );
@@ -179,6 +183,34 @@ function components(result: QueryResult | null, onCitation: (citation: Citation)
       );
     },
   };
+}
+
+/**
+ * What you can do with a finished answer.
+ *
+ * Only once it is finished — `provisional` gates this above. A copy control beside a
+ * half-written answer invites copying half an answer, and the person pasting it has no way
+ * to tell that is what they got.
+ */
+function Actions({ answer, result }: { answer: string; result: QueryResult }) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void navigator.clipboard.writeText(transcript(answer, result));
+        setCopied(true);
+        // Long enough to be read, short enough that the button is ready again before
+        // somebody wants it twice.
+        setTimeout(() => setCopied(false), 2000);
+      }}
+      className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-input px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+    >
+      {copied ? <Check className="size-3.5 text-zenith-cyan" /> : <Copy className="size-3.5" />}
+      {copied ? "Copied with sources" : "Copy answer"}
+    </button>
+  );
 }
 
 function Footer({ result }: { result: QueryResult }) {
