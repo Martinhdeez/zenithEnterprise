@@ -70,3 +70,26 @@ def test_the_dev_proxy_matches_the_production_one() -> None:
     missing = sorted(served_prefixes() - proxied)
 
     assert not missing, f"{missing} are served by the API and absent from vite.config.ts"
+
+
+def test_no_route_repeats_its_router_prefix() -> None:
+    """`/auth/auth/credential/{token}` — a real mistake, made by adding a route to a router
+    that is already mounted under a prefix and writing the prefix again in the path.
+
+    The proxy tests above cannot catch it: `/auth/auth/...` still starts with `auth`, so
+    nginx forwards it happily and the API answers 404 because nothing is registered there.
+    The symptom is a screen reporting an invalid link while the database, the function and
+    the token are all perfectly correct — which is a long way to walk for a doubled word.
+    """
+    doubled = [
+        path
+        for path in app.openapi()["paths"]
+        if (segments := [segment for segment in path.split("/") if segment])
+        and len(segments) >= 2
+        and segments[0] == segments[1]
+    ]
+
+    assert not doubled, (
+        f"{doubled} repeat their router's prefix. The router is already mounted under it, "
+        f"so the path in the decorator must be relative to it."
+    )

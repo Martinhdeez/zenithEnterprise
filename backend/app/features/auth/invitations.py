@@ -40,12 +40,14 @@ disclosure an administrator can probe for, against an account that silently cann
 
 import secrets
 from dataclasses import dataclass
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
 
 from app.common.exceptions import ConflictError, NotFoundError
 from app.core.database import tenant_session
+from app.features.auth.credentials import INVITATION, issue
 from app.features.auth.provisioning import create_user
 from app.features.auth.service import AccessProfile, normalise_email
 
@@ -60,9 +62,13 @@ PASSWORD_BYTES = 18
 class Invitation:
     user_id: UUID
     email: str
-    #: Returned exactly once, never stored in the clear and never logged. If it is lost the
-    #: remedy is to invite again, which is cheap; recovering it is impossible by design.
-    password: str
+    #: The single-use link the administrator hands over, returned exactly once. This used to
+    #: be a generated password, and the difference is what ends up in a chat log: a password
+    #: works forever and is the user's real credential, while this is spent on first use and
+    #: expires on its own. The password it produces is chosen by the person whose password
+    #: it is and never travels.
+    token: str
+    expires_at: datetime
     role_ids: list[UUID]
 
 
@@ -112,9 +118,15 @@ class InvitationService:
                     f"{email} is already registered in another organisation"
                 ) from exc
 
+        # The account exists with a password nobody knows — not even the administrator who
+        # created it. `create_user` requires one, so it gets 32 bytes of noise that is
+        # discarded here and can never be recovered. The only way in is the link.
+        link = await issue(self.context, user.id, INVITATION, issued_by=self.profile.user_id)
+
         return Invitation(
             user_id=user.id,
             email=user.email,
-            password=password,
+            token=link.token,
+            expires_at=link.expires_at,
             role_ids=list(role_ids),
         )

@@ -19,7 +19,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
-import { inviteUser, llmConfig, roles as fetchRoles, saveLlmConfig, setRolePermissions, type Invitation, type LlmConfig, type Role } from "./api";
+import { absoluteLink, inviteUser, llmConfig, roles as fetchRoles, saveLlmConfig, setRolePermissions, type Invitation, type LlmConfig, type Role } from "./api";
 import { ApiError } from "@/shared/api/http";
 import { TagManager, labels as fetchLabels, type Label as LabelType } from "@/features/labels";
 import { AccessMatrix, GroupManager } from "./access/AccessMatrix";
@@ -123,31 +123,45 @@ function InvitePanel({ token }: { token: string }) {
   }, [token]);
 
   if (issued) {
-    // The password is returned once and is not recoverable, so this replaces the form
-    // rather than sitting beside it — an administrator who closes it without copying has
-    // to invite again, and that is only cheap if there is nothing else competing for their
-    // attention on the screen.
+    // The link is returned once and is not recoverable, so this replaces the form rather
+    // than sitting beside it — an administrator who closes it without copying has to invite
+    // again, and that is only cheap if nothing else is competing for their attention.
+    const link = absoluteLink(issued.path);
     return (
       <div className="space-y-3 rounded-lg border border-zenith-amber/30 bg-zenith-amber/10 p-4 text-sm">
-        <p className="font-medium text-foreground">{issued.email} can now sign in.</p>
-        <p className="text-foreground">
-          Password:{" "}
-          <code className="rounded bg-background px-1.5 py-0.5 font-mono text-foreground">
-            {issued.password}
-          </code>
-        </p>
+        <p className="font-medium text-foreground">Send this link to {issued.email}.</p>
+        {/* Selectable and wrapped rather than truncated: the whole point is that it gets
+            copied, and a link with an ellipsis in the middle cannot be. */}
+        <code className="block break-all rounded bg-background px-2 py-1.5 font-mono text-xs text-foreground">
+          {link}
+        </code>
         <p className="text-muted-foreground">
-          This is shown once and cannot be retrieved. Copy it now and pass it on the way you
-          already share credentials.
+          They choose their own password. The link works once and expires{" "}
+          {new Date(issued.expires_at).toLocaleString(undefined, {
+            day: "2-digit",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+          , so it stops being a way in if it is left in a chat window.
         </p>
-        <Button
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            onClick={() => void navigator.clipboard.writeText(link)}
+            className="rounded-md"
+          >
+            Copy link
+          </Button>
+          <Button
           type="button"
           variant="outline"
           onClick={() => setIssued(null)}
           className="border-zenith-amber/40 text-foreground hover:bg-zenith-amber/10"
         >
-          I have copied it
-        </Button>
+          Done
+          </Button>
+        </div>
       </div>
     );
   }

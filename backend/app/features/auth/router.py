@@ -3,14 +3,17 @@ from dataclasses import asdict
 from fastapi import APIRouter, Depends, Request, status
 
 from app.common.exceptions import RateLimitedError
+from app.features.auth.credentials import CredentialTokens
 from app.features.auth.dependencies import CurrentProfile
 from app.features.auth.schemas import (
+    CredentialSubjectResponse,
     LoginRequest,
     MeResponse,
     PasswordChange,
     ProfileResponse,
     ProfileUpdate,
     RefreshRequest,
+    SetPasswordRequest,
     TokenResponse,
 )
 from app.features.auth.service import AuthService
@@ -96,3 +99,36 @@ async def me(profile: CurrentProfile) -> MeResponse:
         permissions=sorted(profile.permissions),
         label_ids=list(profile.context.label_ids),
     )
+
+
+@router.get(
+    "/credential/{token}",
+    operation_id="describeCredentialLink",
+    summary="Who an invitation or reset link belongs to",
+    responses={404: {"description": "Expired, already used, or never issued"}},
+)
+async def describe_credential(token: str) -> CredentialSubjectResponse:
+    """Unauthenticated, necessarily: the caller has no account yet, or cannot get into it.
+
+    One answer for expired, already used and never issued. Distinguishing them would confirm
+    to somebody guessing that a particular string had once been real.
+    """
+    subject = await CredentialTokens().subject(token)
+    return CredentialSubjectResponse(email=subject.email, purpose=subject.purpose)
+
+
+@router.post(
+    "/credential/{token}",
+    operation_id="redeemCredentialLink",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Set a password using an invitation or reset link",
+    responses={404: {"description": "Expired, already used, or never issued"}},
+)
+async def redeem_credential(token: str, request: SetPasswordRequest) -> None:
+    """Spends the link and sets the password in one statement.
+
+    Also ends every existing session for the account. On a reset that is the point: if the
+    reason for resetting is that somebody else had the account, a new password that leaves
+    their session alive has fixed nothing.
+    """
+    await CredentialTokens().redeem(token, request.password)

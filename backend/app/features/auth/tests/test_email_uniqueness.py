@@ -17,6 +17,7 @@ from sqlalchemy import text
 
 from app.common.exceptions import AuthenticationError, ConflictError
 from app.core.database import owner_session
+from app.features.auth.credentials import CredentialTokens
 from app.features.auth.invitations import InvitationService
 from app.features.auth.permissions import CATALOGUE
 from app.features.auth.provisioning import create_user
@@ -126,7 +127,10 @@ async def test_an_address_that_is_free_is_still_accepted(account: Account) -> No
     invited = await InvitationService(admin(account)).invite(fresh, [])
 
     assert invited.email == fresh
-    assert await AuthService().authenticate(fresh, invited.password)
+    # The invitation returns a link now, not a password: the account exists with 32 bytes
+    # nobody kept, and the only way in is to redeem it.
+    await CredentialTokens().redeem(invited.token, "a-password-they-chose")
+    assert await AuthService().authenticate(fresh, "a-password-they-chose")
 
 
 async def test_an_ambiguous_address_is_refused_rather_than_guessed(account: Account) -> None:

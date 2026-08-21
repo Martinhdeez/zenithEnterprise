@@ -80,10 +80,15 @@ class InviteRequest(BaseModel):
 class InviteResponse(BaseModel):
     user_id: UUID
     email: str
-    #: **Returned exactly once.** Never stored in the clear, never logged, not recoverable.
-    #: There is no email server on an on-premise install to send it, so the administrator
-    #: passes it on the way they already pass on credentials.
-    password: str
+    #: **Returned exactly once**, and a link rather than a password. There is still no email
+    #: server on an on-premise install, so the administrator passes this on exactly the way
+    #: they used to pass a password — what changed is that this one is single use and
+    #: expires, so the same paste in the same chat window is worthless afterwards.
+    #:
+    #: A path, not a full URL: behind a proxy the server sees its own container name, and a
+    #: link with the wrong host in it is worse than none because it looks right.
+    path: str
+    expires_at: datetime
     role_ids: list[UUID]
 
 

@@ -75,3 +75,36 @@ class MeResponse(BaseModel):
     # The labels this caller reaches. Returned so the UI can hide what the user cannot
     # open, never so it can decide: the decision is RLS's, in the database.
     label_ids: list[UUID]
+
+
+class SetPasswordRequest(BaseModel):
+    """A password the user chose, from the set-password page.
+
+    The same minimum the change-password route enforces. It is checked here too rather than
+    trusted to the page, because this route is public and the page is not the only thing
+    that can call it.
+    """
+
+    password: str = Field(min_length=12, max_length=128)
+
+
+class CredentialSubjectResponse(BaseModel):
+    """Who a link is for, so the page can address them by name rather than by token."""
+
+    email: str
+    #: `invitation` or `reset`. The page says "Welcome" for one and "Choose a new password"
+    #: for the other, which is the difference between arriving and returning.
+    purpose: str
+
+
+class CredentialLinkResponse(BaseModel):
+    """What an administrator copies. Returned once; the token is not stored in the clear."""
+
+    #: The path to hand over, e.g. `/set-password/<token>`. A path rather than a full URL:
+    #: the server does not reliably know the hostname it is reached by — behind a proxy it
+    #: sees its own container name — and a link with the wrong host in it is worse than
+    #: none, because it looks right.
+    path: str
+    email: str
+    purpose: str
+    expires_at: datetime

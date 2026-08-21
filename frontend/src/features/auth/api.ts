@@ -108,3 +108,24 @@ export function renameSelf(token: string, name: string): Promise<UserProfile> {
     body: JSON.stringify({ name }),
   });
 }
+
+/** Who a set-password link belongs to. Unauthenticated by necessity. */
+export interface CredentialSubject {
+  email: string;
+  /** `invitation` or `reset` — the page greets you differently for each. */
+  purpose: string;
+}
+
+export function describeCredential(token: string): Promise<CredentialSubject> {
+  // No bearer token: the caller either has no account yet or cannot get into it, which is
+  // the entire reason this route exists.
+  return request<CredentialSubject>(`/auth/credential/${encodeURIComponent(token)}`, "");
+}
+
+export function redeemCredential(token: string, password: string): Promise<void> {
+  return request<void>(`/auth/credential/${encodeURIComponent(token)}`, "", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+}

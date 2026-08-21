@@ -33,6 +33,7 @@ from app.features.admin.schemas import (
 )
 from app.features.audit.service import READ as AUDIT_READ
 from app.features.audit.service import AuditService, record
+from app.features.auth.credentials import RESET, issue_for
 from app.features.auth.dependencies import CurrentProfile, requires, requires_any
 from app.features.auth.directory import MANAGE as USERS_MANAGE
 from app.features.auth.directory import DirectoryService
@@ -345,7 +346,47 @@ async def invite_user(profile: CurrentProfile, request: InviteRequest) -> Invite
         target_id=invitation.user_id,
         target_name=invitation.email,
     )
-    return InviteResponse(**asdict(invitation))
+    return InviteResponse(
+        user_id=invitation.user_id,
+        email=invitation.email,
+        path=f"/set-password/{invitation.token}",
+        expires_at=invitation.expires_at,
+        role_ids=invitation.role_ids,
+    )
+
+
+@router.post(
+    "/users/{user_id}/reset-link",
+    operation_id="issueResetLink",
+    summary="Issue a single-use link so somebody can set a new password",
+    responses={404: {"description": "No such user in this organisation"}},
+    dependencies=[Depends(requires(USERS_MANAGE))],
+)
+async def issue_reset_link(profile: CurrentProfile, user_id: UUID) -> InviteResponse:
+    """Recovery without a shell.
+
+    This was `zenith reset-password` over SSH, which does not survive a third customer and
+    makes every forgotten password an escalation to whoever holds the server key.
+
+    Issuing one retires any link already outstanding for that person, and redeeming it ends
+    their existing sessions — which is the behaviour you want when the reason for the reset
+    is that somebody else had the account.
+    """
+    link = await issue_for(profile, user_id, RESET)
+    await record(
+        profile,
+        "user.reset_link_issued",
+        target_type="user",
+        target_id=user_id,
+        target_name=link.email,
+    )
+    return InviteResponse(
+        user_id=user_id,
+        email=link.email,
+        path=f"/set-password/{link.token}",
+        expires_at=link.expires_at,
+        role_ids=[],
+    )
 
 
 @router.get(

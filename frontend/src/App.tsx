@@ -26,6 +26,7 @@ import {
 import { Admin } from "@/features/admin";
 import {
   Login,
+  SetPassword,
   Profile,
   profile as fetchMyProfile,
   refreshTokens,
@@ -82,6 +83,18 @@ const REFRESH_INTERVAL_MS = 10 * 60 * 1000;
     attribute cannot, so it gets the capital here. */
 function capitalise(name: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+/**
+ * The one path that must work before anybody is signed in.
+ *
+ * Read from `location` rather than routed, because this app has no router: the shell is a
+ * `view` union and every screen inside it assumes a token. Adding one for a single public
+ * page would be a dependency bought to serve one screen.
+ */
+function setPasswordToken(): string | null {
+  const match = window.location.pathname.match(/^\/set-password\/(.+)$/);
+  return match?.[1] ?? null;
 }
 
 export function App() {
@@ -228,6 +241,14 @@ export function App() {
     }, REFRESH_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [token]);
+
+  // Checked before the token, and that order is the whole point: the people who need this
+  // page either have no account yet or cannot get into the one they have. Rendering Login
+  // first would send them to a form they cannot complete.
+  const invitation = setPasswordToken();
+  if (invitation) {
+    return <SetPassword token={invitation} />;
+  }
 
   if (!token) {
     return (

@@ -187,14 +187,35 @@ export interface Invitation {
   user_id: string;
   email: string;
   /**
-   * Shown exactly once and not recoverable.
+   * Shown exactly once and not recoverable — and a link now, not a password.
    *
-   * There is no mail server on an on-premise install, so the administrator passes this on
-   * however they already pass on credentials. The UI must therefore make it obvious that
-   * closing the dialog loses it.
+   * There is still no mail server on an on-premise install, so the administrator passes
+   * this on however they already share things. What changed is what they are sharing: a
+   * password works forever and is the person's real credential, while this is spent on
+   * first use and expires on its own.
+   *
+   * A path, not a full URL. The server does not reliably know the hostname it is reached
+   * by — behind a proxy it sees its own container name — so the browser, which does know,
+   * puts the origin on the front.
    */
-  password: string;
+  path: string;
+  expires_at: string;
   role_ids: string[];
+}
+
+/** The link, as something a person can paste. Origin from the browser; path from the API. */
+export function absoluteLink(path: string): string {
+  return `${window.location.origin}${path}`;
+}
+
+/**
+ * A single-use link so somebody can set a new password.
+ *
+ * This replaces `zenith reset-password` over SSH, which did not survive a third customer:
+ * every forgotten password was an escalation to whoever held the server key.
+ */
+export function issueResetLink(token: string, userId: string): Promise<Invitation> {
+  return request<Invitation>(`/users/${userId}/reset-link`, token, { method: "POST" });
 }
 
 export function inviteUser(
