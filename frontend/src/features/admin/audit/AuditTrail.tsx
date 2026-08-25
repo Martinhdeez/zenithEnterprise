@@ -37,6 +37,7 @@ const SENTENCES: Record<string, string> = {
   "label.default_set": "made this the default label",
   "label.clearance_set": "classified the label",
   "document.labels_set": "changed the labels on a document",
+  "document.classified": "filed a document automatically",
   "tenant.provisioned": "created the organisation",
   "tenant.suspended": "suspended the organisation",
   "tenant.activated": "reactivated the organisation",
@@ -46,6 +47,19 @@ const SENTENCES: Record<string, string> = {
 /** Unknown actions still read as something. A token is better than a blank row. */
 function describe(action: string): string {
   return SENTENCES[action] ?? action.replace(/[._]/g, " ");
+}
+
+/**
+ * The address `record_automatic` writes when no person acted.
+ *
+ * `actor_email` is `NOT NULL`, so an automatic event has to put *something* there — and
+ * rendering it beside every human address makes an audit trail where a model looks like a
+ * colleague nobody remembers hiring. Named here and shown as what it is.
+ */
+const AUTOMATIC = "classifier@zenith";
+
+function actor(email: string): string {
+  return email === AUTOMATIC ? "Automatic classification" : email;
 }
 
 /** The actions that take access away or destroy things, which is what people scan for. */
@@ -150,7 +164,7 @@ export function AuditTrail({ token }: { token: string }) {
             />
             <div className="min-w-0 flex-1">
               <p className="text-sm text-foreground">
-                <span className="font-medium">{event.actor_email}</span>{" "}
+                <span className="font-medium">{actor(event.actor_email)}</span>{" "}
                 <span className="text-muted-foreground">{describe(event.action)}</span>
                 {event.target_name && <span className="font-medium"> {event.target_name}</span>}
               </p>
