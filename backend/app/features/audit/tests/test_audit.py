@@ -15,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError
 
 from app.core.database import owner_session, tenant_session
-from app.features.audit.service import AuditService, record, record_system
+from app.features.audit.service import AUTOMATIC, AuditService, record, record_system
 from app.features.auth.service import AccessProfile
 from app.features.tenancy.context import TenantContext
 from conftest import Account
@@ -209,3 +209,46 @@ class TestSystemEvents:
             )
 
         assert surviving == 1
+
+
+async def test_the_classifier_leaves_a_record(account: Account) -> None:
+    """A change to who may read a document, made by no person.
+
+    Every *human* label change was recorded and the automatic one was not, so the reach of the
+    trail stopped exactly where automation began — on a product whose audit story is "changes
+    to who may read what". A model that quietly moved a document out of an administrator-only
+    label and into a compartment left nothing behind.
+    """
+    from app.features.ingestion.classification import Filing, Outcome
+    from app.features.ingestion.pipeline import IngestionPipeline
+
+    class Declining:
+        async def file(self, *_args: object, **_kwargs: object) -> Filing:
+            return Filing([], Outcome.DECLINED)
+
+    async with owner_session() as session:
+        document_id = await session.scalar(
+            text(
+                "INSERT INTO documents (tenant_id, filename, sha256, size_bytes, status) "
+                "VALUES (:t, 'unfiled.pdf', :sha, 10, 'classifying') RETURNING id"
+            ),
+            {"t": account.tenant_id, "sha": str(uuid4())},
+        )
+        await session.execute(
+            text("INSERT INTO document_labels (document_id, label_id) VALUES (:d, :l)"),
+            {"d": document_id, "l": account.quarantine_label},
+        )
+
+    pipeline = IngestionPipeline(
+        TenantContext.for_tenant(account.tenant_id, [account.quarantine_label]),
+        classifier=Declining(),  # type: ignore[arg-type]
+    )
+
+    await pipeline._file(document_id, [])  # type: ignore[reportPrivateUsage]
+
+    events = await rows(account.tenant_id)
+    classified = [event for event in events if event["action"] == "document.classified"]
+    assert len(classified) == 1
+    # No person as the actor: the uploader chose nothing, so borrowing their id would record a
+    # decision they did not make. They are context, and go in the details.
+    assert classified[0]["actor_email"] == AUTOMATIC

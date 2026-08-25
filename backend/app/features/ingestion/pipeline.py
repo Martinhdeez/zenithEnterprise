@@ -30,6 +30,7 @@ from app.core.config import settings
 from app.core.database import tenant_session
 from app.core.hardware import Profile
 from app.core.hardware import active as active_profile
+from app.features.audit.service import record_automatic
 from app.features.documents.model import Chunk as ChunkRow
 from app.features.documents.model import Document, Page
 from app.features.documents.storage import DocumentStorage
@@ -314,12 +315,32 @@ class IngestionPipeline:
             document = await session.get(Document, document_id)
             if document is not None:
                 document.status = "ready"
+                # Flushed here rather than left to the commit, and this is not tidiness. An
+                # ORM change is a *pending* UPDATE; without this it is written when the session
+                # flushes, which is after the raw DELETE below — by which point the row no
+                # longer intersects this context and the UPDATE matches zero rows. It failed
+                # that way in one test and not another, purely on flush ordering, which is the
+                # kind of dependency worth removing rather than understanding.
+                await session.flush()
 
             await session.execute(
                 text("DELETE FROM document_labels WHERE document_id = :d AND label_id = :l"),
                 {"d": document_id, "l": row.quarantine_id},
             )
 
+        # After the commit, and with no person as the actor. This is a change to who may read
+        # a document, which is the one thing the trail exists for — and every *human* label
+        # change was recorded while the automatic one was not, so the reach of the audit story
+        # stopped exactly where automation began.
+        await record_automatic(
+            self.context,
+            "document.classified",
+            target_type="document",
+            target_id=document_id,
+            labels=[str(label) for label in applied],
+            outcome=str(filing.outcome),
+            uploaded_by=str(row.uploaded_by) if row.uploaded_by else None,
+        )
         return True
 
     def _route(self, pages: list[ParsedPage]) -> "Routing":

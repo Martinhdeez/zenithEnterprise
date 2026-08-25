@@ -30,6 +30,7 @@ from sqlalchemy import text
 from app.core.database import platform_session, tenant_session
 from app.features.auth.service import AccessProfile
 from app.features.documents.pagination import Cursor, clamp
+from app.features.tenancy.context import TenantContext
 
 log = structlog.get_logger()
 
@@ -98,6 +99,55 @@ async def record(
             )
     except Exception:  # noqa: BLE001 — see the module docstring: the change already committed.
         log.exception("audit.write_failed", action=action, actor=str(profile.user_id))
+
+
+#: The actor on an event nobody performed. `actor_email` is `NOT NULL` and `actor_user_id` is
+#: nullable, so the schema already expected an actor without an account; this is the name that
+#: goes in the column a person's address would.
+AUTOMATIC = "classifier@zenith"
+
+
+async def record_automatic(
+    context: TenantContext,
+    action: str,
+    *,
+    target_type: str | None = None,
+    target_id: UUID | None = None,
+    target_name: str | None = None,
+    **details: Any,
+) -> None:
+    """An event with no person behind it.
+
+    The classifier changes a document's access labels — which is precisely what this trail
+    exists to record — and it does so with no `AccessProfile`, because it runs in a worker
+    from a task payload. So the reach of the trail stopped exactly where automation began:
+    every human label change was recorded and the automatic one was not, on a product whose
+    audit story is "changes to who may read what".
+
+    `actor_user_id` stays NULL rather than borrowing the uploader's. They chose nothing; the
+    uploader is context and goes in `details`, where it can be read without claiming they made
+    the decision.
+
+    Written in the tenant's own session, so `WITH CHECK` keeps the row inside the organisation
+    it describes and no bypass is needed for it.
+    """
+    try:
+        async with tenant_session(context) as session:
+            await session.execute(
+                text(INSERT),
+                {
+                    "tenant_id": context.tenant_id,
+                    "actor": None,
+                    "actor_email": AUTOMATIC,
+                    "action": action,
+                    "target_type": target_type,
+                    "target_id": target_id,
+                    "target_name": target_name,
+                    "details": json.dumps(details, default=str),
+                },
+            )
+    except Exception:  # noqa: BLE001 — see the module docstring: the change already committed.
+        log.exception("audit.write_failed", action=action, actor=AUTOMATIC)
 
 
 async def record_system(
