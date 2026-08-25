@@ -81,6 +81,7 @@ const STAGES: Record<string, { percent: number; label: string }> = {
   parsing: { percent: 25, label: "Reading the document" },
   chunking: { percent: 45, label: "Splitting into passages" },
   embedding: { percent: 70, label: "Building the index" },
+  classifying: { percent: 90, label: "Filing the document" },
 };
 
 /** Every byte is in; the server has not finished with them. The percentage comes from the

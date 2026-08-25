@@ -15,6 +15,7 @@ from app.core.database import owner_session, tenant_session
 from app.features.ingestion.classification import (
     MAX_CHOSEN,
     Classifier,
+    Filing,
     Outcome,
     build,
     read,
@@ -385,3 +386,60 @@ async def test_filing_writes_labels_that_reach_the_chunks(account: Account) -> N
     # file it came from.
     assert document_labels[0], "the classifier's choice reached the document"
     assert chunk_labels[0] == document_labels[0]
+
+
+# --- the reserved labels ---------------------------------------------------------------
+
+
+async def test_the_quarantine_label_is_never_offered_to_the_model(account: Account) -> None:
+    """The leak that reached through the mechanism built to prevent it.
+
+    An administrator reaches `Unclassified`, so without an exclusion the model could pick the
+    label the document is already waiting in. `_file` would then insert a row that already
+    exists — a no-op — and delete the quarantine label afterwards, leaving `label_ids = '{}'`.
+    That is the one value meaning *visible to the whole tenant*, and it is exactly the state
+    migration 0017 exists to make unreachable.
+    """
+    offered = await Classifier(context(account))._candidates(account.admin_id)  # type: ignore[reportPrivateUsage]
+
+    assert account.quarantine_label not in [label_id for label_id, _ in offered]
+    assert offered, "the admin reaches real compartments, so the list is not simply empty"
+
+
+async def test_the_default_label_is_never_offered_either(account: Account) -> None:
+    """`_file` already sends a declined document there.
+
+    Offering it as a choice would make "the model picked General" and "the model picked
+    nothing" indistinguishable in the log, and one of those is a working classifier.
+    """
+    offered = await Classifier(context(account))._candidates(account.admin_id)  # type: ignore[reportPrivateUsage]
+
+    assert account.default_label not in [label_id for label_id, _ in offered]
+
+
+async def test_filing_refuses_the_quarantine_label_even_if_it_arrives(account: Account) -> None:
+    """The second lock on the same door.
+
+    `_candidates` no longer offers it; this asserts the *write* refuses it too. A guess must
+    not be able to empty a document's label set through any path, and the two ends are far
+    enough apart that one of them changing without the other is exactly how this would come
+    back.
+    """
+    from app.features.ingestion.pipeline import IngestionPipeline
+
+    document_id = await document(account.tenant_id, account.admin_id, account.quarantine_label)
+
+    class PicksQuarantine:
+        async def file(self, *_args: object, **_kwargs: object) -> Filing:
+            return Filing([account.quarantine_label], Outcome.CHOSE)
+
+    pipeline = IngestionPipeline(
+        TenantContext.for_tenant(account.tenant_id, [account.quarantine_label]),
+        classifier=PicksQuarantine(),  # type: ignore[arg-type]
+    )
+
+    await pipeline._file(document_id, [])  # type: ignore[reportPrivateUsage]
+
+    # Released to the default, as a document nothing was chosen for — and emphatically not
+    # left with an empty array.
+    assert await labels_on(document_id) == {account.default_label}

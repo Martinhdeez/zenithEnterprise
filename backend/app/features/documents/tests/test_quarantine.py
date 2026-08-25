@@ -235,3 +235,35 @@ async def test_the_exception_is_read_only(account: Account, storage: DocumentSto
             )
 
     assert "row-level security" in str(refused.value).lower()
+
+
+async def test_the_uploader_keeps_sight_of_it_while_it_is_being_filed(
+    account: Account, storage: DocumentStorage
+) -> None:
+    """The window the exception was written for, and the one it originally missed.
+
+    `_persist` wrote `status = 'ready'` in the same transaction as the chunks, *before* the
+    classifier is asked where the document belongs. The exception is `status <> 'ready'`, so
+    it was already switched off during the single step it exists to cover: a member who
+    uploaded a file lost it from Documents while a model was being asked about it, and the
+    upload screen's poller started reporting "not found". A filing that then failed left it
+    admin-only for good.
+
+    Migration 0019 puts `classifying` between `embedding` and `ready`, so the exception covers
+    the model call. This asserts the property rather than the migration: at every status that
+    is not `ready`, the uploader can still see their own document.
+    """
+    document_id = await upload(account, storage)
+
+    for status in ("pending", "parsing", "chunking", "embedding", "classifying"):
+        async with owner_session() as session:
+            await session.execute(
+                text("UPDATE documents SET status = :s WHERE id = :d"),
+                {"s": status, "d": document_id},
+            )
+
+        assert await visible(reading(account), document_id) is True, (
+            f"the uploader lost their own document at {status!r}"
+        )
+        # And nobody else did, at any of them.
+        assert await visible(colleague(account), document_id) is False

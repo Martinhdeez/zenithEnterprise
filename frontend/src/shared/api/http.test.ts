@@ -13,7 +13,17 @@ describe("document statuses", () => {
     // import Python. `documents` is keyed by whatever the server sends, so a typo here is
     // not a type error — it is a counter that reads zero forever, which is exactly what
     // the first version of the status badge did with an invented `processing`.
-    expect([...IN_FLIGHT]).toEqual(["pending", "parsing", "chunking", "embedding"]);
+    // `classifying` joined them in migration 0019, and the reason it exists is the reason
+    // this test does: migration 0017's uploader exception is keyed on `status <> 'ready'`,
+    // so the document must not be `ready` while a model is deciding its labels. A client
+    // that did not know the status would report a filing document as settled.
+    expect([...IN_FLIGHT]).toEqual([
+      "pending",
+      "parsing",
+      "chunking",
+      "embedding",
+      "classifying",
+    ]);
     expect(IN_FLIGHT).not.toContain("processing");
     expect(IN_FLIGHT).not.toContain("ready");
     expect(IN_FLIGHT).not.toContain("failed");

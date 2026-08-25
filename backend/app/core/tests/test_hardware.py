@@ -43,7 +43,25 @@ def test_low_spec_degradations_are_named() -> None:
     assert len(disabled) == 2
     assert any("reranker" in item for item in disabled)
     assert any("OCR" in item for item in disabled)
-    assert PROFILES["cpu"].disabled == []
+
+    # `cpu` has a reranker, so only OCR is missing — and it is missing on *every* profile
+    # until an engine is wired, whatever the profile's own flag says. `cpu` and `gpu` both
+    # set `ocr=True`, which is a statement about the hardware; the installation's answer is
+    # the conjunction with `OCR_IMPLEMENTED`, and reporting the flag alone told an operator
+    # their scanned documents would ingest when every one of them was being refused.
+    assert PROFILES["cpu"].disabled == [
+        "OCR (scanned documents are refused rather than ingested empty)"
+    ]
+
+
+def test_no_profile_claims_ocr_this_build_does_not_have() -> None:
+    """The criterion, stated as one assertion: a profile reports OCR as available only when
+    an implementation exists."""
+    from app.core.hardware import OCR_IMPLEMENTED
+
+    for name, profile in PROFILES.items():
+        claims_ocr = not any("OCR" in item for item in profile.disabled)
+        assert claims_ocr is (profile.ocr and OCR_IMPLEMENTED), name
 
 
 def test_an_unknown_profile_fails_loudly(monkeypatch: pytest.MonkeyPatch) -> None:

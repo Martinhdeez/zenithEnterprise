@@ -8,7 +8,12 @@ refused, which is the product's most common action, for everybody in the tenant.
 
 from pathlib import Path
 
+import pytest
+from sqlalchemy import text
+
+from app.core.database import owner_session
 from app.features.labels.provisioning import DEFAULT_LABEL
+from app.features.tenancy.context import TenantContext
 from conftest import Account
 
 
@@ -128,3 +133,47 @@ async def test_an_upload_with_no_label_survives_the_default_being_deleted(
     quarantine = [row for row in present if row.is_quarantine]
     assert len(quarantine) == 1
     assert result.labels == [quarantine[0].id]
+
+
+async def test_the_quarantine_label_cannot_be_granted_to_another_role(account: Account) -> None:
+    """The grant that would undo migration 0017 completely.
+
+    `Unclassified` reaching `member` again makes every unfiled upload readable by the whole
+    tenant for the length of its ingestion — the exact state the migration exists to prevent,
+    reached through an ordinary administrative action nobody would think twice about.
+    """
+    from app.common.exceptions import ConflictError
+    from app.features.labels.service import LabelService
+
+    async with owner_session() as session:
+        member_role = await session.scalar(
+            text("SELECT id FROM roles WHERE tenant_id = :t AND name = 'member'"),
+            {"t": account.tenant_id},
+        )
+
+    service = LabelService(TenantContext.for_tenant(account.tenant_id, [account.quarantine_label]))
+
+    with pytest.raises(ConflictError) as refused:
+        await service.set_role_labels(member_role, [account.quarantine_label])
+
+    assert "unfiled uploads wait" in str(refused.value)
+
+
+async def test_the_quarantine_label_cannot_be_deleted_or_renamed(account: Account) -> None:
+    """Deleting it removes the place uploads land; renaming it hides what it is.
+
+    Refused rather than hidden: an administrator can see the label — filing what waits there
+    is their job — and being told why it will not move is more useful than a row that
+    silently ignores them.
+    """
+    from app.common.exceptions import ConflictError
+    from app.features.labels.service import LabelService
+
+    service = LabelService(TenantContext.for_tenant(account.tenant_id, [account.quarantine_label]))
+
+    with pytest.raises(ConflictError):
+        await service.delete(account.quarantine_label)
+    with pytest.raises(ConflictError):
+        await service.rename(account.quarantine_label, "Something else")
+    with pytest.raises(ConflictError):
+        await service.set_default(account.quarantine_label)

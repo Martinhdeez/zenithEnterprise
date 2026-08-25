@@ -23,6 +23,17 @@ from typing import Final
 
 from app.core.config import settings
 
+#: Whether this build can read a page that has no text layer.
+#:
+#: **It cannot**, and it lives here rather than in the ingestion feature because two very
+#: different callers need the same fact: the router, deciding what to do with a scanned page,
+#: and `Profile.disabled`, telling an operator what their installation cannot do. Kept in the
+#: feature, the second one asked `Profile.ocr` instead — a flag about the hardware — and
+#: reported `cpu` and `gpu` as OCR-capable while every scanned page was being refused.
+#:
+#: Flip it to `True` in the same commit that wires an engine, not before.
+OCR_IMPLEMENTED = False
+
 
 @dataclass(frozen=True, slots=True)
 class Profile:
@@ -73,8 +84,13 @@ class Profile:
         missing: list[str] = []
         if not self.reranker:
             missing.append("reranker (costs up to 20 points of Recall@8)")
-        if not self.ocr:
-            missing.append("OCR (scanned documents will fail rather than ingest empty)")
+        # `self.ocr` alone was the wrong question. It says whether this *hardware* is allowed
+        # to run OCR, and `cpu` and `gpu` both say yes — so `zenith diagnose` reported them as
+        # OCR-capable installations while routing refused every scanned page, because no
+        # engine exists. A profile flag and a build capability are different facts and only
+        # their conjunction is true of the running system.
+        if not (self.ocr and OCR_IMPLEMENTED):
+            missing.append("OCR (scanned documents are refused rather than ingested empty)")
         return missing
 
 

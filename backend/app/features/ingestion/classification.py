@@ -221,8 +221,24 @@ class Classifier:
             if not reachable or len(reachable) > MAX_LABELS:
                 return []
 
+            # **Reserved labels are never offered**, and the quarantine one is why this
+            # clause exists at all. An administrator reaches `Unclassified`, so without it the
+            # model could pick the label the document is already waiting in — and `_file`
+            # would then insert a row that already exists and delete the quarantine label
+            # afterwards, leaving `label_ids = '{}'`, which is the one value that means
+            # *visible to the whole tenant*. The exact outcome migration 0017 exists to
+            # prevent, reached through the mechanism meant to prevent it.
+            #
+            # The default label is excluded for a quieter reason: `_file` already sends a
+            # declined document there. Offering it as a choice would make "the model picked
+            # General" and "the model picked nothing" indistinguishable in the log, and one
+            # of those is a working classifier.
             rows = await session.execute(
-                text("SELECT id, name FROM access_labels WHERE id = ANY(:ids) ORDER BY name"),
+                text(
+                    "SELECT id, name FROM access_labels "
+                    "WHERE id = ANY(:ids) AND NOT is_quarantine AND NOT is_default "
+                    "ORDER BY name"
+                ),
                 {"ids": [str(label_id) for label_id in reachable]},
             )
             return [(row.id, row.name) for row in rows]

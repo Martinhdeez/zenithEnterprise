@@ -229,6 +229,7 @@ class LabelService:
         async with tenant_session(self.context) as session:
             labels = LabelRepository(session)
             label = await self._require(labels, label_id)
+            self._refuse_if_reserved(label, "renamed")
             label.name = name
             try:
                 await session.flush()
@@ -240,6 +241,9 @@ class LabelService:
         async with tenant_session(self.context) as session:
             labels = LabelRepository(session)
             label = await self._require(labels, label_id)
+            # Promoting the quarantine label to default would collapse the two into one and
+            # put every unfiled upload back where the whole tenant can read it.
+            self._refuse_if_reserved(label, "made the default")
             # Cleared first: the partial unique index rejects a second default, and doing
             # both in one statement would depend on the order Postgres happens to process
             # the rows in.
@@ -264,6 +268,7 @@ class LabelService:
         async with tenant_session(self.context) as session:
             labels = LabelRepository(session)
             label = await self._require(labels, label_id)
+            self._refuse_if_reserved(label, "deleted")
             in_use = await labels.documents_using(label_id)
             if in_use:
                 raise ConflictError(
@@ -278,6 +283,11 @@ class LabelService:
             if not await labels.role_exists(role_id):
                 raise NotFoundError(f"no role {role_id}")
             await self._require_all(labels, label_ids)
+            # The grant that would undo 0017 completely: `Unclassified` reaching `member`
+            # again makes every unfiled upload tenant-wide for the length of its ingestion,
+            # which is the exact state the migration exists to prevent.
+            for label in await labels.reserved_among(label_ids):
+                self._refuse_if_reserved(label, "granted to a role")
             await labels.set_role_labels(role_id, label_ids)
 
     async def set_document_labels(self, document_id: UUID, label_ids: list[UUID]) -> None:
@@ -295,6 +305,26 @@ class LabelService:
         if label is None:
             raise NotFoundError(f"no label {label_id}")
         return label
+
+    @staticmethod
+    def _refuse_if_reserved(label: AccessLabel, action: str) -> None:
+        """The quarantine label is the product's, not the tenant's.
+
+        `is_quarantine` was a database column and appeared on no schema, so every ordinary
+        label operation reached it. Each of them undoes migration 0017 in a different way:
+        granting it to `member` restores the leak it was written to close; deleting it removes
+        the place uploads land; renaming or merging it away does the same while looking like
+        housekeeping.
+
+        Refused rather than hidden. An administrator can see it — filing what waits there is
+        their job — and telling them why it will not move is more useful than a label that
+        silently ignores them.
+        """
+        if label.is_quarantine:
+            raise ConflictError(
+                f"{label.name!r} is where unfiled uploads wait to be classified and cannot "
+                f"be {action}. Create a label of your own instead."
+            )
 
     async def _require_all(self, labels: LabelRepository, label_ids: list[UUID]) -> None:
         found = await labels.label_ids_in_tenant(label_ids)

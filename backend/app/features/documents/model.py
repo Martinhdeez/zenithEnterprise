@@ -16,7 +16,19 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base, created_at, uuid_col, uuid_pk
 
-DOCUMENT_STATUSES = ("pending", "parsing", "chunking", "embedding", "ready", "failed")
+#: `classifying` sits between `embedding` and `ready` because migration 0017's uploader
+#: exception is keyed on `status <> 'ready'`, and filing happens after the chunks are
+#: committed. Writing `ready` with them switched the exception off during the one step it was
+#: written for. See migration 0019.
+DOCUMENT_STATUSES = (
+    "pending",
+    "parsing",
+    "chunking",
+    "embedding",
+    "classifying",
+    "ready",
+    "failed",
+)
 
 #: The statuses that mean "still being worked on". Derived from the tuple above rather than
 #: listed again, because F16 shipped a folder count filtering on a status named

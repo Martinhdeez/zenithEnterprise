@@ -76,6 +76,13 @@ export function DocumentDetail({
   }, [token, document.id]);
 
   const failed = document.status === "failed";
+  // A document can finish ingesting and still have something to say — pages that produced no
+  // text, an automatic filing that could not run. `status_detail` carried those long before
+  // anything displayed them: it was rendered only for `failed`, so "2 of 4 page(s) are not
+  // searchable" was written to the database on every mixed-content upload and shown to
+  // nobody. The one reader who needs it is looking at this panel wondering why an answer did
+  // not come from this document.
+  const caution = !failed && document.status === "ready" ? document.status_detail : null;
 
   return (
     <div className="space-y-4 rounded-lg border border-input bg-secondary p-4">
@@ -93,6 +100,15 @@ export function DocumentDetail({
         <p className="rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-sm text-destructive">
           Ingestion failed{document.status_detail ? `: ${document.status_detail}` : "."} This
           document is not searchable.
+        </p>
+      )}
+
+      {/* Amber, not red, and deliberately so: the document *is* searchable and most of it is
+          in the index. Colouring it as a failure would send somebody re-uploading work that
+          is already done. */}
+      {caution && (
+        <p className="rounded-md border border-zenith-amber/30 bg-zenith-amber/10 p-2.5 text-sm text-zenith-amber">
+          {caution}
         </p>
       )}
 

@@ -246,6 +246,21 @@ class LabelRepository(ScopedRepository[AccessLabel]):
         """
         return await self.session.scalar(select(AccessLabel).where(AccessLabel.is_quarantine))
 
+    async def reserved_among(self, label_ids: list[UUID]) -> list[AccessLabel]:
+        """Which of these are the product's rather than the tenant's.
+
+        One query for every caller that has to refuse them, so "what counts as reserved" is
+        answered in a single place. Today that is the quarantine label; the shape takes a
+        second without any caller changing.
+        """
+        if not label_ids:
+            return []
+        return list(
+            await self.session.scalars(
+                select(AccessLabel).where(AccessLabel.id.in_(label_ids), AccessLabel.is_quarantine)
+            )
+        )
+
     async def role_exists(self, role_id: UUID) -> bool:
         return await self.session.scalar(select(Role.id).where(Role.id == role_id)) is not None
 

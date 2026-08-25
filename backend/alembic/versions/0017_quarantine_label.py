@@ -134,8 +134,13 @@ def upgrade() -> None:
                 "INSERT INTO access_labels (tenant_id, name, is_quarantine) "
                 "VALUES (:t, :name, true) "
                 # A tenant may already have a label of this name that an administrator
-                # created by hand. Flagging it is better than failing on the unique name —
-                # and it is not a widening, because the grant below is admin-only either way.
+                # created by hand. Flagging it is better than failing on the unique name.
+                #
+                # This comment used to add "and it is not a widening, because the grant below
+                # is admin-only either way", which was wrong: the grant below *adds* admin and
+                # removes nothing, so an adopted label keeps whatever it was already granted
+                # to. Migration 0020 repairs that, and `LabelService` refuses such a grant
+                # from now on.
                 "ON CONFLICT (tenant_id, name) DO UPDATE SET is_quarantine = true "
                 "RETURNING id"
             ),

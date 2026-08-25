@@ -371,3 +371,52 @@ async def test_a_document_within_the_limit_is_unaffected(
     )
 
     assert result.status == "ready"
+
+
+async def test_the_document_is_not_ready_while_it_is_being_filed(
+    account: Account, storage: DocumentStorage
+) -> None:
+    """Migration 0017's uploader exception is `status <> 'ready'`.
+
+    `_persist` used to write `ready` in the same transaction as the chunks, which switched the
+    exception off during the one step it was written for — the model call. A member who
+    uploaded the file lost it from Documents while a classifier was being asked where it
+    belongs, and the upload screen's poller began reporting "not found".
+
+    Asserted from *inside* the filing step rather than by setting the status by hand: the
+    property is that the pipeline reaches this point without having written `ready`, and only
+    a classifier that looks while it is being called can say so.
+    """
+    from app.features.ingestion.classification import Filing, Outcome
+    from app.features.ingestion.pipeline import IngestionPipeline
+
+    seen: list[str] = []
+
+    class LooksAtTheStatus:
+        async def file(self, document_id: UUID, *_args: object, **_kwargs: object) -> Filing:
+            async with owner_session() as session:
+                status = await session.scalar(
+                    text("SELECT status FROM documents WHERE id = :d"), {"d": document_id}
+                )
+            seen.append(str(status))
+            return Filing([], Outcome.DECLINED)
+
+    document_id, context = await upload(account, storage, pdf_bytes([LONG_PAGE]))
+    pipeline = IngestionPipeline(
+        context,
+        storage,
+        StubEmbedder(),  # type: ignore[arg-type]
+        PROFILES["cpu"],
+        classifier=LooksAtTheStatus(),  # type: ignore[arg-type]
+    )
+
+    result = await pipeline.run(document_id)
+
+    assert seen == ["classifying"], "the exception is keyed on `status <> 'ready'`"
+    # And it does end up ready — the chunks are committed and the document is searchable.
+    assert result.status == "ready"
+    async with owner_session() as session:
+        final = await session.scalar(
+            text("SELECT status FROM documents WHERE id = :d"), {"d": document_id}
+        )
+    assert final == "ready"

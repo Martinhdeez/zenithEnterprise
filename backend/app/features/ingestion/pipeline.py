@@ -2,8 +2,8 @@
 
 The pipeline is one function with a status machine around it:
 
-    pending → parsing → chunking → embedding → ready
-                  └──────────────────────────→ failed
+    pending → parsing → chunking → embedding → classifying → ready
+                  └────────────────────────────────────────→ failed
 
 **`status='ready'` with zero chunks is forbidden.** Without that rule an image-only PDF
 ingests *successfully*: no exception, no failed status, nothing in any log. The document
@@ -163,10 +163,35 @@ class IngestionPipeline:
         if routing.omitted:
             await self._note(document_id, _omission(routing, len(pages)))
 
-        await self._file(document_id, chunks)
+        # `_persist` leaves the document `classifying`, not `ready`, and this is where it
+        # becomes ready. Migration 0017's uploader exception is `status <> 'ready'`, so
+        # writing `ready` alongside the chunks switched it off for exactly the step it exists
+        # to cover: a member who uploaded the file lost it from Documents while the model was
+        # being asked where it belongs.
+        #
+        # Filing must never fail an ingestion — the chunks are committed and the document is
+        # searchable whatever a classifier does — so a failure here still ends in `ready`.
+        try:
+            settled = await self._file(document_id, chunks)
+        except Exception:  # noqa: BLE001
+            log.exception("filing_failed", document_id=str(document_id))
+            await self._note(
+                document_id,
+                "automatic filing could not run; this document is waiting for an "
+                "administrator to choose its access labels",
+            )
+            settled = False
+
+        # Only when filing left the labels alone. Swapping them takes the document out of this
+        # worker's reach — the context carries the labels captured at upload, which is what
+        # keeps the worker free of an RLS bypass — so `_file` writes the status inside the same
+        # transaction as the swap, and says so. Writing it again from here would silently do
+        # nothing and leave the document `classifying` for ever, which is how this was found.
+        if not settled:
+            await self._set_status(document_id, "ready")
         return Result(document_id, "ready", len(pages), len(chunks))
 
-    async def _file(self, document_id: UUID, chunks: list[Chunk]) -> None:
+    async def _file(self, document_id: UUID, chunks: list[Chunk]) -> bool:
         """Ask a model where a document belongs when nobody said, and file it there.
 
         **Only a document carrying nothing but the tenant's quarantine label**, which is what
@@ -214,12 +239,12 @@ class IngestionPipeline:
             ).first()
 
         if row is None or row.quarantine_id is None:
-            return
+            return False
         # Anything other than exactly the quarantine label means somebody chose — either the
         # uploader named compartments, or this document has already been filed. Neither is
         # this code's to rearrange.
         if list(row.label_ids) != [row.quarantine_id]:
-            return
+            return False
 
         excerpt = "\n".join(chunk.text for chunk in chunks[:6])
         filing = await self.classifier.file(document_id, row.uploaded_by, excerpt)
@@ -235,9 +260,17 @@ class IngestionPipeline:
                 "automatic filing failed; this document is waiting for an administrator "
                 "to choose its access labels",
             )
-            return
+            return False
 
-        applied = filing.labels
+        # Never the label it is already waiting in. `_candidates` no longer offers it, and
+        # this is the second lock on the same door: applying it means inserting a row that
+        # already exists, and the delete below then leaves `label_ids = '{}'` — the one value
+        # that means *visible to the whole tenant*. A guess must not be able to reach that
+        # state through any path, so the write refuses it as well as the offer.
+        applied = [label for label in filing.labels if label != row.quarantine_id]
+        if applied != filing.labels:
+            log.warning("classifier_offered_reserved_label", document_id=str(document_id))
+
         if not applied:
             # Declined, or never asked. Both mean the document belongs where an unfiled
             # document went before quarantine existed: the tenant default.
@@ -249,7 +282,7 @@ class IngestionPipeline:
                     "no default label exists to file this document into; "
                     "an administrator must choose its access labels",
                 )
-                return
+                return False
             applied = [row.default_id]
             if filing.outcome is Outcome.UNAVAILABLE:
                 await self._note(
@@ -270,10 +303,24 @@ class IngestionPipeline:
             # leave a window where the document carried no label at all, which is the one
             # state that means "visible to the whole tenant" rather than "visible to
             # nobody".
+            # Ready, in the same transaction as the labels it is ready *with*, and written
+            # **before** the quarantine label is dropped rather than after. The moment that
+            # delete lands, the trigger rewrites `documents.label_ids` and the row stops
+            # intersecting this worker's context — which carries the labels captured at
+            # upload, and is what keeps the worker free of an RLS bypass. A write after it
+            # finds nothing, and leaves the document `classifying` for ever. This is the only
+            # point in the sequence where the document is both fully labelled and still
+            # reachable by the session doing the work.
+            document = await session.get(Document, document_id)
+            if document is not None:
+                document.status = "ready"
+
             await session.execute(
                 text("DELETE FROM document_labels WHERE document_id = :d AND label_id = :l"),
                 {"d": document_id, "l": row.quarantine_id},
             )
+
+        return True
 
     def _route(self, pages: list[ParsedPage]) -> "Routing":
         """Apply the per-page decision and record what it saw.
@@ -326,7 +373,10 @@ class IngestionPipeline:
         """Everything in one transaction, including the status.
 
         A document reaching `ready` in a transaction that has not yet written its chunks is
-        exactly the state the zero-chunk rule forbids, so the two cannot be separated.
+        exactly the state the zero-chunk rule forbids. The rule is an ordering — `ready` never
+        earlier than the chunks — so this writes `classifying` and `_ingest` writes `ready`
+        once filing is done, which satisfies it and stops 0017's uploader exception being
+        switched off during the step it was written for.
         """
         async with tenant_session(self.context) as session:
             await _clear_previous(session, document_id)
@@ -375,7 +425,11 @@ class IngestionPipeline:
             document = await session.get(Document, document_id)
             if document is not None:
                 document.page_count = len(pages)
-                document.status = "ready"
+                # `classifying`, not `ready`. The zero-chunk rule this method exists to
+                # enforce is about `ready` never *preceding* the chunks; writing it strictly
+                # later than they are keeps that and closes migration 0017's window, whose
+                # uploader exception is keyed on `status <> 'ready'`.
+                document.status = "classifying"
                 document.status_detail = _summarise(pages)
 
     async def _set_status(self, document_id: UUID, status: str) -> None:
