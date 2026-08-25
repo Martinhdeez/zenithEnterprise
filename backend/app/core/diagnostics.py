@@ -214,20 +214,27 @@ async def _stranded_documents() -> tuple[Status, str]:
     it is stuck. A check that counted the first would report a busy installation as broken
     every time somebody uploaded a batch.
     """
+    from app.features.documents.model import IN_FLIGHT
+
     async with get_owner_session_factory()() as session:
         if not await session.scalar(text("SELECT to_regclass('public.procrastinate_jobs')")):
             # The queue check above already reports this, and with the sentence that fixes it.
             return "warn", "cannot tell: the job-queue tables are not installed"
 
+        # Every in-flight status, not only `pending`. A worker killed mid-document leaves it
+        # at whatever stage it had reached and nothing moves it again — always true of
+        # `parsing`, `chunking` and `embedding`, and one more since `classifying` (0019).
+        # Derived from the model rather than listed, for the reason `IN_FLIGHT` exists.
         stranded = await session.scalar(
             text(
                 "SELECT count(*) FROM documents d "
-                "WHERE d.status = 'pending' AND NOT EXISTS ("
+                "WHERE d.status = ANY(:statuses) AND NOT EXISTS ("
                 "  SELECT 1 FROM procrastinate_jobs j "
                 "  WHERE j.status IN ('todo', 'doing') "
                 "    AND j.args->>'document_id' = d.id::text"
                 ")"
-            )
+            ),
+            {"statuses": list(IN_FLIGHT)},
         )
 
     if not stranded:
