@@ -252,3 +252,53 @@ async def test_the_classifier_leaves_a_record(account: Account) -> None:
     # No person as the actor: the uploader chose nothing, so borrowing their id would record a
     # decision they did not make. They are context, and go in the details.
     assert classified[0]["actor_email"] == AUTOMATIC
+
+
+async def test_every_route_that_changes_access_records_an_event() -> None:
+    """The gap this closes, stated as a rule rather than four fixes.
+
+    `set_role_labels` — which compartments a role reaches — was the one operation on the label
+    router with no entry, while *deleting* a label had one. That is the change an auditor asks
+    about first. `merge_labels` moves documents between compartments and can widen visibility;
+    it had none either. And the model configuration decides where a tenant's passages are sent
+    for generation.
+
+    Asserted over the source rather than by exercising each endpoint: the property is "no
+    mutating route is missing a `record` call", and a test that listed the routes it knew
+    about would pass the day somebody adds the fifth.
+    """
+    import re
+    from pathlib import Path
+
+    #: Nothing is written, so nothing is recorded. The only exemption, and it is named.
+    WRITES_NOTHING = {"suggest_labels"}
+
+    root = Path(__file__).resolve().parents[3] / "features"
+    missing: list[str] = []
+    for router in root.rglob("router.py"):
+        source = router.read_text()
+        for match in re.finditer(
+            r"@router\.(post|put|patch|delete)\(.*?\)\n(?:async )?def (\w+)\(.*?(?=\n@router|\Z)",
+            source,
+            re.S,
+        ):
+            name, body = match.group(2), match.group(0)
+            if name in WRITES_NOTHING or "record(" in body or "record_system(" in body:
+                continue
+            missing.append(f"{router.parent.name}.{name}")
+
+    # `auth` acts on the caller's own account and `documents` records through its service;
+    # both are listed so that a *new* omission stands out rather than joining a crowd.
+    expected = {
+        "auth.login",
+        "auth.refresh",
+        "auth.rename",
+        "auth.change_password",
+        "auth.sign_out_everywhere",
+        "auth.redeem_credential",
+        "documents.upload_document",
+        "documents.delete_document",
+        "query.ask",
+        "query.ask_streaming",
+    }
+    assert set(missing) <= expected, f"a route that changes access records nothing: {missing}"

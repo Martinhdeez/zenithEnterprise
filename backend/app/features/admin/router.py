@@ -300,6 +300,17 @@ async def set_llm_config(profile: CurrentProfile, request: LlmConfigRequest) -> 
     settings = await LlmConfigService(profile).put(
         request.endpoint_url, request.model_name, request.api_key
     )
+    # The endpoint and the model, never the key. Changing where answers are generated sends
+    # this tenant's passages to a different host, which is a decision about their data and
+    # belongs in the record beside the access changes — and the credential is the one field
+    # that must not be in a log anybody can read.
+    await record(
+        profile,
+        "llm_config.set",
+        target_type="llm_config",
+        endpoint_url=settings.endpoint_url,
+        model_name=settings.model_name,
+    )
     return LlmConfigResponse(**asdict(settings))
 
 
@@ -312,6 +323,9 @@ async def set_llm_config(profile: CurrentProfile, request: LlmConfigRequest) -> 
 )
 async def clear_llm_config(profile: CurrentProfile) -> None:
     await LlmConfigService(profile).clear()
+    # Worth a line of its own: afterwards the tenant falls back to the installation's model,
+    # so this changes where their passages go without naming a destination.
+    await record(profile, "llm_config.cleared", target_type="llm_config")
 
 
 @router.post(

@@ -14,8 +14,8 @@
     "identifier": 1.0,
     "table": 0.8
   },
-  "median_ms": 871,
-  "p95_ms": 989,
+  "median_ms": 797,
+  "p95_ms": 905,
   "degraded": 0,
   "missed": [
     "boe-bank-rate",

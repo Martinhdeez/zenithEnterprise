@@ -114,6 +114,22 @@ async def merge_labels(request: LabelMerge, profile: CurrentProfile) -> LabelMer
         dry_run=request.dry_run,
         acknowledge_widening=request.acknowledge_widening,
     )
+    # Not under `dry_run`: nothing changed, and an audit trail full of previews is one
+    # nobody can scan. A merge that *did* run moves documents between compartments — the
+    # docstring above says so — and `visibility_widening` is recorded because a merge that
+    # widened access is exactly the entry somebody comes looking for.
+    if not result.dry_run:
+        await record(
+            profile,
+            "label.merged",
+            target_type="label",
+            target_id=result.target.id,
+            target_name=result.target.name,
+            sources=[str(source) for source in request.sources],
+            documents_relabelled=result.documents_relabelled,
+            visibility_widening=result.visibility_widening,
+        )
+
     return LabelMergeResult(
         target=LabelResponse.model_validate(result.target),
         merged=result.merged,
@@ -167,6 +183,18 @@ async def delete_label(label_id: UUID, profile: CurrentProfile) -> None:
 @router.put("/roles/{role_id}/labels", dependencies=[manage])
 async def set_role_labels(role_id: UUID, request: LabelAssignment, profile: CurrentProfile) -> None:
     await LabelService(profile.context).set_role_labels(role_id, request.label_ids)
+    # *The* grant operation, and it was the one thing on this router not recorded. Deleting a
+    # label was in the trail; deciding which compartments a role reaches was not — and that is
+    # the change an auditor asks about first. The whole set is stored rather than a delta,
+    # because the request replaces rather than adds and a log of deltas cannot answer "what
+    # could this role reach on Tuesday".
+    await record(
+        profile,
+        "role.labels_set",
+        target_type="role",
+        target_id=role_id,
+        label_ids=[str(label_id) for label_id in request.label_ids],
+    )
 
 
 @router.post("/labels/suggest")
