@@ -17,6 +17,7 @@ from app.features.query.schemas import (
     QueryRequest,
     QueryResponse,
 )
+from app.features.query.throttle import RateLimit
 
 router = APIRouter(tags=["query"])
 
@@ -27,9 +28,14 @@ router = APIRouter(tags=["query"])
     summary="Ask a question and receive a fully validated, cited answer",
     responses={
         403: {"description": "Missing query.execute, or a label the caller does not hold"},
+        429: {"description": "Too many questions from this user or organisation"},
         503: {"description": "No language model is configured, or it could not be reached"},
     },
-    dependencies=[Depends(requires(EXECUTE))],
+    # The permission says *may* you ask; the limit says *how often*. Both, because the
+    # expensive thing here is the model call and a permission cannot bound it — F9 measured
+    # ~9 seconds of model time per answer, and F11 measured what ten concurrent requests do
+    # to four cores.
+    dependencies=[Depends(requires(EXECUTE)), RateLimit],
 )
 async def ask(profile: CurrentProfile, request: QueryRequest) -> QueryResponse:
     """Ask a question of the corpus this caller is allowed to read.
@@ -114,9 +120,13 @@ def _rendered(result: Answer) -> QueryResponse:
             "content": {"text/event-stream": {}},
         },
         403: {"description": "Missing query.execute, or a label the caller does not hold"},
+        429: {"description": "Too many questions from this user or organisation"},
         503: {"description": "No language model is configured, or it could not be reached"},
     },
-    dependencies=[Depends(requires(EXECUTE))],
+    # More important here than on `/query`, not less: a stream holds a worker and a socket
+    # for the whole answer, so thirty tabs left open on a dashboard that retries is an outage
+    # nobody had to be malicious to cause.
+    dependencies=[Depends(requires(EXECUTE)), RateLimit],
 )
 async def ask_streaming(profile: CurrentProfile, request: QueryRequest) -> EventSourceResponse:
     """Server-Sent Events rather than WebSockets.
