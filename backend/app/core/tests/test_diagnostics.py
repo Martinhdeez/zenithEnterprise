@@ -6,8 +6,11 @@ that is absent exactly when it is needed.
 """
 
 import json
+from pathlib import Path
+from uuid import uuid4
 
 import pytest
+from sqlalchemy import text
 from typer.testing import CliRunner
 
 from app.cli import app
@@ -84,7 +87,7 @@ async def test_every_check_runs_even_when_the_database_is_unreachable() -> None:
 
     checks = await run_diagnostics()
 
-    assert len(checks) == 12
+    assert len(checks) == 13
     assert any(check.status == "fail" for check in checks)
     # And the failure still says nothing it should not.
     assert "nothing" not in " ".join(check.detail for check in checks)
@@ -247,3 +250,78 @@ async def test_a_missing_job_queue_is_reported(configured_engines: None) -> None
     # instruction came out as `Run `*** install-queue``.
     assert "install-queue" in checks["job queue"].detail
     assert "***" not in checks["job queue"].detail
+
+
+async def test_a_document_row_without_its_file_is_reported(
+    configured_engines: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The one inconsistency the product's own write ordering permits.
+
+    `DocumentService.create` commits the row and then writes the file, deliberately, so a
+    rolled-back transaction can never leave a file nobody can find. The accepted residue is
+    the reverse — and nothing surfaced it until somebody clicked the document and the viewer
+    said "That document is no longer available", in front of whoever was being shown it.
+    """
+    from app.core.database import owner_session
+
+    monkeypatch.setenv("ZENITH_STORAGE_DIR", str(tmp_path))
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
+
+    async with owner_session() as session:
+        tenant_id = await session.scalar(
+            text("INSERT INTO tenants (name) VALUES (:n) RETURNING id"),
+            {"n": f"Orphan {uuid4()}"},
+        )
+        await session.execute(
+            text(
+                "INSERT INTO documents (tenant_id, filename, sha256, size_bytes) "
+                "VALUES (:t, 'vanished.pdf', :sha, 10)"
+            ),
+            # A real digest shape: `path_for` refuses anything else, which is the guard that
+            # keeps a stored key from walking out of its tenant directory.
+            {"t": tenant_id, "sha": uuid4().hex + uuid4().hex},
+        )
+
+    checks = {check.name: check for check in await run_diagnostics()}
+
+    # A warning, not a failure: search over every other document is unaffected and the repair
+    # — re-upload, or delete the row — is a person's decision.
+    assert checks["document files"].status == "warn", checks["document files"].detail
+    assert "vanished.pdf" in checks["document files"].detail
+
+
+async def test_one_corrupt_storage_key_does_not_take_down_the_check(
+    configured_engines: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`path_for` refuses anything that is not a SHA-256 digest — the guard that keeps a
+    stored key from walking out of its tenant directory.
+
+    A row that trips it has no reachable file by definition, so it belongs in the count. It
+    used to raise instead, which reported `fail` for the whole installation and said nothing
+    about the other nine hundred documents. A diagnostic that dies on the condition it
+    diagnoses is worse than no diagnostic, which `backup.sh` learned the same way.
+    """
+    from app.core.config import settings
+    from app.core.database import owner_session
+
+    monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
+
+    async with owner_session() as session:
+        tenant_id = await session.scalar(
+            text("INSERT INTO tenants (name) VALUES (:n) RETURNING id"),
+            {"n": f"Corrupt {uuid4()}"},
+        )
+        await session.execute(
+            text(
+                "INSERT INTO documents (tenant_id, filename, sha256, size_bytes) "
+                "VALUES (:t, 'bad-key.pdf', :sha, 10)"
+            ),
+            {"t": tenant_id, "sha": "../../etc/passwd"},
+        )
+
+    checks = {check.name: check for check in await run_diagnostics()}
+
+    assert checks["document files"].status == "warn", checks["document files"].detail
+    assert "bad-key.pdf" in checks["document files"].detail

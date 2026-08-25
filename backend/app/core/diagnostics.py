@@ -196,6 +196,56 @@ async def _job_queue() -> tuple[Status, str]:
     return "ok", f"installed, {waiting} job(s) waiting"
 
 
+async def _orphaned_documents() -> tuple[Status, str]:
+    """Rows whose PDF is no longer on disk.
+
+    The one inconsistency the product's own ordering permits. `DocumentService.create` commits
+    the row and *then* writes the file, deliberately, so a rolled-back transaction can never
+    leave a file nobody can find — the accepted residue being the reverse: a row pointing at a
+    file that was never written, or one lost to a restore, a migration between machines, or a
+    storage directory that moved.
+
+    Nothing surfaces it until somebody clicks the document and the viewer says *"That document
+    is no longer available"* — in front of whoever is being shown the product, on a corpus that
+    reports itself complete everywhere else. `backup.sh` has reported this for a while; it is
+    the sort of thing an operator should not have to take a backup to discover.
+
+    A warning rather than a failure. The installation works, search over every other document
+    is unaffected, and the repair — re-upload, or delete the row — is a decision for a person.
+    """
+    from app.features.documents.storage import DocumentStorage
+
+    storage = DocumentStorage()
+    async with get_owner_session_factory()() as session:
+        rows = (
+            await session.execute(text("SELECT tenant_id, sha256, filename FROM documents"))
+        ).all()
+
+    def absent(row: Any) -> bool:
+        try:
+            return not storage.path_for(row.tenant_id, row.sha256).exists()
+        except Exception:  # noqa: BLE001
+            # `path_for` refuses anything that is not a SHA-256 digest — the guard that keeps
+            # a stored key from walking out of its tenant directory. A row that trips it has
+            # no reachable file by definition, so it belongs in this count; letting it raise
+            # would take down the whole check over one bad row and report nothing about the
+            # other nine hundred.
+            return True
+
+    missing = [row for row in rows if absent(row)]
+    if not missing:
+        return "ok", f"{len(rows)} document(s), every file present"
+
+    # Named, up to a point: an operator with three broken documents wants to know which, and
+    # one with three hundred wants the number and a place to start.
+    shown = ", ".join(row.filename for row in missing[:3])
+    more = f" and {len(missing) - 3} more" if len(missing) > 3 else ""
+    return "warn", (
+        f"{len(missing)} of {len(rows)} document(s) have no file on disk ({shown}{more}). "
+        f"They appear in listings and fail when opened."
+    )
+
+
 async def _extensions() -> tuple[Status, str]:
     required = {"vector", "pg_search", "pgcrypto"}
     async with get_session_factory()() as session:
@@ -354,6 +404,8 @@ async def run_diagnostics() -> list[Check]:
         await _timed("extensions", _extensions),
         await _timed("content", _content),
         await _timed("document storage", _storage),
+        # After storage, because it needs the storage root to be readable to mean anything.
+        await _timed("document files", _orphaned_documents),
         await _timed("hardware profile", _hardware),
         await _timed("vector space", _vector_space),
         await _timed("embedding service", _model_service("embed", settings.tei_embed_url)),

@@ -129,6 +129,37 @@ ${STATUSES}
 EOF
 fi
 
+# --- documents that will fail when clicked ------------------------------------------------
+#
+# A row whose PDF is gone still lists, still searches, and still cites — and then the viewer
+# says "That document is no longer available" in front of the audience. The corpus reports
+# itself complete everywhere else, which is what makes this worth its own line here rather
+# than only in `zenith diagnose`.
+# The reading of that report defaults to *not knowing*, never to "fine". The first version
+# here parsed the payload as a bare list — it is `{"checks": [...]}` — and its `except` fell
+# through to silence, which this script then printed as "every document row has its file" on
+# an installation with twenty-six broken ones. A check that reports health when it cannot tell
+# is worse than one that cries wolf: nobody switches it off, and nobody looks again.
+ORPHANS="$(${COMPOSE} exec -T api zenith diagnose --json 2>/dev/null \
+  | python3 -c '
+import sys, json
+try:
+    checks = {c["name"]: c for c in json.load(sys.stdin)["checks"]}
+except Exception as error:
+    print(f"UNREADABLE could not read the diagnostic report: {error}")
+    sys.exit(0)
+files = checks.get("document files")
+if files is None:
+    print("UNREADABLE the diagnostic report has no document-file check")
+elif files["status"] != "ok":
+    print(files["detail"])
+' 2>/dev/null || true)"
+case "${ORPHANS}" in
+  "")             ok   "every document row has its file" ;;
+  UNREADABLE\ *)  warn "${ORPHANS#UNREADABLE }" ;;
+  *)              warn "${ORPHANS}" ;;
+esac
+
 echo
 if [ "${FAILURES}" -gt 0 ]; then
   echo "NOT READY — ${FAILURES} failure(s), ${WARNINGS} warning(s)"
