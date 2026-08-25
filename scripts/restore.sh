@@ -54,6 +54,43 @@ mkdir -p "${STORAGE}"
 find "${STORAGE}" -mindepth 1 -delete
 tar -xzf "${SOURCE}/documents.tar.gz" -C "${STORAGE}"
 
+echo "  roles ..."
+# Before the dump, and this ordering is a hard requirement rather than a preference: the dump
+# is full of `GRANT ... TO zenith_app`, and a grant to a role that does not exist is an error.
+# The restore runs in one transaction, so that single error discards the entire recovery.
+#
+# Roles are cluster-wide, so they are absent from a fresh cluster — a reinstalled Docker
+# Desktop, a new host, the disaster this whole script exists for. The old cluster was the only
+# place they were guaranteed to already be there, which is exactly why restoring into it
+# proved nothing.
+if [ -f "${SOURCE}/roles.sql" ]; then
+  # Deliberately not `ON_ERROR_STOP`: re-running a restore into a cluster that already has
+  # these roles raises "role already exists", which is the expected case and not a problem.
+  # The errors are not swallowed either — they print. What is asserted is the postcondition
+  # below, which is the thing that actually has to be true.
+  ${COMPOSE} exec -T db psql -U "${POSTGRES_USER}" -d postgres < "${SOURCE}/roles.sql" >/dev/null || true
+
+  MISSING_ROLES=""
+  for role in $(grep -oE '^CREATE ROLE [a-zA-Z0-9_]+' "${SOURCE}/roles.sql" | awk '{print $3}'); do
+    present="$(${COMPOSE} exec -T db psql -U "${POSTGRES_USER}" -d postgres -tAc \
+      "SELECT 1 FROM pg_roles WHERE rolname = '${role}'" | tr -d '[:space:]')"
+    [ "${present}" = "1" ] || MISSING_ROLES="${MISSING_ROLES} ${role}"
+  done
+  if [ -n "${MISSING_ROLES}" ]; then
+    echo "FAILED: roles could not be created:${MISSING_ROLES}" >&2
+    echo "        The database restore would abort on the first GRANT. Stopping here," >&2
+    echo "        with the current database untouched." >&2
+    ${COMPOSE} start api worker >/dev/null
+    exit 1
+  fi
+  echo "  roles present"
+else
+  # A backup taken before roles were captured. Say so plainly: it is restorable into the
+  # cluster it came from and nowhere else, which is the opposite of what a backup is for.
+  echo "  WARNING: no roles.sql in this backup." >&2
+  echo "           It can only be restored into a cluster that already has zenith_app." >&2
+fi
+
 echo "  database ..."
 # `--clean --if-exists` inside a single transaction: either the whole schema is replaced or
 # none of it is, so a failure halfway does not leave a half-restored database that looks

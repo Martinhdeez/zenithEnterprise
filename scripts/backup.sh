@@ -22,6 +22,17 @@
 #
 #   ./scripts/backup.sh [destination]      # default: ./backups
 #
+# **The destination should not be this machine.** A copy that shares a disk with the thing it
+# protects survives a dropped table and a bad migration, and nothing else — not the disk, not
+# the laptop, not the room. The default exists so that running this with no arguments does
+# something useful, not because `./backups` is a place a backup belongs; the script says so
+# out loud at the end when it detects it wrote to the disk it was protecting.
+#
+# Old backups are pruned to the most recent `ZENITH_BACKUP_KEEP` (default 7). Without that
+# this script cannot be scheduled: each run is the size of the whole installation, and an
+# unattended job that grows without a bound eventually takes the disk down with it — which is
+# a *worse* outcome than the data loss it was guarding against.
+#
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -37,8 +48,14 @@ set -a; . "${HERE}/.env"; set +a
 POSTGRES_USER="${POSTGRES_USER:-zenith}"
 POSTGRES_DB="${POSTGRES_DB:-zenith}"
 STORAGE="${HERE}/backend/.data/documents"
+KEEP="${ZENITH_BACKUP_KEEP:-7}"
 
 mkdir -p "${OUT}"
+# Everything in here is readable secrets: user password hashes, the audit trail, every
+# document of every tenant, and now the roles file with its SCRAM verifiers. The live
+# installation puts all of that behind authentication and RLS; a backup is the one copy where
+# none of that applies and a file mode is the only thing left.
+chmod 700 "${OUT}"
 echo "Backing up to ${OUT}"
 
 # --- 1. the database -----------------------------------------------------------------
@@ -49,6 +66,22 @@ echo "Backing up to ${OUT}"
 echo "  database ..."
 ${COMPOSE} exec -T db pg_dump -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -Fc \
   > "${OUT}/database.dump"
+
+# --- 1b. the roles -------------------------------------------------------------------
+#
+# `pg_dump` of a *database* cannot contain roles: they are cluster-wide objects. The dump is
+# nonetheless full of `GRANT ... TO zenith_app` and `zenith_platform`, so restoring it into a
+# fresh cluster fails — and fails as a unit, because the restore runs in one transaction.
+#
+# This is how a tested restore still loses the data. Ours was exercised against the cluster
+# it came from, where the roles already existed, so the one thing that breaks a real recovery
+# is precisely the thing that setup could not show. It surfaced when Docker Desktop discarded
+# the volume and the backup had to actually work.
+#
+# `--roles-only`, not `--globals-only`: globals also carry tablespaces, which a containerised
+# installation does not have and whose restore would fail on paths that exist on no host here.
+echo "  roles ..."
+${COMPOSE} exec -T db pg_dumpall -U "${POSTGRES_USER}" --roles-only > "${OUT}/roles.sql"
 
 # --- 2. the documents ----------------------------------------------------------------
 #
@@ -73,12 +106,14 @@ echo "  verifying ..."
 # empty — a verification that cries wolf gets switched off, so it has to be right.
 TABLES="$(${COMPOSE} exec -T db pg_restore -l < "${OUT}/database.dump" | grep -c 'TABLE DATA' || true)"
 FILES="$(tar -tzf "${OUT}/documents.tar.gz" | grep -c '\.pdf$' || true)"
+ROLES="$(grep -c '^CREATE ROLE' "${OUT}/roles.sql" || true)"
 ROWS="$(${COMPOSE} exec -T db psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -tAc \
   'SELECT count(*) FROM documents' | tr -d '[:space:]')"
 
 cat > "${OUT}/manifest.txt" <<EOF
 taken            ${STAMP}
 database tables  ${TABLES}
+database roles   ${ROLES}
 document rows    ${ROWS}
 pdf files        ${FILES}
 database bytes   $(wc -c < "${OUT}/database.dump" | tr -d '[:space:]')
@@ -89,6 +124,14 @@ cat "${OUT}/manifest.txt"
 
 if [ "${TABLES}" -eq 0 ]; then
   echo "FAILED: the dump contains no table data" >&2
+  exit 1
+fi
+
+# Named explicitly rather than "at least one role". `zenith_app` is the role every request
+# runs as, so a roles file without it restores a database the application cannot open — which
+# looks like a successful recovery right up to the first HTTP request.
+if ! grep -q 'CREATE ROLE zenith_app' "${OUT}/roles.sql"; then
+  echo "FAILED: zenith_app is missing from roles.sql — this backup cannot be restored" >&2
   exit 1
 fi
 
@@ -110,6 +153,60 @@ if [ "${ROWS}" -gt "${FILES}" ]; then
         on_disk="$( { find "${STORAGE}/${tenant}" -name '*.pdf' 2>/dev/null || true; } | wc -l | tr -d '[:space:]')"
         [ "${count}" -eq "${on_disk}" ] || echo "        tenant ${tenant}: ${count} rows, ${on_disk} files" >&2
       done
+fi
+
+# --- 4. prune the old ones -------------------------------------------------------------
+#
+# Deliberately *after* the verification above, and unreachable if it failed: pruning on the
+# way to a broken backup would delete the last good one to make room for a bad one.
+#
+# Two conditions to be eligible for deletion, and the second is the important one: the
+# timestamp shape, and a `manifest.txt` inside. Only this script writes that file. A backup
+# destination is usually a shared disk — a NAS share, a mounted volume, somebody's Dropbox —
+# and a prune that trusts a directory name is one wrong `$DESTINATION` away from deleting
+# somebody else's directory that happened to be named like a date.
+if [ "${KEEP}" -gt 0 ]; then
+  CANDIDATES=""
+  while IFS= read -r dir; do
+    # An `if`, not `[ ... ] && ...`. Under `set -e` an and-list that ends up false *is* a
+    # failed command, so the short form would abort the script on the first ineligible
+    # directory — the same trap that once killed the diagnostic loop above.
+    if [ -f "${dir}/manifest.txt" ]; then
+      CANDIDATES="${CANDIDATES}${dir}"$'\n'
+    fi
+  done < <(find "${DESTINATION}" -mindepth 1 -maxdepth 1 -type d -name '????-??-??T??-??-??Z' | sort)
+
+  TOTAL="$(printf '%s' "${CANDIDATES}" | grep -c . || true)"
+  SURPLUS=$(( TOTAL - KEEP ))
+  if [ "${SURPLUS}" -gt 0 ]; then
+    echo "  pruning ${SURPLUS} of ${TOTAL} backup(s), keeping the newest ${KEEP} ..."
+    SEEN=0
+    while IFS= read -r dir; do
+      [ -n "${dir}" ] || continue
+      SEEN=$(( SEEN + 1 ))
+      [ "${SEEN}" -le "${SURPLUS}" ] || break
+      echo "    removing $(basename "${dir}")"
+      rm -rf "${dir}"
+    done <<EOF
+${CANDIDATES}
+EOF
+  fi
+fi
+
+# --- 5. say where this actually landed --------------------------------------------------
+#
+# Last, not first: the dump takes minutes and anything printed before it has scrolled off the
+# screen by the time it finishes. The final line is the one that gets read.
+#
+# The database lives in a Docker volume rather than under `$HERE`, but on a single-host
+# installation that volume is a file on this same disk, so the project's device is the honest
+# proxy for "the disk I am supposed to be protecting".
+device() { df -P "$1" 2>/dev/null | awk 'NR == 2 { print $1 }'; }
+if [ "$(device "${DESTINATION}")" = "$(device "${HERE}")" ]; then
+  echo
+  echo "WARNING: ${DESTINATION} is on the same disk as the installation it backs up." >&2
+  echo "         This survives a bad migration. It does not survive the disk." >&2
+  echo "         Pass a destination on other hardware:  ./scripts/backup.sh /path/on/other/disk" >&2
 fi
 
 echo "OK"

@@ -39,7 +39,14 @@ Two ways out, both real:
 $COMPOSE build api worker frontend
 $COMPOSE up -d db
 $COMPOSE exec api alembic upgrade head       # nothing runs migrations automatically
+$COMPOSE exec api zenith install-queue       # and this is the other half of the install
 ```
+
+**Both, not just the first.** Procrastinate manages its own schema, so the job-queue tables
+are deliberately outside our migrations — and an installation that runs only `alembic upgrade
+head` accepts uploads and ingests none of them. `POST /documents` answers 201, the row
+appears, and the status stays `pending` for ever. `zenith diagnose` checks for the tables, so
+the omission is reported rather than discovered.
 
 Then the two roles that ship `NOLOGIN`. No code anywhere gives them a password — that is
 deliberate, so a credential never lives in the repository:
@@ -122,10 +129,25 @@ nothing without the rows that say who may read them.
 ./scripts/backup.sh /mnt/elsewhere   # anywhere else
 ```
 
-Each run writes `database.dump` (pg_dump custom format), `documents.tar.gz` and a
-`manifest.txt`, then **verifies what it wrote**: it asks `pg_restore` to parse the archive
-and counts the rows against the files. A backup nobody has read is a hope rather than a
-backup.
+Each run writes `database.dump` (pg_dump custom format), `roles.sql`, `documents.tar.gz` and a
+`manifest.txt`, then **verifies what it wrote**: it asks `pg_restore` to parse the archive,
+counts the rows against the files, and refuses to finish if `zenith_app` is missing from the
+roles file. A backup nobody has read is a hope rather than a backup.
+
+**Why `roles.sql` is a separate file.** Roles are cluster-wide, so `pg_dump` of a database
+cannot contain them — while the dump it produces is full of `GRANT … TO zenith_app`. Restoring
+into a cluster that lacks those roles therefore fails on the first grant, and because the
+restore runs in one transaction, that single error discards the whole recovery. Restoring into
+the cluster the backup came from hides this completely: the roles are already there.
+
+Old runs are pruned to the newest `ZENITH_BACKUP_KEEP` (default 7, `0` disables). Each run is
+the size of the whole installation, so without a bound a scheduled job eventually fills the
+disk — a worse outcome than the loss it was guarding against. Only directories this script
+wrote are eligible: the timestamp shape *and* a `manifest.txt` inside, because a backup
+destination is usually a shared disk.
+
+The script warns when it has written to the same disk as the installation. That copy survives
+a bad migration and a dropped table; it does not survive the disk.
 
 **The database is dumped before the files, and the order is deliberate.**
 `DocumentService.create` commits the row and *then* writes the PDF, so dumping the database
@@ -140,16 +162,26 @@ Restoring:
 ./scripts/restore.sh backups/2026-08-21T15-00-53Z
 ```
 
-It stops `api` and `worker`, replaces the documents, restores the database in a single
-transaction, restarts, and then checks that every document row has its file. It asks you to
-type the backup's directory name first, because it destroys what is there.
+It stops `api` and `worker`, replaces the documents, **creates the roles**, restores the
+database in a single transaction, restarts, and then checks that every document row has its
+file. It asks you to type the backup's directory name first, because it destroys what is
+there. If it cannot create the roles it stops before touching the database, leaving the
+current one intact rather than half-replaced.
 
-**Verified rather than assumed.** The dump was restored into a scratch database and checked:
-21,295 chunks and their vectors, the HNSW and tsvector indexes, 20 tables with row-level
-security and their 20 policies, and — the one that matters most — `audit_events` coming back
-with `INSERT, SELECT` and nothing else, so the log is still append-only after a recovery.
+**Verified on hardware that had never seen this installation.** On 25 August a Docker Desktop
+reset discarded the database volume, which turned the exercise into a real recovery and is
+worth recording precisely:
 
-What is still missing: **this is not scheduled and it is not off-site.** A cron entry and a
-copy to another machine are the remaining work; a backup on the disk that fails is not a
-backup. `backups/` is git-ignored — it holds customer data and must never reach the
-repository.
+| | |
+|---|---|
+| Backup of 21 Aug, restored into a virgin cluster | **fails** — `role "zenith_app" does not exist`, 0 rows |
+| Same backup with `roles.sql`, same virgin cluster | 52 documents, 21,295 chunks and vectors, alembic `0016`, 20 tables with RLS |
+| `zenith_app` connecting with no tenant set | sees 0 rows — RLS still closed after recovery |
+
+The earlier note in this file said the restore had been verified. It had — into a scratch
+*database* inside the cluster it came from, where the roles already existed. That is the only
+place the defect is invisible.
+
+What is still missing: **this is not scheduled and it is not off-site.** A copy on other
+hardware is the remaining work; a backup on the disk that fails is not a backup. `backups/` is
+git-ignored — it holds customer data and must never reach the repository.
