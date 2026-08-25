@@ -302,3 +302,40 @@ async def test_every_route_that_changes_access_records_an_event() -> None:
         "query.ask_streaming",
     }
     assert set(missing) <= expected, f"a route that changes access records nothing: {missing}"
+
+
+async def test_every_recorded_action_has_a_sentence_in_the_interface() -> None:
+    """The two halves of the trail, checked against each other.
+
+    An action token is a stable `subject.verb` read by machines; the screen writes the prose.
+    When the two drift, the screen falls back to the token with its dots removed — "label
+    merged", "llm config cleared" — which is legible enough that nobody notices, and is how a
+    new event ends up looking like a bug report for months.
+
+    Reading the frontend from a Python test is unusual and has a precedent here:
+    `test_compose_matches_profiles` checks the same kind of agreement across a file boundary
+    the type system does not span. The alternative is a duplicated list, which is the thing
+    being guarded against.
+    """
+    import re
+    from pathlib import Path
+
+    repository = Path(__file__).resolve().parents[5]
+    trail = repository / "frontend/src/features/admin/audit/AuditTrail.tsx"
+    if not trail.exists():  # pragma: no cover - a backend-only checkout
+        pytest.skip("the frontend is not present in this checkout")
+
+    described = set(re.findall(r'"([a-z_]+\.[a-z_]+)":', trail.read_text()))
+
+    recorded: set[str] = set()
+    for source in (repository / "backend/app").rglob("*.py"):
+        if "tests" in source.parts:
+            continue
+        recorded |= set(
+            re.findall(r'record(?:_automatic|_system)?\(\s*[^,]+,\s*"([^"]+)"', source.read_text())
+        )
+
+    assert recorded, "the sweep found no recorded actions, which means it stopped working"
+    assert recorded <= described, (
+        f"recorded but not described on screen: {sorted(recorded - described)}"
+    )

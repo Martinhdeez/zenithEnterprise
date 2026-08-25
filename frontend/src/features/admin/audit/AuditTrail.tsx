@@ -40,6 +40,8 @@ const SENTENCES: Record<string, string> = {
   "label.merged": "merged labels into",
   "llm_config.set": "changed the answer model",
   "llm_config.cleared": "removed the answer model",
+  "user.invited": "invited",
+  "user.reset_link_issued": "issued a password reset link for",
   "document.labels_set": "changed the labels on a document",
   "document.classified": "filed a document automatically",
   "tenant.provisioned": "created the organisation",
