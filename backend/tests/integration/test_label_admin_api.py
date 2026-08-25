@@ -225,3 +225,64 @@ async def test_a_label_created_over_http_is_usable_by_its_creator(
     # what the caller *reaches*, so an ungranted label would be missing from it.
     listed = await client.get("/labels", headers=auth)
     assert created in {UUID(item["id"]) for item in listed.json()}
+
+
+async def test_a_merge_records_the_labels_it_consumed_by_name(
+    client: AsyncClient, account: Account
+) -> None:
+    """The names have to be read before the merge, because afterwards they are gone.
+
+    A merged source no longer exists, so resolving its name from the audit call would return
+    nothing — an entry saying a merge happened and not which labels it consumed, which is the
+    fact worth keeping. `audit_events` denormalises `actor_email` for the same reason: a row
+    that loses its subject when the subject changes records nothing.
+    """
+    duplicate = await label(account.tenant_id, "Finanace")
+
+    response = await client.post(
+        "/labels/merge",
+        json={"sources": [str(duplicate)], "target": str(account.finance_label)},
+        headers=await headers(client, account.admin_email),
+    )
+    assert response.status_code == 200
+
+    async with owner_session() as session:
+        entry = (
+            await session.execute(
+                text(
+                    "SELECT action, details FROM audit_events "
+                    "WHERE tenant_id = :t AND action = 'label.merged'"
+                ),
+                {"t": account.tenant_id},
+            )
+        ).first()
+
+    assert entry is not None, "a merge moves documents between compartments and must be recorded"
+    assert entry.details["sources"] == ["Finanace"]
+    # The number somebody comes looking for.
+    assert "visibility_widening" in entry.details
+
+
+async def test_a_dry_run_records_nothing(client: AsyncClient, account: Account) -> None:
+    """Nothing changed, and a trail full of previews is one nobody scans."""
+    duplicate = await label(account.tenant_id, "Finanace")
+
+    await client.post(
+        "/labels/merge",
+        json={
+            "sources": [str(duplicate)],
+            "target": str(account.finance_label),
+            "dry_run": True,
+        },
+        headers=await headers(client, account.admin_email),
+    )
+
+    async with owner_session() as session:
+        recorded = await session.scalar(
+            text(
+                "SELECT count(*) FROM audit_events WHERE tenant_id = :t AND action = 'label.merged'"
+            ),
+            {"t": account.tenant_id},
+        )
+
+    assert recorded == 0

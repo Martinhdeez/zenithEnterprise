@@ -300,6 +300,11 @@ class LabelService:
             await self._require_all(labels, label_ids)
             await labels.set_document_labels(document_id, label_ids)
 
+    async def names_of(self, label_ids: list[UUID]) -> list[str]:
+        """The names behind a set of ids. See `LabelRepository.names_of`."""
+        async with tenant_session(self.context) as session:
+            return await LabelRepository(session).names_of(label_ids)
+
     async def _require(self, labels: LabelRepository, label_id: UUID) -> AccessLabel:
         label = await labels.get(label_id)
         if label is None:

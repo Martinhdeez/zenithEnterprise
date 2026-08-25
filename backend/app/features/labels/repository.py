@@ -246,6 +246,23 @@ class LabelRepository(ScopedRepository[AccessLabel]):
         """
         return await self.session.scalar(select(AccessLabel).where(AccessLabel.is_quarantine))
 
+    async def names_of(self, label_ids: list[UUID]) -> list[str]:
+        """The names behind a set of ids, for the audit trail.
+
+        `audit_events` already denormalises `actor_email` for a reason it states plainly: a row
+        that loses the actor when the actor leaves records nothing. A label id has the same
+        problem and worse odds — labels are renamed, merged and deleted far more often than
+        people leave — so an entry holding only ids is evidence of nothing by the time anybody
+        reads it.
+        """
+        if not label_ids:
+            return []
+        return sorted(
+            await self.session.scalars(
+                select(AccessLabel.name).where(AccessLabel.id.in_(label_ids))
+            )
+        )
+
     async def reserved_among(self, label_ids: list[UUID]) -> list[AccessLabel]:
         """Which of these are the product's rather than the tenant's.
 

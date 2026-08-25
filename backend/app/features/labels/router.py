@@ -108,7 +108,13 @@ async def merge_labels(request: LabelMerge, profile: CurrentProfile) -> LabelMer
     `200` rather than `201`: nothing is created, and under `dry_run` nothing changes at
     all.
     """
-    result = await LabelService(profile.context).merge(
+    service = LabelService(profile.context)
+    # Read *before* the merge. A merged source no longer exists, so resolving its name
+    # afterwards returns nothing — which would have made the audit entry say a merge happened
+    # and not which labels it consumed, i.e. exactly the fact worth keeping.
+    consumed = await service.names_of(request.sources)
+
+    result = await service.merge(
         request.sources,
         request.target,
         dry_run=request.dry_run,
@@ -125,7 +131,7 @@ async def merge_labels(request: LabelMerge, profile: CurrentProfile) -> LabelMer
             target_type="label",
             target_id=result.target.id,
             target_name=result.target.name,
-            sources=[str(source) for source in request.sources],
+            sources=consumed,
             documents_relabelled=result.documents_relabelled,
             visibility_widening=result.visibility_widening,
         )
@@ -182,7 +188,8 @@ async def delete_label(label_id: UUID, profile: CurrentProfile) -> None:
 
 @router.put("/roles/{role_id}/labels", dependencies=[manage])
 async def set_role_labels(role_id: UUID, request: LabelAssignment, profile: CurrentProfile) -> None:
-    await LabelService(profile.context).set_role_labels(role_id, request.label_ids)
+    service = LabelService(profile.context)
+    await service.set_role_labels(role_id, request.label_ids)
     # *The* grant operation, and it was the one thing on this router not recorded. Deleting a
     # label was in the trail; deciding which compartments a role reaches was not — and that is
     # the change an auditor asks about first. The whole set is stored rather than a delta,
@@ -193,7 +200,10 @@ async def set_role_labels(role_id: UUID, request: LabelAssignment, profile: Curr
         "role.labels_set",
         target_type="role",
         target_id=role_id,
-        label_ids=[str(label_id) for label_id in request.label_ids],
+        # Names, not only ids. `audit_events` denormalises `actor_email` for the reason this
+        # follows: a row that loses its subject when the subject changes records nothing, and
+        # labels are renamed and merged far more often than people leave.
+        labels=await service.names_of(request.label_ids),
     )
 
 
