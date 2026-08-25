@@ -28,6 +28,7 @@ from uuid import UUID
 import anyio.to_thread
 
 from app.common.exceptions import LimitExceededError
+from app.common.units import bytes_as_text
 from app.core.config import settings
 
 # 1 MiB. Large enough that a 100 MB upload is a hundred hops into the thread pool rather
@@ -104,9 +105,8 @@ class DocumentStorage:
                 async for chunk in chunks:
                     size += len(chunk)
                     if size > settings.max_file_bytes:
-                        raise LimitExceededError(
-                            f"file exceeds the {settings.max_file_bytes} byte limit"
-                        )
+                        limit = bytes_as_text(settings.max_file_bytes)
+                        raise LimitExceededError(f"this file is larger than the {limit} limit")
                     await anyio.to_thread.run_sync(write, chunk)
         except BaseException:
             # Includes cancellation. A client that disconnects mid-upload is ordinary, and

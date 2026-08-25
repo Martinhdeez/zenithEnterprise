@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, File, Form, Query, Request, Response, Up
 from fastapi.responses import FileResponse
 
 from app.common.exceptions import LimitExceededError, NotFoundError
+from app.common.units import bytes_as_text
 from app.core.config import settings
 from app.features.auth.access.dependencies import CurrentProfile, requires, requires_any
 from app.features.documents.folders import tree
@@ -183,7 +184,9 @@ def _reject_obviously_oversized(request: Request) -> None:
     """
     declared = request.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > settings.max_file_bytes:
-        raise LimitExceededError(f"file exceeds the {settings.max_file_bytes} byte limit")
+        raise LimitExceededError(
+            f"this file is larger than the {bytes_as_text(settings.max_file_bytes)} limit"
+        )
 
 
 async def _stream(file: UploadFile) -> AsyncIterator[bytes]:
