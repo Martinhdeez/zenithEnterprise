@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from app.common.exceptions import LimitExceededError, NotFoundError
 from app.common.units import bytes_as_text
 from app.core.config import settings
+from app.features.audit.service import record
 from app.features.auth.access.dependencies import CurrentProfile, requires, requires_any
 from app.features.documents.folders import tree
 from app.features.documents.pagination import MAX_LIMIT
@@ -171,7 +172,23 @@ async def delete_document(document_id: UUID, profile: CurrentProfile) -> None:
     disclose that the document exists, but only to a caller who can already see it in the
     list, so it discloses nothing they did not have.
     """
-    await DocumentService(profile).delete(document_id)
+    service = DocumentService(profile)
+    # Read before it is destroyed. `DocumentService.delete` justifies erasing the link between
+    # past answers and the passages that produced them by saying "the audit design records the
+    # deletion event instead" — and nothing recorded it, so the trade the docstring described
+    # was only being paid on one side. An entry naming an id nobody can resolve afterwards
+    # would have been the same omission wearing a row.
+    document = await service.get(document_id)
+    filename = document.filename
+
+    await service.delete(document_id)
+    await record(
+        profile,
+        "document.deleted",
+        target_type="document",
+        target_id=document_id,
+        target_name=filename,
+    )
 
 
 def _reject_obviously_oversized(request: Request) -> None:

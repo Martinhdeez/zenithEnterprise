@@ -43,6 +43,7 @@ const SENTENCES: Record<string, string> = {
   "user.invited": "invited",
   "user.reset_link_issued": "issued a password reset link for",
   "document.labels_set": "changed the labels on a document",
+  "document.deleted": "deleted the document",
   "document.classified": "filed a document automatically",
   "tenant.provisioned": "created the organisation",
   "tenant.suspended": "suspended the organisation",
@@ -71,6 +72,7 @@ function actor(email: string): string {
 /** The actions that take access away or destroy things, which is what people scan for. */
 const GRAVE = new Set([
   "tenant.purged",
+  "document.deleted",
   "tenant.suspended",
   "role.deleted",
   "group.deleted",

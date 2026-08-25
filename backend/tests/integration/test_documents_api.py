@@ -294,3 +294,40 @@ async def test_uploading_under_an_unreachable_label_is_refused(
     )
 
     assert response.status_code == 403
+
+
+async def test_deleting_a_document_is_recorded_by_name(
+    client: AsyncClient, account: Account
+) -> None:
+    """The claim `DocumentService.delete` makes, finally true.
+
+    Its docstring justifies erasing the link between past answers and the passages that
+    produced them — "a right-to-erasure request outranks the immutability of an internal audit
+    trail, **and the audit design records the deletion event instead**". Nothing recorded it,
+    so the trade the docstring described was only ever paid on one side.
+
+    By name, and read before the row is destroyed: an entry naming an id nobody can resolve
+    afterwards would be the same omission wearing a row.
+    """
+    auth = await headers(client, account.admin_email)
+    uploaded = await client.post(
+        "/documents", files={"file": ("minutes.pdf", PDF, "application/pdf")}, headers=auth
+    )
+    document_id = uploaded.json()["document"]["id"]
+
+    assert (await client.delete(f"/documents/{document_id}", headers=auth)).status_code == 204
+
+    async with owner_session() as session:
+        entry = (
+            await session.execute(
+                text(
+                    "SELECT target_name, target_id FROM audit_events "
+                    "WHERE tenant_id = :t AND action = 'document.deleted'"
+                ),
+                {"t": account.tenant_id},
+            )
+        ).first()
+
+    assert entry is not None
+    assert entry.target_name == "minutes.pdf"
+    assert str(entry.target_id) == document_id
