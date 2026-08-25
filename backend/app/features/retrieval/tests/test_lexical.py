@@ -13,7 +13,7 @@ import pytest
 from sqlalchemy import text
 
 from app.core.database import unscoped_session
-from app.features.retrieval.lexical import to_tsquery
+from app.features.retrieval.lexical import CONFIGURATION, to_tsquery
 
 pytestmark = pytest.mark.asyncio
 
@@ -82,3 +82,95 @@ async def test_a_question_with_no_lexemes_is_empty_rather_than_invalid(
     there is nothing to search for rather than discovering it as a database error."""
     async with unscoped_session() as session:
         assert await to_tsquery(session, "?? !!") == ""
+
+
+#: Spanish as it is actually typed: in a hurry, on a keyboard that makes accents awkward, or
+#: on a phone. Every one of these returned nothing from the lexical half before 0018.
+ACCENTED = (
+    ("máximo", "maximo"),
+    ("detención", "detencion"),
+    ("artículo", "articulo"),
+    ("código", "codigo"),
+    ("garantía", "garantia"),
+)
+
+
+@pytest.mark.parametrize(("stored", "typed"), ACCENTED)
+async def test_a_word_typed_without_its_accent_still_matches(
+    configured_engines: None, stored: str, typed: str
+) -> None:
+    """Half a search, quietly, on exactly the corpus this product is sold into.
+
+    `to_tsvector('english', 'máximo')` and `to_tsquery('english', 'maximo')` do not match:
+    the English configuration folds no accents. Nothing errored — the dense half still
+    answered — so the only symptom was worse results for anybody typing the way most people
+    type Spanish.
+    """
+    async with unscoped_session() as session:
+        matched = await session.scalar(
+            text("SELECT to_tsvector(:config, :stored) @@ to_tsquery(:config, :query)"),
+            {"config": CONFIGURATION, "stored": stored, "query": await to_tsquery(session, typed)},
+        )
+
+    assert matched is True
+
+
+@pytest.mark.parametrize(("stored", "typed"), ACCENTED)
+async def test_it_matches_in_the_other_direction_too(
+    configured_engines: None, stored: str, typed: str
+) -> None:
+    """Folding is on both sides, so the accented spelling finds the unaccented text as well.
+
+    Worth asserting separately: a configuration applied to the index alone would pass the test
+    above by accident, and would be the exact asymmetry `lexical.py` was written to forbid.
+    """
+    async with unscoped_session() as session:
+        matched = await session.scalar(
+            text("SELECT to_tsvector(:config, :stored) @@ to_tsquery(:config, :query)"),
+            {"config": CONFIGURATION, "stored": typed, "query": await to_tsquery(session, stored)},
+        )
+
+    assert matched is True
+
+
+async def test_english_stemming_is_untouched(configured_engines: None) -> None:
+    """The whole point of folding accents in front of the English stemmer rather than
+    switching configuration.
+
+    Seventy-seven per cent of this corpus is English. `'spanish'` would have fixed the accents
+    and taken English stemming and stop-words away from three quarters of the passages to do
+    it, which is why 0018 does neither.
+    """
+    async with unscoped_session() as session:
+        stemmed = await session.scalar(
+            text("SELECT to_tsvector(:config, 'running quickly') @@ to_tsquery(:config, :query)"),
+            {"config": CONFIGURATION, "query": await to_tsquery(session, "run")},
+        )
+        stopword = await session.scalar(
+            text("SELECT to_tsvector(:config, 'the report')::text"),
+            {"config": CONFIGURATION},
+        )
+
+    assert stemmed is True, "English stemming must still conflate run/running"
+    assert "the" not in stopword, "English stop-words must still be removed"
+
+
+@pytest.mark.parametrize("identifier", IDENTIFIERS)
+async def test_folding_leaves_identifiers_whole(configured_engines: None, identifier: str) -> None:
+    """`unaccent` is mapped only over token types that can carry letters.
+
+    Numbers and the punctuation inside `1545-0074` are left to the parser that already stores
+    them whole — the property the identifier search depends on, and the one a regex broke
+    once already.
+    """
+    async with unscoped_session() as session:
+        matched = await session.scalar(
+            text("SELECT to_tsvector(:config, :stored) @@ to_tsquery(:config, :query)"),
+            {
+                "config": CONFIGURATION,
+                "stored": f"see {identifier} for details",
+                "query": await to_tsquery(session, identifier),
+            },
+        )
+
+    assert matched is True

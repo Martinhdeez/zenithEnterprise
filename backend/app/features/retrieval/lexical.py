@@ -1,6 +1,6 @@
 """The query side of lexical search, and the bug that nearly cost us ParadeDB.
 
-`chunks.tsv` is a generated column: `to_tsvector('english', text)`. The corpus side is
+`chunks.tsv` is a generated column: `to_tsvector('zenith_text', text)`. The corpus side is
 therefore tokenised by Postgres, with Postgres's rules.
 
 M0's first implementation tokenised the *query* with `re.findall(r"[A-Za-z0-9']+", ...)`.
@@ -22,7 +22,11 @@ does not error, it just returns worse results.
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-CONFIGURATION = "english"
+#: The configuration both sides use. `zenith_text` is `english` with `unaccent` in front of
+#: the stemmer — migration 0018 — so `maximo` finds `máximo` and every English rule is
+#: unchanged. The name is read here and by the generated column's definition, which is what
+#: keeps the two ends tokenised by the same analyser.
+CONFIGURATION = "zenith_text"
 
 
 async def to_tsquery(session: AsyncSession, question: str) -> str:
