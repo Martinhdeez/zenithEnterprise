@@ -28,9 +28,11 @@ import { LabelPicker, labels as fetchLabels, type Label } from "@/features/label
 import { PROCESSING, formatEta, formatRate, processing, progress } from "./uploadProgress";
 import {
   CONCURRENCY,
+  WATCHING,
   cancellable,
   enqueue,
   pooled,
+  relay,
   summarise,
   update,
   type QueueItem,
@@ -152,9 +154,10 @@ export function Upload({ token, onUploaded }: Props) {
       // the browser does. So uploads race, ingestion is watched.
       //
       // The watches live out here rather than inside the pool so that they outlive the slot
-      // that started them. They are awaited once every byte is up, which is what keeps
-      // `busy` true until the rows have stopped moving.
-      const watchers: Promise<void>[] = [];
+      // that started them — and go through a bound of their own, because detaching them from
+      // the upload pool left a two-hundred-file batch running two hundred pollers at once.
+      // `WATCHING` says why six.
+      const watching = relay(WATCHING);
 
       await pooled(items, CONCURRENCY, async (item) => {
         const started = Date.now();
@@ -207,16 +210,15 @@ export function Upload({ token, onUploaded }: Props) {
           // The bound that matters is on bytes in flight, because that is what competes for
           // the API's connection pool. Watching a document costs one small request every
           // 1.5 s and does not.
-          watchers.push(
-            untilSettled(token, uploaded.document, (status) =>
+          watching.add(async () => {
+            const watched = await untilSettled(token, uploaded.document, (status) =>
               setQueue((current) => update(current, item.id, { stage: processing(status).stage })),
-            ).then((watched) => {
-              setRecent((current) =>
-                current.map((row) => (row.id === watched.document.id ? watched.document : row)),
-              );
-              setQueue((current) => update(current, item.id, phaseFor(watched)));
-            }),
-          );
+            );
+            setRecent((current) =>
+              current.map((row) => (row.id === watched.document.id ? watched.document : row)),
+            );
+            setQueue((current) => update(current, item.id, phaseFor(watched)));
+          });
         } catch (error) {
           // A cancellation arrives here as a rejection like any other, but it is not a
           // failure and must not be counted as one — somebody asked for it.
@@ -246,7 +248,7 @@ export function Upload({ token, onUploaded }: Props) {
       // transfer instead of trailing ingestion by up to two minutes per file.
       onUploaded();
 
-      await Promise.all(watchers);
+      await watching.close();
       setBusy(false);
       // Again, now that the statuses have stopped moving: the call above listed most of these
       // documents as still processing, which was true then and is not now.

@@ -166,3 +166,72 @@ export async function pooled<T>(
   });
   await Promise.all(workers);
 }
+
+/**
+ * How many documents are watched at once, whatever the batch size.
+ *
+ * Watching is bounded separately from uploading, and the two limits answer different
+ * questions. `CONCURRENCY` is about bytes in flight competing for the API's connection pool.
+ * This is about a poll every 1.5 seconds per watched document: detaching the watches from the
+ * upload pool fixed the batch advancing three files at a time, and left two hundred watchers
+ * running at once — roughly 130 status requests a second, from one browser tab, at the moment
+ * the server is busiest ingesting what that tab just sent.
+ *
+ * Six is enough that the first files report progress immediately and small enough that the
+ * poll traffic is a rounding error next to the uploads. A document waiting for a slot is not
+ * losing anything: the server keeps its status, and the watch reads it whenever it starts.
+ */
+export const WATCHING = 6;
+
+/**
+ * A bounded queue that accepts work while it is still running.
+ *
+ * `pooled` cannot do this — it takes the whole list up front, and the watches arrive one at a
+ * time as uploads complete. So: a fixed number of workers, a queue they pull from, and a
+ * `close` that lets them finish and exit rather than waiting forever for work that is not
+ * coming.
+ *
+ * Nothing here is generic beyond what the one caller needs, deliberately. A queue with
+ * priorities, cancellation and backpressure is a library; this is twenty lines that stop a
+ * browser tab issuing a hundred and thirty requests a second.
+ */
+export function relay(limit: number): {
+  add: (work: () => Promise<void>) => void;
+  close: () => Promise<void>;
+} {
+  const queue: (() => Promise<void>)[] = [];
+  const waiting: (() => void)[] = [];
+  let closed = false;
+
+  const wake = () => {
+    // Every waiter, not one: `close` has to release all of them, and a worker that finds the
+    // queue empty afterwards simply exits.
+    while (waiting.length) waiting.shift()?.();
+  };
+
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      const work = queue.shift();
+      if (work) {
+        await work();
+        continue;
+      }
+      if (closed) return;
+      await new Promise<void>((resolve) => waiting.push(resolve));
+    }
+  };
+
+  const workers = Array.from({ length: limit }, () => worker());
+
+  return {
+    add(work) {
+      queue.push(work);
+      wake();
+    },
+    async close() {
+      closed = true;
+      wake();
+      await Promise.all(workers);
+    },
+  };
+}

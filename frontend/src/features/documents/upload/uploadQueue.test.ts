@@ -14,6 +14,7 @@ import {
   cancellable,
   enqueue,
   pooled,
+  relay,
   summarise,
   update,
   type QueueItem,
@@ -206,5 +207,84 @@ describe("cancelling", () => {
     expect(summary.active).toBe(0);
     expect(summary.finished).toBe(true);
     expect(summary.percent).toBe(100);
+  });
+});
+
+/**
+ * The bound that stopped one browser tab issuing a hundred and thirty requests a second.
+ *
+ * Detaching the ingestion watches from the upload pool was right — it fixed a batch advancing
+ * three files at a time — and it left every watch running at once. Two hundred files, a poll
+ * each every 1.5 seconds, aimed at a server that is busy ingesting exactly what this tab just
+ * sent it.
+ *
+ * `pooled` cannot express this: it takes the whole list up front, and watches arrive one at a
+ * time as uploads finish.
+ */
+describe("the watch relay", () => {
+  it("runs no more than its limit at once", async () => {
+    let running = 0;
+    let peak = 0;
+    // One gate for every item rather than one per item: releasing only the two that started
+    // lets the next two begin and block on resolvers nobody is holding, which is a test that
+    // hangs on its own arrangement rather than on the thing under test.
+    let open = () => {};
+    const gate = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    const queue = relay(2);
+
+    for (let index = 0; index < 6; index += 1) {
+      queue.add(async () => {
+        running += 1;
+        peak = Math.max(peak, running);
+        await gate;
+        running -= 1;
+      });
+    }
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(peak).toBe(2);
+
+    open();
+    await queue.close();
+    expect(running).toBe(0);
+  });
+
+  it("eventually runs everything that was added", async () => {
+    const done: number[] = [];
+    const queue = relay(2);
+
+    for (let index = 0; index < 6; index += 1) {
+      queue.add(async () => {
+        done.push(index);
+      });
+    }
+    await queue.close();
+
+    expect(done).toHaveLength(6);
+  });
+
+  it("accepts work added after it has started", async () => {
+    // Which is the whole reason it exists: watches arrive as uploads complete, not before.
+    const done: string[] = [];
+    const queue = relay(1);
+    queue.add(async () => {
+      done.push("first");
+    });
+    await Promise.resolve();
+    queue.add(async () => {
+      done.push("second");
+    });
+
+    await queue.close();
+
+    expect(done).toEqual(["first", "second"]);
+  });
+
+  it("closes cleanly when nothing was ever added", async () => {
+    // A batch where every file was cancelled before its bytes went up.
+    await expect(relay(3).close()).resolves.toBeUndefined();
   });
 });

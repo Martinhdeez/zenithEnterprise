@@ -33,6 +33,7 @@ vi.mock("./uploadWatch", () => ({
 const { Upload } = await import("./Upload");
 const { uploadDocument } = await import("../api");
 const { untilSettled } = await import("./uploadWatch");
+const { WATCHING } = await import("./uploadQueue");
 
 const uploads = vi.mocked(uploadDocument);
 const watches = vi.mocked(untilSettled);
@@ -93,10 +94,40 @@ describe("a batch larger than the concurrency limit", () => {
     await waitFor(() => expect(uploads).toHaveBeenCalledTimes(8), { timeout: 3000 });
   });
 
-  it("starts a watch for each file it uploaded", async () => {
+  it("bounds the watches independently of the uploads", async () => {
+    // Never resolving, so every started watch holds its slot. Detaching the watches from the
+    // upload pool fixed the batch advancing three files at a time and left two hundred
+    // pollers running at once — roughly 130 status requests a second from one tab, at the
+    // moment the server is busiest ingesting what that tab just sent.
     watches.mockImplementation(() => new Promise(() => {}));
 
     await sendBatch(8);
+
+    // Every file's bytes are up...
+    await waitFor(() => expect(uploads).toHaveBeenCalledTimes(8), { timeout: 3000 });
+    // ...and only `WATCHING` of them are being polled.
+    expect(watches).toHaveBeenCalledTimes(WATCHING);
+  });
+
+  it("watches the rest as slots free up", async () => {
+    // A document waiting for a slot loses nothing: the server keeps its status and the watch
+    // reads it whenever it starts. What would be wrong is never starting.
+    const finish: (() => void)[] = [];
+    watches.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish.push(() =>
+            resolve({ outcome: "settled", document: document_("x") } as never),
+          );
+        }),
+    );
+
+    await sendBatch(8);
+    await waitFor(() => expect(watches).toHaveBeenCalledTimes(WATCHING), { timeout: 3000 });
+
+    await act(async () => {
+      for (const done of [...finish]) done();
+    });
 
     await waitFor(() => expect(watches).toHaveBeenCalledTimes(8), { timeout: 3000 });
   });
