@@ -103,7 +103,14 @@ async def purge_tenant(tenant_id: str) -> dict[str, int]:
 
 
 def worker_concurrency() -> int:
-    """One document at a time on `low-spec`, and that is not a suggestion.
+    """What `ZENITH_WORKER_CONCURRENCY` should be set to on this hardware.
+
+    It does not start anything. Procrastinate takes its concurrency as a command-line
+    argument, fixed before this process resolves a profile, so `docker-compose.yml` passes the
+    environment variable and defaults it to 1 — the value both measured profiles want, so the
+    two agree without this being consulted.
+
+    One document at a time on `low-spec`, and that is not a suggestion.
 
     M0 killed TEI twice on this hardware: once by out-of-memory during warm-up with default
     batching, and once with exit 139 when `--max-concurrent-requests` was passed. Serving

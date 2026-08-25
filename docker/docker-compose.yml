@@ -149,6 +149,11 @@ services:
     # One document at a time by default. On `low-spec` that is not a preference: the
     # parser's memory and the embedder's must not overlap on a machine M0 already pushed
     # into an out-of-memory kill.
+    #
+    # This argument is what actually decides it — `Profile.ingestion_concurrency` records the
+    # value for the hardware and cannot enforce it, because procrastinate fixes concurrency at
+    # launch. `zenith diagnose` prints the active profile; `tasks.worker_concurrency()` is the
+    # number to put here for it.
     command:
       - "procrastinate"
       - "--app=app.features.ingestion.tasks.app"

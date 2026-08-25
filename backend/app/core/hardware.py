@@ -36,6 +36,14 @@ class Profile:
 
     # Documents processed at once. One, on `low-spec`, so the parser's memory and the
     # embedder's never overlap.
+    #
+    # **This field does not start the worker.** Procrastinate's concurrency is a command-line
+    # argument, fixed when the process launches and long before any profile is resolved, so
+    # `docker-compose.yml` passes `ZENITH_WORKER_CONCURRENCY` and defaults it to 1. The two
+    # agree today — 1 is what both measured profiles want — and the number here is what an
+    # operator should set that variable to, reported by `tasks.worker_concurrency()`. Said
+    # plainly because the alternative is a reader assuming the profile is enforced, which is
+    # how `ocr=True` came to promise an engine that did not exist.
     ingestion_concurrency: int
 
     # Off on `low-spec`. M0 measured what that costs: Recall@8 of 75% against a Recall@50
