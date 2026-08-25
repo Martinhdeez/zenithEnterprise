@@ -23,9 +23,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FileText, UploadCloud, X } from "lucide-react";
 
-import { getDocument, uploadDocument, type DocumentSummary } from "../api";
+import { uploadDocument, type DocumentSummary } from "../api";
 import { LabelPicker, labels as fetchLabels, type Label } from "@/features/labels";
-import { IN_FLIGHT } from "@/shared/api/tenant";
 import {
   PROCESSING,
   processing,
@@ -40,6 +39,7 @@ import {
   update,
   type QueueItem,
 } from "./uploadQueue";
+import { phaseFor, untilSettled } from "./uploadWatch";
 import { Staging } from "./Staging";
 import { stage, type StagedFile } from "./stagingState";
 import { ApiError } from "@/shared/api/http";
@@ -154,6 +154,12 @@ export function Upload({ token, onUploaded }: Props) {
       // does, correctly, for one file — turns a migration into an overnight job: ingestion
       // is minutes per document on `low-spec`, and the server queues it regardless of what
       // the browser does. So uploads race, ingestion is watched.
+      //
+      // The watches live out here rather than inside the pool so that they outlive the slot
+      // that started them. They are awaited once every byte is up, which is what keeps
+      // `busy` true until the rows have stopped moving.
+      const watchers: Promise<void>[] = [];
+
       await pooled(items, CONCURRENCY, async (item) => {
         const started = Date.now();
         const controller = controllers.current.get(item.id);
@@ -190,14 +196,23 @@ export function Upload({ token, onUploaded }: Props) {
           );
           setRecent((current) => [uploaded.document, ...current].slice(0, 10));
 
-          const settled = await untilSettled(token, uploaded.document, (status) =>
-            setQueue((current) => update(current, item.id, { stage: processing(status).stage })),
-          );
-          setRecent((current) => current.map((row) => (row.id === settled.id ? settled : row)));
-          setQueue((current) =>
-            update(current, item.id, {
-              phase: settled.status === "failed" ? "error" : "done",
-              message: settled.status_detail ?? undefined,
+          // **Started, not awaited, and that is the whole point of this line.** Awaiting it
+          // here kept the pool slot for the length of the *server's* work, so three files
+          // being ingested stopped the other hundred and ninety-seven from uploading at all
+          // — for up to two minutes each. A twenty-file batch advanced in groups of three
+          // and looked frozen, which is the opposite of what bounded concurrency was for.
+          //
+          // The bound that matters is on bytes in flight, because that is what competes for
+          // the API's connection pool. Watching a document costs one small request every
+          // 1.5 s and does not.
+          watchers.push(
+            untilSettled(token, uploaded.document, (status) =>
+              setQueue((current) => update(current, item.id, { stage: processing(status).stage })),
+            ).then((watched) => {
+              setRecent((current) =>
+                current.map((row) => (row.id === watched.document.id ? watched.document : row)),
+              );
+              setQueue((current) => update(current, item.id, phaseFor(watched)));
             }),
           );
         } catch (error) {
@@ -224,7 +239,15 @@ export function Upload({ token, onUploaded }: Props) {
         }
       });
 
+      // Every byte is up and every row exists server-side. Refreshing here rather than after
+      // the watches means the library and its folder counts are right within seconds of the
+      // transfer instead of trailing ingestion by up to two minutes per file.
+      onUploaded();
+
+      await Promise.all(watchers);
       setBusy(false);
+      // Again, now that the statuses have stopped moving: the call above listed most of these
+      // documents as still processing, which was true then and is not now.
       onUploaded();
     },
     [token, onUploaded, selected],
@@ -494,42 +517,6 @@ export function Upload({ token, onUploaded }: Props) {
 
 
 /**
- * Wait for the worker to finish with a document.
- *
- * Polled rather than pushed: there is no channel from the worker to the browser, and
- * adding one for a progress label would be a websocket, a subscription and a reconnection
- * story for something a request every second and a half answers.
- *
- * Bounded, because an unbounded wait is a spinner that never stops. Ingestion of a large
- * document on `low-spec` is minutes, so this gives up long after it usually finishes and
- * returns whatever the last look said — the recents row then shows that status honestly
- * rather than claiming the document is ready.
- */
-const POLL_MS = 1500;
-const POLL_LIMIT = 80; // two minutes
-
-async function untilSettled(
-  token: string,
-  created: DocumentSummary,
-  onStage: (status: string) => void,
-): Promise<DocumentSummary> {
-  let latest = created;
-  for (let attempt = 0; attempt < POLL_LIMIT; attempt += 1) {
-    if (!IN_FLIGHT.includes(latest.status as (typeof IN_FLIGHT)[number])) return latest;
-    onStage(latest.status);
-    await new Promise((resolve) => setTimeout(resolve, POLL_MS));
-    try {
-      latest = await getDocument(token, created.id);
-    } catch {
-      // A failed poll is not a failed upload — the document is stored either way. Report
-      // the last state actually seen rather than inventing one.
-      return latest;
-    }
-  }
-  return latest;
-}
-
-/**
  * One row per file, and a count above them.
  *
  * A batch has no single percentage worth showing. The question during a migration is not
@@ -564,6 +551,12 @@ function UploadQueue({
           {/* Neither "done" nor "failed". A batch where somebody stopped forty on purpose
               should not read as forty things having gone wrong. */}
           {summary.cancelled > 0 && <span> · {summary.cancelled} cancelled</span>}
+          {/* Also neither. These uploaded fine and are still being ingested on the server;
+              amber rather than red because nothing has gone wrong yet, and separate from
+              `done` because nothing has finished either. */}
+          {summary.unresolved > 0 && (
+            <span className="text-zenith-amber"> · {summary.unresolved} still processing</span>
+          )}
         </span>
         <span className="flex shrink-0 items-center gap-3">
           {!summary.finished && (
@@ -603,7 +596,9 @@ function UploadQueue({
                   ? "text-destructive"
                   : item.phase === "done"
                     ? "text-zenith-cyan"
-                    : "text-muted-foreground"
+                    : item.phase === "unresolved"
+                      ? "text-zenith-amber"
+                      : "text-muted-foreground"
               }`}
               // The API's own sentence, on the row it belongs to. A failure in a batch of
               // two hundred is unfindable if it is reported once at the top.
@@ -613,6 +608,7 @@ function UploadQueue({
               {item.phase === "uploading" && `${item.percent}%`}
               {item.phase === "processing" && (item.stage ?? "Processing")}
               {item.phase === "done" && "Done"}
+              {item.phase === "unresolved" && (item.message ?? "Still processing")}
               {item.phase === "error" && (item.message ?? "Failed")}
               {item.phase === "cancelled" && "Cancelled"}
             </span>

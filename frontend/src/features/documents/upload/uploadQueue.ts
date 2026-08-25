@@ -24,7 +24,27 @@
  * failures — the count above the list is what tells them whether the migration went well,
  * and a deliberate stop is not a thing that went wrong.
  */
-export type ItemPhase = "queued" | "uploading" | "processing" | "done" | "error" | "cancelled";
+/**
+ * `unresolved` is its own phase for the same reason `cancelled` is.
+ *
+ * The browser watches ingestion for two minutes and then stops. Stopping is correct — an
+ * unbounded spinner is worse — but the document is still being processed on the server, and
+ * the two states are not the same thing. Folding the unresolved ones into `done` was the
+ * older behaviour and it made the batch summary claim work had finished that had not: on
+ * `low-spec` a large document takes longer than the watch, so the row most likely to be
+ * mislabelled is the one the user most needs to follow up on.
+ *
+ * It counts as *settled* for the batch — nothing in the browser is going to change it — but
+ * never as *done*. The row says to look in Documents, which is where the truth is.
+ */
+export type ItemPhase =
+  | "queued"
+  | "uploading"
+  | "processing"
+  | "done"
+  | "unresolved"
+  | "error"
+  | "cancelled";
 
 /**
  * Whether this row can still be stopped from the browser.
@@ -76,6 +96,8 @@ export interface QueueSummary {
   failed: number;
   /** Stopped on purpose. Counted apart from `failed` — see `ItemPhase`. */
   cancelled: number;
+  /** Uploaded, still ingesting when the browser stopped watching. See `ItemPhase`. */
+  unresolved: number;
   /** Everything that has not settled — queued, uploading or processing. */
   active: number;
   /** 0–100 across the whole batch. */
@@ -96,12 +118,17 @@ export function summarise(items: QueueItem[]): QueueSummary {
   // Settled, not successful: a cancelled row is finished with, so the batch can report
   // itself complete instead of hanging at "3 in progress" over rows nobody is waiting for.
   const cancelled = items.filter((item) => item.phase === "cancelled").length;
-  const settled = done + failed + cancelled;
+  // Settled but explicitly not done: the browser has stopped watching, so nothing here will
+  // move it again, and reporting it as finished work would be the lie this phase exists to
+  // prevent.
+  const unresolved = items.filter((item) => item.phase === "unresolved").length;
+  const settled = done + failed + cancelled + unresolved;
   return {
     total: items.length,
     done,
     failed,
     cancelled,
+    unresolved,
     active: items.length - settled,
     percent: items.length === 0 ? 0 : Math.round((settled / items.length) * 100),
     finished: items.length > 0 && settled === items.length,
