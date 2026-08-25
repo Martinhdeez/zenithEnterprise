@@ -17,6 +17,7 @@ from sqlalchemy.exc import ProgrammingError
 from app.core.database import owner_session, tenant_session
 from app.features.audit.service import AUTOMATIC, AuditService, record, record_system
 from app.features.auth.service import AccessProfile
+from app.features.labels.provisioning import DEFAULT_LABEL
 from app.features.tenancy.context import TenantContext
 from conftest import Account
 
@@ -252,6 +253,10 @@ async def test_the_classifier_leaves_a_record(account: Account) -> None:
     # No person as the actor: the uploader chose nothing, so borrowing their id would record a
     # decision they did not make. They are context, and go in the details.
     assert classified[0]["actor_email"] == AUTOMATIC
+    # Names, not ids. The event's subject is a set of labels — the things in this schema most
+    # likely to be renamed or merged — so an entry holding only ids is evidence of nothing by
+    # the time anybody reads it. Declined here, so the document went to the tenant default.
+    assert classified[0]["details"]["labels"] == [DEFAULT_LABEL]
 
 
 async def test_every_route_that_changes_access_records_an_event() -> None:

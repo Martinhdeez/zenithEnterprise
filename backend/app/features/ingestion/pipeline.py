@@ -41,6 +41,7 @@ from app.features.ingestion.classification import Classifier, Outcome
 from app.features.ingestion.parsers.base import ParsedPage, Parser
 from app.features.ingestion.parsers.pdfplumber_parser import PdfPlumberParser, page_count
 from app.features.ingestion.routing import Route, decide
+from app.features.labels.repository import LabelRepository
 from app.features.tenancy.context import TenantContext
 
 log = structlog.get_logger()
@@ -337,12 +338,18 @@ class IngestionPipeline:
         # a document, which is the one thing the trail exists for — and every *human* label
         # change was recorded while the automatic one was not, so the reach of the audit story
         # stopped exactly where automation began.
+        # Names, for the reason `audit_events` denormalises `actor_email`: a row that loses
+        # its subject when the subject changes records nothing, and this event's subject is a
+        # set of labels — the things in this schema most likely to be renamed or merged.
+        async with tenant_session(self.context) as session:
+            names = await LabelRepository(session).names_of(applied)
+
         await record_automatic(
             self.context,
             "document.classified",
             target_type="document",
             target_id=document_id,
-            labels=[str(label) for label in applied],
+            labels=names,
             outcome=str(filing.outcome),
             uploaded_by=str(row.uploaded_by) if row.uploaded_by else None,
         )
