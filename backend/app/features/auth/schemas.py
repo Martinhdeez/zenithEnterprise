@@ -95,16 +95,3 @@ class CredentialSubjectResponse(BaseModel):
     #: `invitation` or `reset`. The page says "Welcome" for one and "Choose a new password"
     #: for the other, which is the difference between arriving and returning.
     purpose: str
-
-
-class CredentialLinkResponse(BaseModel):
-    """What an administrator copies. Returned once; the token is not stored in the clear."""
-
-    #: The path to hand over, e.g. `/set-password/<token>`. A path rather than a full URL:
-    #: the server does not reliably know the hostname it is reached by — behind a proxy it
-    #: sees its own container name — and a link with the wrong host in it is worse than
-    #: none, because it looks right.
-    path: str
-    email: str
-    purpose: str
-    expires_at: datetime

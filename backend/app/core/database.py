@@ -100,13 +100,6 @@ def configure_platform_engine(url: str) -> None:
     _platform_session_factory = async_sessionmaker(_platform_engine, expire_on_commit=False)
 
 
-def get_engine() -> AsyncEngine:
-    if _engine is None:
-        configure_engine(_url or settings.database_url, _pool_size)
-    assert _engine is not None
-    return _engine
-
-
 def get_session_factory() -> async_sessionmaker[AsyncSession]:
     if _session_factory is None:
         configure_engine(_url or settings.database_url, _pool_size)

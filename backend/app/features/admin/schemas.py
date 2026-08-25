@@ -32,11 +32,6 @@ class RoleClearanceRequest(BaseModel):
     priority_level: int = Field(ge=1, le=10)
 
 
-class RoleLabelsRequest(BaseModel):
-    #: The complete set of outright grants afterwards, not a delta.
-    label_ids: list[UUID] = Field(default_factory=list[UUID])
-
-
 class AssignRolesRequest(BaseModel):
     #: The complete set of roles the user should hold afterwards. An empty list is valid
     #: and means "no roles" — a user who can log in and do nothing, which is a legitimate

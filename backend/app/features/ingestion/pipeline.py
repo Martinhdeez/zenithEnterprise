@@ -38,7 +38,7 @@ from app.features.embeddings.client import DIMENSION, MODEL, VERSION, TeiClient
 from app.features.embeddings.model import ChunkEmbedding, EmbeddingSpace
 from app.features.ingestion.chunking.chunker import Chunk, chunk_page
 from app.features.ingestion.classification import Classifier, Outcome
-from app.features.ingestion.parsers.base import ParsedPage
+from app.features.ingestion.parsers.base import ParsedPage, Parser
 from app.features.ingestion.parsers.pdfplumber_parser import PdfPlumberParser, page_count
 from app.features.ingestion.routing import Route, decide
 from app.features.tenancy.context import TenantContext
@@ -134,7 +134,12 @@ class IngestionPipeline:
             return Result(document_id, "failed", pages_in_file, 0, detail)
 
         await self._set_status(document_id, "parsing")
-        pages = PdfPlumberParser().parse(path)
+        # Annotated with the protocol so it is *checked* rather than described. `Parser`
+        # sat in `parsers/base.py` documenting the contract every parser must meet and
+        # nothing was ever declared to meet it, which is a contract in the same sense a
+        # comment is.
+        parser: Parser = PdfPlumberParser()
+        pages = parser.parse(path)
         routing = self._route(pages)
 
         await self._set_status(document_id, "chunking")
