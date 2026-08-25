@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.common.exceptions import ConflictError, NotFoundError, PermissionDeniedError
 from app.core.database import tenant_session
-from app.features.auth.permissions import CATALOGUE
+from app.features.auth.access.permissions import CATALOGUE
 from app.features.labels.model import AccessLabel
 from app.features.labels.pagination import DEFAULT_SORT, Key, LabelCursor, Sort, clamp
 from app.features.labels.repository import LabelRepository

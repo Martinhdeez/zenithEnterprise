@@ -8,7 +8,7 @@ Two things live here, both of which have to be versioned rather than done at sta
 The catalogue is seeded by a migration because seeding it on boot makes the row set
 depend on which version of the application last started — unversioned state pretending
 to be schema. The rows are copied literally rather than imported from
-`app.features.auth.permissions`: a migration that imports application code stops being
+`app.features.auth.access.permissions`: a migration that imports application code stops being
 reproducible the moment that code is refactored.
 
 The lookup function exists because login is the one query that cannot have a tenant

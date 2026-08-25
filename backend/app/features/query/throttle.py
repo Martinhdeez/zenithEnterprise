@@ -31,7 +31,7 @@ from fastapi import Depends
 
 from app.common.exceptions import RateLimitedError
 from app.core.config import settings
-from app.features.auth.dependencies import CurrentProfile
+from app.features.auth.access.dependencies import CurrentProfile
 from app.features.auth.throttle import SlidingWindowLimiter
 
 WINDOW_SECONDS = 60.0

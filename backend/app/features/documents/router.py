@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 
 from app.common.exceptions import LimitExceededError, NotFoundError
 from app.core.config import settings
-from app.features.auth.dependencies import CurrentProfile, requires, requires_any
+from app.features.auth.access.dependencies import CurrentProfile, requires, requires_any
 from app.features.documents.folders import tree
 from app.features.documents.pagination import MAX_LIMIT
 from app.features.documents.schemas import (

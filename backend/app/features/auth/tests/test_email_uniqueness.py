@@ -17,10 +17,10 @@ from sqlalchemy import text
 
 from app.common.exceptions import AuthenticationError, ConflictError
 from app.core.database import owner_session
-from app.features.auth.credentials import CredentialTokens
-from app.features.auth.invitations import InvitationService
-from app.features.auth.permissions import CATALOGUE
-from app.features.auth.provisioning import create_user
+from app.features.auth.access.permissions import CATALOGUE
+from app.features.auth.onboarding.credentials import CredentialTokens
+from app.features.auth.onboarding.invitations import InvitationService
+from app.features.auth.onboarding.provisioning import create_user
 from app.features.auth.service import AccessProfile, AuthService
 from app.features.system.service import SystemService
 from app.features.tenancy.context import TenantContext

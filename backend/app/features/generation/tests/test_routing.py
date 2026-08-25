@@ -15,8 +15,8 @@ from dataclasses import dataclass
 import pytest
 
 from app.common.llm import BaseLLMProvider, GenerationResponse
-from app.features.generation import routing
-from app.features.generation.conversation import Thread, Turn
+from app.features.generation.answering import routing
+from app.features.generation.answering.conversation import Thread, Turn
 
 
 @dataclass

@@ -10,9 +10,9 @@ import pytest
 
 from app.common.llm import BaseLLMProvider, GenerationResponse, GenerationUnavailableError
 from app.core.config import settings
-from app.features.generation import providers
 from app.features.generation.adapters.mock import MockProvider
 from app.features.generation.adapters.openai_compatible import OpenAIProvider
+from app.features.generation.connector import providers
 
 
 def test_every_registered_provider_implements_the_interface() -> None:

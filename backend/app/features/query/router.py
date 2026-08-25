@@ -5,8 +5,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sse_starlette.sse import EventSourceResponse
 
-from app.features.auth.dependencies import CurrentProfile, requires, requires_any
-from app.features.generation.conversation import Turn
+from app.features.auth.access.dependencies import CurrentProfile, requires, requires_any
+from app.features.generation.answering.conversation import Turn
 from app.features.generation.service import EXECUTE, Answer, AnswerService
 from app.features.query.history import ANY, OWN, HistoryService
 from app.features.query.schemas import (

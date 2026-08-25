@@ -25,7 +25,7 @@ from __future__ import annotations
 import structlog
 
 from app.common.llm import BaseLLMProvider
-from app.features.generation.conversation import Thread
+from app.features.generation.answering.conversation import Thread
 
 log = structlog.get_logger()
 

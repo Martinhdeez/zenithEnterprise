@@ -11,7 +11,7 @@ a unit test can guarantee is that the instruction is still there to obey.
 
 from uuid import uuid4
 
-from app.features.generation.prompt import ABSTENTION, SYSTEM, build
+from app.features.generation.answering.prompt import ABSTENTION, SYSTEM, build
 from app.features.retrieval.search import Hit
 
 

@@ -13,7 +13,7 @@ from sqlalchemy import text
 
 from app.core.database import owner_session
 from app.features.generation.adapters.mock import MockProvider
-from app.features.generation.conversation import Turn
+from app.features.generation.answering.conversation import Turn
 from app.features.generation.service import AnswerService
 from app.features.retrieval.service import SearchService
 from app.features.retrieval.tests.test_search import profile_for, seed

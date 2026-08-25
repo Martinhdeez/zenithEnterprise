@@ -15,7 +15,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import text
 
 from app.core.database import owner_session
-from app.features.auth.permissions import CATALOGUE
+from app.features.auth.access.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
 from app.features.documents.pagination import Cursor
 from app.features.query.analytics import AnalyticsService

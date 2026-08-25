@@ -7,11 +7,11 @@ lives in its feature; this file only imports them.
 
 from app.core.database import Base
 from app.features.audit.model import AuditEvent
-from app.features.auth.credentials_model import CredentialToken
 from app.features.auth.model import Permission, Role, RolePermission, User, UserRole
+from app.features.auth.onboarding.credentials_model import CredentialToken
 from app.features.documents.model import Chunk, Document, Page
 from app.features.embeddings.model import ChunkEmbedding, EmbeddingSpace
-from app.features.generation.model import LlmConfig
+from app.features.generation.connector.model import LlmConfig
 from app.features.groups.model import Group, GroupLabel, UserGroup
 from app.features.labels.model import AccessLabel, DocumentLabel, RoleLabel
 from app.features.query.model import Query, QueryCitation

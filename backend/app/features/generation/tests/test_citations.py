@@ -6,8 +6,8 @@ is allowed to leave the process, and they have to hold for any text any model pr
 
 from uuid import uuid4
 
-from app.features.generation.citations import bind
-from app.features.generation.prompt import ABSTENTION, build
+from app.features.generation.answering.citations import bind
+from app.features.generation.answering.prompt import ABSTENTION, build
 from app.features.retrieval.search import Hit
 
 

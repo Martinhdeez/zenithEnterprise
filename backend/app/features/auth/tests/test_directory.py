@@ -5,8 +5,8 @@ from uuid import uuid4
 from sqlalchemy import text
 
 from app.core.database import owner_session
+from app.features.auth.access.permissions import CATALOGUE
 from app.features.auth.directory import DirectoryService
-from app.features.auth.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
 from app.features.groups.service import GroupService
 from app.features.tenancy.context import TenantContext

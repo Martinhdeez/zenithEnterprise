@@ -24,7 +24,7 @@ from dataclasses import dataclass
 import structlog
 
 from app.common.llm import ChunkCitation
-from app.features.generation.prompt import ABSTENTION
+from app.features.generation.answering.prompt import ABSTENTION
 from app.features.retrieval.search import Hit
 
 log = structlog.get_logger()

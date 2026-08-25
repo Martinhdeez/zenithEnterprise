@@ -14,8 +14,8 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
+from app.features.auth.access.permissions import SYSTEM_ROLES
 from app.features.auth.model import Role, RolePermission, User, UserRole
-from app.features.auth.permissions import SYSTEM_ROLES
 from app.features.auth.service import normalise_email
 from app.features.auth.throttle import run_hash
 

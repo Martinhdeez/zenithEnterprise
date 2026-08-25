@@ -59,7 +59,7 @@ async def user(tenant_id: UUID, clearance: int, groups: list[UUID]) -> UUID:
     Written through the owner connection: a fixture built with the code under test can only
     prove that code agrees with itself.
     """
-    from app.features.auth.provisioning import create_user
+    from app.features.auth.onboarding.provisioning import create_user
 
     async with owner_session() as session:
         role_id = await session.scalar(

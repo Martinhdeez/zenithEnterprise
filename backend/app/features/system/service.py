@@ -93,7 +93,7 @@ class SystemService:
         """
         # Imported inside the method: these reach the model registry, and importing it at
         # module scope makes the order this module is first imported in matter.
-        from app.features.auth.provisioning import create_user, generate_password
+        from app.features.auth.onboarding.provisioning import create_user, generate_password
         from app.features.auth.service import normalise_email
         from app.features.tenancy.service import TenantService
 

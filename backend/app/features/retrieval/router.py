@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
-from app.features.auth.dependencies import CurrentProfile, requires
+from app.features.auth.access.dependencies import CurrentProfile, requires
 from app.features.retrieval.schemas import HitResponse, SearchResponse
 from app.features.retrieval.service import DEFAULT_LIMIT, EXECUTE, MAX_LIMIT, SearchService
 

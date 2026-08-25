@@ -12,7 +12,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 
 from app.features.audit.service import record
-from app.features.auth.dependencies import CurrentProfile, requires
+from app.features.auth.access.dependencies import CurrentProfile, requires
 from app.features.groups.schemas import (
     GroupLabelsRequest,
     GroupMembersRequest,

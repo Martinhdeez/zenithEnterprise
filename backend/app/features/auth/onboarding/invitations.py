@@ -47,8 +47,8 @@ from sqlalchemy.exc import IntegrityError
 
 from app.common.exceptions import ConflictError, NotFoundError
 from app.core.database import tenant_session
-from app.features.auth.credentials import INVITATION, issue
-from app.features.auth.provisioning import create_user
+from app.features.auth.onboarding.credentials import INVITATION, issue
+from app.features.auth.onboarding.provisioning import create_user
 from app.features.auth.service import AccessProfile, normalise_email
 
 INVITE = "users.invite"

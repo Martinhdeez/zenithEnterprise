@@ -17,7 +17,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 
 from app.features.audit.service import record_system
-from app.features.auth.dependencies import CurrentProfile, requires_system_admin
+from app.features.auth.access.dependencies import CurrentProfile, requires_system_admin
 from app.features.system.schemas import (
     OrganisationResponse,
     ProvisionRequest,

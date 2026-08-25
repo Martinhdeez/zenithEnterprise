@@ -11,7 +11,7 @@ from uuid import uuid4
 import pytest
 
 from app.core.config import settings
-from app.features.auth.permissions import CATALOGUE
+from app.features.auth.access.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
 from app.features.query.throttle import QueryRateLimitedError, reset, throttle_query
 from app.features.tenancy.context import TenantContext

@@ -21,7 +21,7 @@ from sqlalchemy import text
 
 from app.core.database import tenant_session
 from app.features.auth.service import AccessProfile
-from app.features.generation.crypto import encrypt
+from app.features.generation.connector.crypto import encrypt
 
 MANAGE = "llm_config.manage"
 

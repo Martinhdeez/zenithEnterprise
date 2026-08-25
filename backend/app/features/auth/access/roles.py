@@ -19,7 +19,7 @@ from sqlalchemy import text
 
 from app.common.exceptions import ConflictError, NotFoundError
 from app.core.database import tenant_session
-from app.features.auth.permissions import ADMINISTRATION, CATALOGUE
+from app.features.auth.access.permissions import ADMINISTRATION, CATALOGUE
 from app.features.auth.service import AccessProfile
 
 MANAGE = "roles.manage"

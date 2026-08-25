@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 
 from app.features.audit.service import record
-from app.features.auth.dependencies import CurrentProfile, requires
+from app.features.auth.access.dependencies import CurrentProfile, requires
 from app.features.labels.pagination import DEFAULT_SORT, MAX_LIMIT, Sort
 from app.features.labels.schemas import (
     LabelAssignment,

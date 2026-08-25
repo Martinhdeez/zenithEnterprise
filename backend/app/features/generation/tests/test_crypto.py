@@ -4,7 +4,7 @@ import pytest
 from cryptography.fernet import Fernet
 
 from app.core.config import Settings, settings
-from app.features.generation.crypto import EncryptionUnavailableError, decrypt, encrypt
+from app.features.generation.connector.crypto import EncryptionUnavailableError, decrypt, encrypt
 
 
 @pytest.fixture

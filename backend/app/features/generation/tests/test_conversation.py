@@ -1,8 +1,8 @@
 """Bounding the thread, which is what stops a long conversation from crowding out the
 passages that actually answer the question."""
 
-from app.features.generation import conversation
-from app.features.generation.conversation import Turn, bounded
+from app.features.generation.answering import conversation
+from app.features.generation.answering.conversation import Turn, bounded
 
 
 def turns(count: int) -> list[Turn]:

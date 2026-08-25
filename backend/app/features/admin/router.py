@@ -33,16 +33,16 @@ from app.features.admin.schemas import (
 )
 from app.features.audit.service import READ as AUDIT_READ
 from app.features.audit.service import AuditService, record
-from app.features.auth.credentials import RESET, issue_for
-from app.features.auth.dependencies import CurrentProfile, requires, requires_any
+from app.features.auth.access.dependencies import CurrentProfile, requires, requires_any
+from app.features.auth.access.roles import MANAGE as ROLES_MANAGE
+from app.features.auth.access.roles import RoleService
 from app.features.auth.directory import MANAGE as USERS_MANAGE
 from app.features.auth.directory import DirectoryService
-from app.features.auth.invitations import INVITE, InvitationService
-from app.features.auth.roles import MANAGE as ROLES_MANAGE
-from app.features.auth.roles import RoleService
+from app.features.auth.onboarding.credentials import RESET, issue_for
+from app.features.auth.onboarding.invitations import INVITE, InvitationService
 from app.features.documents.pagination import Cursor
-from app.features.generation.config_service import MANAGE as LLM_MANAGE
-from app.features.generation.config_service import LlmConfigService
+from app.features.generation.connector.config_service import MANAGE as LLM_MANAGE
+from app.features.generation.connector.config_service import LlmConfigService
 from app.features.query.analytics import AnalyticsService
 from app.features.query.history import ANY as HISTORY_ANY
 from app.features.query.history import OWN as HISTORY_OWN

@@ -17,8 +17,8 @@ from sqlalchemy import text
 
 from app.common.exceptions import PermissionDeniedError
 from app.core.database import owner_session, tenant_session
-from app.features.auth.dependencies import requires_system_admin
-from app.features.auth.permissions import CATALOGUE
+from app.features.auth.access.dependencies import requires_system_admin
+from app.features.auth.access.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile, AuthService
 from app.features.tenancy.context import TenantContext
 from conftest import Account

@@ -18,12 +18,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.llm import BaseLLMProvider, ChunkCitation
 from app.core.database import tenant_session
-from app.features.auth.permissions import CATALOGUE
+from app.features.auth.access.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
-from app.features.generation import citations as binding
-from app.features.generation import conversation, prompt, providers, routing
-from app.features.generation.crypto import decrypt
-from app.features.generation.streaming import filtered
+from app.features.generation.answering import citations as binding
+from app.features.generation.answering import conversation, prompt, routing
+from app.features.generation.answering.streaming import filtered
+from app.features.generation.connector import providers
+from app.features.generation.connector.crypto import decrypt
 from app.features.retrieval.search import Hit
 from app.features.retrieval.service import SearchResult, SearchService
 

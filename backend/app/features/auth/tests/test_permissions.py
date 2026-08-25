@@ -2,8 +2,8 @@ import pytest
 from sqlalchemy import select
 
 from app.core.database import owner_session
+from app.features.auth.access.permissions import ADMINISTRATION, CATALOGUE, SYSTEM_ROLES
 from app.features.auth.model import Permission, Role, RolePermission
-from app.features.auth.permissions import ADMINISTRATION, CATALOGUE, SYSTEM_ROLES
 from conftest import Account
 
 pytestmark = pytest.mark.asyncio

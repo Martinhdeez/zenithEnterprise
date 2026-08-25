@@ -3,8 +3,8 @@ from dataclasses import asdict
 from fastapi import APIRouter, Depends, Request, status
 
 from app.common.exceptions import RateLimitedError
-from app.features.auth.credentials import CredentialTokens
-from app.features.auth.dependencies import CurrentProfile
+from app.features.auth.access.dependencies import CurrentProfile
+from app.features.auth.onboarding.credentials import CredentialTokens
 from app.features.auth.schemas import (
     CredentialSubjectResponse,
     LoginRequest,
