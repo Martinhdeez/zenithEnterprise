@@ -31,6 +31,13 @@ to know if it's needed again (e.g. after `docker compose down -v`).
    ```bash
    docker compose exec api alembic upgrade head
    ```
+   Then the other half of the install, which the migrations deliberately do not cover —
+   Procrastinate manages its own schema:
+   ```bash
+   docker compose exec api zenith install-queue
+   ```
+   Skip it and the app accepts uploads and ingests none: 201, a row, and a status that stays
+   `pending` for ever. `zenith diagnose` reports the missing tables.
 3. Migration `0001_initial_schema.py` creates the `zenith_app` role `NOLOGIN` — nothing
    in the repo ever gives it a password, so right after that first `alembic upgrade head`:
    ```bash

@@ -30,7 +30,7 @@ from app.core.config import generate_secret
 from app.core.database import dispose_engines, owner_session
 from app.core.diagnostics import run_diagnostics
 from app.features.auth.model import Role, User
-from app.features.auth.provisioning import create_user, generate_password
+from app.features.auth.onboarding.provisioning import create_user, generate_password
 from app.features.auth.service import normalise_email
 from app.features.tenancy.model import Tenant
 from app.features.tenancy.service import TenantService
@@ -310,8 +310,14 @@ def install_queue() -> None:
 
     Procrastinate owns its own schema and manages it itself, so it is not part of our
     migrations: mixing the two would mean our `downgrade` had opinions about a library's
-    tables. Separate command, run at install time, and the worker refuses to start without
-    it — which is the loud failure we want rather than jobs vanishing into a missing table.
+    tables.
+
+    The cost of that separation is that an installation which runs only `alembic upgrade
+    head` accepts uploads and never ingests one — 201, a row, and a status that stays
+    `pending` for ever. Nothing used to say so, and an earlier version of this docstring
+    claimed the worker refused to start without the tables, which no code in this repository
+    does. `zenith diagnose` now checks for them instead, which is a claim that is true
+    because something enforces it.
     """
     import asyncio
 

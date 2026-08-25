@@ -158,6 +158,44 @@ async def _migration_state() -> tuple[Status, str]:
     )
 
 
+async def _job_queue() -> tuple[Status, str]:
+    """Are the job-queue tables installed?
+
+    Procrastinate owns its own schema and manages it itself, so it is deliberately not part
+    of our migrations — mixing the two would mean our `downgrade` had opinions about a
+    library's tables. The cost of that separation is a second install step, `zenith
+    install-queue`, and a fresh installation that runs only `alembic upgrade head` gets an
+    application which accepts uploads and never ingests one of them.
+
+    That failure is quiet in the worst way: `POST /documents` answers 201, the row appears,
+    the status stays `pending` forever, and the only complaint is in a worker log nobody is
+    reading. It is exactly the shape of failure this whole module exists to make loud.
+    """
+    async with get_owner_session_factory()() as session:
+        installed = await session.scalar(text("SELECT to_regclass('public.procrastinate_jobs')"))
+
+    if installed is None:
+        # The command is named without the `zenith` prefix on purpose. `_scrub` removes every
+        # known secret from every detail, and an installation whose database password happens
+        # to be the word `zenith` — which is the default in `.env.example`, and therefore in
+        # every development and test environment — gets `Run \`*** install-queue\``. The one
+        # actionable sentence in this whole check, redacted into nonsense exactly where it is
+        # read most.
+        return "fail", "job-queue tables are missing. Run the `install-queue` CLI command."
+
+    # The owner connection, because that is the one Procrastinate itself uses — `tasks.py`
+    # says why: the queue tables are ours rather than customer data, they carry no RLS, and
+    # the worker has to read a job before it has any tenant context to read it with. So
+    # `zenith_app` holds no privilege on them *by design*, and asking with the application
+    # role reported `permission denied` on a perfectly healthy installation. A check that
+    # cries wolf is a check somebody switches off.
+    async with get_owner_session_factory()() as session:
+        waiting = await session.scalar(
+            text("SELECT count(*) FROM procrastinate_jobs WHERE status = 'todo'")
+        )
+    return "ok", f"installed, {waiting} job(s) waiting"
+
+
 async def _extensions() -> tuple[Status, str]:
     required = {"vector", "pg_search", "pgcrypto"}
     async with get_session_factory()() as session:
@@ -310,6 +348,9 @@ async def run_diagnostics() -> list[Check]:
         await _timed("database (application role)", _application_connection),
         await _timed("row-level security", _rls_active),
         await _timed("migrations", _migration_state),
+        # Right after migrations, because it is the half of the install that `alembic upgrade
+        # head` does not do and that nothing else would report as missing.
+        await _timed("job queue", _job_queue),
         await _timed("extensions", _extensions),
         await _timed("content", _content),
         await _timed("document storage", _storage),

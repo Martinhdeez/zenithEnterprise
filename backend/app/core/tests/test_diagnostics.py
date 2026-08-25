@@ -84,7 +84,7 @@ async def test_every_check_runs_even_when_the_database_is_unreachable() -> None:
 
     checks = await run_diagnostics()
 
-    assert len(checks) == 11
+    assert len(checks) == 12
     assert any(check.status == "fail" for check in checks)
     # And the failure still says nothing it should not.
     assert "nothing" not in " ".join(check.detail for check in checks)
@@ -228,3 +228,22 @@ async def test_a_model_service_without_an_info_route_is_still_healthy(
 
     assert rerank.status == "ok"
     assert "responding" in rerank.detail
+
+
+async def test_a_missing_job_queue_is_reported(configured_engines: None) -> None:
+    """The half of the install that `alembic upgrade head` does not do.
+
+    Procrastinate owns its own schema, so the queue tables come from a separate command. An
+    installation that skips it accepts uploads and ingests none of them: 201, a row, and a
+    status that stays `pending` for ever, with the only complaint in a worker log nobody
+    reads. The test database is exactly such an installation, which is what makes this
+    assertion the real thing rather than a simulation of it.
+    """
+    checks = {check.name: check for check in await run_diagnostics()}
+
+    assert checks["job queue"].status == "fail"
+    # The actionable sentence has to survive `_scrub`. Naming the command as `zenith
+    # install-queue` did not: the default database password *is* the word `zenith`, so the
+    # instruction came out as `Run `*** install-queue``.
+    assert "install-queue" in checks["job queue"].detail
+    assert "***" not in checks["job queue"].detail
