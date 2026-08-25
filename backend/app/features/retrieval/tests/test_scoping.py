@@ -15,7 +15,7 @@ from sqlalchemy import text
 
 from app.common.exceptions import PermissionDeniedError
 from app.core.database import owner_session, tenant_session
-from app.features.auth.permissions import CATALOGUE
+from app.features.auth.access.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
 from app.features.embeddings.client import DIMENSION, MODEL, VERSION
 from app.features.retrieval.service import SearchService

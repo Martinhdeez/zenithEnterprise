@@ -254,7 +254,7 @@ async def seed(tenant_id: UUID, label_id: UUID, chunks: int) -> None:
 
 
 def profile_for(tenant_id: UUID, label_id: UUID, user_id: UUID) -> object:
-    from app.features.auth.permissions import CATALOGUE
+    from app.features.auth.access.permissions import CATALOGUE
     from app.features.auth.service import AccessProfile
     from app.features.tenancy.context import TenantContext
 

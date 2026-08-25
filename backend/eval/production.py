@@ -250,7 +250,7 @@ def _embed_cached(texts: list[str], model: str) -> list[list[float]]:
 
 async def measure(corpus: Corpus) -> list[Outcome]:
     """Every question through `SearchService`, scored against the recorded pages."""
-    from app.features.auth.permissions import CATALOGUE
+    from app.features.auth.access.permissions import CATALOGUE
     from app.features.auth.service import AccessProfile
     from app.features.retrieval.service import SearchService
     from app.features.tenancy.context import TenantContext
