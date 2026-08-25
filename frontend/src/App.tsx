@@ -87,6 +87,33 @@ function capitalise(name: string): string {
 }
 
 /**
+ * A browser preference, read and written without ever being able to fail.
+ *
+ * `localStorage` is not always there. Safari in private browsing and enterprise policies
+ * that block site data both make it absent or make every access throw, and these two calls
+ * sit in the render path of the entire application — so an unguarded read turned "your
+ * browser will not store a preference" into "the product does not load".
+ *
+ * Nothing here is worth an error message. A forgotten sidebar state is a smaller loss than
+ * anything the alternative costs.
+ */
+function remembered(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function remember(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Quota full, or a browser refusing storage outright.
+  }
+}
+
+/**
  * The one path that must work before anybody is signed in.
  *
  * Read from `location` rather than routed, because this app has no router: the shell is a
@@ -137,12 +164,17 @@ export function App() {
   // Remembered across reloads: someone who collapsed the bar to get room back does not
   // want it handed to them again on every refresh. `localStorage` rather than session,
   // because unlike the tokens beside it this is a preference and discloses nothing.
-  const [collapsed, setCollapsed] = useState(
-    () => localStorage.getItem(SIDEBAR_KEY) === "true",
-  );
+  //
+  // **Guarded on both sides, and here that is not a nicety.** `localStorage` is absent or
+  // throws in Safari's private browsing and under enterprise policies that block site data,
+  // and this call sits in the render path of the whole application: unguarded, a blocked
+  // preference store took down the entire product rather than one sidebar setting. `Search`
+  // learned the same lesson where it cost a search result; this is the version that costs
+  // everything.
+  const [collapsed, setCollapsed] = useState(() => remembered(SIDEBAR_KEY) === "true");
 
   useEffect(() => {
-    localStorage.setItem(SIDEBAR_KEY, String(collapsed));
+    remember(SIDEBAR_KEY, String(collapsed));
   }, [collapsed]);
 
   // Changing section closes whatever document was open. The preview belongs to the screen
