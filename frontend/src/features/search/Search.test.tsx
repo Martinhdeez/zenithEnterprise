@@ -181,3 +181,73 @@ describe("ranking detail", () => {
     expect(screen.queryByRole("button", { name: "Why these results?" })).toBeNull();
   });
 });
+
+/**
+ * The two dead ends.
+ *
+ * A search that matched nothing and a search that failed were both a sentence and no way
+ * forward. In a demonstration the first is the moment the product looks broken, and its
+ * commonest cause is a folder filter picked up two screens ago that the reader cannot see
+ * from a list with nothing in it.
+ */
+describe("when a search comes back with nothing", () => {
+  const empty = async (props: Partial<Parameters<typeof Search>[0]> = {}) => {
+    results.mockResolvedValue({ hits: [], degraded: false, reason: null, took_ms: 4 });
+    render(
+      <Search token="t" onCitation={vi.fn()} openChunkId={null} searchable {...props} />,
+    );
+    const box = screen.getByLabelText("Search");
+    fireEvent.change(box, { target: { value: "severance" } });
+    fireEvent.submit(box.closest("form")!);
+    await screen.findByText(/Nothing matched/);
+  };
+
+  it("names the folder it was confined to", async () => {
+    await empty({ filterName: "Finance", onClearFilter: vi.fn() });
+
+    expect(screen.getByText("Finance")).toBeTruthy();
+  });
+
+  it("offers a way out of the filter", async () => {
+    const onClearFilter = vi.fn();
+    await empty({ filterName: "Finance", onClearFilter });
+
+    fireEvent.click(screen.getByRole("button", { name: /Search everything/ }));
+
+    expect(onClearFilter).toHaveBeenCalled();
+  });
+
+  it("suggests wording instead when no filter is to blame", async () => {
+    // Advice about terms, not encouragement: this half of the search matches words, and
+    // offering "try rephrasing" would be advice for the other half.
+    await empty();
+
+    expect(screen.queryByRole("button", { name: /Search everything/ })).toBeNull();
+    expect(screen.getByText(/Try fewer words/)).toBeTruthy();
+  });
+});
+
+describe("when a search fails", () => {
+  it("can be tried again without retyping it", async () => {
+    // Usually a moment of trouble rather than a permanent one — a restarted container, a
+    // connection that dropped — and the query is still on screen.
+    results.mockRejectedValueOnce(new Error("boom"));
+    render(<Search token="t" onCitation={vi.fn()} openChunkId={null} searchable />);
+    const box = screen.getByLabelText("Search");
+    fireEvent.change(box, { target: { value: "severance" } });
+    fireEvent.submit(box.closest("form")!);
+    await screen.findByRole("alert");
+
+    results.mockResolvedValue({
+      hits: [hit("one", "handbook.pdf")],
+      degraded: false,
+      reason: null,
+      took_ms: 9,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(await screen.findByText(/1 passage/)).toBeTruthy();
+    // The same query, not a blank one.
+    expect(results).toHaveBeenLastCalledWith("t", "severance", undefined, expect.anything());
+  });
+});

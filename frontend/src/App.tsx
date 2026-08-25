@@ -565,6 +565,10 @@ export function App() {
                 searchable={status?.searchable ?? true}
                 labels={folder ? [folder] : undefined}
                 onSelectTag={selectTag}
+                // The empty result is where a forgotten folder filter finally becomes
+                // visible, so it gets both the name and the way out.
+                filterName={folderSelection?.name ?? null}
+                onClearFilter={() => setFolderSelection(null)}
               />
             )}
             {view === "folders" && (

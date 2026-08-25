@@ -37,6 +37,15 @@ interface Props {
   labels?: string[];
   /** Clicking a chip on a result narrows the workspace to that label. */
   onSelectTag?: (name: string) => void;
+  /**
+   * The folder this search is confined to, and how to leave it.
+   *
+   * Both, or neither. A search that found nothing inside one folder is the single most
+   * common way this screen ends up looking broken, and the empty state cannot say so
+   * without knowing the folder's name — nor offer the fix without a way to take it.
+   */
+  filterName?: string | null;
+  onClearFilter?: () => void;
 }
 
 type State =
@@ -96,7 +105,16 @@ function remember(query: string): string[] {
   return next;
 }
 
-export function Search({ token, onCitation, openChunkId, searchable, labels, onSelectTag }: Props) {
+export function Search({
+  token,
+  onCitation,
+  openChunkId,
+  searchable,
+  labels,
+  onSelectTag,
+  filterName,
+  onClearFilter,
+}: Props) {
   // Resolved from what this caller reaches; an unknown id belongs to a label they see the
   // passage through some other route, and is not theirs to learn the name of.
   const [known, setKnown] = useState<Map<string, string>>(new Map());
@@ -281,9 +299,22 @@ export function Search({ token, onCitation, openChunkId, searchable, labels, onS
       )}
 
       {state.phase === "error" && (
-        <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-          {state.message}
-        </p>
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive"
+        >
+          <span>{state.message}</span>
+          {/* A failed search is usually a moment of trouble rather than a permanent one — a
+              restarted container, a connection that dropped — and the query is still on
+              screen. Retyping it to find out was the only way to try again. */}
+          <button
+            type="button"
+            onClick={() => void run(state.query)}
+            className="shrink-0 rounded-full border border-destructive/40 px-3 py-1 text-xs font-medium transition-colors hover:bg-destructive/20"
+          >
+            Try again
+          </button>
+        </div>
       )}
 
       {state.phase === "done" && (
@@ -317,9 +348,7 @@ export function Search({ token, onCitation, openChunkId, searchable, labels, onS
           </div>
 
           {state.hits.length === 0 && (
-            <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-              Nothing matched that query.
-            </div>
+            <NothingMatched filterName={filterName} onClearFilter={onClearFilter} />
           )}
 
           {/* Separate cards, same as the history and document lists. A hit is a filename,
@@ -416,5 +445,53 @@ function Ranking({ hit }: { hit: SearchHit }) {
       {hit.rerank_score !== null && <span>reranked {hit.rerank_score.toFixed(3)}</span>}
       <span>combined {hit.score.toFixed(4)}</span>
     </p>
+  );
+}
+
+/**
+ * A search that matched nothing, and what to do about it.
+ *
+ * "Nothing matched that query." is true and useless. It is also, in a demonstration, the
+ * moment the product looks broken — and the commonest cause is not the corpus but a folder
+ * filter picked up two screens ago and still quietly applied. The reader cannot see that from
+ * a result list with nothing in it.
+ *
+ * So the filter is named first and offered back, and only then the two things that actually
+ * change a lexical search's outcome: fewer words, and different ones. The suggestions are
+ * deliberately about *wording* rather than encouragement — this half of the search matches
+ * terms, and "try rephrasing" is advice for the other half.
+ */
+function NothingMatched({
+  filterName,
+  onClearFilter,
+}: {
+  filterName?: string | null;
+  onClearFilter?: () => void;
+}) {
+  return (
+    <div className="space-y-3 rounded-lg border border-dashed border-border p-8 text-center text-sm">
+      <p className="text-foreground">Nothing matched that query.</p>
+
+      {filterName && onClearFilter ? (
+        <>
+          <p className="text-muted-foreground">
+            This search only looked inside <span className="text-foreground">{filterName}</span>.
+          </p>
+          <button
+            type="button"
+            onClick={onClearFilter}
+            className="rounded-full border border-input px-3 py-1 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-secondary"
+          >
+            Search everything instead
+          </button>
+        </>
+      ) : (
+        <ul className="mx-auto max-w-sm space-y-1 text-left text-xs text-muted-foreground">
+          <li>· Try fewer words — every one of them has to appear.</li>
+          <li>· Try the wording the document itself would use.</li>
+          <li>· Ask it as a question in Chat, which reads the passages for you.</li>
+        </ul>
+      )}
+    </div>
   );
 }
