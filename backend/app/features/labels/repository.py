@@ -237,6 +237,15 @@ class LabelRepository(ScopedRepository[AccessLabel]):
     async def default(self) -> AccessLabel | None:
         return await self.session.scalar(select(AccessLabel).where(AccessLabel.is_default))
 
+    async def quarantine(self) -> AccessLabel | None:
+        """Where an upload waits for the classifier. See migration 0017.
+
+        No tenant filter, for the same reason `default` has none: RLS has already narrowed
+        `access_labels` to this tenant, and a `WHERE tenant_id = …` here would be the
+        application doing the isolation work that ADR 0001 puts in the database.
+        """
+        return await self.session.scalar(select(AccessLabel).where(AccessLabel.is_quarantine))
+
     async def role_exists(self, role_id: UUID) -> bool:
         return await self.session.scalar(select(Role.id).where(Role.id == role_id)) is not None
 

@@ -57,7 +57,10 @@ async def test_upload_returns_201_and_the_document(client: AsyncClient, account:
     assert body["deduplicated"] is False
     assert body["document"]["filename"] == "report.pdf"
     assert body["document"]["status"] == "pending"
-    assert body["labels"] == [str(account.default_label)]
+    # Quarantine, not the tenant default. An upload that named no compartment is unfiled, and
+    # since 0017 unfiled means "readable by an administrator and by whoever sent it" instead
+    # of "readable by everybody" for the length of the ingestion.
+    assert body["labels"] == [str(account.quarantine_label)]
 
 
 async def test_a_duplicate_returns_200_not_201(client: AsyncClient, account: Account) -> None:
@@ -118,7 +121,14 @@ async def test_an_announced_oversized_body_is_refused_before_it_is_read(
 async def test_the_list_shows_only_what_the_caller_reaches(
     client: AsyncClient, account: Account
 ) -> None:
-    """The member reaches the default label; the Finance document is not theirs to see."""
+    """The member reaches the default label; the Finance document is not theirs to see.
+
+    Neither is the admin's unlabelled upload, and that is migration 0017 working rather than
+    an omission. Before it, a document nobody had classified carried the tenant default —
+    granted to `member` as well as `admin` — so it was readable by the whole tenant from the
+    moment the upload answered until the classifier ran at the end of ingestion. It now waits
+    in the quarantine label, which only `admin` reaches.
+    """
     admin = await headers(client, account.admin_email)
     await client.post(
         "/documents",
@@ -139,8 +149,15 @@ async def test_the_list_shows_only_what_the_caller_reaches(
         )
 
     member = await client.get("/documents", headers=await headers(client, account.member_email))
+    assert [document["filename"] for document in member.json()["items"]] == []
 
-    assert [document["filename"] for document in member.json()["items"]] == ["general.pdf"]
+    # The admin sees the quarantined upload — somebody has to be able to file it — and still
+    # not the Finance document, which nothing about quarantine changes.
+    listed = await client.get("/documents", headers=admin)
+    assert [document["filename"] for document in listed.json()["items"]] == [
+        "finance.pdf",
+        "general.pdf",
+    ]
 
 
 async def test_an_unreachable_document_is_404_not_403(

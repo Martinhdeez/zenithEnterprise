@@ -25,13 +25,28 @@ cannot be created here because creating labels is not something this code can do
 one function that answers that question, so the classifier cannot file a document under a
 compartment the person who uploaded it could not have chosen by hand.
 
-Failure is silent and safe: no model configured, a timeout, a reply in an unexpected shape —
-all of them leave the document exactly as it arrived. Ingestion never fails over filing.
+Filing never fails an ingestion. It does, however, **say which way it ended**, and since 0017
+that distinction carries weight: an upload now waits in a quarantine label that only `admin`
+reaches, and what happens next depends on why the classifier produced nothing.
+
+A model that read the document and found no folder that fits has done its job — the document
+belongs in the tenant default, which is where it would have gone before any of this existed.
+A model that was never configured has not been asked, and an installation without one is an
+ordinary, supported installation whose documents must not all pile up in quarantine. A model
+that was configured and *broke* is the only case where the document stays where it is: nobody
+has vouched for it, so it remains readable by an administrator and by whoever uploaded it,
+rather than being released to the tenant on the strength of a timeout.
+
+Collapsing those three into an empty list was safe while "unchanged" meant "tenant-wide". It
+is not safe now, and the same shape of bug — several endings, one return value, the caller
+guessing — is the one `uploadWatch.ts` was extracted to fix on the other side of the product.
 """
 
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
+from enum import StrEnum
 from uuid import UUID
 
 import structlog
@@ -40,8 +55,8 @@ from sqlalchemy import text
 from app.common.llm import BaseLLMProvider
 from app.core.database import tenant_session
 from app.features.auth.repository import UserRepository
-from app.features.generation import providers
-from app.features.generation.crypto import decrypt
+from app.features.generation.connector import providers
+from app.features.generation.connector.crypto import decrypt
 from app.features.tenancy.context import TenantContext
 
 log = structlog.get_logger()
@@ -98,6 +113,25 @@ def read(reply: str, count: int) -> list[int]:
     return chosen[:MAX_CHOSEN]
 
 
+class Outcome(StrEnum):
+    """Why the classifier produced what it produced. See the module docstring."""
+
+    #: It read the document and named folders. `Filing.labels` is non-empty.
+    CHOSE = "chose"
+    #: It read the document and none of the folders fitted. A real answer, just not a label.
+    DECLINED = "declined"
+    #: It was never asked — no model configured, or no folders to offer it.
+    UNAVAILABLE = "unavailable"
+    #: It was asked and the call broke. The only outcome that leaves a document quarantined.
+    FAILED = "failed"
+
+
+@dataclass(frozen=True, slots=True)
+class Filing:
+    labels: list[UUID]
+    outcome: Outcome
+
+
 class Classifier:
     def __init__(self, context: TenantContext, provider: BaseLLMProvider | None = None) -> None:
         self.context = context
@@ -105,35 +139,47 @@ class Classifier:
 
     async def file(
         self, document_id: UUID | None, uploaded_by: UUID | None, text_excerpt: str
-    ) -> list[UUID]:
-        """Choose labels for a document, or none. Never raises.
+    ) -> Filing:
+        """Choose labels for a document, or explain why it did not. Never raises.
 
-        Returns the ids applied. The caller writes them; this decides them, and the split is
-        deliberate — everything here is a guess, and the write is not.
+        The caller writes the labels; this decides them, and the split is deliberate —
+        everything here is a guess, and the write is not.
         """
         if uploaded_by is None:
             # `documents.uploaded_by` is `ON DELETE SET NULL`, so this is a document whose
             # uploader has since been removed. There is no reach to draw a list from, and
             # inventing one from the tenant's full label set would file the document under
-            # compartments nobody chose.
-            return []
+            # compartments nobody chose. Nobody was asked, so it is not a failure.
+            return Filing([], Outcome.UNAVAILABLE)
 
         try:
             candidates = await self._candidates(uploaded_by)
-            if not candidates:
-                return []
+        except Exception as error:  # noqa: BLE001 - filing must never fail an ingestion
+            log.warning("classification_failed", document_id=str(document_id), error=str(error))
+            return Filing([], Outcome.FAILED)
 
+        if not candidates:
+            return Filing([], Outcome.UNAVAILABLE)
+
+        # Resolving the provider is separated from calling it, and that is the whole point of
+        # this arrangement: "there is no model configured" and "the model broke" are different
+        # facts about the installation, and since 0017 they lead to different access outcomes.
+        # Folded into one `try`, an unconfigured installation would look like a broken one and
+        # quarantine every document it ever ingests.
+        try:
             provider = self._provider or await self._resolve()
+        except Exception as error:  # noqa: BLE001
+            log.info("classification_unavailable", document_id=str(document_id), error=str(error))
+            return Filing([], Outcome.UNAVAILABLE)
+
+        try:
             names = [name for _, name in candidates]
             excerpt = text_excerpt[:EXCERPT_CHARACTERS]
             reply = await provider.complete(SYSTEM, build(names, excerpt))
             chosen = read(reply.text, len(candidates))
         except Exception as error:  # noqa: BLE001 - filing must never fail an ingestion
-            # Includes no model being configured, which is an ordinary state for an
-            # installation that has not set one up: search works without generation, and
-            # ingestion has to work without both.
             log.warning("classification_failed", document_id=str(document_id), error=str(error))
-            return []
+            return Filing([], Outcome.FAILED)
 
         applied = [candidates[number - 1][0] for number in chosen]
         log.info(
@@ -142,7 +188,9 @@ class Classifier:
             offered=len(candidates),
             applied=len(applied),
         )
-        return applied
+        # An empty `chosen` here is the model answering `NONE`, or writing only numbers that
+        # named no folder it was shown. Both are the model declining, not the model failing.
+        return Filing(applied, Outcome.CHOSE if applied else Outcome.DECLINED)
 
     async def suggest(self, user_id: UUID, excerpt: str) -> list[UUID]:
         """The same decision, offered rather than applied.
@@ -154,8 +202,12 @@ class Classifier:
 
         Separate from `file` only in that it takes the user directly: staging has no
         document yet, so there is no `uploaded_by` to read.
+
+        Returns the labels alone. A suggestion the user can ignore does not need to explain
+        why there is nothing to suggest — the four outcomes exist so that an *access*
+        decision can be made from them, and staging makes none.
         """
-        return await self.file(document_id=None, uploaded_by=user_id, text_excerpt=excerpt)
+        return (await self.file(document_id=None, uploaded_by=user_id, text_excerpt=excerpt)).labels
 
     async def _candidates(self, uploaded_by: UUID) -> list[tuple[UUID, str]]:
         """The labels the uploader reaches, by name, ordered so the prompt is stable.

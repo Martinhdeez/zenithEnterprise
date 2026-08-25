@@ -20,6 +20,66 @@ from app.features.labels.model import AccessLabel, RoleLabel
 
 DEFAULT_LABEL = "General"
 
+#: Where an upload that named no compartment waits for the classifier. See migration 0017.
+QUARANTINE_LABEL = "Unclassified"
+
+
+async def seed_quarantine_label(
+    session: AsyncSession, tenant_id: UUID, roles: list[Role]
+) -> AccessLabel:
+    """The label an unfiled upload lands in, granted to `admin` and to nobody else.
+
+    The narrowness is the whole feature. Granted to both system roles it would reach exactly
+    as far as the default label it replaces, which would be an elaborate way of changing
+    nothing — and the point is that a document nobody has classified must not be readable by
+    everybody while it ingests.
+
+    A `member` is not locked out of their own upload: migration 0017's policy lets an
+    uploader read their own document while its status is not `ready`. That exception expires
+    with ingestion, so once the classifier has filed it, labels answer and nothing else does.
+    """
+    label = AccessLabel(tenant_id=tenant_id, name=QUARANTINE_LABEL, is_quarantine=True)
+    session.add(label)
+    await session.flush()
+    session.add_all(
+        RoleLabel(role_id=role.id, label_id=label.id) for role in roles if role.name == "admin"
+    )
+    await session.flush()
+    return label
+
+
+async def ensure_quarantine_label(session: AsyncSession, tenant_id: UUID) -> AccessLabel:
+    """The tenant's quarantine label, restored if somebody removed it.
+
+    The same repair, and the same reasoning, as `ensure_default_label` — including why
+    repairing beats refusing. The failure here is worse than the default label's, though:
+    without this label an upload has nowhere narrow to land, and the only alternatives are
+    refusing the upload or putting it back in the tenant-wide default. Recreating what
+    provisioning would have made is the one answer that is neither.
+    """
+    from sqlalchemy import select
+    from sqlalchemy.exc import IntegrityError
+
+    existing = await session.scalar(
+        select(AccessLabel).where(AccessLabel.tenant_id == tenant_id, AccessLabel.is_quarantine)
+    )
+    if existing is not None:
+        return existing
+
+    roles = list(
+        await session.scalars(select(Role).where(Role.tenant_id == tenant_id, Role.is_system))
+    )
+    try:
+        async with session.begin_nested():
+            return await seed_quarantine_label(session, tenant_id, roles)
+    except IntegrityError:
+        # Lost the race against a concurrent upload. Read theirs.
+        restored = await session.scalar(
+            select(AccessLabel).where(AccessLabel.tenant_id == tenant_id, AccessLabel.is_quarantine)
+        )
+        assert restored is not None, "the constraint fired, so a quarantine label exists"
+        return restored
+
 
 async def seed_default_label(
     session: AsyncSession, tenant_id: UUID, roles: list[Role]

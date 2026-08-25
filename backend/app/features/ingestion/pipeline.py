@@ -35,13 +35,26 @@ from app.features.documents.storage import DocumentStorage
 from app.features.embeddings.client import DIMENSION, MODEL, VERSION, TeiClient
 from app.features.embeddings.model import ChunkEmbedding, EmbeddingSpace
 from app.features.ingestion.chunking.chunker import Chunk, chunk_page
-from app.features.ingestion.classification import Classifier
+from app.features.ingestion.classification import Classifier, Outcome
 from app.features.ingestion.parsers.base import ParsedPage
 from app.features.ingestion.parsers.pdfplumber_parser import PdfPlumberParser
 from app.features.ingestion.routing import Route, decide
 from app.features.tenancy.context import TenantContext
 
 log = structlog.get_logger()
+
+
+@dataclass(frozen=True, slots=True)
+class Routing:
+    """What `_route` decided, including what it had to leave out."""
+
+    pages: list[ParsedPage]
+    #: Why the first omitted page could not be read. One reason, not one per page: they share
+    #: a cause, and forty copies of the same sentence is not a better diagnosis.
+    unreadable_reason: str | None
+    #: Which pages produced nothing. Page numbers rather than a count, because "pages 12, 13
+    #: and 14" tells somebody holding the PDF where to look and "3 pages" does not.
+    omitted: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,18 +119,18 @@ class IngestionPipeline:
 
         await self._set_status(document_id, "parsing")
         pages = PdfPlumberParser().parse(path)
-        routed, unreadable = self._route(pages)
+        routing = self._route(pages)
 
         await self._set_status(document_id, "chunking")
         chunks: list[Chunk] = []
-        for page in routed:
+        for page in routing.pages:
             chunks.extend(chunk_page(page))
 
         if not chunks:
-            # The rule this pipeline exists to enforce. `unreadable` says *why*, which is
-            # the difference between an operator enabling OCR and an operator guessing.
+            # The rule this pipeline exists to enforce. The reason says *why*, which is the
+            # difference between an operator acting and an operator guessing.
             detail = (
-                unreadable
+                routing.unreadable_reason
                 or "no text could be extracted from this document, so it has no searchable content"
             )
             await self._mark_failed(document_id, detail)
@@ -126,25 +139,41 @@ class IngestionPipeline:
         await self._set_status(document_id, "embedding")
         vectors = await self.embedder.embed([chunk.text for chunk in chunks])
 
-        await self._persist(document_id, routed, chunks, vectors)
+        await self._persist(document_id, routing.pages, chunks, vectors)
+
+        # Before `_file`, so the two sentences arrive in the order they happened. This one is
+        # about the document's *contents* and matters more than where it was filed: a search
+        # over a document missing three pages answers confidently and incompletely, and this
+        # is the only place that says so.
+        if routing.omitted:
+            await self._note(document_id, _omission(routing, len(pages)))
+
         await self._file(document_id, chunks)
         return Result(document_id, "ready", len(pages), len(chunks))
 
     async def _file(self, document_id: UUID, chunks: list[Chunk]) -> None:
         """Ask a model where a document belongs when nobody said, and file it there.
 
-        **Only a document carrying nothing but the tenant's default label**, which is what
-        "the uploader chose nothing" actually looks like. A document is never stored truly
-        unlabelled — `DocumentService` refuses that, because an empty `label_ids` publishes
-        it to the whole tenant — so the default label *is* the signal, and the absence of
-        labels is not.
+        **Only a document carrying nothing but the tenant's quarantine label**, which is what
+        "the uploader chose nothing" looks like since migration 0017. A document is never
+        stored truly unlabelled — `DocumentService` refuses that, because an empty
+        `label_ids` publishes it to the whole tenant — and it no longer waits in the *default*
+        label either, because that one is granted to `member` as well as `admin` and so meant
+        tenant-wide for the whole of ingestion. `DocumentService._resolve_labels` decides what
+        lands in quarantine using the same rule this method uses to decide what it may touch;
+        they are two ends of one condition and must not drift.
 
-        **The default is replaced, not added to.** Labels are a union: holding any one of a
-        document's labels opens it, so adding a label always widens. The default is granted
-        to every seeded role, so a document carrying it is already tenant-wide; leaving it
-        in place beside a compartment would mean the compartment bought nothing. Swapping it
-        for the model's choice is exactly the outcome the uploader would have got by ticking
-        those labels by hand, and it is the only arrangement here that narrows.
+        **The quarantine label is replaced, not added to.** Labels are a union: holding any
+        one of a document's labels opens it, so adding a label always widens. Leaving the
+        quarantine label in place beside the chosen compartment would keep every
+        administrator on the document forever. Swapping it is exactly the outcome the
+        uploader would have got by ticking those labels by hand.
+
+        **What happens when the model names nothing depends on why**, and
+        `classification.Outcome` carries that. Declined or never asked releases the document
+        into the tenant default, which is where an unfiled document went before quarantine
+        existed. A model that was configured and broke leaves it quarantined: nobody has
+        vouched for the document, and a timeout is not a reason to publish it.
 
         A document the uploader *did* label is never touched. Not out of deference to manual
         choice — because there is no rearrangement of somebody's deliberate compartments
@@ -161,24 +190,57 @@ class IngestionPipeline:
                 await session.execute(
                     text(
                         "SELECT d.uploaded_by, d.label_ids, "
-                        "  (SELECT id FROM access_labels WHERE is_default) AS default_id "
+                        "  (SELECT id FROM access_labels WHERE is_default) AS default_id, "
+                        "  (SELECT id FROM access_labels WHERE is_quarantine) AS quarantine_id "
                         "FROM documents d WHERE d.id = :d"
                     ),
                     {"d": document_id},
                 )
             ).first()
 
-        if row is None or row.default_id is None:
+        if row is None or row.quarantine_id is None:
             return
-        # Anything other than exactly the default means somebody chose, and what they chose
-        # is not this code's to rearrange.
-        if list(row.label_ids) != [row.default_id]:
+        # Anything other than exactly the quarantine label means somebody chose — either the
+        # uploader named compartments, or this document has already been filed. Neither is
+        # this code's to rearrange.
+        if list(row.label_ids) != [row.quarantine_id]:
             return
 
         excerpt = "\n".join(chunk.text for chunk in chunks[:6])
-        applied = await self.classifier.file(document_id, row.uploaded_by, excerpt)
-        if not applied:
+        filing = await self.classifier.file(document_id, row.uploaded_by, excerpt)
+
+        # Where the document goes when the model named nothing, and it depends entirely on
+        # *why*. Quarantine only holds a document that nobody has vouched for; it is not a
+        # place to leave documents because an installation has no model configured.
+        if filing.outcome is Outcome.FAILED:
+            # The one case that stays put. An administrator files it by hand, and the status
+            # says so rather than leaving them to wonder why it is not in a folder.
+            await self._note(
+                document_id,
+                "automatic filing failed; this document is waiting for an administrator "
+                "to choose its access labels",
+            )
             return
+
+        applied = filing.labels
+        if not applied:
+            # Declined, or never asked. Both mean the document belongs where an unfiled
+            # document went before quarantine existed: the tenant default.
+            if row.default_id is None:
+                # No default to release it into. Leaving it quarantined is the only option
+                # that is not "publish it to the tenant", and it is the safe one.
+                await self._note(
+                    document_id,
+                    "no default label exists to file this document into; "
+                    "an administrator must choose its access labels",
+                )
+                return
+            applied = [row.default_id]
+            if filing.outcome is Outcome.UNAVAILABLE:
+                await self._note(
+                    document_id,
+                    "filed under the default label: no classification model is configured",
+                )
 
         async with tenant_session(self.context) as session:
             for label_id in applied:
@@ -195,10 +257,10 @@ class IngestionPipeline:
             # nobody".
             await session.execute(
                 text("DELETE FROM document_labels WHERE document_id = :d AND label_id = :l"),
-                {"d": document_id, "l": row.default_id},
+                {"d": document_id, "l": row.quarantine_id},
             )
 
-    def _route(self, pages: list[ParsedPage]) -> tuple[list[ParsedPage], str | None]:
+    def _route(self, pages: list[ParsedPage]) -> "Routing":
         """Apply the per-page decision and record what it saw.
 
         Docling is not wired yet — M0 moved the evidence for it to F9, since recall finds
@@ -206,14 +268,23 @@ class IngestionPipeline:
         `LAYOUT` are therefore parsed by pdfplumber for now and carry a warning saying so,
         rather than being dropped: a two-column page read badly is still better than a
         two-column page absent, and the warning is what makes the gap findable later.
+
+        **Dropped pages are counted, not merely reasoned about.** The reason alone was enough
+        while the only case that mattered was a document where *every* page was unreadable —
+        that ends in `failed`, and the reason is the whole message. A document where three
+        pages of forty are scanned reached `ready` with those three missing from the index and
+        nothing anywhere saying so, which is the same failure shape as a silent leak: no
+        error, and answers drawn confidently from an incomplete document.
         """
         routed: list[ParsedPage] = []
         unreadable_reason: str | None = None
+        omitted: list[int] = []
 
         for page in pages:
             decision = decide(page, ocr_available=self.profile.ocr)
             if decision.route is Route.UNREADABLE:
                 unreadable_reason = unreadable_reason or decision.reason
+                omitted.append(page.page_num)
                 continue
             warnings = decision.warnings
             if decision.route is Route.LAYOUT:
@@ -228,7 +299,7 @@ class IngestionPipeline:
                 )
             )
 
-        return routed, unreadable_reason
+        return Routing(routed, unreadable_reason, tuple(omitted))
 
     async def _persist(
         self,
@@ -298,6 +369,30 @@ class IngestionPipeline:
             if document is not None:
                 document.status = status
 
+    async def _note(self, document_id: UUID, detail: str) -> None:
+        """Say something about a document without calling it failed.
+
+        Filing is not ingestion: a document whose labels nobody chose is still parsed,
+        chunked, embedded and searchable by those who reach it. Marking it `failed` would
+        claim otherwise and invite somebody to re-ingest work that is already done. The
+        status stays whatever it was; `status_detail` is where the sentence goes, because
+        that is the column the documents list already shows.
+
+        **Appends rather than replaces.** `_persist` has already written what the parse
+        looked like — "3 of 40 page(s) extracted with warnings" — and a note that overwrote
+        it would trade one true sentence for another. Both facts are about the same document
+        and a reader needs them together: pages that came out badly, and where the document
+        ended up filed. `_persist` writes the column fresh on every run, so a re-ingestion
+        starts from one sentence rather than accumulating a history.
+        """
+        async with tenant_session(self.context) as session:
+            document = await session.get(Document, document_id)
+            if document is None:
+                return
+            existing = (document.status_detail or "").strip()
+            combined = f"{existing}; {detail}" if existing else detail
+            document.status_detail = combined[:500]
+
     async def _mark_failed(self, document_id: UUID, detail: str) -> None:
         async with tenant_session(self.context) as session:
             document = await session.get(Document, document_id)
@@ -344,6 +439,26 @@ def _method_of(page: ParsedPage) -> str:
     if not page.warnings:
         return page.method
     return f"{page.method} ({'; '.join(page.warnings)})"[:200]
+
+
+#: How many page numbers to name before the list stops being useful. A scanned appendix is
+#: a run of pages, and "12, 13, 14 and 37 others" says everything "49 pages" does plus where
+#: to start looking.
+NAMED_PAGES = 8
+
+
+def _omission(routing: "Routing", total: int) -> str:
+    """The sentence a person needs when part of their document is not in the index.
+
+    Deliberately not phrased as a warning about OCR. The reader is somebody who searched a
+    contract and got a confident answer; what they need to know is that pages 12 to 14 were
+    not part of what was searched, and only then why.
+    """
+    shown = ", ".join(str(number) for number in routing.omitted[:NAMED_PAGES])
+    remaining = len(routing.omitted) - NAMED_PAGES
+    listed = f"{shown} and {remaining} more" if remaining > 0 else shown
+    reason = routing.unreadable_reason or "no text could be extracted"
+    return f"{len(routing.omitted)} of {total} page(s) are not searchable (page {listed}): {reason}"
 
 
 def _summarise(pages: list[ParsedPage]) -> str | None:

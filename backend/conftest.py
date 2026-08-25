@@ -242,9 +242,17 @@ class Account:
     member_id: UUID
     member_email: str
     finance_label: UUID
-    # Seeded by tenant provisioning, reachable by both system roles. Uploads with no
-    # label specified land here — see `labels/provisioning.py`.
+    # A second compartment reachable by `admin`. Two are needed wherever a test has to
+    # union real labels without either of them being the default, which since 0017 is not a
+    # choice but the thing that triggers quarantine.
+    hr_label: UUID
+    # Seeded by tenant provisioning, reachable by both system roles. Where the classifier
+    # files a document when it declines or is not configured — see `labels/provisioning.py`.
     default_label: UUID
+    # Also seeded by provisioning, but reachable by `admin` alone. An upload that named no
+    # compartment waits here until the classifier files it, so that "unfiled" does not mean
+    # "readable by the whole tenant" for the length of an ingestion. See migration 0017.
+    quarantine_label: UUID
 
 
 @pytest.fixture
@@ -261,7 +269,7 @@ async def account(configured_engines: None) -> Account:
     """
     from app.core.database import owner_session
     from app.features.auth.model import Role
-    from app.features.auth.provisioning import create_user
+    from app.features.auth.onboarding.provisioning import create_user
     from app.features.labels.model import AccessLabel, RoleLabel
     from app.features.tenancy.service import TenantService
 
@@ -277,10 +285,23 @@ async def account(configured_engines: None) -> Account:
         )
         assert default_label is not None, "provisioning must seed a default label"
 
+        quarantine_label = await session.scalar(
+            select(AccessLabel.id).where(
+                AccessLabel.tenant_id == tenant.id, AccessLabel.is_quarantine
+            )
+        )
+        assert quarantine_label is not None, "provisioning must seed a quarantine label"
+
         finance = AccessLabel(tenant_id=tenant.id, name="Finance")
-        session.add(finance)
+        hr = AccessLabel(tenant_id=tenant.id, name="HR")
+        session.add_all([finance, hr])
         await session.flush()
-        session.add(RoleLabel(role_id=roles["admin"].id, label_id=finance.id))
+        session.add_all(
+            [
+                RoleLabel(role_id=roles["admin"].id, label_id=finance.id),
+                RoleLabel(role_id=roles["admin"].id, label_id=hr.id),
+            ]
+        )
 
         admin_email = f"admin-{uuid4()}@example.com"
         member_email = f"member-{uuid4()}@example.com"
@@ -294,7 +315,9 @@ async def account(configured_engines: None) -> Account:
             member_id=member.id,
             member_email=member_email,
             finance_label=finance.id,
+            hr_label=hr.id,
             default_label=default_label,
+            quarantine_label=quarantine_label,
         )
 
     return account

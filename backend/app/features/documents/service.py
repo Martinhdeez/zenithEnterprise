@@ -13,7 +13,7 @@ of the same bytes both pass a `SELECT`, and only the unique constraint knows whi
 """
 
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from uuid import UUID
 
 import structlog
@@ -29,7 +29,7 @@ from app.common.exceptions import (
 )
 from app.core.config import settings
 from app.core.database import tenant_session
-from app.features.auth.permissions import CATALOGUE
+from app.features.auth.access.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
 from app.features.documents.model import DOCUMENT_STATUSES, Document
 from app.features.documents.pagination import Cursor, clamp
@@ -37,6 +37,7 @@ from app.features.documents.repository import DocumentRepository
 from app.features.documents.schemas import DocumentInsights
 from app.features.documents.storage import DocumentStorage, Staged
 from app.features.ingestion.enqueue import enqueue_ingestion
+from app.features.labels.model import AccessLabel
 from app.features.labels.repository import LabelRepository
 
 PDF_MAGIC = b"%PDF-"
@@ -70,7 +71,17 @@ class Upload:
 class DocumentService:
     def __init__(self, profile: AccessProfile, storage: DocumentStorage | None = None) -> None:
         self.profile = profile
-        self.context = profile.context
+        # **Bound with the caller's id**, which `AccessProfile.context` deliberately leaves
+        # unset — most policies decide everything from the tenant and the labels, so binding
+        # it everywhere would be noise. Migration 0017 gives `documents` one clause that does
+        # consult it: an uploader may read their own document while it is still ingesting,
+        # which is what keeps a quarantined upload visible to the person who sent it.
+        #
+        # Bound once here rather than at each `tenant_session` call, for the reason
+        # `TenantContext` gives about its own fields: a session that forgets it fails closed
+        # and shows the uploader nothing, and that is precisely the kind of omission no test
+        # notices unless it was looking for it.
+        self.context = replace(profile.context, user_id=profile.user_id)
         self.storage = storage or DocumentStorage()
 
     async def upload(
@@ -163,9 +174,19 @@ class DocumentService:
         The labels are unioned rather than the file being stored twice. The second uploader
         already holds the bytes, so nothing leaks towards them, and a second copy would
         cost the disk and — worse — put duplicate chunks into every search result.
+
+        **Quarantine is exclusive**: a document either waits there alone or carries real
+        labels, never both. Without that rule a union leaves it holding `{quarantine, …}`,
+        which `_file` then declines to touch because those are not "exactly the quarantine
+        label" — so the document keeps every administrator on it forever and is never
+        released. Somebody naming a compartment for these bytes is a human classifying them,
+        which is what quarantine was waiting for.
         """
         current = await documents.label_ids_of(existing.id)
         union = current | wanted
+        quarantine = await labels.quarantine()
+        if quarantine is not None and union > {quarantine.id}:
+            union = union - {quarantine.id}
         if union != current:
             await labels.set_document_labels(existing.id, sorted(union))
         return Upload(document=existing, labels=sorted(union), deduplicated=True)
@@ -173,13 +194,24 @@ class DocumentService:
     async def _resolve_labels(
         self, labels: LabelRepository, requested: list[UUID] | None
     ) -> set[UUID]:
-        """Which labels this upload gets, and the refusal when there are none.
+        """Which labels this upload gets, and where it waits when nobody chose one.
 
         A caller may only file a document under labels they themselves reach. Otherwise
         someone could write into a compartment they are locked out of — placing a document
         where they cannot see it, and cannot be held to have seen it.
+
+        **"Nobody chose" includes naming exactly the tenant default.** The upload screen
+        pre-ticks it, so the overwhelmingly common request is `[default]` and not an empty
+        list, and treating those two differently would quarantine the API's uploads while
+        leaving the product's own front door wide open. `IngestionPipeline._file` already
+        draws the line in exactly this place to decide what the classifier may touch; the two
+        ends have to agree, or a document gets protected and never reclassified, or
+        reclassified having never been protected.
         """
-        if requested:
+        default = await labels.default()
+        chose_nothing = not requested or (default is not None and set(requested) == {default.id})
+
+        if requested and not chose_nothing:
             found = await labels.label_ids_in_tenant(requested)
             unknown = [str(label) for label in requested if label not in found]
             if unknown:
@@ -192,6 +224,25 @@ class DocumentService:
                 )
             return set(requested)
 
+        # Quarantine, not the default label. The default is granted to `admin` *and*
+        # `member`, so landing there means tenant-wide from the moment the upload answers
+        # until the classifier runs at the end of ingestion — minutes, covering the document
+        # list and the PDF download, not merely search. See migration 0017.
+        quarantine = await labels.quarantine()
+        if quarantine is None:
+            from app.features.labels.provisioning import ensure_quarantine_label
+
+            log.warning("quarantine_label_restored", tenant_id=str(self.context.tenant_id))
+            quarantine = await ensure_quarantine_label(labels.session, self.context.tenant_id)
+        return {quarantine.id}
+
+    async def _default_label(self, labels: LabelRepository) -> AccessLabel:
+        """The tenant's default, restored if somebody deleted it.
+
+        Still needed with quarantine in place: the pipeline files a document here when the
+        classifier declines or is not configured, which is the ordinary end state for an
+        installation that has no model set up.
+        """
         default = await labels.default()
         if default is None:
             # Provisioning guarantees one per tenant, so reaching this means somebody
@@ -210,7 +261,7 @@ class DocumentService:
 
             log.warning("default_label_restored", tenant_id=str(self.context.tenant_id))
             default = await ensure_default_label(labels.session, self.context.tenant_id)
-        return {default.id}
+        return default
 
     async def delete(self, document_id: UUID) -> None:
         """Physical deletion, per RF-03.
@@ -247,7 +298,7 @@ class DocumentService:
         raises rather than returning zeros, because "no passages" and "not yours to see"
         are different statements and only one of them is about the document.
         """
-        async with tenant_session(self.profile.context) as session:
+        async with tenant_session(self.context) as session:
             exists = await session.scalar(
                 text("SELECT 1 FROM documents WHERE id = :d"), {"d": document_id}
             )

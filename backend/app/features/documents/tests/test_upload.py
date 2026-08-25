@@ -52,7 +52,7 @@ async def labels_of(tenant_id: UUID, document_id: UUID) -> set[UUID]:
 async def profile_for(
     account: Account, *, admin: bool = True, labels: tuple[UUID, ...] | None = None
 ) -> AccessProfile:
-    from app.features.auth.permissions import CATALOGUE, SYSTEM_ROLES
+    from app.features.auth.access.permissions import CATALOGUE, SYSTEM_ROLES
 
     async with owner_session() as session:
         reachable = tuple(
@@ -143,25 +143,47 @@ async def test_deduplication_unions_the_labels(account: Account, storage: Docume
     Storing a second copy would cost the disk and, worse, put duplicate chunks into every
     later search result. The union is visible in the response so the widening is something
     the uploader can see rather than something that happens to them.
+
+    Both uploads name a real compartment. Naming *only* the tenant default is not a choice —
+    it is what the upload screen pre-ticks — so it quarantines instead, and this test would
+    then be measuring quarantine rather than the union it is about.
     """
-    async with owner_session() as session:
-        default = await session.scalar(
-            text("SELECT id FROM access_labels WHERE tenant_id = :t AND is_default"),
-            {"t": account.tenant_id},
-        )
     admin = await profile_for(account)
 
-    first = await DocumentService(admin, storage).upload("report.pdf", pdf(), [default])
+    first = await DocumentService(admin, storage).upload(
+        "report.pdf", pdf(), [account.finance_label]
+    )
+    second = await DocumentService(admin, storage).upload("report.pdf", pdf(), [account.hr_label])
+
+    assert second.deduplicated is True
+    assert set(second.labels) == {account.finance_label, account.hr_label}
+    assert await labels_of(account.tenant_id, first.document.id) == {
+        account.finance_label,
+        account.hr_label,
+    }
+
+
+async def test_naming_a_compartment_releases_a_quarantined_duplicate(
+    account: Account, storage: DocumentStorage
+) -> None:
+    """Quarantine is exclusive: alone, or not at all.
+
+    Unioned like any other label it would survive beside the compartment somebody chose, and
+    `_file` would then decline to touch the document — those are not "exactly the quarantine
+    label" — leaving every administrator on it permanently. A second uploader naming a
+    compartment for these bytes is the human decision quarantine was waiting for.
+    """
+    admin = await profile_for(account)
+
+    first = await DocumentService(admin, storage).upload("report.pdf", pdf(), None)
+    assert set(first.labels) == {account.quarantine_label}
+
     second = await DocumentService(admin, storage).upload(
         "report.pdf", pdf(), [account.finance_label]
     )
 
-    assert second.deduplicated is True
-    assert set(second.labels) == {default, account.finance_label}
-    assert await labels_of(account.tenant_id, first.document.id) == {
-        default,
-        account.finance_label,
-    }
+    assert set(second.labels) == {account.finance_label}
+    assert await labels_of(account.tenant_id, first.document.id) == {account.finance_label}
 
 
 async def test_a_label_the_caller_does_not_reach_is_refused(
@@ -249,7 +271,7 @@ async def test_delete_own_cannot_reach_another_users_upload(
     admin = await profile_for(account)
     uploaded = await DocumentService(admin, storage).upload("report.pdf", pdf())
 
-    from app.features.auth.permissions import CATALOGUE
+    from app.features.auth.access.permissions import CATALOGUE
 
     member = AccessProfile(
         user_id=account.member_id,

@@ -84,7 +84,15 @@ async def test_calling_it_twice_returns_the_same_label(account: Account) -> None
 async def test_an_upload_with_no_label_survives_the_default_being_deleted(
     account: Account, tmp_path: Path
 ) -> None:
-    """End to end: the refusal is gone and the document is filed where it would have been."""
+    """End to end: the refusal is gone and the upload still lands somewhere narrow.
+
+    Since 0017 an upload that names no compartment waits in the *quarantine* label rather
+    than the default, so deleting the default no longer touches this path — which is a
+    stronger version of what this test was always about. The default is still needed later,
+    by the classifier, when it declines and has to release the document; a tenant missing one
+    at that point keeps the document quarantined with a sentence saying why, which leaves one
+    document needing an administrator rather than the whole product refusing uploads.
+    """
     from sqlalchemy import text
 
     from app.core.database import owner_session
@@ -102,17 +110,21 @@ async def test_an_upload_with_no_label_survives_the_default_being_deleted(
     storage = DocumentStorage(root=tmp_path)
     result = await DocumentService(profile, storage).upload("unclassified.pdf", pdf())
 
-    # Filed under the restored default, and it is the tenant's default afterwards — the
-    # upload repaired the installation rather than merely surviving it.
+    # Quarantined, and the deleted default is *not* quietly recreated: nothing on this path
+    # needs it any more, and recreating a label somebody deleted belongs where it is actually
+    # required rather than as a side effect of an unrelated upload.
     async with owner_session() as session:
-        restored = (
+        present = (
             await session.execute(
-                text("SELECT id, name, is_default FROM access_labels WHERE tenant_id = :t"),
+                text(
+                    "SELECT id, name, is_default, is_quarantine "
+                    "FROM access_labels WHERE tenant_id = :t"
+                ),
                 {"t": account.tenant_id},
             )
         ).all()
 
-    default = [row for row in restored if row.is_default]
-    assert len(default) == 1
-    assert default[0].name == DEFAULT_LABEL
-    assert result.labels == [default[0].id]
+    assert [row for row in present if row.is_default] == []
+    quarantine = [row for row in present if row.is_quarantine]
+    assert len(quarantine) == 1
+    assert result.labels == [quarantine[0].id]
