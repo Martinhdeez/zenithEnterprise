@@ -17,7 +17,7 @@ from app.core.hardware import PROFILES
 from app.features.documents.service import DocumentService
 from app.features.documents.storage import DocumentStorage
 from app.features.embeddings.client import DIMENSION
-from app.features.ingestion.pipeline import IngestionPipeline
+from app.features.ingestion.pipeline import IngestionPipeline, Result
 from app.features.tenancy.context import TenantContext
 from conftest import Account
 
@@ -127,10 +127,13 @@ async def test_a_document_with_no_extractable_text_fails_rather_than_succeeding_
 async def test_low_spec_refuses_a_scan_instead_of_storing_it_empty(
     account: Account, storage: DocumentStorage
 ) -> None:
-    """The profile changes an outcome exactly once, and the change is a refusal.
+    """A page with no text layer cannot be read, and the refusal is the feature.
 
-    OCR is off on `low-spec`, so a page with no text layer cannot be read. Ingesting it as
-    "no content" would be the silent failure again, wearing a different hat.
+    Ingesting it as "no content" would be the silent failure again, wearing a different hat.
+    The profile used to decide this and no longer does: `cpu` and `gpu` declared `ocr=True`
+    against an engine that does not exist, which made the *same document* end up searchable
+    on one profile and absent on another. ADR 0005 allows a profile to change how long
+    ingestion takes and never which document a query finds.
     """
     document_id, context = await upload(account, storage, pdf_bytes([" "]))
 
@@ -138,7 +141,7 @@ async def test_low_spec_refuses_a_scan_instead_of_storing_it_empty(
     result = await pipeline.run(document_id)
 
     assert result.status == "failed"
-    assert "OCR is disabled" in (result.detail or "")
+    assert "no OCR is available" in (result.detail or "")
 
 
 async def test_running_twice_does_not_duplicate_anything(
@@ -254,3 +257,71 @@ async def test_every_chunk_carries_boxes_and_a_page_number(
     assert rows
     assert all(row.page_num >= 1 for row in rows)
     assert all(row.bboxes for row in rows)
+
+
+async def test_a_mixed_document_says_which_pages_are_not_searchable(
+    account: Account, storage: DocumentStorage
+) -> None:
+    """The silent case, and the one that actually reaches customers.
+
+    A fully scanned PDF fails loudly and always did. A *mixed* one — a contract with two
+    scanned signature pages, a report with a photographed appendix — behaved far worse: the
+    readable pages produced chunks, the document reached `ready`, and the scanned pages were
+    simply not in the index. Nothing said so. A search over that document answers
+    confidently from the part it happens to have, which is the same failure shape as a silent
+    leak and gets the same treatment here.
+
+    The page numbers are asserted, not just the count. Somebody holding the PDF needs to know
+    where to look, and "3 pages" does not tell them.
+    """
+    document_id, context = await upload(
+        account, storage, pdf_bytes([LONG_PAGE, " ", LONG_PAGE, " "])
+    )
+
+    pipeline = IngestionPipeline(context, storage, StubEmbedder(), PROFILES["cpu"])  # type: ignore[arg-type]
+    result = await pipeline.run(document_id)
+
+    # Ready, correctly: two of the four pages are searchable, and refusing the whole document
+    # would throw away work somebody can use.
+    assert result.status == "ready"
+
+    async with tenant_session(context) as session:
+        detail = await session.scalar(
+            text("SELECT status_detail FROM documents WHERE id = :d"), {"d": document_id}
+        )
+
+    assert detail is not None
+    assert "2 of 4 page(s) are not searchable" in detail
+    assert "page 2, 4" in detail
+    assert "OCR" in detail
+
+
+async def test_a_profile_that_permits_ocr_does_not_change_what_is_indexed(
+    account: Account, storage: DocumentStorage
+) -> None:
+    """ADR 0005's rule, tested where it was being broken.
+
+    A profile may change how long ingestion takes; it may never change which document a query
+    finds. `cpu` and `gpu` declared `ocr=True` against an engine nothing has wired, so the
+    same scanned page was dropped silently there and refused on `low-spec` — the same PDF,
+    two different corpora, decided by a hardware setting.
+    """
+    outcomes: list[Result] = []
+    seen: set[UUID] = set()
+    for index, name in enumerate(("low-spec", "cpu", "gpu")):
+        # A distinguishable document per profile. Identical bytes deduplicate into one
+        # document by sha256, and three profiles re-ingesting the same row would compare a
+        # result against itself.
+        document_id, context = await upload(
+            account, storage, pdf_bytes([f"{LONG_PAGE} profile {index}", " "])
+        )
+        seen.add(document_id)
+        pipeline = IngestionPipeline(context, storage, StubEmbedder(), PROFILES[name])  # type: ignore[arg-type]
+        outcomes.append(await pipeline.run(document_id))
+
+    assert len(seen) == 3, "the three runs must be three documents, not one deduplicated row"
+    assert {outcome.status for outcome in outcomes} == {"ready"}
+    assert {outcome.pages for outcome in outcomes} == {2}
+    # The number that matters: the scanned page is out of the index on every profile, so the
+    # searchable content of the same PDF does not depend on the hardware it landed on.
+    assert len({outcome.chunks for outcome in outcomes}) == 1
