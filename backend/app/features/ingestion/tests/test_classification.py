@@ -305,19 +305,27 @@ async def test_a_model_that_breaks_mid_call_reports_failure(account: Account) ->
     assert filing.outcome is Outcome.FAILED
 
 
-async def test_no_model_configured_is_unavailable_rather_than_failed(account: Account) -> None:
+async def test_no_model_configured_is_unavailable_rather_than_failed(
+    account: Account, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """An ordinary state, not an error: search works without generation, and ingestion has
     to work without either. It must not read as a failure — if it did, an installation with
-    no model would quarantine every document it ever ingested."""
-    document_id = await document(account.tenant_id, account.admin_id)
-    classifier = Classifier(context(account))
+    no model would quarantine every document it ever ingested.
 
-    async def unconfigured() -> object:
+    Patched at `provider_for`, which is where resolution lives since it stopped being written
+    twice. The injected-provider seam cannot express this case: the point is that there is no
+    provider to inject.
+    """
+    from app.features.ingestion import classification
+
+    document_id = await document(account.tenant_id, account.admin_id)
+
+    async def unconfigured(_context: object) -> object:
         raise RuntimeError("no provider configured")
 
-    classifier._resolve = unconfigured  # type: ignore[method-assign]
+    monkeypatch.setattr(classification, "provider_for", unconfigured)
 
-    filing = await classifier.file(document_id, account.admin_id, "text")
+    filing = await Classifier(context(account)).file(document_id, account.admin_id, "text")
 
     assert filing.labels == []
     assert filing.outcome is Outcome.UNAVAILABLE

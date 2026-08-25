@@ -23,8 +23,7 @@ from app.features.auth.service import AccessProfile
 from app.features.generation.answering import citations as binding
 from app.features.generation.answering import conversation, prompt, routing
 from app.features.generation.answering.streaming import filtered
-from app.features.generation.connector import providers
-from app.features.generation.connector.crypto import decrypt
+from app.features.generation.connector.resolve import provider_for
 from app.features.retrieval.search import Hit
 from app.features.retrieval.service import SearchResult, SearchService
 
@@ -302,41 +301,8 @@ class AnswerService:
         )
 
     async def _resolve(self) -> BaseLLMProvider:
-        """The tenant's own configuration, or the installation's, built by the registry.
-
-        This method reads a row and returns a `Configuration`; `providers.build` decides
-        what class that becomes. The split is what keeps provider selection in one place —
-        otherwise "which adapter runs" would be answered here for tenants and in settings
-        for everyone else, and the two would drift.
-
-        Read inside `tenant_session`, so the policy `tenant_id = zenith_current_tenant()`
-        does the scoping and the RLS bypass surface stays at the four routes 5.1 names.
-        There is nothing here a customer's own session may not read — it is their
-        configuration.
-        """
-        async with tenant_session(self.context) as session:
-            row = (
-                await session.execute(
-                    text(
-                        "SELECT endpoint_url, model_name, api_key_encrypted FROM llm_config LIMIT 1"
-                    )
-                )
-            ).first()
-
-        if row is None:
-            return providers.build(providers.from_settings())
-
-        return providers.build(
-            providers.Configuration(
-                # A tenant configures an endpoint and a model, never an adapter: which
-                # adapter speaks to that endpoint is an operator's decision about the
-                # installation, not a customer's about their account.
-                provider=providers.from_settings().provider,
-                endpoint_url=row.endpoint_url,
-                model=row.model_name,
-                api_key=decrypt(row.api_key_encrypted) if row.api_key_encrypted else None,
-            )
-        )
+        """The tenant's connector. See `connector/resolve.py` for why it lives there."""
+        return await provider_for(self.context)
 
     async def _record(
         self,

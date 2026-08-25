@@ -55,8 +55,7 @@ from sqlalchemy import text
 from app.common.llm import BaseLLMProvider
 from app.core.database import tenant_session
 from app.features.auth.repository import UserRepository
-from app.features.generation.connector import providers
-from app.features.generation.connector.crypto import decrypt
+from app.features.generation.connector.resolve import provider_for
 from app.features.tenancy.context import TenantContext
 
 log = structlog.get_logger()
@@ -167,7 +166,7 @@ class Classifier:
         # Folded into one `try`, an unconfigured installation would look like a broken one and
         # quarantine every document it ever ingests.
         try:
-            provider = self._provider or await self._resolve()
+            provider = self._provider or await provider_for(self.context)
         except Exception as error:  # noqa: BLE001
             log.info("classification_unavailable", document_id=str(document_id), error=str(error))
             return Filing([], Outcome.UNAVAILABLE)
@@ -227,30 +226,3 @@ class Classifier:
                 {"ids": [str(label_id) for label_id in reachable]},
             )
             return [(row.id, row.name) for row in rows]
-
-    async def _resolve(self) -> BaseLLMProvider:
-        """The tenant's connector, or the installation's.
-
-        The same resolution `AnswerService._resolve` performs, read inside the tenant's own
-        session so the RLS bypass surface does not grow for this.
-        """
-        async with tenant_session(self.context) as session:
-            row = (
-                await session.execute(
-                    text(
-                        "SELECT endpoint_url, model_name, api_key_encrypted FROM llm_config LIMIT 1"
-                    )
-                )
-            ).first()
-
-        if row is None:
-            return providers.build(providers.from_settings())
-
-        return providers.build(
-            providers.Configuration(
-                provider=providers.from_settings().provider,
-                endpoint_url=row.endpoint_url,
-                model=row.model_name,
-                api_key=decrypt(row.api_key_encrypted) if row.api_key_encrypted else None,
-            )
-        )
