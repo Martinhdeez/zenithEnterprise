@@ -83,6 +83,18 @@ def frame(page: object, width: float, height: float) -> tuple[float, float, floa
     return left, top, right, bottom
 
 
+def page_count(path: Path) -> int:
+    """How many pages, without decoding any of them.
+
+    `pdfplumber.open` reads the page tree and nothing else; the expensive work happens the
+    first time a page's characters are touched. So this is the cheap question to ask before
+    deciding whether to ask the expensive one, which is what makes a page limit enforceable
+    rather than merely configured.
+    """
+    with pdfplumber.open(path) as document:
+        return len(document.pages)
+
+
 class PdfPlumberParser:
     name = "pdfplumber"
 

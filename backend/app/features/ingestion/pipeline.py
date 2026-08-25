@@ -26,6 +26,7 @@ import structlog
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import tenant_session
 from app.core.hardware import Profile
 from app.core.hardware import active as active_profile
@@ -37,7 +38,7 @@ from app.features.embeddings.model import ChunkEmbedding, EmbeddingSpace
 from app.features.ingestion.chunking.chunker import Chunk, chunk_page
 from app.features.ingestion.classification import Classifier, Outcome
 from app.features.ingestion.parsers.base import ParsedPage
-from app.features.ingestion.parsers.pdfplumber_parser import PdfPlumberParser
+from app.features.ingestion.parsers.pdfplumber_parser import PdfPlumberParser, page_count
 from app.features.ingestion.routing import Route, decide
 from app.features.tenancy.context import TenantContext
 
@@ -116,6 +117,20 @@ class IngestionPipeline:
         if not path.exists():
             await self._mark_failed(document_id, "the stored file is missing")
             return Result(document_id, "failed", 0, 0, "the stored file is missing")
+
+        # Before parsing, because afterwards the cost has already been paid. `settings`
+        # has carried `max_pages_per_document` since it was written and nothing read it —
+        # a safeguard in name only, of the same kind as an abort listener nothing could
+        # reach. A document past the limit is refused with the number in the message, so
+        # the person holding a 4,000-page manual knows to split it rather than guessing.
+        pages_in_file = page_count(path)
+        if pages_in_file > settings.max_pages_per_document:
+            detail = (
+                f"this document has {pages_in_file} pages, more than the "
+                f"{settings.max_pages_per_document}-page limit for a single file"
+            )
+            await self._mark_failed(document_id, detail)
+            return Result(document_id, "failed", pages_in_file, 0, detail)
 
         await self._set_status(document_id, "parsing")
         pages = PdfPlumberParser().parse(path)

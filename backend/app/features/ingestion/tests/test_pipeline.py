@@ -325,3 +325,49 @@ async def test_a_profile_that_permits_ocr_does_not_change_what_is_indexed(
     # The number that matters: the scanned page is out of the index on every profile, so the
     # searchable content of the same PDF does not depend on the hardware it landed on.
     assert len({outcome.chunks for outcome in outcomes}) == 1
+
+
+async def test_a_document_past_the_page_limit_is_refused_before_it_is_parsed(
+    account: Account, storage: DocumentStorage, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`settings.max_pages_per_document` existed and nothing read it.
+
+    A safeguard in name only, of the same kind as an abort listener nothing could reach. The
+    refusal comes *before* parsing, which is the only place it saves anything: afterwards the
+    memory and the time have already been spent, and the whole point of a limit is not to
+    spend them.
+
+    The message names both numbers. Somebody holding a 4,000-page manual can act on "more than
+    the 3-page limit"; they cannot act on "too large".
+    """
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "max_pages_per_document", 3)
+    document_id, context = await upload(
+        account, storage, pdf_bytes([LONG_PAGE, LONG_PAGE, LONG_PAGE, LONG_PAGE])
+    )
+
+    embedder = StubEmbedder()
+    result = await IngestionPipeline(context, storage, embedder, PROFILES["cpu"]).run(document_id)  # type: ignore[arg-type]
+
+    assert result.status == "failed"
+    assert "4 pages" in (result.detail or "")
+    assert "3-page limit" in (result.detail or "")
+    # Nothing was embedded, which is the cost the limit exists to avoid.
+    assert embedder.calls == []
+
+
+async def test_a_document_within_the_limit_is_unaffected(
+    account: Account, storage: DocumentStorage, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The boundary is `>`, not `>=`: a document of exactly the limit is allowed."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "max_pages_per_document", 2)
+    document_id, context = await upload(account, storage, pdf_bytes([LONG_PAGE, LONG_PAGE]))
+
+    result = await IngestionPipeline(context, storage, StubEmbedder(), PROFILES["cpu"]).run(  # type: ignore[arg-type]
+        document_id
+    )
+
+    assert result.status == "ready"
