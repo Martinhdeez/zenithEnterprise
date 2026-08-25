@@ -8,7 +8,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const inviteUser = vi.fn();
 const roles = vi.fn();
@@ -25,10 +25,17 @@ vi.mock("../api", async () => {
 const { InvitePanel } = await import("./InvitePanel");
 
 const invite = async (email: string) => {
-  render(<InvitePanel token="t" />);
+  // Rendered and settled together: the panel fetches the role list on mount, and that
+  // resolves after the submit below has already run. React reports it as an update outside
+  // `act`, correctly — the form would be read before it has its roles.
+  await act(async () => {
+    render(<InvitePanel token="t" />);
+  });
   const field = await screen.findByLabelText("Email");
-  fireEvent.change(field, { target: { value: email } });
-  fireEvent.submit(field.closest("form")!);
+  await act(async () => {
+    fireEvent.change(field, { target: { value: email } });
+    fireEvent.submit(field.closest("form")!);
+  });
 };
 
 beforeEach(() => {

@@ -7,7 +7,7 @@
  * next question began with deleting the last one.
  */
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./stream/stream", async (importOriginal) => ({
@@ -29,7 +29,9 @@ beforeEach(() => {
 
 describe("after a question is sent", () => {
   it("is empty when the question was typed", async () => {
-    render(<Chat token="t" onCitation={() => {}} searchable />);
+    await act(async () => {
+      render(<Chat token="t" onCitation={() => {}} searchable />);
+    });
 
     fireEvent.change(composer(), { target: { value: "what does the contract say" } });
     expect(composer().value).toBe("what does the contract say");
@@ -57,7 +59,9 @@ describe("after a question is sent", () => {
 
   it("does not send an empty question", async () => {
     const { streamQuery } = await import("./stream/stream");
-    render(<Chat token="t" onCitation={() => {}} searchable />);
+    await act(async () => {
+      render(<Chat token="t" onCitation={() => {}} searchable />);
+    });
 
     fireEvent.change(composer(), { target: { value: "   " } });
     fireEvent.submit(composer());

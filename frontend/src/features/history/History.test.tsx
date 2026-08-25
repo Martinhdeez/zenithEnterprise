@@ -7,7 +7,7 @@
  * produced it and means nothing in a narrower one.
  */
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { History } from "./History";
@@ -33,15 +33,25 @@ beforeEach(() => {
   history.mockResolvedValue({ entries: [entry("q1", "what is my severance?")], next_cursor: null });
 });
 
-/** Past the 250 ms debounce, with real timers so React flushes the state it sets. */
+/**
+ * Past the 250 ms debounce, with real timers so React flushes the state it sets.
+ *
+ * Inside `act`, because the state the debounce sets — and the fetch it triggers — land here
+ * rather than at any call site. Without it every test in this file reported an update outside
+ * `act`: sixteen warnings for one timer, which is enough noise to hide a real one.
+ */
 async function settle() {
-  await new Promise((resolve) => setTimeout(resolve, 320));
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 320));
+  });
 }
 
 describe("searching", () => {
   it("does not send a request per keystroke", async () => {
     // A query per character, on a table that grows with every question anybody asks.
-    render(<History token="t" onAsk={vi.fn()} />);
+    await act(async () => {
+      render(<History token="t" onAsk={vi.fn()} />);
+    });
     await settle();
     history.mockClear();
 
@@ -62,7 +72,9 @@ describe("searching", () => {
   });
 
   it("sends what was typed once it settles", async () => {
-    render(<History token="t" onAsk={vi.fn()} />);
+    await act(async () => {
+      render(<History token="t" onAsk={vi.fn()} />);
+    });
     await settle();
 
     fireEvent.change(screen.getByLabelText("Search questions"), { target: { value: "sever" } });
@@ -80,7 +92,9 @@ describe("searching", () => {
   it("starts from the top rather than resuming a cursor", async () => {
     // A cursor names a position in the result set that produced it. Resuming a narrowed
     // list from it would start partway down a list nobody has seen the beginning of.
-    render(<History token="t" onAsk={vi.fn()} />);
+    await act(async () => {
+      render(<History token="t" onAsk={vi.fn()} />);
+    });
     await settle();
 
     fireEvent.change(screen.getByLabelText("Search questions"), { target: { value: "x" } });
@@ -93,7 +107,9 @@ describe("searching", () => {
 describe("the filters", () => {
   it("offers 'only mine' just when somebody else's question is present", async () => {
     // A filter that never changes anything teaches people to ignore filters.
-    render(<History token="t" onAsk={vi.fn()} />);
+    await act(async () => {
+      render(<History token="t" onAsk={vi.fn()} />);
+    });
     await settle();
 
     expect(screen.queryByRole("button", { name: "Only mine" })).toBeNull();
@@ -104,7 +120,9 @@ describe("the filters", () => {
       entries: [entry("q1", "mine"), entry("q2", "a colleague's", false)],
       next_cursor: null,
     });
-    render(<History token="t" onAsk={vi.fn()} />);
+    await act(async () => {
+      render(<History token="t" onAsk={vi.fn()} />);
+    });
     await settle();
 
     expect(await screen.findByRole("button", { name: "Only mine" })).toBeTruthy();
@@ -112,7 +130,9 @@ describe("the filters", () => {
 
   it("asks the server rather than filtering what is already on screen", async () => {
     // Filtering the loaded page would silently exclude everything on later pages.
-    render(<History token="t" onAsk={vi.fn()} />);
+    await act(async () => {
+      render(<History token="t" onAsk={vi.fn()} />);
+    });
     await settle();
 
     fireEvent.click(screen.getByRole("button", { name: "Found nothing" }));
@@ -128,7 +148,9 @@ describe("the filters", () => {
   });
 
   it("shows its state without needing the results read", async () => {
-    render(<History token="t" onAsk={vi.fn()} />);
+    await act(async () => {
+      render(<History token="t" onAsk={vi.fn()} />);
+    });
     await settle();
 
     const chip = screen.getByRole("button", { name: "Found nothing" });
@@ -148,7 +170,9 @@ describe("finding nothing", () => {
     // Two different questions with two different answers: one is fixed by changing the
     // filter, the other by asking something.
     history.mockResolvedValue({ entries: [], next_cursor: null });
-    render(<History token="t" onAsk={vi.fn()} />);
+    await act(async () => {
+      render(<History token="t" onAsk={vi.fn()} />);
+    });
     await settle();
 
     expect(await screen.findByText("You have not asked anything yet.")).toBeTruthy();
