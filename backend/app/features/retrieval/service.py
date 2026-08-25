@@ -23,10 +23,11 @@ from app.common.exceptions import PermissionDeniedError
 from app.core.database import tenant_session
 from app.core.hardware import Profile
 from app.core.hardware import active as active_profile
-from app.features.auth.permissions import CATALOGUE
+from app.features.auth.access.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
 from app.features.embeddings.client import MODEL, VERSION, TeiClient
 from app.features.retrieval.breaker import Breaker
+from app.features.retrieval.degradation import RERANKING_UNAVAILABLE, SEMANTIC_UNAVAILABLE
 from app.features.retrieval.identifiers import exact
 from app.features.retrieval.reranker import TeiReranker
 from app.features.retrieval.search import (
@@ -191,14 +192,21 @@ class SearchService:
             #
             # Still reported as degraded, because it is: the answer is the fused order and
             # the customer paid for better.
-            return hits[:limit], "reranking unavailable (circuit open); fused order"
+            #
+            # The circuit being open is a fact about this installation, not about the
+            # reader's results, so it goes to the log and the sentence they see says what
+            # actually changed for them. See `degradation.py`.
+            log.info("rerank_skipped", cause="circuit_open")
+            return hits[:limit], RERANKING_UNAVAILABLE
 
         try:
             scored = await self.reranker.rank(question, [hit.text for hit in hits])
         except Exception as exc:  # noqa: BLE001 - degrading is the point
             self.breaker.failed()
-            log.warning("rerank_failed", error=str(exc))
-            return hits[:limit], f"reranking unavailable ({type(exc).__name__}); fused order"
+            # The exception name stays here, where somebody who can fix it will look. It used
+            # to travel to the screen as well: `reranking unavailable (ReadTimeout)`.
+            log.warning("rerank_failed", error=str(exc), cause=type(exc).__name__)
+            return hits[:limit], RERANKING_UNAVAILABLE
 
         self.breaker.succeeded()
 
@@ -216,8 +224,8 @@ class SearchService:
         try:
             return await self.embedder.embed_query(question), None
         except Exception as exc:  # noqa: BLE001 - degrading is the point
-            log.warning("search_embedding_failed", error=str(exc))
-            return [], f"semantic search unavailable ({type(exc).__name__}); lexical only"
+            log.warning("search_embedding_failed", error=str(exc), cause=type(exc).__name__)
+            return [], SEMANTIC_UNAVAILABLE
 
     async def _reachable(self, documents: list[UUID]) -> None:
         """Scoping to a document you cannot open is a 403, not an empty answer.

@@ -103,6 +103,11 @@ export function Search({ token, onCitation, openChunkId, searchable, labels, onS
   const [state, setState] = useState<State>({ phase: "idle" });
   const [query, setQuery] = useState("");
   const [recent, setRecent] = useState<string[]>(readRecent);
+  // One switch for the whole list rather than one per result: the card itself is a
+  // `<button>`, and an expander inside it would be an interactive element nested in another
+  // — invalid, and unreachable by keyboard. It also matches how the detail is actually used:
+  // somebody asks how the ranking works, and every result answers at once.
+  const [showRanking, setShowRanking] = useState(false);
   const inflight = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -283,12 +288,33 @@ export function Search({ token, onCitation, openChunkId, searchable, labels, onS
 
       {state.phase === "done" && (
         <div className="space-y-3">
-          <p className="text-xs text-muted-foreground">
-            {state.hits.length} passage{state.hits.length === 1 ? "" : "s"} · {state.tookMs} ms
-            {state.degraded && (
-              <span className="ml-2 text-zenith-amber">Degraded: {state.reason}</span>
+          <div className="flex items-baseline justify-between gap-4 text-xs">
+            <p className="text-muted-foreground">
+              {state.hits.length} passage{state.hits.length === 1 ? "" : "s"} · {state.tookMs} ms
+              {state.degraded && (
+                // No "Degraded:" prefix any more. The sentence from `degradation.py` is
+                // already a complete statement written for a reader, and a label in front of
+                // it turns it back into a status code with prose attached.
+                <span className="ml-2 text-zenith-amber">{state.reason}</span>
+              )}
+            </p>
+            {state.hits.length > 0 && (
+              // The ranking evidence is genuinely the product's argument — this is the one
+              // search you can ask *why* — but it is an argument for somebody who asked. In
+              // front of an audience it read as four rows of decimals under every result,
+              // which is the first thing the eye lands on and the last thing a business
+              // reader can use. Off by default, one click away, and the button says what it
+              // reveals rather than naming the numbers.
+              <button
+                type="button"
+                onClick={() => setShowRanking((current) => !current)}
+                aria-pressed={showRanking}
+                className="shrink-0 rounded-full px-2 py-0.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                {showRanking ? "Hide ranking detail" : "Why these results?"}
+              </button>
             )}
-          </p>
+          </div>
 
           {state.hits.length === 0 && (
             <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
@@ -349,16 +375,7 @@ export function Search({ token, onCitation, openChunkId, searchable, labels, onS
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     <TagChips names={namesFor(hit)} onSelect={onSelectTag} short />
                   </div>
-                  <p className="mt-2 flex flex-wrap gap-x-3 font-mono text-xs text-muted-foreground/80">
-                    {hit.lexical_rank !== null && (
-                      <span>lexical #{hit.lexical_rank} ({hit.lexical_score?.toFixed(3)})</span>
-                    )}
-                    {hit.dense_rank !== null && (
-                      <span>dense #{hit.dense_rank} ({hit.dense_score?.toFixed(3)})</span>
-                    )}
-                    {hit.rerank_score !== null && <span>rerank {hit.rerank_score.toFixed(3)}</span>}
-                    <span>rrf {hit.score.toFixed(4)}</span>
-                  </p>
+                  {showRanking && <Ranking hit={hit} />}
                 </button>
               </li>
               );
@@ -367,5 +384,37 @@ export function Search({ token, onCitation, openChunkId, searchable, labels, onS
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * The evidence behind one result.
+ *
+ * This is the product's argument in four numbers: which half of the hybrid search found the
+ * passage, where each ranked it, and what the fusion and the reranker made of it. Nothing
+ * else in the product can answer "why is this first" — which is exactly why it is worth
+ * keeping, and exactly why it is not on by default. A row of decimals under every result is
+ * the first thing the eye lands on and the last thing a business reader can use.
+ *
+ * `lexical_rank` and `dense_rank` are null when that half did not return the passage at all,
+ * and that absence is the most informative case here: a result found only by meaning, or only
+ * by exact wording, is the hybrid search earning its keep.
+ */
+function Ranking({ hit }: { hit: SearchHit }) {
+  return (
+    <p className="mt-2 flex flex-wrap gap-x-3 font-mono text-xs text-muted-foreground/80">
+      {hit.lexical_rank !== null ? (
+        <span>keyword #{hit.lexical_rank} ({hit.lexical_score?.toFixed(3)})</span>
+      ) : (
+        <span className="text-muted-foreground/50">keyword —</span>
+      )}
+      {hit.dense_rank !== null ? (
+        <span>meaning #{hit.dense_rank} ({hit.dense_score?.toFixed(3)})</span>
+      ) : (
+        <span className="text-muted-foreground/50">meaning —</span>
+      )}
+      {hit.rerank_score !== null && <span>reranked {hit.rerank_score.toFixed(3)}</span>}
+      <span>combined {hit.score.toFixed(4)}</span>
+    </p>
   );
 }

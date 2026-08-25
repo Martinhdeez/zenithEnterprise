@@ -15,6 +15,7 @@ from app.core.database import owner_session, tenant_session
 from app.core.hardware import PROFILES
 from app.features.auth.service import AccessProfile
 from app.features.embeddings.client import DIMENSION, MODEL, VERSION
+from app.features.retrieval.degradation import SEMANTIC_UNAVAILABLE
 from app.features.retrieval.search import RRF_K, candidates, fuse
 from app.features.retrieval.service import SearchService
 from app.features.tenancy.context import TenantContext
@@ -84,7 +85,7 @@ async def seed(
 
 
 async def profile_for(account: Account, labels: tuple[UUID, ...] | None = None) -> AccessProfile:
-    from app.features.auth.permissions import CATALOGUE
+    from app.features.auth.access.permissions import CATALOGUE
 
     async with owner_session() as session:
         reachable = tuple(
@@ -159,7 +160,7 @@ async def test_a_tenant_cannot_search_another_tenants_corpus(account: Account) -
     query, which is exactly what this design refuses to rely on.
     """
     await seed(account.tenant_id, account.default_label)
-    from app.features.auth.permissions import CATALOGUE
+    from app.features.auth.access.permissions import CATALOGUE
 
     intruder = AccessProfile(
         user_id=uuid4(),
@@ -220,7 +221,7 @@ async def test_an_unreachable_embedding_service_degrades_rather_than_failing(
     result = await service(await profile_for(account)).search("technical measures")
 
     assert result.degraded is True
-    assert result.reason and "lexical" in result.reason
+    assert result.reason == SEMANTIC_UNAVAILABLE
     assert result.hits, "the lexical half must still answer"
 
 

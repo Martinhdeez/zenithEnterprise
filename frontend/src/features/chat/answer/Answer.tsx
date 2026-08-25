@@ -227,7 +227,11 @@ function Footer({ result }: { result: QueryResult }) {
         // Never swallowed. F11 found a configuration where the reranker was silently
         // failing on every request for as long as nobody looked; the UI is the last place
         // that can make that visible to whoever can fix it.
-        <p className="text-zenith-amber">Answer quality reduced: {result.reason}</p>
+        // The reason is a finished sentence written for whoever is reading the answer — see
+        // `retrieval/degradation.py`. Prefixing it with "Answer quality reduced" says the
+        // frightening half twice and the useful half once, and it is the frightening half
+        // that makes somebody discard a correct answer.
+        <p className="text-zenith-amber">{result.reason}</p>
       )}
       {result.abstained && result.consulted.length > 0 && (
         // mvp.md 2.10: an abstention says what it looked at. "I found nothing" and "I

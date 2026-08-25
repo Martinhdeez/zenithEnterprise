@@ -104,14 +104,17 @@ describe("<Answer />", () => {
   it("surfaces a degraded answer rather than swallowing it", () => {
     // F11 found a configuration where the reranker failed on every request for as long as
     // nobody looked. The UI is the last place that can make that visible.
-    render(
-      <Answer
-        state={final({ degraded: true, reason: "reranking unavailable; fused order" })}
-        onCitation={vi.fn()}
-      />,
-    );
+    //
+    // The reason arrives as a finished sentence from `retrieval/degradation.py` and is shown
+    // as it stands. It used to be prefixed with "Answer quality reduced", which said the
+    // frightening half twice and the useful half once — and it is the frightening half that
+    // makes somebody discard an answer that was correct.
+    const reason =
+      "Advanced result ordering is temporarily unavailable — the same documents were found, " +
+      "but their order is less refined than usual.";
+    render(<Answer state={final({ degraded: true, reason })} onCitation={vi.fn()} />);
 
-    expect(screen.getByText(/answer quality reduced/i)).toBeTruthy();
+    expect(screen.getByText(reason)).toBeTruthy();
   });
 
   it("renders an error without pretending it was an answer", () => {

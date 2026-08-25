@@ -112,3 +112,72 @@ describe("marking the open result", () => {
     expect(onCitation).toHaveBeenCalledWith(expect.objectContaining({ chunk_id: "two" }));
   });
 });
+
+/**
+ * The ranking evidence, and who it is for.
+ *
+ * This is the one search in the product that can answer "why is this first" — which is the
+ * argument the product is sold on, and precisely why it used to sit under every result as
+ * four rows of decimals. In front of an audience that is the first thing the eye lands on
+ * and the last thing a business reader can use.
+ */
+describe("ranking detail", () => {
+  it("is hidden until somebody asks for it", async () => {
+    await run();
+
+    expect(screen.queryByText(/combined/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Why these results?" })).toBeTruthy();
+  });
+
+  it("appears for every result at once", async () => {
+    await run();
+
+    fireEvent.click(screen.getByRole("button", { name: "Why these results?" }));
+
+    // Both results, not just the one that was clicked: the question is about the ranking,
+    // and a single result cannot answer it.
+    expect(screen.getAllByText(/combined/)).toHaveLength(2);
+  });
+
+  it("can be put away again", async () => {
+    await run();
+    const toggle = screen.getByRole("button", { name: "Why these results?" });
+
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("button", { name: "Hide ranking detail" }));
+
+    expect(screen.queryByText(/combined/)).toBeNull();
+  });
+
+  it("says which half of the search missed the passage", async () => {
+    // The most informative case in the whole panel: a passage only one half found is the
+    // hybrid search earning its keep, and a blank column says that where a missing row
+    // would just look like an absent number.
+    results.mockResolvedValue({
+      hits: [{ ...hit("one", "handbook.pdf"), dense_rank: null, dense_score: null }],
+      degraded: false,
+      reason: null,
+      took_ms: 12,
+    });
+    render(<Search token="t" onCitation={vi.fn()} openChunkId={null} searchable />);
+    const box = screen.getByLabelText("Search");
+    fireEvent.change(box, { target: { value: "severance" } });
+    fireEvent.submit(box.closest("form")!);
+    await screen.findByText(/1 passage/);
+
+    fireEvent.click(screen.getByRole("button", { name: "Why these results?" }));
+
+    expect(screen.getByText("meaning —")).toBeTruthy();
+  });
+
+  it("offers nothing to expand when nothing matched", async () => {
+    results.mockResolvedValue({ hits: [], degraded: false, reason: null, took_ms: 4 });
+    render(<Search token="t" onCitation={vi.fn()} openChunkId={null} searchable />);
+    const box = screen.getByLabelText("Search");
+    fireEvent.change(box, { target: { value: "nothing" } });
+    fireEvent.submit(box.closest("form")!);
+    await screen.findByText(/0 passages/);
+
+    expect(screen.queryByRole("button", { name: "Why these results?" })).toBeNull();
+  });
+});

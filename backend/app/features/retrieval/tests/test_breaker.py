@@ -13,6 +13,7 @@ import httpx
 
 from app.core.hardware import PROFILES
 from app.features.retrieval.breaker import Breaker, State
+from app.features.retrieval.degradation import RERANKING_UNAVAILABLE
 from app.features.retrieval.service import SearchService
 from conftest import Account, WorkingEmbedder
 
@@ -174,4 +175,7 @@ async def test_the_answer_still_says_it_is_degraded_while_open(account: Account)
     ).search(QUERY)
 
     assert result.degraded is True
-    assert "circuit open" in (result.reason or "")
+    # The sentence a reader gets, not the mechanism. That the circuit was open is a fact
+    # about this installation and belongs in the log; what reaches the screen has to be
+    # about their results. See `degradation.py`.
+    assert result.reason == RERANKING_UNAVAILABLE
