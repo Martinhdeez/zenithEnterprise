@@ -49,6 +49,7 @@ import { CommandPalette } from "@/shared/ui/CommandPalette";
 import { Section } from "@/shared/components/Section";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
+import { forget, read, write } from "@/shared/lib/storage";
 
 // Lazily loaded, and for a measured reason: `pdf.js` is roughly 1.4 MB of worker plus its
 // own runtime, and none of it is needed until someone clicks a citation. F11 made
@@ -87,33 +88,6 @@ function capitalise(name: string): string {
 }
 
 /**
- * A browser preference, read and written without ever being able to fail.
- *
- * `localStorage` is not always there. Safari in private browsing and enterprise policies
- * that block site data both make it absent or make every access throw, and these two calls
- * sit in the render path of the entire application — so an unguarded read turned "your
- * browser will not store a preference" into "the product does not load".
- *
- * Nothing here is worth an error message. A forgotten sidebar state is a smaller loss than
- * anything the alternative costs.
- */
-function remembered(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function remember(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // Quota full, or a browser refusing storage outright.
-  }
-}
-
-/**
  * The one path that must work before anybody is signed in.
  *
  * Read from `location` rather than routed, because this app has no router: the shell is a
@@ -126,7 +100,7 @@ function setPasswordToken(): string | null {
 }
 
 export function App() {
-  const [token, setToken] = useState<string | null>(() => sessionStorage.getItem(TOKEN_KEY));
+  const [token, setToken] = useState<string | null>(() => read("session", TOKEN_KEY));
   const [status, setStatus] = useState<TenantStatus | null>(null);
   const [me, setMe] = useState<UserProfile | null>(null);
   const [citation, setCitation] = useState<Citation | null>(null);
@@ -171,10 +145,10 @@ export function App() {
   // preference store took down the entire product rather than one sidebar setting. `Search`
   // learned the same lesson where it cost a search result; this is the version that costs
   // everything.
-  const [collapsed, setCollapsed] = useState(() => remembered(SIDEBAR_KEY) === "true");
+  const [collapsed, setCollapsed] = useState(() => read("local", SIDEBAR_KEY) === "true");
 
   useEffect(() => {
-    remember(SIDEBAR_KEY, String(collapsed));
+    write("local", SIDEBAR_KEY, String(collapsed));
   }, [collapsed]);
 
   // Changing section closes whatever document was open. The preview belongs to the screen
@@ -187,8 +161,8 @@ export function App() {
   }, []);
 
   const signOut = useCallback(() => {
-    sessionStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(REFRESH_KEY);
+    forget("session", TOKEN_KEY);
+    forget("session", REFRESH_KEY);
     setToken(null);
   }, []);
 
@@ -256,19 +230,19 @@ export function App() {
   useEffect(() => {
     if (!token) return;
     const timer = setInterval(() => {
-      const held = sessionStorage.getItem(REFRESH_KEY);
+      const held = read("session", REFRESH_KEY);
       if (!held) return;
       void refreshTokens(held)
         .then((pair) => {
-          sessionStorage.setItem(TOKEN_KEY, pair.access_token);
-          sessionStorage.setItem(REFRESH_KEY, pair.refresh_token);
+          write("session", TOKEN_KEY, pair.access_token);
+          write("session", REFRESH_KEY, pair.refresh_token);
           setToken(pair.access_token);
         })
         .catch(() => {
           // The refresh token itself is gone or revoked — nothing left to do but ask the
           // user to sign in again, same as if the access token had simply run out.
-          sessionStorage.removeItem(TOKEN_KEY);
-          sessionStorage.removeItem(REFRESH_KEY);
+          forget("session", TOKEN_KEY);
+          forget("session", REFRESH_KEY);
           setToken(null);
         });
     }, REFRESH_INTERVAL_MS);
@@ -287,8 +261,8 @@ export function App() {
     return (
       <Login
         onAuthenticated={(issued) => {
-          sessionStorage.setItem(TOKEN_KEY, issued.access_token);
-          sessionStorage.setItem(REFRESH_KEY, issued.refresh_token);
+          write("session", TOKEN_KEY, issued.access_token);
+          write("session", REFRESH_KEY, issued.refresh_token);
           setToken(issued.access_token);
         }}
       />

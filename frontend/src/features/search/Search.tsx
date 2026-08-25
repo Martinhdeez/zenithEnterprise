@@ -21,6 +21,7 @@ import { TagChips, labels as fetchLabels } from "@/features/labels";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProgressBar } from "@/shared/components/ProgressBar";
+import { forget, read, write } from "@/shared/lib/storage";
 
 interface Props {
   token: string;
@@ -78,11 +79,12 @@ const RECENT_LIMIT = 5;
  */
 function readRecent(): string[] {
   try {
-    const raw: unknown = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
+    const raw: unknown = JSON.parse(read("local", RECENT_KEY) ?? "[]");
     return Array.isArray(raw) ? raw.filter((item): item is string => typeof item === "string") : [];
   } catch {
     // Hand-edited or written by an older version. A broken preference is not worth an
-    // error on a screen whose job is to search.
+    // error on a screen whose job is to search. (`read` handles a browser that refuses
+    // storage; this handles a value that is there and is not JSON.)
     return [];
   }
 }
@@ -91,17 +93,11 @@ function remember(query: string): string[] {
   // Most recent first, no duplicates: searching the same thing twice should move it to the
   // top rather than fill the list with one word.
   const next = [query, ...readRecent().filter((item) => item !== query)].slice(0, RECENT_LIMIT);
-  try {
-    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
-  } catch {
-    // Reading was already guarded and writing was not, which is the asymmetry that mattered:
-    // `setItem` throws when the quota is full or the browser refuses storage outright —
-    // Safari in private browsing, or an enterprise policy — and this call sits inside the
-    // `try` around the search. So a search that worked perfectly reported "The search
-    // failed", because a convenience nobody asked for could not save a string.
-    // The list is a nicety; the results are the product. Losing the first is not worth
-    // failing the second.
-  }
+  // Guarded in `shared/lib/storage`, and the reason is recorded there: `setItem` throws when
+  // the quota is full or the browser refuses storage, and this call sits inside the `try`
+  // around the search itself. A search that worked perfectly once reported "The search
+  // failed", because a convenience nobody asked for could not save a string.
+  write("local", RECENT_KEY, JSON.stringify(next));
   return next;
 }
 
@@ -282,7 +278,7 @@ export function Search({
               <button
                 type="button"
                 onClick={() => {
-                  localStorage.removeItem(RECENT_KEY);
+                  forget("local", RECENT_KEY);
                   setRecent([]);
                 }}
                 className="text-xs text-muted-foreground/60 transition-colors hover:text-foreground"
