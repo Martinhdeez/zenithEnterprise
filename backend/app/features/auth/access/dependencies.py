@@ -17,6 +17,7 @@ from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.common.exceptions import AuthenticationError, PermissionDeniedError
+from app.core.request_context import bind_tenant
 from app.features.auth.service import AccessProfile, AuthService
 
 # `auto_error=False` so a missing header raises our own 401 through the domain error
@@ -30,6 +31,11 @@ async def current_profile(
     if credentials is None:
         raise AuthenticationError("missing bearer token")
     user_id, tenant_id = AuthService().principal(credentials.credentials)
+    # Here rather than in the middleware, which runs before anything has read the token — a
+    # tenant guessed from an unverified header would be worse than no tenant at all. The user
+    # id is deliberately not bound: `request_context` explains why it belongs in the audit
+    # trail rather than in an operational log a support engineer tails.
+    bind_tenant(tenant_id)
     return await AuthService().profile(user_id, tenant_id)
 
 
