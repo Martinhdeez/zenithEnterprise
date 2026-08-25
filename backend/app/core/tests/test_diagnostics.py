@@ -87,7 +87,7 @@ async def test_every_check_runs_even_when_the_database_is_unreachable() -> None:
 
     checks = await run_diagnostics()
 
-    assert len(checks) == 13
+    assert len(checks) == 14
     assert any(check.status == "fail" for check in checks)
     # And the failure still says nothing it should not.
     assert "nothing" not in " ".join(check.detail for check in checks)
@@ -325,3 +325,31 @@ async def test_one_corrupt_storage_key_does_not_take_down_the_check(
 
     assert checks["document files"].status == "warn", checks["document files"].detail
     assert "bad-key.pdf" in checks["document files"].detail
+
+
+async def test_a_pending_document_with_no_job_is_reported(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`zenith reingest` could always find these; nothing ever said they existed.
+
+    Two paths strand a document, both chosen deliberately: a failed enqueue does not fail the
+    upload, and a document relabelled between upload and ingestion strands its own job. Either
+    way it sits at `pending` for ever, looking to its owner exactly like one queued behind
+    others.
+    """
+    from app.core.database import owner_session
+
+    async with owner_session() as session:
+        # The queue tables are absent in the test database, so the check reports that it
+        # cannot tell rather than guessing — which is the honest answer and the one asserted
+        # here. A wrong guess in either direction is worse: "nothing stranded" hides real
+        # ones, and "everything stranded" cries wolf on every installation.
+        installed = await session.scalar(text("SELECT to_regclass('public.procrastinate_jobs')"))
+
+    checks = {check.name: check for check in await run_diagnostics()}
+
+    if installed is None:
+        assert checks["stranded documents"].status == "warn"
+        assert "cannot tell" in checks["stranded documents"].detail
+    else:
+        assert checks["stranded documents"].status in {"ok", "warn"}

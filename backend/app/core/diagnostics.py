@@ -196,6 +196,48 @@ async def _job_queue() -> tuple[Status, str]:
     return "ok", f"installed, {waiting} job(s) waiting"
 
 
+async def _stranded_documents() -> tuple[Status, str]:
+    """Documents that should be in the pipeline and are not.
+
+    Two paths leave one behind, both chosen deliberately and both documented in
+    `ingestion/requeue.py`: a failed enqueue does not fail the upload, because losing a
+    customer's document to a queue insert would be far worse than leaving it `pending`; and a
+    document relabelled between upload and ingestion strands its own job, which is the price
+    of keeping the RLS bypass surface at four routes.
+
+    `zenith reingest` has been able to find and fix these since it was written. Nothing ever
+    said they existed — the document sits at `pending` for ever, looking to its owner exactly
+    like one that is merely queued behind others.
+
+    Which is why this asks a narrower question than `find_stranded` does. Anything `pending`
+    *with* a job waiting is a healthy queue doing its work; only `pending` with nothing behind
+    it is stuck. A check that counted the first would report a busy installation as broken
+    every time somebody uploaded a batch.
+    """
+    async with get_owner_session_factory()() as session:
+        if not await session.scalar(text("SELECT to_regclass('public.procrastinate_jobs')")):
+            # The queue check above already reports this, and with the sentence that fixes it.
+            return "warn", "cannot tell: the job-queue tables are not installed"
+
+        stranded = await session.scalar(
+            text(
+                "SELECT count(*) FROM documents d "
+                "WHERE d.status = 'pending' AND NOT EXISTS ("
+                "  SELECT 1 FROM procrastinate_jobs j "
+                "  WHERE j.status IN ('todo', 'doing') "
+                "    AND j.args->>'document_id' = d.id::text"
+                ")"
+            )
+        )
+
+    if not stranded:
+        return "ok", "no documents waiting without a job"
+    return "warn", (
+        f"{stranded} document(s) are pending with no job behind them and will never ingest. "
+        f"Run the `reingest` CLI command to put them back in the queue."
+    )
+
+
 async def _orphaned_documents() -> tuple[Status, str]:
     """Rows whose PDF is no longer on disk.
 
@@ -406,6 +448,7 @@ async def run_diagnostics() -> list[Check]:
         await _timed("document storage", _storage),
         # After storage, because it needs the storage root to be readable to mean anything.
         await _timed("document files", _orphaned_documents),
+        await _timed("stranded documents", _stranded_documents),
         await _timed("hardware profile", _hardware),
         await _timed("vector space", _vector_space),
         await _timed("embedding service", _model_service("embed", settings.tei_embed_url)),
