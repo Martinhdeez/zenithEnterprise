@@ -25,11 +25,7 @@ import { FileText, UploadCloud, X } from "lucide-react";
 
 import { uploadDocument, type DocumentSummary } from "../api";
 import { LabelPicker, labels as fetchLabels, type Label } from "@/features/labels";
-import {
-  PROCESSING,
-  processing,
-  progress,
-} from "./uploadProgress";
+import { PROCESSING, formatEta, formatRate, processing, progress } from "./uploadProgress";
 import {
   CONCURRENCY,
   cancellable,
@@ -178,10 +174,16 @@ export function Upload({ token, onUploaded }: Props) {
           const uploaded = await uploadDocument(item.file, token, forThisFile, {
             ...options,
             signal: controller?.signal,
-            onProgress: ({ loaded, total }) =>
+            onProgress: ({ loaded, total }) => {
+              const stats = progress(loaded, total, Date.now() - started);
               setQueue((current) =>
-                update(current, item.id, { percent: progress(loaded, total, Date.now() - started).percent }),
-              ),
+                update(current, item.id, {
+                  percent: stats.percent,
+                  bytesPerSecond: stats.bytesPerSecond,
+                  secondsRemaining: stats.secondsRemaining,
+                }),
+              );
+            },
           });
 
           // The bytes are in and the request is already answered: `POST /documents`
@@ -605,7 +607,7 @@ function UploadQueue({
               title={item.message}
             >
               {item.phase === "queued" && "Queued"}
-              {item.phase === "uploading" && `${item.percent}%`}
+              {item.phase === "uploading" && <Transferring item={item} />}
               {item.phase === "processing" && (item.stage ?? "Processing")}
               {item.phase === "done" && "Done"}
               {item.phase === "unresolved" && (item.message ?? "Still processing")}
@@ -630,5 +632,32 @@ function UploadQueue({
         ))}
       </ul>
     </div>
+  );
+}
+
+/**
+ * What a row says while its bytes are moving.
+ *
+ * The percentage alone is the least useful of the three numbers on a migration: it says how
+ * far *this* file has got and nothing about whether the transfer is still moving. A rate is
+ * what tells somebody watching a 400 MB upload that it has not stalled, and an estimate is
+ * what tells them whether to wait.
+ *
+ * Both were computed on every progress event and thrown away — `formatRate` and `formatEta`
+ * existed, were tested, and were called by nothing but their own tests. Dead code wearing a
+ * feature's clothes, which is the same thing `uploadAbort.test.ts` was written about.
+ *
+ * They appear only once there is a sample worth reporting. `progress()` returns null for both
+ * in the first tenth of a second, because dividing by a near-zero elapsed time claims
+ * gigabytes per second and no time remaining on a transfer that has barely started.
+ */
+function Transferring({ item }: { item: QueueItem }) {
+  const rate = formatRate(item.bytesPerSecond ?? null);
+  const eta = formatEta(item.secondsRemaining ?? null);
+  return (
+    <>
+      {item.percent}%{rate && ` · ${rate}`}
+      {eta && <span className="text-muted-foreground/70"> · {eta} left</span>}
+    </>
   );
 }

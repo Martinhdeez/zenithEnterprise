@@ -126,3 +126,69 @@ describe("a file the server rejects", () => {
     await waitFor(() => expect(uploads).toHaveBeenCalledTimes(5), { timeout: 3000 });
   });
 });
+
+/**
+ * The two numbers the row used to compute and discard.
+ *
+ * `progress()` has returned a rate and an estimate on every event since it was written, and
+ * `formatRate`/`formatEta` formatted them for nobody — the row showed a percentage and
+ * dropped the rest. On a large upload the percentage is the least useful of the three: it
+ * says how far this file has got and nothing about whether the transfer is still moving.
+ */
+describe("a file whose bytes are still moving", () => {
+  it("shows the rate and the time left beside the percentage", async () => {
+    watches.mockImplementation(() => new Promise(() => {}));
+    // Hold the upload open so the row stays in `uploading`, and report progress the way the
+    // XHR does.
+    let report: ((event: { loaded: number; total: number }) => void) | undefined;
+    uploads.mockImplementation(
+      (_file, _token, _labels, options) =>
+        new Promise(() => {
+          report = options?.onProgress;
+        }),
+    );
+
+    // Two files, not one: a single dropped file goes to the review step rather than the
+    // staging table, and never reaches the queue this is about.
+    render(<Upload token="t" onUploaded={() => {}} />);
+    await drop(2);
+
+    await waitFor(() => expect(report).toBeDefined());
+    // Past the hundred-millisecond guard in `progress()`, deliberately with the real clock.
+    // Before it there is no rate worth reporting — which is the *other* test below — and
+    // faking the timer here would test the mock rather than the guard.
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    // 500 kB of a megabyte. The rate is whatever the clock says; what matters is that a rate
+    // and an estimate are rendered at all.
+    await act(async () => {
+      report?.({ loaded: 500_000, total: 1_000_000 });
+    });
+
+    expect(await screen.findByText(/50%/)).toBeTruthy();
+    expect(screen.getByText(/left/)).toBeTruthy();
+  });
+
+  it("shows the percentage alone before there is a sample worth reporting", async () => {
+    // `progress()` returns null for both inside the first tenth of a second: dividing by a
+    // near-zero elapsed time claims gigabytes per second and no time remaining.
+    watches.mockImplementation(() => new Promise(() => {}));
+    let report: ((event: { loaded: number; total: number }) => void) | undefined;
+    uploads.mockImplementation(
+      (_file, _token, _labels, options) =>
+        new Promise(() => {
+          report = options?.onProgress;
+        }),
+    );
+
+    render(<Upload token="t" onUploaded={() => {}} />);
+    await drop(2);
+    await waitFor(() => expect(report).toBeDefined());
+
+    await act(async () => {
+      report?.({ loaded: 0, total: 1_000_000 });
+    });
+
+    expect(screen.queryByText(/left/)).toBeNull();
+  });
+});

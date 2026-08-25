@@ -65,6 +65,16 @@ export interface QueueItem {
   phase: ItemPhase;
   /** 0–100, meaningful while `uploading`. */
   percent: number;
+  /**
+   * Transfer rate and time left, both meaningful only while `uploading`.
+   *
+   * `uploadProgress.ts` has computed these on every progress event since it was written, and
+   * `formatRate`/`formatEta` have formatted them for nobody: the row showed a percentage and
+   * dropped the rest. On a migration the percentage is the least useful of the three — it
+   * says how far one file has got and nothing about whether the transfer is moving.
+   */
+  bytesPerSecond?: number | null;
+  secondsRemaining?: number | null;
   /** Which ingestion stage the server last reported. Only while `processing`. */
   stage?: string;
   /** The document id, once the server has one. */
