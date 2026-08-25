@@ -13,7 +13,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { boxesOnPage, toRect, type Box } from "./highlight";
+import { boxesOnPage, scrollTargetFor, toRect, type Box } from "./highlight";
 import type { Citation } from "@/features/chat";
 
 // The worker is loaded from the bundle rather than a CDN. This product is installed inside
@@ -31,6 +31,7 @@ interface Props {
 
 export function PdfViewer({ citation, token }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -38,6 +39,30 @@ export function PdfViewer({ citation, token }: Props) {
   useEffect(() => {
     if (citation) setPage(citation.page_num);
   }, [citation]);
+
+  /**
+   * Bring the highlight into view once the page has rendered.
+   *
+   * The panel is a third of the screen and the page is drawn at its natural width, so a
+   * passage in the lower half of a page is below the fold — and the reader has to hunt for
+   * the very thing they clicked to see. `scrollTargetFor` was written for this, with a
+   * careful note about not putting the highlight flush against the top edge, and was called
+   * by nothing: the product's central interaction stopped one step short of finishing.
+   *
+   * Depends on `size`, which is set when the canvas has been painted. Scrolling before that
+   * moves a container whose content has no height yet.
+   */
+  useEffect(() => {
+    const container = scroller.current;
+    const sheet = canvas.current;
+    if (!citation || !size || !container || !sheet) return;
+
+    const boxes = boxesOnPage(citation.bboxes as unknown as Box[], page);
+    if (!boxes.length) return;
+
+    const rect = toRect(boxes[0]!, size.width, size.height);
+    container.scrollTop = scrollTargetFor(rect, sheet.offsetTop, container.clientHeight);
+  }, [citation, page, size]);
 
   useEffect(() => {
     if (!citation) return;
@@ -106,7 +131,7 @@ export function PdfViewer({ citation, token }: Props) {
         </p>
       </header>
 
-      <div className="flex-1 overflow-auto bg-slate-100 p-4">
+      <div ref={scroller} className="flex-1 overflow-auto bg-slate-100 p-4">
         {error ? (
           <p role="alert" className="text-sm text-red-800">
             {error}
