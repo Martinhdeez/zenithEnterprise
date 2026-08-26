@@ -140,7 +140,14 @@ def live() -> int:
     return run(url, token)
 
 
-COMMANDS = ("fetch", "layout", "grounding", "answers", "live")
+def ef_search() -> int:
+    """What `hnsw_ef_search` is worth on this machine. Read-only, needs no token."""
+    from eval.ef_search import run
+
+    return run()
+
+
+COMMANDS = ("fetch", "layout", "grounding", "answers", "live", "ef-search")
 
 
 def main() -> int:
@@ -150,9 +157,12 @@ def main() -> int:
             "       python -m eval layout [--limit N]\n"
             "       python -m eval grounding\n"
             "       python -m eval answers\n"
-            "       python -m eval live --token <jwt> [--url http://localhost:8000]"
+            "       python -m eval live --token <jwt> [--url http://localhost:8000]\n"
+            "       python -m eval ef-search"
         )
         return 2
+    if sys.argv[1] == "ef-search":
+        return ef_search()
     if sys.argv[1] == "live":
         return live()
     if sys.argv[1] == "grounding":

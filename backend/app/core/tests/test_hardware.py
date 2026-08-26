@@ -28,6 +28,28 @@ def test_every_profile_is_internally_consistent() -> None:
         )
 
 
+def test_ef_search_can_fill_the_candidate_set() -> None:
+    """A profile below the candidate count truncates the dense half and says nothing.
+
+    pgvector returns at most `ef_search` rows from one index scan, so `low-spec` at 40
+    answered a 50-candidate request with forty rows — 76.3% of the true top-50, and on the
+    one profile with no reranker downstream to repair it. Nothing failed, nothing logged;
+    fusion simply got a smaller union than it asked for. Swept on the demonstration
+    machine, `eval/ef-search.json`.
+
+    Only the floor is asserted. Above it the value stopped changing any result we could
+    measure, so this pins the property that matters and leaves the tuning alone.
+    """
+    from app.features.retrieval.search import CANDIDATES
+
+    for profile in PROFILES.values():
+        assert profile.hnsw_ef_search >= CANDIDATES, (
+            f"{profile.name}: ef_search {profile.hnsw_ef_search} is below the "
+            f"{CANDIDATES} candidates the dense half asks for, so the index cannot return "
+            "them all and fusion is handed a truncated union"
+        )
+
+
 def test_low_spec_is_strictly_sequential() -> None:
     """Not a preference. M0 killed TEI twice on this hardware — once by OOM during warm-up,
     once with exit 139 when concurrency was pushed into the server."""

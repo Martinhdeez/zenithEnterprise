@@ -81,8 +81,20 @@ class Profile:
     rerank_candidates: int
 
     # How hard the HNSW index works per query. A speed/recall trade, which is exactly what
-    # a profile is for: at pgvector's default the index caps recall below what the data
-    # supports, and raising it costs latency the `low-spec` box does not have to give.
+    # a profile is for.
+    #
+    # **It must never be below `retrieval.search.CANDIDATES`, and this is not a tuning
+    # preference.** pgvector will not return more rows than `ef_search` from a single index
+    # scan, so a profile whose value is under the candidate count silently truncates the
+    # dense half: `low-spec` at 40 answered a `LIMIT 50` with forty rows, and the ten it
+    # dropped were not the ten nearest — index recall over the true top-50 was 76.3%, with
+    # one question in the set recovering *nothing*. That profile is also the one that runs
+    # without a reranker, so it has nothing downstream to repair the shortfall.
+    # `test_ef_search_can_fill_the_candidate_set` is the assertion that keeps it above the
+    # floor.
+    #
+    # Above the floor it stops mattering, and that is measured rather than assumed — see
+    # `eval/ef-search.json` and the note on `cpu` below.
     hnsw_ef_search: int
 
     # Components this profile disabled, in the words `zenith diagnose` prints. Degradations
@@ -175,6 +187,28 @@ PROFILES: Final[dict[str, Profile]] = {
     # times as often, and RRF's own top-eight beat its reordering of thirty-two. The latency
     # headroom the smaller model bought cannot be spent on depth. It could be spent on a
     # better cross-encoder, which is what a GPU deployment should do.
+    #
+    # `hnsw_ef_search` stays at 100, and that is now a finding rather than an inheritance.
+    # Swept on the demonstration machine against the live corpus (`eval/ef-search.json`):
+    #
+    #     ef    index recall@50   worst query   dense scan
+    #     40         76.3%            0%          0.8 ms   <- cannot fill 50; see the field
+    #     100        98.3%           80%          1.0 ms
+    #     200        99.3%           94%          1.2 ms
+    #     400        99.9%           96%          1.7 ms
+    #     800       100.0%          100%         48.8 ms   <- a cliff, 48x for 0.1 points
+    #
+    # So 400 looks free — 0.7 ms of an 840 ms search to recover the last neighbours. It is
+    # also **worth nothing**, which is the part that decided this. End to end over the same
+    # thirty questions, ef 100, 200 and 400 return byte-identical results: Recall@8 90.0%,
+    # Recall@1 66.7%, mean rank 1.37, the same three misses, latency inside noise. The
+    # neighbours a larger ef recovers are real and none of them was ever going to reach the
+    # page — RRF and the cross-encoder had already found the right passage in the candidates
+    # the smaller ef returned.
+    #
+    # Recorded because the temptation is to raise it. The three questions this corpus misses
+    # are missed for reasons that live nowhere near the index, and turning this knob during
+    # demonstration week would buy a changed number in a report and nothing a buyer can see.
     "cpu": Profile(
         name="cpu",
         max_batch_tokens=2048,
@@ -207,7 +241,16 @@ PROFILES: Final[dict[str, Profile]] = {
         ingestion_concurrency=1,
         reranker=False,
         ocr_capable_hardware=False,
-        hnsw_ef_search=40,
+        # 50, not 40, and the change is a truncation fix rather than tuning. At 40 this
+        # profile could not answer a 50-candidate request with fifty candidates — pgvector
+        # returns at most `ef_search` rows from an index scan — so the dense half was
+        # quietly handing fusion forty rows, 75.9% of the true top-50, on the one profile
+        # with no reranker behind it to recover. Measured on the demonstration machine
+        # rather than on the VPS this profile is for, so the number that moved is the one
+        # that had to: it clears `CANDIDATES` and stops there. The traversal that buys
+        # costs a fraction of a millisecond and no memory, which is the constraint that
+        # rules everything else in this profile.
+        hnsw_ef_search=50,
         rerank_candidates=0,
     ),
 }
