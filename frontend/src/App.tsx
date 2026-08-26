@@ -533,7 +533,10 @@ export function App() {
                 )}
               </>
             ) : (
-              <span className="font-medium text-foreground capitalize">{view}</span>
+              // The page's actual title, so it is the page's `h1`. It was a `span`, and the
+              // whole application had zero `h1` elements — no outline for a screen reader,
+              // and nowhere for a typographic hierarchy to attach. One cause, one fix.
+              <h1 className="text-[15px] font-medium text-foreground capitalize">{view}</h1>
             )}
             {/* Only Chat and Search actually read `folder` — shown only there, so a filter
                 picked up in Folders doesn't look like it's still following you into Admin

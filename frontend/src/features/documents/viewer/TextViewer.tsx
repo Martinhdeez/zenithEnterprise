@@ -74,7 +74,7 @@ export function TextViewer({ citation, token }: Props) {
     return (
       <aside className="flex h-full flex-col">
         <header className="border-b border-border px-4 py-3">
-          <p className="truncate font-medium text-foreground">{citation.filename}</p>
+          <p className="truncate font-mono text-[13px] font-medium text-foreground">{citation.filename}</p>
         </header>
         <p role="alert" className="p-4 text-sm text-destructive">
           {error}
@@ -93,7 +93,7 @@ export function TextViewer({ citation, token }: Props) {
   return (
     <aside className="flex h-full flex-col">
       <header className="border-b border-border px-4 py-3">
-        <p className="truncate font-medium text-foreground">{citation.filename}</p>
+        <p className="truncate font-mono text-[13px] font-medium text-foreground">{citation.filename}</p>
         {/* Deliberately not "page 1". This document has no pages, and naming a position
             that does not exist is the thing the nullable column was introduced to stop. */}
         <p className="text-sm text-muted-foreground">

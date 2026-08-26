@@ -135,7 +135,7 @@ export function PdfViewer({ citation, token }: Props) {
   return (
     <aside className="flex h-full flex-col">
       <header className="border-b border-slate-200 px-4 py-3">
-        <p className="truncate font-medium">{citation.filename}</p>
+        <p className="truncate font-mono text-[13px] font-medium">{citation.filename}</p>
         <p className="text-sm text-slate-500">
           Page {page}
           {page !== cited && " (cited page " + cited + ")"}

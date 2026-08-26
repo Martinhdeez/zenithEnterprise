@@ -67,13 +67,44 @@
   html {
     @apply font-sans;
   }
+  /* Applied here rather than on fifty-two components. A heading is a heading wherever it
+     appears, and the rule that makes that true belongs in one place.
+
+     `text-wrap: balance` because a serif headline breaking one word onto its own line is
+     the thing that makes a display face look accidental rather than chosen. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
 }
 /*
   ---break---
 */
 @theme inline {
-  --font-heading: var(--font-sans);
+  /* Three roles, deliberately, because this interface says three different kinds of thing.
+
+     `--font-heading` existed before this and pointed at `--font-sans`, so the slot for a
+     typographic hierarchy was there and empty — every heading in the product was set in the
+     body face at a slightly larger size, which is why nothing on screen carried any voice.
+
+     Source Serif 4 was drawn for reading long documents on a screen, which is what this
+     product is for, and it carries the diacritics this corpus is full of — 59% of its
+     passages are Spanish. Authority without decoration; it is a working face, not a
+     display gesture.
+
+     Geist Mono is the apparatus: filenames, page numbers, character ranges, identifiers,
+     model names, scores. Those are data and were being set as prose. It is the same family
+     as the body face, so the two pair by construction rather than by luck.
+
+     `font-mono` was already used in ten places and `--font-mono` was never defined, so all
+     ten were falling through to whatever monospace the reader's operating system happens to
+     have. Defining it changes those ten without touching a component. */
+  --font-heading: 'Source Serif 4 Variable', Georgia, 'Times New Roman', serif;
   --font-sans: 'Geist Variable', sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
   --color-zenith: var(--zenith);
   --color-zenith-foreground: var(--zenith-foreground);
   --color-zenith-cyan: var(--zenith-cyan);

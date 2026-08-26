@@ -248,7 +248,7 @@ export function Search({
             <SearchIcon className="size-5 text-primary" />
           </div>
           <div className="space-y-1.5">
-            <p className="text-base font-medium text-foreground">Search your corpus</p>
+            <h2 className="text-2xl font-normal text-foreground">Search your corpus</h2>
             <p className="mx-auto max-w-md text-sm text-muted-foreground">
               Keyword and meaning at once — passages come back ranked, with the page they
               came from. Nothing is generated here; use Chat for a written answer.
@@ -390,7 +390,11 @@ export function Search({
                   }`}
                 >
                   <div className="flex items-baseline justify-between gap-4">
-                    <p className="truncate text-sm font-medium text-foreground">
+                    {/* A filename and a page are a reference, not a sentence. In the body
+                        face they read as prose the eye has to parse; in the apparatus face
+                        they read as what they are — the thing you write down to go and
+                        check. Same reason the rank on the right is set this way. */}
+                    <p className="truncate font-mono text-[15px] font-medium text-foreground">
                       {hit.filename}
                       {/* Only where there is a page. A document with none says nothing
                           rather than "page null" or an invented "page 1". */}

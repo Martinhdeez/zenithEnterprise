@@ -87,7 +87,7 @@ function EmptyState({ token, onAsk }: { token: string; onAsk: (question: string)
       </div>
 
       <div className="space-y-1.5">
-        <p className="text-lg font-medium text-foreground">Ask your documents</p>
+        <h2 className="text-2xl font-normal text-foreground">Ask your documents</h2>
         <p className="text-sm text-muted-foreground">
           Answered only from what is in your corpus — never from what the model happens to
           know.
