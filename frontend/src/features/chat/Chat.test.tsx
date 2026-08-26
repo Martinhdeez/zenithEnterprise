@@ -138,3 +138,67 @@ describe("the source opens with the answer", () => {
     expect(onCitation).not.toHaveBeenCalled();
   });
 });
+
+describe("the empty screen", () => {
+  /**
+   * It used to explain the product in four bullet points — every fact carries a citation,
+   * it abstains rather than inventing, and so on. All true, and all things a single
+   * question demonstrates. The record shows them instead.
+   */
+  const withHistory = async (entries: unknown[]) => {
+    const { history } = await import("@/features/history");
+    vi.mocked(history).mockResolvedValue({ entries, next_cursor: null } as never);
+    await act(async () => {
+      render(<Chat token="t" onCitation={() => {}} searchable />);
+    });
+  };
+
+  const asked = (question: string, citations: number) => ({
+    query_id: question,
+    question,
+    answer: "…",
+    model_used: "test",
+    citations,
+    latency_retrieval_ms: 1,
+    latency_generation_ms: 1,
+    created_at: "2026-08-26T10:00:00Z",
+    mine: true,
+  });
+
+  it("shows what a past question actually produced", async () => {
+    await withHistory([asked("How long is the working week?", 2)]);
+
+    expect(screen.getByText("How long is the working week?")).toBeTruthy();
+    expect(screen.getByText("2 cited")).toBeTruthy();
+  });
+
+  it("shows an abstention as an abstention", async () => {
+    // The claim that used to be a bullet point — it says so instead of inventing an answer
+    // — shown as a fact about this corpus rather than asserted about the software.
+    await withHistory([asked("How many goals did Messi score?", 0)]);
+
+    expect(screen.getByText("found nothing")).toBeTruthy();
+  });
+
+  it("does not lecture about citations or abstention", async () => {
+    // The four bullets, gone. A reader arriving here should meet a tool, not a manual.
+    await withHistory([asked("How long is the working week?", 2)]);
+
+    expect(screen.queryByText(/Every fact is followed by a citation/i)).toBeNull();
+    expect(screen.queryByText(/instead of inventing an answer/i)).toBeNull();
+  });
+
+  it("offers a way in when nothing has been asked yet", async () => {
+    // Nothing to show, so nothing is manufactured: a fresh installation gets starters.
+    await withHistory([]);
+
+    expect(screen.getByText(/Try/)).toBeTruthy();
+    expect(screen.queryByText(/cited/)).toBeNull();
+  });
+
+  it("shows a question once however often it was asked", async () => {
+    await withHistory([asked("Same question", 2), asked("Same question", 3)]);
+
+    expect(screen.getAllByText("Same question")).toHaveLength(1);
+  });
+});

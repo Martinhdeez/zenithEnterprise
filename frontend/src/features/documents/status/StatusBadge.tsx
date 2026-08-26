@@ -33,11 +33,41 @@ export function StatusBadge({ status }: { status: TenantStatus | null }) {
           "linear-gradient(135deg, color-mix(in oklab, var(--zenith-cyan) 12%, transparent), color-mix(in oklab, var(--zenith-cyan) 2%, transparent) 60%)",
       }}
     >
-      <p className="flex items-center gap-1.5">
-        <span className="size-1.5 shrink-0 rounded-full bg-zenith-cyan shadow-[0_0_6px_rgba(0,229,229,0.9)]" />
-        <span className="font-medium text-foreground">{ready}</span>
-        <span className="text-muted-foreground">document{ready === 1 ? "" : "s"} ready</span>
-      </p>
+      {/* The two numbers that say there is something behind this product, at the size that
+          says it.
+
+          They were a 14px count on one line and a 12px `dl` row three lines down — the most
+          interesting thing on the screen set as the quietest. A corpus size is the first
+          question anybody asks of an archive, and answering it in the same weight as
+          "Hardware: cpu" buried the answer.
+
+          Sans with tabular figures, not the apparatus face. A monospace comma takes a full
+          character cell, so "8,273" sets as "8 , 273" at this size and reads as two numbers.
+          The distinction that survives is by job rather than by type: a filename or a page
+          reference is a string somebody copies and stays mono; a headline quantity is a
+          number somebody reads. Tabular so the digits do not shift as ingestion counts up. */}
+      <div className="flex items-start gap-5">
+        <div className="min-w-0">
+          <p className="flex items-baseline gap-1.5">
+            <span className="size-1.5 shrink-0 self-center rounded-full bg-zenith-cyan shadow-[0_0_6px_rgba(0,229,229,0.9)]" />
+            <span className="text-2xl leading-none font-semibold tracking-tight tabular-nums text-foreground">
+              {ready.toLocaleString()}
+            </span>
+          </p>
+          <p className="mt-1.5 text-xs tracking-wide text-muted-foreground/70 uppercase">
+            document{ready === 1 ? "" : "s"} ready
+          </p>
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-2xl leading-none font-semibold tracking-tight tabular-nums text-foreground">
+            {status.chunks.toLocaleString()}
+          </p>
+          <p className="mt-1.5 text-xs tracking-wide text-muted-foreground/70 uppercase">
+            passages
+          </p>
+        </div>
+      </div>
 
       {processing > 0 && (
         // A pill rather than a plain line: while this is non-zero, every search on the box
@@ -66,10 +96,6 @@ export function StatusBadge({ status }: { status: TenantStatus | null }) {
       )}
 
       <dl className="border-t border-border pt-2 text-xs text-muted-foreground">
-        <div className="flex justify-between">
-          <dt>Passages</dt>
-          <dd>{status.chunks.toLocaleString()}</dd>
-        </div>
         <div className="flex justify-between">
           <dt>Hardware</dt>
           <dd>{status.hardware}</dd>

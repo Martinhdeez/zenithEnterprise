@@ -15,9 +15,9 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
-import { ArrowUp, MessageSquare, Quote, Search as SearchIcon, ShieldCheck, Square } from "lucide-react";
+import { ArrowUp, MessageSquare, Square } from "lucide-react";
 
-import { history } from "@/features/history";
+import { history, type HistoryEntry } from "@/features/history";
 import { listDocuments, type DocumentSummary } from "@/features/documents";
 import { complete, mentionAt, mentioned, type Mention } from "./compose/mentions";
 import { MentionMenu } from "./compose/MentionMenu";
@@ -53,32 +53,49 @@ const STARTERS = [
  * It used to be a heading and one line, which left the two things nobody guesses
  * unexplained: that every sentence carries a citation you can click to open the page it
  * came from, and that the model is required to refuse rather than fill a gap from its own
- * knowledge. Both are the point of the product, and the empty screen is the only moment
- * there is room to say them.
+ * knowledge.
+ *
+ * **Both are demonstrated rather than described.** This screen used to make them in four
+ * bullet points with icons — every fact carries a citation, it abstains rather than
+ * inventing, it remembers the thread, use Search for passages. All true, and all read as
+ * documentation: somebody arriving here met a manual before they met a tool, and every
+ * claim in it was one they could have verified by asking a single question.
+ *
+ * So the claims are shown by the record instead. Each past question carries what it
+ * actually produced — the passages it cited, or that it found nothing — which makes the
+ * citation promise and the abstention promise visible as facts about this corpus rather
+ * than as assurances about the software. The one sentence that survives is the one nothing
+ * on screen can demonstrate on its own: that answers come from the corpus and never from
+ * what the model happens to know.
  *
  * Past questions come from `GET /query/history` — the real record, which is what this
  * endpoint holds. `Search`'s equivalent list is local storage precisely because searches
  * are *not* written there; here the data is the right data.
  */
 function EmptyState({ token, onAsk }: { token: string; onAsk: (question: string) => void }) {
-  const [recent, setRecent] = useState<string[]>([]);
+  // The whole entry, not just its text: what a question *produced* is the part that shows
+  // the product working, and it is already in the response.
+  const [recent, setRecent] = useState<HistoryEntry[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     void history(token)
       .then((page) => {
         if (cancelled) return;
-        // Deduplicated: asking the same thing twice should not fill the list with it.
-        const asked = page.entries.map((entry) => entry.question);
-        setRecent([...new Set(asked)].slice(0, 3));
+        // Deduplicated by question: asking the same thing twice should not fill the list
+        // with it, and the first occurrence is the most recent.
+        const seen = new Set<string>();
+        setRecent(
+          page.entries
+            .filter((entry) => !seen.has(entry.question) && seen.add(entry.question))
+            .slice(0, 4),
+        );
       })
       .catch(() => !cancelled && setRecent([]));
     return () => {
       cancelled = true;
     };
   }, [token]);
-
-  const offered = recent.length > 0 ? recent : STARTERS;
 
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center gap-6 py-12 text-center">
@@ -94,53 +111,57 @@ function EmptyState({ token, onAsk }: { token: string; onAsk: (question: string)
         </p>
       </div>
 
-      <ul className="w-full space-y-2.5 text-left">
-        <Point icon={<Quote className="size-4" />}>
-          Every fact is followed by a citation. Click one to open the page it came from,
-          highlighted.
-        </Point>
-        <Point icon={<ShieldCheck className="size-4" />}>
-          If your documents do not answer the question, it says so instead of inventing an
-          answer.
-        </Point>
-        <Point icon={<MessageSquare className="size-4" />}>
-          It remembers this conversation. Ask a follow-up — "and the other one?", "explain
-          that more simply" — without repeating yourself.
-        </Point>
-        <Point icon={<SearchIcon className="size-4" />}>
-          Looking for the passages themselves rather than a written answer? Use Search.
-        </Point>
-      </ul>
-
-      <div className="w-full space-y-2">
-        <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">
-          {recent.length > 0 ? "Ask again" : "Try"}
-        </p>
-        <div className="flex flex-col gap-1.5">
-          {offered.map((question) => (
-            <button
-              key={question}
-              type="button"
-              onClick={() => onAsk(question)}
-              className="truncate rounded-lg border border-input bg-card px-3.5 py-2 text-left text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
-            >
-              {question}
-            </button>
-          ))}
+      {recent.length > 0 ? (
+        <div className="w-full space-y-2">
+          <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">
+            Asked here
+          </p>
+          <ul className="flex flex-col gap-1.5">
+            {recent.map((entry) => (
+              <li key={entry.query_id}>
+                <button
+                  type="button"
+                  onClick={() => onAsk(entry.question)}
+                  className="flex w-full items-center justify-between gap-4 rounded-lg border border-input bg-card px-3.5 py-2 text-left transition-colors hover:border-primary/50"
+                >
+                  <span className="truncate text-sm text-foreground">{entry.question}</span>
+                  {/* What it produced, in the apparatus face — a count is a measurement and
+                      reads as one. This is the citation promise and the abstention promise
+                      shown as facts about this corpus rather than asserted about the
+                      software. */}
+                  <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                    {entry.citations > 0
+                      ? `${entry.citations} cited`
+                      : "found nothing"}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
-      </div>
+      ) : (
+        <div className="w-full space-y-2">
+          {/* Nothing has been asked yet, so there is nothing to show and the honest thing
+              is to offer a way in rather than manufacture evidence. */}
+          <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">Try</p>
+          <div className="flex flex-col gap-1.5">
+            {STARTERS.map((question) => (
+              <button
+                key={question}
+                type="button"
+                onClick={() => onAsk(question)}
+                className="truncate rounded-lg border border-input bg-card px-3.5 py-2 text-left text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+              >
+                {question}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function Point({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-      <span className="mt-0.5 shrink-0 text-primary">{icon}</span>
-      <span>{children}</span>
-    </li>
-  );
-}
 
 interface Props {
   token: string;
