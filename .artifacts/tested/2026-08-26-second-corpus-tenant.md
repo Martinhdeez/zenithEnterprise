@@ -62,3 +62,44 @@ Spanish corpus would be demonstrating against a known limitation for no reason.
 Not a replacement for the measured corpus, and not something to demonstrate recall numbers
 against. It is a live archive to show the product working on documents nobody has seen
 before, which is a different and also useful thing.
+
+---
+
+## Outcome — 2026-08-26
+
+Done, verified, and the demonstration corpus is untouched.
+
+| | Demonstration tenant | Cyber Standards Archive |
+|---|---|---|
+| documents | 26 | 15 |
+| passages | 8,273 | 5,275 |
+| pages | — | 1,493 |
+| status | unchanged | all `ready`, none failed |
+
+Row counts for the demonstration tenant are byte-for-byte what they were before the first
+download: 4 users, 26 documents, 8,273 chunks, 8,273 embeddings. `zenith diagnose` reports
+41 documents across the installation, every file present, nothing stranded.
+
+**Isolation, checked at the level that matters.** The new administrator asking
+`GET /documents` over HTTP sees fifteen documents and none of the other tenant's — not a
+filtered list, a different one, enforced by the row-level security policy rather than by a
+`WHERE` clause in our code.
+
+**Retrieval works on documents nobody wrote questions for.** Four unscripted searches, all
+`degraded: false`, 745–1,432 ms:
+
+- *"How quickly must an incident be reported"* → 800-61r2, the incident-handling document.
+- *"AC-2 account management"* → 800-53r5 p456 **and** 800-53b p30. The control catalogue and
+  the baseline that references it, from one query. That is the cross-document behaviour, on
+  an archive that was empty two hours earlier.
+- *"what are the zero trust maturity stages"* → the CISA maturity model, pages 9 and 10.
+- *"minimum password entropy requirements"* → 800-63b p78.
+
+**Ingestion took about 90 minutes for 1,493 pages**, strictly sequential — the `cpu` profile
+sets `ingestion_concurrency=1` so the parser's memory and the embedder's never overlap. The
+492-page control catalogue alone was roughly 25 of those minutes. Worth knowing before
+anyone uploads a corpus in front of an audience: this is a background job, not a demo step.
+
+**What this corpus is not.** It has no measured recall figure and no verified question set.
+Do not quote a percentage against it. The measured baseline belongs to the other tenant, and
+`.artifacts/specs/2026-08-26-what-this-demo-claims.md` still governs what may be claimed.
