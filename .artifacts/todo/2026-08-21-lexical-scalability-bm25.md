@@ -200,6 +200,58 @@ mismatch is somewhere in that chain. Options, in the order they should be tried:
 **This is a blocker for Phase 1 and must be resolved before anything ships.** A version that
 only returns unlabelled passages is worse than what exists today.
 
+### RESOLVED — 2026-08-26
+
+**None of the three options was needed. `uuid[]` was never the problem; the boolean
+structure was.**
+
+`should` alongside `must` in a Tantivy boolean is *optional* — it boosts scoring and does
+not filter. So the original construction was not "too restrictive": asked for again on a
+clean corpus it returns **every** row the `must` clauses match, labels ignored entirely.
+That is the opposite failure and the dangerous direction, which is worth stating plainly:
+the note above recorded this as failing safe, and it does not.
+
+The label alternatives have to be a `should` **nested inside a `must`**, which is how
+"at least one of these, required" is expressed:
+
+```sql
+paradedb.boolean(must => ARRAY[
+    paradedb.parse('text:(' || query_string || ')'),
+    paradedb.term('tenant_id', zenith_current_tenant()),
+    paradedb.boolean(should => ARRAY[            -- <- nested, therefore required
+        paradedb.term('unlabelled', true),
+        paradedb.term('label_ids', <label 1>),
+        paradedb.term('label_ids', <label 2>)])])
+```
+
+Measured on `paradedb/paradedb:0.15.26-pg17`, 80,000 rows across two tenants, labels
+distributed as they are in the product (a quarter unlabelled, the rest across three
+compartments), against SQL ground truth computed with the real policy predicate:
+
+| session reaches | Tantivy | the policy's own SQL | |
+|---|---|---|---|
+| no labels | 15,000 | 15,000 | exact |
+| `legal` | 45,000 | 45,000 | exact |
+| `legal` + `hr` | 60,000 | 60,000 | exact |
+| the other tenant's rows | **0** | — | no leak |
+
+And the plan is the one this whole document is about:
+
+```
+Parallel Custom Scan (ParadeDB Scan) on chunks
+  Exec Method: TopNScanExecState
+  Scores: true
+  Top N Limit: 50
+Execution Time: 5.180 ms
+```
+
+The same query the product builds today, on the same 80,000 rows: `Seq Scan`, 45,000 rows
+scored to return 50, **31.7 ms**. The shape is the wall — cost linear in rows matched — and
+at 300k it is the 5,953 ms measured in §1.
+
+§8's Plan B is therefore not needed. It stays in this document as the record of a fallback
+that was prepared and did not have to be used.
+
 ---
 
 ## 6. Rollout
