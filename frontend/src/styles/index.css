@@ -152,91 +152,111 @@
   ---break---
 */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: oklch(1.0000 0 0);
+  --foreground: oklch(0.1371 0.0360 258.5258);
+  --card: oklch(1.0000 0 0);
+  --card-foreground: oklch(0.1371 0.0360 258.5258);
+  --popover: oklch(1.0000 0 0);
+  --popover-foreground: oklch(0.1371 0.0360 258.5258);
+  --primary: oklch(0.5460 0.2153 262.8719);
+  --primary-foreground: oklch(0.9838 0.0035 247.8583);
+  --secondary: oklch(0.9684 0.0068 247.8951);
+  --secondary-foreground: oklch(0.2079 0.0399 265.7275);
+  --muted: oklch(0.9684 0.0068 247.8951);
+  --muted-foreground: oklch(0.5547 0.0407 257.4404);
+  --accent: oklch(0.9684 0.0068 247.8951);
+  --accent-foreground: oklch(0.2079 0.0399 265.7275);
+  --destructive: oklch(0.6368 0.2078 25.3259);
+  --destructive-foreground: oklch(0.9838 0.0035 247.8583);
+  --border: oklch(0.9290 0.0126 255.5317);
+  --input: oklch(0.9290 0.0126 255.5317);
+  --ring: oklch(0.5460 0.2153 262.8719);
+  --chart-1: oklch(0.5460 0.2153 262.8719);
+  --chart-2: oklch(0.7211 0.1415 253.1015);
+  --chart-3: oklch(0.6325 0.1843 258.6360);
+  --chart-4: oklch(0.8117 0.0970 249.0979);
+  --chart-5: oklch(0.8829 0.0573 251.9139);
+  --radius: 0.375rem;
+  --tracking-normal: -0.015em;
+  --sidebar: oklch(0.9838 0.0035 247.8583);
+  --sidebar-foreground: oklch(0.2079 0.0399 265.7275);
+  --sidebar-primary: oklch(0.5460 0.2153 262.8719);
+  --sidebar-primary-foreground: oklch(1.0000 0 0);
+  --sidebar-accent: oklch(0.9290 0.0126 255.5317);
+  --sidebar-accent-foreground: oklch(0.5460 0.2153 262.8719);
+  --sidebar-border: oklch(0.9290 0.0126 255.5317);
+  --sidebar-ring: oklch(0.5460 0.2153 262.8719);
 }
 /*
   ---break---
 */
 /*
-  "Obsidian Trust" — the dark palette from the login prototype, kept as the shipped `.dark`
-  scope rather than as one screen's private colours. The sign-in screen is the only surface
-  using it today; the redesign will move the rest of the application onto the same tokens,
-  and a second palette invented later would guarantee two that disagree.
+  "Professional" — the palette chosen from tweakcn, applied whole rather than sampled.
 
-  Hex rather than oklch here on purpose: these values came from a designed comp and were
-  chosen by eye. Converting them would be lossy in a way nobody could review.
+  It replaces "Obsidian Trust", which was the login prototype's private colours promoted to
+  the shipped scope. Three of the values it changes were already recorded as problems in
+  this repository rather than being matters of taste:
+
+  - `--border` was `#1e293b` against a `#182238` panel. `System.tsx` carries a comment
+    explaining that this made the divider between two organisations a line nobody could see,
+    and works around it locally with `divide-input`. The new border sits far enough off the
+    surface that the workaround is no longer load-bearing.
+  - `--muted-foreground` rises, which matters on a screen where most of the interface is
+    secondary text.
+  - `--radius` drops from 0.625rem to 0.375rem. An archive is an instrument; the softer
+    corner was reading as consumer software.
+
+  **`--card` now equals `--background`, deliberately.** Surfaces are separated by their
+  border rather than by a lighter fill, which is what the theme does and why its borders are
+  visible in the first place. The sidebar and the status panel change character because of
+  it: they read as bounded regions rather than as raised slabs.
+
+  Kept from the old palette, because each is a meaning rather than a colour:
+  `--zenith-cyan` is focus and "the system is healthy"; `--zenith-amber` is a verified
+  passage, and it is the only colour in the product that stands for the product's argument;
+  `--zenith-navy` is the ledge below the surface, re-derived a step under the new background.
+
+  `--ring` stays cyan against the theme's blue. A focus ring in the same hue as the primary
+  is a focus ring that disappears on top of a primary button, and this one is an
+  accessibility affordance rather than decoration.
 */
 .dark {
-  --background: #070a12;
-  --foreground: #f8fafc;
-  --card: #10172a;
-  --card-foreground: #f8fafc;
-  --popover: #10172a;
-  --popover-foreground: #f8fafc;
-  /* Indigo Electric — the action colour. */
-  --primary: #6366f1;
-  --primary-foreground: #ffffff;
-  --secondary: #182238;
-  --secondary-foreground: #f8fafc;
-  --muted: #10172a;
-  --muted-foreground: #94a3b8;
-  --accent: #182238;
-  --accent-foreground: #f8fafc;
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: #1e293b;
-  --input: #334155;
-  /* Cyan is the focus and "system is healthy" colour, never a decoration. */
+  --background: oklch(0.1371 0.0360 258.5258);
+  --foreground: oklch(0.9838 0.0035 247.8583);
+  --card: oklch(0.1371 0.0360 258.5258);
+  --card-foreground: oklch(0.9838 0.0035 247.8583);
+  --popover: oklch(0.1371 0.0360 258.5258);
+  --popover-foreground: oklch(0.9838 0.0035 247.8583);
+  --primary: oklch(0.6232 0.1879 259.7964);
+  --primary-foreground: oklch(0.2079 0.0399 265.7275);
+  --secondary: oklch(0.2800 0.0369 259.9740);
+  --secondary-foreground: oklch(0.9838 0.0035 247.8583);
+  --muted: oklch(0.2800 0.0369 259.9740);
+  --muted-foreground: oklch(0.7107 0.0351 256.7877);
+  --accent: oklch(0.2800 0.0369 259.9740);
+  --accent-foreground: oklch(0.9838 0.0035 247.8583);
+  --destructive: oklch(0.3959 0.1331 25.7205);
+  --destructive-foreground: oklch(0.9838 0.0035 247.8583);
+  --border: oklch(0.2800 0.0369 259.9740);
+  --input: oklch(0.2800 0.0369 259.9740);
   --ring: #00e5e5;
-  --zenith: #6366f1;
-  --zenith-foreground: #ffffff;
+  --zenith: oklch(0.6232 0.1879 259.7964);
+  --zenith-foreground: oklch(0.2079 0.0399 265.7275);
   --zenith-cyan: #00e5e5;
   --zenith-amber: #f59e0b;
-  /* A shade darker than `--card` (#10172a) rather than lighter — for the header/footer
-     bars `.panel-accent` marks as a ledge below the surface, not a highlight on it. */
-  --zenith-navy: #060a15;
-  --chart-1: #6366f1;
-  --chart-2: #00e5e5;
-  --chart-3: #818cf8;
-  --chart-4: #4f46e5;
-  --chart-5: #f59e0b;
-  --sidebar: #10172a;
-  --sidebar-foreground: #f8fafc;
-  --sidebar-primary: #6366f1;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #182238;
-  --sidebar-accent-foreground: #f8fafc;
-  --sidebar-border: #1e293b;
+  --zenith-navy: oklch(0.1000 0.0300 258.5258);
+  --chart-1: oklch(0.4878 0.2170 264.3876);
+  --chart-2: oklch(0.5449 0.2154 262.7414);
+  --chart-3: oklch(0.6776 0.1481 238.1044);
+  --chart-4: oklch(0.3752 0.0394 256.8467);
+  --chart-5: oklch(0.4691 0.1926 264.5776);
+  --sidebar: oklch(0.1371 0.0360 258.5258);
+  --sidebar-foreground: oklch(0.9838 0.0035 247.8583);
+  --sidebar-primary: oklch(0.6232 0.1879 259.7964);
+  --sidebar-primary-foreground: oklch(0.1371 0.0360 258.5258);
+  --sidebar-accent: oklch(0.2800 0.0369 259.9740);
+  --sidebar-accent-foreground: oklch(0.9838 0.0035 247.8583);
+  --sidebar-border: oklch(0.2800 0.0369 259.9740);
   --sidebar-ring: #00e5e5;
 }
 
