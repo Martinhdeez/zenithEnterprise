@@ -8,6 +8,7 @@ The load-bearing test is `test_the_application_cannot_erase_a_record`. Everythin
 is about writing good rows; that one is about whether the rows mean anything.
 """
 
+from typing import cast
 from uuid import UUID, uuid4
 
 import pytest
@@ -256,7 +257,8 @@ async def test_the_classifier_leaves_a_record(account: Account) -> None:
     # Names, not ids. The event's subject is a set of labels — the things in this schema most
     # likely to be renamed or merged — so an entry holding only ids is evidence of nothing by
     # the time anybody reads it. Declined here, so the document went to the tenant default.
-    assert classified[0]["details"]["labels"] == [DEFAULT_LABEL]
+    details = cast(dict[str, object], classified[0]["details"])
+    assert details["labels"] == [DEFAULT_LABEL]
 
 
 async def test_every_route_that_changes_access_records_an_event() -> None:

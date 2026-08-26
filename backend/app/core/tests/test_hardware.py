@@ -56,12 +56,17 @@ def test_low_spec_degradations_are_named() -> None:
 
 def test_no_profile_claims_ocr_this_build_does_not_have() -> None:
     """The criterion, stated as one assertion: a profile reports OCR as available only when
-    an implementation exists."""
+    an implementation exists.
+
+    The field is `ocr_capable_hardware` rather than `ocr` because the short name was itself
+    the problem — `cpu` and `gpu` set it true, and somebody reading `hardware.py` alone would
+    conclude scanned documents ingest on them.
+    """
     from app.core.hardware import OCR_IMPLEMENTED
 
     for name, profile in PROFILES.items():
         claims_ocr = not any("OCR" in item for item in profile.disabled)
-        assert claims_ocr is (profile.ocr and OCR_IMPLEMENTED), name
+        assert claims_ocr is (profile.ocr_capable_hardware and OCR_IMPLEMENTED), name
 
 
 def test_an_unknown_profile_fails_loudly(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -188,6 +188,17 @@ class LabelService:
         thinking about. They are tidying up a duplicate tag; the effect is that documents
         change hands between roles.
         """
+        # Before anything else, and this was missed once. Renaming, deleting and granting the
+        # quarantine label are refused; **merging is the fourth door and it undoes more than
+        # any of them**. Folding it into the default moves every unclassified document to a
+        # label the whole tenant reaches *and* destroys the place uploads land; folding
+        # something into it hands those documents to administrators alone. Both look like
+        # tidying a duplicate tag, which is exactly what `merge`'s own docstring warns about
+        # one paragraph above.
+        async with tenant_session(self.context) as session:
+            for label in await LabelRepository(session).reserved_among([*sources, target]):
+                self._refuse_if_reserved(label, "merged")
+
         if target in set(sources):
             raise ConflictError("a label cannot be merged into itself")
 

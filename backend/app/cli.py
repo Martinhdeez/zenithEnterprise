@@ -261,7 +261,10 @@ def diagnose(
 @app.command()
 def reingest(
     tenant: Annotated[str | None, typer.Option(help="Limit to one tenant, by name.")] = None,
-    status: Annotated[str | None, typer.Option(help="Only this status: pending or failed.")] = None,
+    status: Annotated[
+        str | None,
+        typer.Option(help="Only this status. Run with an invalid one to see the list."),
+    ] = None,
     apply: Annotated[
         bool, typer.Option("--apply", help="Actually enqueue. Without it, only report.")
     ] = False,
@@ -275,7 +278,19 @@ def reingest(
     Reports by default. Enqueuing a thousand documents on a machine sized for one at a time
     is an operator's decision, not a side effect of asking what is stuck.
     """
-    from app.features.ingestion.requeue import find_stranded, requeue
+    from app.features.ingestion.requeue import REQUEUABLE, find_stranded, requeue
+
+    # Refused rather than passed through. An unrecognised status matches nothing and reports
+    # "Nothing stranded." — which reads as *the installation is healthy* and is the exact
+    # failure F16 shipped: a folder count filtering on a status that had never existed,
+    # matching nothing, silently. A repair tool that answers "all clear" to a typo is worse
+    # than one that answers nothing.
+    if status is not None and status not in REQUEUABLE:
+        typer.echo(
+            f"{status!r} is not a status this can requeue. Valid: {', '.join(REQUEUABLE)}.",
+            err=True,
+        )
+        raise typer.Exit(2)
 
     async def run() -> None:
         tenant_id = (await TenantService().by_name(tenant)).id if tenant else None

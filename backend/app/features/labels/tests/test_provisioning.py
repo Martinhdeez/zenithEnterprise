@@ -177,3 +177,35 @@ async def test_the_quarantine_label_cannot_be_deleted_or_renamed(account: Accoun
         await service.rename(account.quarantine_label, "Something else")
     with pytest.raises(ConflictError):
         await service.set_default(account.quarantine_label)
+
+
+async def test_the_quarantine_label_cannot_be_merged_in_either_direction(
+    account: Account,
+) -> None:
+    """The fourth door, and the one that undoes more than the other three.
+
+    Renaming, deleting and granting it were refused; merging was not. Folding `Unclassified`
+    into the default moves every unclassified document to a label the whole tenant reaches
+    *and* destroys the place uploads land. Folding something into it hands those documents to
+    administrators alone. Both look like tidying up a duplicate tag — which is precisely what
+    `merge`'s own docstring warns about.
+    """
+    from app.common.exceptions import ConflictError
+    from app.features.labels.service import LabelService
+
+    service = LabelService(
+        TenantContext.for_tenant(
+            account.tenant_id,
+            [account.quarantine_label, account.default_label, account.finance_label],
+        )
+    )
+
+    with pytest.raises(ConflictError, match="unfiled uploads wait"):
+        await service.merge([account.quarantine_label], account.default_label)
+
+    with pytest.raises(ConflictError, match="unfiled uploads wait"):
+        await service.merge([account.finance_label], account.quarantine_label)
+
+    # And an ordinary merge between two ordinary labels is untouched by the guard.
+    result = await service.merge([account.finance_label], account.default_label, dry_run=True)
+    assert result.dry_run is True

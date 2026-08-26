@@ -376,7 +376,7 @@ class IngestionPipeline:
         omitted: list[int] = []
 
         for page in pages:
-            decision = decide(page, ocr_available=self.profile.ocr)
+            decision = decide(page, ocr_available=self.profile.ocr_capable_hardware)
             if decision.route is Route.UNREADABLE:
                 unreadable_reason = unreadable_reason or decision.reason
                 omitted.append(page.page_num)

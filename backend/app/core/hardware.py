@@ -28,8 +28,9 @@ from app.core.config import settings
 #: **It cannot**, and it lives here rather than in the ingestion feature because two very
 #: different callers need the same fact: the router, deciding what to do with a scanned page,
 #: and `Profile.disabled`, telling an operator what their installation cannot do. Kept in the
-#: feature, the second one asked `Profile.ocr` instead — a flag about the hardware — and
-#: reported `cpu` and `gpu` as OCR-capable while every scanned page was being refused.
+#: feature, the second one asked the profile's own flag instead — a fact about the
+#: hardware — and reported `cpu` and `gpu` as OCR-capable while every scanned page was
+#: being refused.
 #:
 #: Flip it to `True` in the same commit that wires an engine, not before.
 OCR_IMPLEMENTED = False
@@ -64,7 +65,14 @@ class Profile:
 
     # Off on `low-spec`: the OCR path loads a second model, and there is no room for it
     # beside TEI in 8 GB. A scanned document then *fails* — see `ingestion/pipeline.py`.
-    ocr: bool
+    #: Whether this *hardware* could run OCR, not whether this build can.
+    #:
+    #: Renamed from `ocr` because the old name was a promise. `cpu` and `gpu` set it true and
+    #: a reader of this file alone would conclude scanned documents ingest on them — they do
+    #: not, and have never done, because `OCR_IMPLEMENTED` is false and no engine is wired.
+    #: The installation's answer is the conjunction, which is what `disabled` reports and what
+    #: `routing.decide` acts on. Nothing reads this field on its own.
+    ocr_capable_hardware: bool
 
     # How many candidates the cross-encoder reads. Zero where the reranker is off. The
     # cost is real and interactive: 50 pairs is 50 forward passes, and on four CPU cores
@@ -84,12 +92,12 @@ class Profile:
         missing: list[str] = []
         if not self.reranker:
             missing.append("reranker (costs up to 20 points of Recall@8)")
-        # `self.ocr` alone was the wrong question. It says whether this *hardware* is allowed
+        # The hardware flag alone was the wrong question. It says whether this *hardware* is
         # to run OCR, and `cpu` and `gpu` both say yes — so `zenith diagnose` reported them as
         # OCR-capable installations while routing refused every scanned page, because no
         # engine exists. A profile flag and a build capability are different facts and only
         # their conjunction is true of the running system.
-        if not (self.ocr and OCR_IMPLEMENTED):
+        if not (self.ocr_capable_hardware and OCR_IMPLEMENTED):
             missing.append("OCR (scanned documents are refused rather than ingested empty)")
         return missing
 
@@ -104,7 +112,7 @@ PROFILES: Final[dict[str, Profile]] = {
         max_client_batch_size=32,
         ingestion_concurrency=4,
         reranker=True,
-        ocr=True,
+        ocr_capable_hardware=True,
         hnsw_ef_search=200,
         rerank_candidates=100,
     ),
@@ -173,7 +181,7 @@ PROFILES: Final[dict[str, Profile]] = {
         max_client_batch_size=4,
         ingestion_concurrency=1,
         reranker=True,
-        ocr=True,
+        ocr_capable_hardware=True,
         hnsw_ef_search=100,
         rerank_candidates=8,
     ),
@@ -198,7 +206,7 @@ PROFILES: Final[dict[str, Profile]] = {
         max_client_batch_size=4,
         ingestion_concurrency=1,
         reranker=False,
-        ocr=False,
+        ocr_capable_hardware=False,
         hnsw_ef_search=40,
         rerank_candidates=0,
     ),
