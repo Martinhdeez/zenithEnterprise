@@ -35,6 +35,12 @@ evidence yet for that larger piece of work. The same question matched:
     english: 5,273 of 21,295 passages  (24.8%)
     spanish: 1,245 of 21,295 passages  (5.8%)
 
+(Measured on the corpus as it stood that day. Two tenants of M0 leftovers — 13 document rows
+each, no files on disk — were removed the following morning, so the installation now holds
+8,273 passages and the absolute numbers here cannot be reproduced. The ratio is the finding
+and it is unchanged; the figures are left as they were taken, because a migration records what
+was measured rather than what is true later.)
+
 a four-fold difference, driven by `de`, `la`, `el` and `los` being content words to an English
 analyser. `ts_rank_cd` has no IDF and must score every matching row before taking the top 50,
 so the size of that match set *is* the lexical wall this project measured at 5,953 ms on

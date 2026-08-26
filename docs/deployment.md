@@ -176,6 +176,8 @@ worth recording precisely:
 |---|---|
 | Backup of 21 Aug, restored into a virgin cluster | **fails** — `role "zenith_app" does not exist`, 0 rows |
 | Same backup with `roles.sql`, same virgin cluster | 52 documents, 21,295 chunks and vectors, alembic `0016`, 20 tables with RLS |
+
+(The counts are what the installation held that day. Two tenants of M0 leftovers were removed on 26 August; it now holds 26 documents and 8,273 passages.)
 | `zenith_app` connecting with no tenant set | sees 0 rows — RLS still closed after recovery |
 
 The earlier note in this file said the restore had been verified. It had — into a scratch
