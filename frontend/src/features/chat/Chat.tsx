@@ -373,7 +373,13 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
             difference between "a text field next to a button" and the single composer
             every chat interface this is modelled on uses. One surface too: the wrapper
             takes the field's own colour so the two do not read as stacked shapes. */}
-        <div className="flex items-center gap-2 rounded-3xl border border-input bg-input/30 py-1.5 pr-1.5 pl-4 shadow-sm transition-colors focus-within:border-primary/40">
+        {/* `rounded-full`, matching `SearchField` exactly rather than approximately. It was
+            `rounded-3xl`, which is derived from `--radius` — so when the radius dropped to
+            0.375rem this went from about 22px to about 13px and started reading as a
+            rectangle beside a pill. The two places a person types in this product should be
+            the same shape, and "nearly the same" is the version that breaks the first time
+            a token moves. */}
+        <div className="flex items-center gap-2 rounded-full border border-input bg-input/30 py-1.5 pr-1.5 pl-4 shadow-sm transition-colors focus-within:border-primary/40">
           <Input
             ref={inputRef}
             value={question}
