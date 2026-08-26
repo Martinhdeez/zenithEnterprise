@@ -72,37 +72,26 @@ export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair
           {/* No wordmark: the mark carries the brand alone, and the name reappears once,
               small, as the lead word of the caption below rather than twice on the page. */}
           <div className="relative flex size-20 items-center justify-center">
-            {/* The goo filter itself: blur the group, then push the alpha channel through a
-                steep contrast curve. Everything above the threshold becomes solid and
-                everything below it vanishes, so two blurred shapes that overlap read as one
-                shape with a liquid neck between them. That is the whole trick — there is no
-                library here, and adding a dependency to a product shipped into networks
-                with no egress for a decorative effect would be a poor trade. */}
-            <svg aria-hidden="true" className="pointer-events-none absolute size-0">
-              <defs>
-                <filter id="zenith-goo">
-                  <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
-                  <feColorMatrix
-                    in="blur"
-                    type="matrix"
-                    values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9"
-                  />
-                </filter>
-              </defs>
-            </svg>
+            {/* A soft glow behind the mark, and nothing more.
 
-            {/* Behind the mark, never in front of it: the logo has to stay legible, and an
-                effect that competes with the thing it surrounds is decoration that has
-                stopped serving anything. The two brand colours are the ones already used
-                here — the primary and the cyan that means "healthy" everywhere else. */}
+                A liquid-goo treatment lived here briefly: three blobs drifting through an
+                SVG filter so they merged and pinched apart. It was doing what it was asked
+                to do and it was wrong for the surround — at this size the shape reads as a
+                stain on the logo rather than as atmosphere behind it, because the mark is
+                small enough that the blob competes with it instead of sitting under it.
+                An effect that has to be squinted past is decoration that stopped serving
+                anything.
+
+                The two brand colours, the same ones the goo used: the primary, and the
+                cyan that means "healthy" everywhere else in the product. */}
             <div
               aria-hidden="true"
-              className="zenith-goo pointer-events-none absolute -inset-24 opacity-60 blur-[2px]"
-            >
-              <span className="zenith-blob zenith-blob-a absolute top-[28%] left-[24%] size-24 rounded-full bg-primary/60" />
-              <span className="zenith-blob zenith-blob-b absolute top-[38%] left-[46%] size-20 rounded-full bg-zenith-cyan/40" />
-              <span className="zenith-blob zenith-blob-c absolute top-[46%] left-[30%] size-[5.5rem] rounded-full bg-primary/45" />
-            </div>
+              className="pointer-events-none absolute inset-0 blur-xl"
+              style={{
+                background:
+                  "radial-gradient(55% 55% at 50% 45%, color-mix(in oklab, var(--primary) 45%, transparent), transparent 70%), radial-gradient(45% 45% at 55% 70%, color-mix(in oklab, var(--zenith-cyan) 35%, transparent), transparent 70%)",
+              }}
+            />
             <img
               src="/zenith-mark.png"
               alt="Zenith"
