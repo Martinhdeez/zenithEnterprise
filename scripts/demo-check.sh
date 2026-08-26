@@ -160,6 +160,37 @@ case "${ORPHANS}" in
   *)              warn "${ORPHANS}" ;;
 esac
 
+# --- what the system panel will show ------------------------------------------------------
+#
+# Everything above asks whether the product works. This asks what a buyer reads, which is a
+# different question and the only one with no test behind it. `/system` lists every
+# organisation in the installation by name, and this installation grew four of them called
+# `M0 baseline <uuid>` during development — three empty. Nothing is broken; the panel is
+# doing exactly its job. It is just that opening it in the room shows a page of test
+# artefacts, and an evaluator reads that as the state of the product.
+#
+# A warning and never a failure: the fix is a decision about somebody's data, and this
+# script does not get to make it.
+LEFTOVERS="$(${COMPOSE} exec -T db psql -U "${POSTGRES_USER:-zenith}" -d "${POSTGRES_DB:-zenith}" -tAc \
+  "SELECT t.name FROM tenants t
+    WHERE t.status = 'active'
+      AND NOT EXISTS (SELECT 1 FROM users u WHERE u.tenant_id = t.id)
+      AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.tenant_id = t.id)" 2>/dev/null || true)"
+if [ -z "${LEFTOVERS}" ]; then
+  ok "the system panel lists no empty organisations"
+else
+  COUNT="$(printf '%s\n' "${LEFTOVERS}" | grep -c .)"
+  warn "the system panel will show ${COUNT} active organisation(s) with no users and no documents:"
+  # Quoted through a here-doc: an organisation may legitimately be called "Grupo the client",
+  # and an unquoted expansion prints that as two organisations.
+  while IFS= read -r leftover; do
+    [ -n "${leftover}" ] && printf '        %s\n' "${leftover}"
+  done <<EOF
+${LEFTOVERS}
+EOF
+  printf '        suspend or purge them from /system before the room, or leave them knowingly\n'
+fi
+
 echo
 if [ "${FAILURES}" -gt 0 ]; then
   echo "NOT READY — ${FAILURES} failure(s), ${WARNINGS} warning(s)"
