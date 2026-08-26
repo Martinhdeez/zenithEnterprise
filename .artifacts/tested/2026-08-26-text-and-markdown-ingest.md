@@ -57,3 +57,28 @@ the format.
 
 Audio is a different product, not a fifth step: a transcription model, and timestamps where
 pages and boxes are now. Judge it on its own.
+
+---
+
+## Shipped — 2026-08-26
+
+Steps 1 to 3. `.docx` (step 4) is not done and is still the right thing to do last: it needs
+a converter in the image, which is an operational change of a different kind from anything
+here.
+
+- **Migration 0021** — `documents.media_type` with a closed `CHECK`, `chunks.page_num`
+  nullable.
+- **`documents/media.py`** — one table saying what each media type implies. The four
+  hardcoded `pdf`s (gate, storage suffix, parser, download type) now read from it.
+- **`chunk_stream`** — a second entry point, not a flag on `chunk_page`, because the two
+  differ in what the offsets are relative to and that difference is the whole feature.
+- **`TextViewer`** — its own lazy chunk; a reader who only opens Markdown does not download
+  pdf.js.
+
+Verified in the running app: a real runbook ingests as `text/markdown`, chunks with
+`page_num` null, and ranks first for its own words against a 13,548-passage corpus.
+
+Two bugs the round trip found that the unit tests had not: opening a text document from the
+library built a `page_num: 1` citation that would have routed it into the PDF frame, and
+`page_count` was being set to the count of stored text units — always 1 — so the library
+would have printed "1 page" beside a runbook. Both pinned by tests now.
