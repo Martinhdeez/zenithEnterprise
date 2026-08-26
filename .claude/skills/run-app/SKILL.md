@@ -68,13 +68,21 @@ to know if it's needed again (e.g. after `docker compose down -v`).
 ```bash
 open -a Docker  # if the daemon isn't already up
 cd docker
-docker compose up -d --build db tei-embed api worker frontend
+docker compose up -d --build db tei-embed tei-rerank api worker frontend
 ```
 
-Deliberately excluded from that list: `tei-rerank` (reranker — optional, degrades
-gracefully per `search.py`'s fallback, not needed to run the app) and any local LLM
-service (none is defined in this compose file at all — chat generation goes through
-whatever provider is configured in Admin → LLM connector, e.g. Gemini).
+`tei-rerank` is in that list on purpose, and it did not use to be. It is optional in the
+sense that `SearchService` catches its absence and answers anyway from the fused order,
+marked `degraded` — nothing crashes and no error is logged. It is not optional in the sense
+that matters: `docker/docker-compose.yml`'s own comment records that a reranker which never
+runs costs **about 15 points of recall**, and the demonstration claims Recall@8 of 90.0%
+(`.artifacts/specs/2026-08-26-what-this-demo-claims.md`). Starting the stack without it is
+how you demonstrate a number you cannot reproduce, with no symptom in front of you.
+`./scripts/demo-check.sh` fails on it for that reason.
+
+Genuinely excluded: any local LLM service — none is defined in this compose file at all,
+because chat generation goes through whatever provider is configured in Admin → LLM
+connector, e.g. Gemini.
 
 ## Verify it's actually up
 
@@ -146,7 +154,7 @@ docker compose exec api alembic current   # must equal `head`, not just "no erro
 | api | 8000 |
 | db (Postgres) | 5432 |
 | tei-embed | 8081 |
-| tei-rerank (not started by default) | 8082 |
+| tei-rerank | 8082 |
 
 ## Stopping
 
