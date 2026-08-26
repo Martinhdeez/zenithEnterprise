@@ -13,19 +13,30 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Users } from "lucide-react";
+import { KeyRound, Loader2, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
   type Group,
+  type Invitation,
   type Member,
   groups as fetchGroups,
+  issueResetLink,
   users as fetchUsers,
   setUserGroups,
 } from "../api";
+import { ApiError } from "@/shared/api/http";
+import { SingleUseLink } from "../invite/SingleUseLink";
 
 export function UserGroups({ token }: { token: string }) {
   const [members, setMembers] = useState<Member[]>([]);
+  // The endpoint has existed and been tested since the credential links shipped, and no
+  // screen called it. There is no outbound mail on an on-premise install, so the alternative
+  // for somebody locked out of their account was an operator with shell access running
+  // `zenith reset-password` — which is a support ticket for a thing an administrator is
+  // entitled to do.
+  const [resetting, setResetting] = useState<string | null>(null);
+  const [link, setLink] = useState<Invitation | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +87,20 @@ export function UserGroups({ token }: { token: string }) {
     }
   }
 
+  async function reset(member: Member) {
+    setResetting(member.id);
+    setError(null);
+    try {
+      setLink(await issueResetLink(token, member.id));
+    } catch (failure) {
+      setError(
+        failure instanceof ApiError ? failure.message : "That reset link could not be issued.",
+      );
+    } finally {
+      setResetting(null);
+    }
+  }
+
   if (loading) {
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -89,6 +114,19 @@ export function UserGroups({ token }: { token: string }) {
       <p className="rounded-md border border-input bg-card p-4 text-sm text-muted-foreground">
         No groups yet. Create one above, then come back to put people in it.
       </p>
+    );
+  }
+
+  if (link) {
+    // Replaces the list for the same reason the invitation replaces its form: the link is
+    // returned once, and a panel competing with forty rows of checkboxes is a link somebody
+    // closes without copying.
+    return (
+      <SingleUseLink
+        issued={link}
+        headline={`${link.email} can set a new password with this link.`}
+        onDone={() => setLink(null)}
+      />
     );
   }
 
@@ -112,6 +150,21 @@ export function UserGroups({ token }: { token: string }) {
                   <p className="truncate text-xs text-muted-foreground">{member.email}</p>
                 )}
               </div>
+              {!edited(member) && (
+                // Only while the row is settled. Beside an unsaved group change it would
+                // compete with Save, and issuing a link is not what somebody halfway through
+                // editing memberships meant to click.
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                  disabled={resetting === member.id}
+                  onClick={() => void reset(member)}
+                >
+                  <KeyRound className="mr-1.5 size-3.5" />
+                  {resetting === member.id ? "Issuing…" : "Reset link"}
+                </Button>
+              )}
               {edited(member) && (
                 <div className="flex shrink-0 gap-2">
                   <Button

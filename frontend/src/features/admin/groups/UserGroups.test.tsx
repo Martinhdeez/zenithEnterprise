@@ -21,11 +21,15 @@ const GROUPS = [
 const users = vi.fn();
 const groups = vi.fn();
 const setUserGroups = vi.fn();
+const issueResetLink = vi.fn();
 
 vi.mock("../api", () => ({
   users: (...a: unknown[]) => users(...a),
   groups: (...a: unknown[]) => groups(...a),
   setUserGroups: (...a: unknown[]) => setUserGroups(...a),
+  issueResetLink: (...a: unknown[]) => issueResetLink(...a),
+  // The link panel builds an absolute URL from the path the server returns.
+  absoluteLink: (path: string) => `http://localhost${path}`,
 }));
 
 const ANA = { id: "u1", email: "ana@example.com", name: "Ana", role_ids: ["r1"], group_ids: ["g1"] };
@@ -157,3 +161,37 @@ describe("before any group exists", () => {
     expect(screen.queryByText("Ana")).toBeNull();
   });
 });
+
+/**
+ * The support action an on-premise install actually needs.
+ *
+ * `issueResetLink` and `POST /users/{id}/reset-link` have existed and been tested since
+ * credential links shipped, and no screen called either. There is no outbound mail here, so
+ * somebody locked out of their account needed an operator with shell access running
+ * `zenith reset-password` — a support ticket for a thing an administrator is entitled to do.
+ */
+describe("issuing a password reset link", () => {
+  it("shows the link once the server has issued it", async () => {
+    issueResetLink.mockResolvedValue({
+      email: "someone@example.com",
+      path: "/set-password/reset-abc",
+      expires_at: "2026-09-01T10:00:00Z",
+    });
+
+    render(<UserGroups token="t" />);
+    fireEvent.click((await screen.findAllByRole("button", { name: /Reset link/ }))[0]!);
+
+    expect(await screen.findByText(/set-password\/reset-abc/)).toBeTruthy();
+    expect(screen.getByText(/can set a new password/)).toBeTruthy();
+  });
+
+  it("keeps the list when the server refuses", async () => {
+    issueResetLink.mockRejectedValue(new Error("no such user"));
+
+    render(<UserGroups token="t" />);
+    fireEvent.click((await screen.findAllByRole("button", { name: /Reset link/ }))[0]!);
+
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(screen.queryByText(/can set a new password/)).toBeNull();
+  });
+})
