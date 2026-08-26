@@ -309,7 +309,19 @@
   --destructive: oklch(0.3959 0.1331 25.7205);
   --destructive-foreground: oklch(0.9838 0.0035 247.8583);
   --border: oklch(0.2800 0.0369 259.9740);
-  --input: oklch(0.2800 0.0369 259.9740);
+  /* Lighter than `--border`, which the theme does not do — it sets the two to the same
+     value, and adopting that collapsed a distinction this interface was relying on.
+
+     A field is a well you type into: `SearchField` says so and deliberately uses
+     `bg-input/30` rather than `bg-card` to get it. At 30% opacity, an `--input` equal to
+     `--border` lands about 0.043 in lightness above the page — near enough to invisible
+     that nothing on screen invited a click. The palette this replaced had `#334155` for
+     the field against `#1e293b` for the border, and that separation was the point.
+
+     0.38 restores it: the fill sits about 0.10 above the page, which is what the old
+     palette gave, and the border stays a step above the fill so the edge is still an
+     edge. */
+  --input: oklch(0.3800 0.0369 259.9740);
   --ring: #00e5e5;
   --zenith: oklch(0.6232 0.1879 259.7964);
   --zenith-foreground: oklch(0.2079 0.0399 265.7275);
