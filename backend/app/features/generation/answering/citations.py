@@ -120,7 +120,10 @@ def _citation(marker: int, hit: Hit) -> ChunkCitation:
         chunk_id=hit.chunk_id,
         document_id=hit.document_id,
         filename=hit.filename,
+        media_type=hit.media_type,
         page_num=hit.page_num,
+        char_start=hit.char_start,
+        char_end=hit.char_end,
         text=hit.text,
         bboxes=hit.bboxes,
     )

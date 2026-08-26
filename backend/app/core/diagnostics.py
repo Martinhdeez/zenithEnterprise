@@ -267,12 +267,14 @@ async def _orphaned_documents() -> tuple[Status, str]:
     storage = DocumentStorage()
     async with get_owner_session_factory()() as session:
         rows = (
-            await session.execute(text("SELECT tenant_id, sha256, filename FROM documents"))
+            await session.execute(
+                text("SELECT tenant_id, sha256, filename, media_type FROM documents")
+            )
         ).all()
 
     def absent(row: Any) -> bool:
         try:
-            return not storage.path_for(row.tenant_id, row.sha256).exists()
+            return not storage.path_for(row.tenant_id, row.sha256, row.media_type).exists()
         except Exception:  # noqa: BLE001
             # `path_for` refuses anything that is not a SHA-256 digest — the guard that keeps
             # a stored key from walking out of its tenant directory. A row that trips it has

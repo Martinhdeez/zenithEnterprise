@@ -150,13 +150,18 @@ async def download_document(document_id: UUID, profile: CurrentProfile) -> FileR
     them confirms that it exists.
     """
     document = await DocumentService(profile).get(document_id)
-    path = DocumentStorage().path_for(profile.context.tenant_id, document.sha256)
+    path = DocumentStorage().path_for(
+        profile.context.tenant_id, document.sha256, document.media_type
+    )
     if not path.exists():
         # A row whose file is missing. Possible by design — the upload commits the row
         # first, so a crash between the two leaves this state rather than an orphan file
         # nobody can find. Reported as missing rather than as a 500.
         raise NotFoundError(f"the stored file for {document_id} is missing")
-    return FileResponse(path, media_type="application/pdf", filename=document.filename)
+    # The stored type, not a constant. Serving a `.md` as `application/pdf` makes the
+    # browser download a file it could have rendered, and makes the text viewer's fetch
+    # look like a failure it is not.
+    return FileResponse(path, media_type=document.media_type, filename=document.filename)
 
 
 @router.delete(

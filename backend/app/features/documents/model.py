@@ -15,6 +15,7 @@ from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base, created_at, uuid_col, uuid_pk
+from app.features.documents.media import MEDIA_TYPES, PDF
 
 #: `classifying` sits between `embedding` and `ready` because migration 0017's uploader
 #: exception is keyed on `status <> 'ready'`, and filing happens after the chunks are
@@ -43,6 +44,7 @@ class Document(Base):
         # Deduplication RF-03.3: the same file uploaded twice is not reprocessed.
         UniqueConstraint("tenant_id", "sha256"),
         CheckConstraint("status IN " + str(DOCUMENT_STATUSES), name="status_valido"),
+        CheckConstraint("media_type IN " + str(MEDIA_TYPES), name="media_type_conocido"),
         Index("ix_documents_label_ids", "label_ids", postgresql_using="gin"),
         # The listing order, so keyset pagination walks the index from the cursor instead
         # of sorting the tenant's whole corpus to return twenty rows. `id` is in it
@@ -55,6 +57,10 @@ class Document(Base):
     tenant_id: Mapped[uuid_col] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
     filename: Mapped[str]
     sha256: Mapped[str]
+    # Which viewer opens a citation into this document, and which parser read it. Stored
+    # rather than inferred from the filename at render time: an extension is a guess that
+    # is right until somebody uploads `notes.pdf.txt`.
+    media_type: Mapped[str] = mapped_column(Text, default=PDF, server_default=PDF)
     status: Mapped[str] = mapped_column(default="pending", server_default="pending")
     # Human-readable reason for the current status; on `failed`, the taxonomy error.
     status_detail: Mapped[str | None]
@@ -109,8 +115,20 @@ class Chunk(Base):
     tenant_id: Mapped[uuid_col] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
     # Copy of the document's labels, for the same reason as `tenant_id`.
     label_ids: Mapped[list[Any]] = mapped_column(ARRAY(PgUUID(as_uuid=True)), server_default="{}")
-    page_num: Mapped[int]
-    # Text operations only. NOT for positioning the highlight.
+    #: `None` for a document that has no pages — a `.txt` or `.md`. Not `1`: a column
+    #: holding a placeholder teaches every reader that the value is always there, and the
+    #: first one to render it writes "page 1" under a document without pages.
+    page_num: Mapped[int | None]
+    #: Where this chunk sits in **the stored text unit** — the page for a PDF, the whole
+    #: file for a text document. Not document-relative: `chunk_page` restarts at zero on
+    #: each page, so a reader assuming otherwise highlights the wrong span in every
+    #: multi-page PDF, silently.
+    #:
+    #: Written since migration 0001 and read by nothing until text documents arrived. For
+    #: a PDF the highlight is still the bounding boxes — pdfplumber's text and pdf.js's
+    #: text layer disagree on whitespace, ligatures and hyphenation, so an offset computed
+    #: against one misplaces the highlight in the other. A text file has exactly one text,
+    #: and that objection does not apply to it.
     char_start: Mapped[int]
     char_end: Mapped[int]
     # [{page, x0, y0, x1, y1}, ...] normalised 0-1. A chunk spans several lines and

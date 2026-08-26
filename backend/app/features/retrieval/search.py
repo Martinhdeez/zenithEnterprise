@@ -44,7 +44,17 @@ class Hit:
     chunk_id: UUID
     document_id: UUID
     filename: str
-    page_num: int
+    #: How this document is opened and highlighted. A paginated one gets a page and boxes;
+    #: a text one gets the character range. The client picks the viewer from this rather
+    #: than from the filename, because an extension is a guess and this is a fact.
+    media_type: str
+    #: `None` for a document with no pages.
+    page_num: int | None
+    #: Offsets into the stored text unit — the page for a PDF, the whole file for a text
+    #: document. What a text citation highlights with; meaningless as a highlight in a PDF,
+    #: where pdfplumber's text and pdf.js's text layer do not agree.
+    char_start: int
+    char_end: int
     text: str
     bboxes: list[dict[str, float]]
     # Positions rather than scores. `ts_rank_cd` and cosine distance live on different,
@@ -294,8 +304,8 @@ async def hydrate(
 
     rows = await session.execute(
         text(
-            "SELECT c.id, c.document_id, d.filename, c.page_num, c.text, c.bboxes, "
-            "       d.label_ids "
+            "SELECT c.id, c.document_id, d.filename, d.media_type, c.page_num, "
+            "       c.char_start, c.char_end, c.text, c.bboxes, d.label_ids "
             "FROM chunks c JOIN documents d ON d.id = c.document_id "
             "WHERE c.id = ANY(:ids)"
         ),
@@ -307,7 +317,10 @@ async def hydrate(
             chunk_id=row.id,
             document_id=row.document_id,
             filename=row.filename,
+            media_type=row.media_type,
             page_num=row.page_num,
+            char_start=row.char_start,
+            char_end=row.char_end,
             text=row.text,
             bboxes=list(row.bboxes or []),
             label_ids=list(row.label_ids or []),

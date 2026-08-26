@@ -31,15 +31,17 @@ from app.core.database import tenant_session
 from app.core.hardware import Profile
 from app.core.hardware import active as active_profile
 from app.features.audit.service import record_automatic
+from app.features.documents.media import is_paginated
 from app.features.documents.model import Chunk as ChunkRow
 from app.features.documents.model import Document, Page
 from app.features.documents.storage import DocumentStorage
 from app.features.embeddings.client import DIMENSION, MODEL, VERSION, TeiClient
 from app.features.embeddings.model import ChunkEmbedding, EmbeddingSpace
-from app.features.ingestion.chunking.chunker import Chunk, chunk_page
+from app.features.ingestion.chunking.chunker import Chunk, chunk_page, chunk_stream
 from app.features.ingestion.classification import Classifier, Outcome
 from app.features.ingestion.parsers.base import ParsedPage, Parser
 from app.features.ingestion.parsers.pdfplumber_parser import PdfPlumberParser, page_count
+from app.features.ingestion.parsers.text_parser import TextParser
 from app.features.ingestion.routing import Route, decide
 from app.features.labels.repository import LabelRepository
 from app.features.tenancy.context import TenantContext
@@ -106,26 +108,36 @@ class IngestionPipeline:
                 # after the task was enqueued and the payload's labels are stale. Both are
                 # ordinary; neither is something to retry blindly.
                 return Result(document_id, "unknown", 0, 0, "document not visible in this context")
-            path = self.storage.path_for(self.context.tenant_id, document.sha256)
+            path = self.storage.path_for(
+                self.context.tenant_id, document.sha256, document.media_type
+            )
+            # Read inside the session: the instance detaches when it closes, and reading
+            # an attribute afterwards raises rather than returning the value.
+            media_type = document.media_type
 
         try:
-            return await self._ingest(document_id, path)
+            return await self._ingest(document_id, path, media_type)
         except Exception as exc:  # noqa: BLE001 - the failure has to reach the status column
             log.exception("ingestion_failed", document_id=str(document_id))
             await self._mark_failed(document_id, f"{type(exc).__name__}: {exc}")
             return Result(document_id, "failed", 0, 0, str(exc))
 
-    async def _ingest(self, document_id: UUID, path: Path) -> Result:
+    async def _ingest(self, document_id: UUID, path: Path, media_type: str) -> Result:
         if not path.exists():
             await self._mark_failed(document_id, "the stored file is missing")
             return Result(document_id, "failed", 0, 0, "the stored file is missing")
+
+        paginated = is_paginated(media_type)
 
         # Before parsing, because afterwards the cost has already been paid. `settings`
         # has carried `max_pages_per_document` since it was written and nothing read it —
         # a safeguard in name only, of the same kind as an abort listener nothing could
         # reach. A document past the limit is refused with the number in the message, so
         # the person holding a 4,000-page manual knows to split it rather than guessing.
-        pages_in_file = page_count(path)
+        # A page limit is a page count, and a text file has none. The size limit that
+        # already ran at the gate is what bounds it — `stash` enforces it while receiving,
+        # so an oversized note never reaches here at all.
+        pages_in_file = page_count(path) if paginated else 0
         if pages_in_file > settings.max_pages_per_document:
             detail = (
                 f"this document has {pages_in_file} pages, more than the "
@@ -139,14 +151,28 @@ class IngestionPipeline:
         # sat in `parsers/base.py` documenting the contract every parser must meet and
         # nothing was ever declared to meet it, which is a contract in the same sense a
         # comment is.
-        parser: Parser = PdfPlumberParser()
+        # The one branch on media type in this file, and it is here rather than spread
+        # through the stages because the two paths differ in exactly two respects: which
+        # parser reads the file, and whether the text is split per page or as one stream.
+        # Everything after — embedding, persistence, classification, the "ready with zero
+        # chunks is forbidden" rule — is identical, and a flag threaded through those
+        # stages would invite them to diverge.
+        parser: Parser = PdfPlumberParser() if paginated else TextParser(media_type)
         pages = parser.parse(path)
-        routing = self._route(pages)
+
+        # Page routing is a PDF question: it asks whether a page has an extractable text
+        # layer or needs OCR. A text file has its text by definition, so it is not routed —
+        # sending it through would make `decide` judge a whole document by the rule written
+        # for one page, and refuse a short note as "no extractable text layer".
+        routing = self._route(pages) if paginated else Routing(pages, None, ())
 
         await self._set_status(document_id, "chunking")
         chunks: list[Chunk] = []
-        for page in routing.pages:
-            chunks.extend(chunk_page(page))
+        if paginated:
+            for page in routing.pages:
+                chunks.extend(chunk_page(page))
+        else:
+            chunks.extend(chunk_stream(routing.pages[0].text))
 
         if not chunks:
             # The rule this pipeline exists to enforce. The reason says *why*, which is the

@@ -12,8 +12,10 @@ denying by default makes the product look broken — but it must never be how a 
 of the same bytes both pass a `SELECT`, and only the unique constraint knows which one won.
 """
 
+import codecs
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, replace
+from pathlib import PurePosixPath
 from uuid import UUID
 
 import structlog
@@ -31,6 +33,7 @@ from app.core.config import settings
 from app.core.database import tenant_session
 from app.features.auth.access.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
+from app.features.documents.media import BY_SUFFIX, PDF, PDF_MAGIC
 from app.features.documents.model import DOCUMENT_STATUSES, Document
 from app.features.documents.pagination import Cursor, clamp
 from app.features.documents.repository import DocumentRepository
@@ -39,8 +42,6 @@ from app.features.documents.storage import DocumentStorage, Staged
 from app.features.ingestion.enqueue import enqueue_ingestion
 from app.features.labels.model import AccessLabel
 from app.features.labels.repository import LabelRepository
-
-PDF_MAGIC = b"%PDF-"
 
 UPLOAD = "documents.upload"
 DELETE_OWN = "documents.delete.own"
@@ -68,6 +69,11 @@ class Upload:
     deduplicated: bool
 
 
+#: One sentence for the common refusal, so the message an uploader sees does not depend on
+#: which branch of the gate rejected them.
+UNSUPPORTED = "only PDF, plain text and Markdown files can be ingested"
+
+
 class DocumentService:
     def __init__(self, profile: AccessProfile, storage: DocumentStorage | None = None) -> None:
         self.profile = profile
@@ -91,10 +97,11 @@ class DocumentService:
         label_ids: list[UUID] | None = None,
         description: str | None = None,
     ) -> Upload:
-        staged = await self.storage.stash(_only_pdf(chunks))
+        media_type = intended_media_type(filename)
+        staged = await self.storage.stash(_of_type(chunks, media_type))
 
         try:
-            result = await self._record(filename, staged, label_ids, description)
+            result = await self._record(filename, staged, label_ids, description, media_type)
         except BaseException:
             await self.storage.discard(staged)
             raise
@@ -103,7 +110,7 @@ class DocumentService:
         # would leave a file no row points at — an orphan nobody can find. This way the
         # worst case is a row whose file is missing, which is visible in the status column
         # and repairable by re-uploading.
-        await self.storage.commit(staged, self.context.tenant_id)
+        await self.storage.commit(staged, self.context.tenant_id, media_type)
 
         # Enqueued after the file is in place, so a worker that starts immediately finds
         # something to read. A deduplicated upload is not re-ingested: the bytes are
@@ -122,6 +129,7 @@ class DocumentService:
         staged: Staged,
         requested: list[UUID] | None,
         description: str | None,
+        media_type: str,
     ) -> Upload:
         async with tenant_session(self.context) as session:
             documents = DocumentRepository(session)
@@ -147,6 +155,7 @@ class DocumentService:
                 filename=filename,
                 description=description,
                 sha256=staged.sha256,
+                media_type=media_type,
                 size_bytes=staged.size_bytes,
                 uploaded_by=self.profile.user_id,
             )
@@ -286,9 +295,13 @@ class DocumentService:
             if not self._may_delete(document):
                 raise PermissionDeniedError("this document was uploaded by someone else")
             sha256 = document.sha256
+            # Read inside the session with the digest: after `delete` the instance is
+            # detached, and touching an attribute then raises rather than returning the
+            # value — which would leave the file behind under a name we no longer know.
+            media_type = document.media_type
             await documents.delete(document)
 
-        await self.storage.delete(self.context.tenant_id, sha256)
+        await self.storage.delete(self.context.tenant_id, sha256, media_type)
 
     async def insights(self, document_id: UUID) -> DocumentInsights:
         """Passage count and how many answers have cited this document.
@@ -405,21 +418,64 @@ def _duplicate_beyond_reach() -> ConflictError:
     )
 
 
-async def _only_pdf(chunks: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
+def intended_media_type(filename: str) -> str:
+    """What the uploader is claiming this file is.
+
+    From the name, and only the name, because a text file has no magic number to read. The
+    claim is then *enforced* against the bytes by `_of_type` — this decides what to check,
+    not what to believe.
+
+    Anything unrecognised is treated as a claim of PDF, so a `.docx` is refused by the
+    magic-number check with the message it has always given rather than by a second,
+    differently-worded rejection.
+    """
+    return BY_SUFFIX.get(PurePosixPath(filename).suffix.lower(), PDF)
+
+
+async def _of_type(chunks: AsyncIterator[bytes], media_type: str) -> AsyncIterator[bytes]:
     """Reject on the first bytes, before the rest of the upload is written.
 
-    The declared content type is a claim the client makes, and F5's routing assumes what
-    it is handed is really a PDF. Checking the magic number after the file has landed
-    would work too, and would also mean writing 100 MB of somebody's video to disk before
-    saying no.
+    The declared content type is a claim the client makes, and routing assumes what it is
+    handed is really what it says. Checking after the file has landed would work too, and
+    would also mean writing 100 MB of somebody's video to disk before saying no.
+
+    For a PDF that check is the magic number. For text there is none, so the check is that
+    the bytes are decodable UTF-8 and hold no NUL — which is what actually distinguishes a
+    document from a binary somebody renamed. Decoded incrementally: a multi-byte character
+    split across two network chunks is normal, and a decoder that saw each chunk alone
+    would reject perfectly good text with a plausible-looking error.
     """
-    head = b""
+    if media_type == PDF:
+        head = b""
+        async for chunk in chunks:
+            if len(head) < len(PDF_MAGIC):
+                head += chunk[: len(PDF_MAGIC) - len(head)]
+                if len(head) >= len(PDF_MAGIC) and not head.startswith(PDF_MAGIC):
+                    raise UnsupportedFileError(UNSUPPORTED)
+            yield chunk
+
+        if not head.startswith(PDF_MAGIC):
+            raise UnsupportedFileError(UNSUPPORTED)
+        return
+
+    decoder = codecs.getincrementaldecoder("utf-8")()
+    first = True
     async for chunk in chunks:
-        if len(head) < len(PDF_MAGIC):
-            head += chunk[: len(PDF_MAGIC) - len(head)]
-            if len(head) >= len(PDF_MAGIC) and not head.startswith(PDF_MAGIC):
-                raise UnsupportedFileError("only PDF files can be ingested")
+        if first and chunk.startswith(PDF_MAGIC):
+            # A PDF under a `.txt` name. Refused rather than quietly stored as text: it
+            # would ingest as mojibake and cite a character range into binary.
+            raise UnsupportedFileError("this file is a PDF; upload it with a .pdf name")
+        first = False
+        try:
+            decoded = decoder.decode(chunk)
+        except UnicodeDecodeError:
+            raise UnsupportedFileError("this file is not valid UTF-8 text") from None
+        if "\x00" in decoded:
+            raise UnsupportedFileError("this file contains binary data, not text")
         yield chunk
 
-    if not head.startswith(PDF_MAGIC):
-        raise UnsupportedFileError("only PDF files can be ingested")
+    try:
+        decoder.decode(b"", final=True)
+    except UnicodeDecodeError:
+        # Truncated multi-byte sequence at the very end.
+        raise UnsupportedFileError("this file is not valid UTF-8 text") from None

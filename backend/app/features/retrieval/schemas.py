@@ -14,7 +14,17 @@ class HitResponse(BaseModel):
     chunk_id: UUID
     document_id: UUID
     filename: str
-    page_num: int
+    #: Which viewer opens this citation. Sent rather than inferred from the filename: the
+    #: client would have to guess, and `notes.pdf.txt` is the guess going wrong.
+    media_type: str
+    #: `None` where the document has no pages. Not `1`: a placeholder is what puts "page 1"
+    #: under a Markdown file.
+    page_num: int | None
+    #: The character range this passage occupies, within the page for a PDF and within the
+    #: whole file for a text document. It is how a text citation is underlined; in a PDF
+    #: the highlight is `bboxes`, because offsets and pdf.js's text layer disagree.
+    char_start: int
+    char_end: int
     text: str
     bboxes: list[dict[str, float]]
     #: Ids, resolved to names client-side against the labels the caller reaches — the same

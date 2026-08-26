@@ -30,6 +30,7 @@ import anyio.to_thread
 from app.common.exceptions import LimitExceededError
 from app.common.units import bytes_as_text
 from app.core.config import settings
+from app.features.documents.media import PDF, suffix_for
 
 # 1 MiB. Large enough that a 100 MB upload is a hundred hops into the thread pool rather
 # than a hundred thousand, small enough that peak memory per concurrent upload is a
@@ -73,12 +74,23 @@ class DocumentStorage:
         """
         return self.root / "staging"
 
-    def path_for(self, tenant_id: UUID, sha256: str) -> Path:
+    def path_for(self, tenant_id: UUID, sha256: str, media_type: str = PDF) -> Path:
+        """Where one document's bytes live.
+
+        The suffix comes from the media type rather than being hardcoded. Content
+        addressing makes it decorative for lookup — the digest is the key — but an
+        operator opening this directory should not have to guess, and a `.txt` written as
+        `.pdf` is a trap laid for whoever debugs this next.
+
+        `PDF` is the default because every document stored before text files existed is
+        one, so the default is not a convenience: it is what those files are actually
+        called on disk.
+        """
         if not _HEX_64.match(sha256):
             raise CorruptStorageKeyError(f"not a SHA-256 digest: {sha256!r}")
         # Tenant first, so one customer's documents are one subtree: it makes a per-tenant
         # backup, a per-tenant restore and a tenant deletion each a single path operation.
-        return self.root / str(tenant_id) / f"{sha256}.pdf"
+        return self.root / str(tenant_id) / f"{sha256}{suffix_for(media_type)}"
 
     async def stash(self, chunks: AsyncIterator[bytes]) -> Staged:
         """Receive an upload, hashing on the same pass that writes it.
@@ -116,14 +128,14 @@ class DocumentStorage:
 
         return Staged(path=path, sha256=digest.hexdigest(), size_bytes=size)
 
-    async def commit(self, staged: Staged, tenant_id: UUID) -> Path:
+    async def commit(self, staged: Staged, tenant_id: UUID, media_type: str = PDF) -> Path:
         """Move a staged file into its content-addressed place.
 
         Idempotent by construction: identical bytes produce an identical path, so a
         document already stored is simply overwritten with the same content. That is what
         makes the deduplication path safe to re-run after a crash.
         """
-        destination = self.path_for(tenant_id, staged.sha256)
+        destination = self.path_for(tenant_id, staged.sha256, media_type)
 
         def move() -> None:
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -135,7 +147,7 @@ class DocumentStorage:
     async def discard(self, staged: Staged) -> None:
         await anyio.to_thread.run_sync(lambda: staged.path.unlink(missing_ok=True))
 
-    async def delete(self, tenant_id: UUID, sha256: str) -> None:
+    async def delete(self, tenant_id: UUID, sha256: str, media_type: str = PDF) -> None:
         """Remove the stored file. Missing is success, not an error.
 
         Deletion runs after the database transaction commits, so it can be reached a
@@ -144,7 +156,7 @@ class DocumentStorage:
         "the file is gone", and it is.
         """
         await anyio.to_thread.run_sync(
-            lambda: self.path_for(tenant_id, sha256).unlink(missing_ok=True)
+            lambda: self.path_for(tenant_id, sha256, media_type).unlink(missing_ok=True)
         )
 
     async def purge_tenant(self, tenant_id: UUID) -> int:

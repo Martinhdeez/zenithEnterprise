@@ -306,3 +306,112 @@ async def test_another_tenant_cannot_see_or_delete_the_document(
     assert visible == []
     with pytest.raises(NotFoundError):
         await DocumentService(intruder, storage).delete(uploaded.document.id)
+
+
+# --- text documents ----------------------------------------------------------------------
+#
+# The interesting cases are the ones where "is this text?" has a wrong answer that looks
+# right: a PDF wearing a `.txt` name, a binary that happens to decode, a multi-byte
+# character split across two network chunks.
+
+NOTE = "# Runbook\n\nRestart the collector before the reconciler.\n" * 8
+
+
+async def chunks_of(*parts: bytes) -> AsyncIterator[bytes]:
+    """Deliberately several parts: the gate decodes incrementally and this is what proves it."""
+    for part in parts:
+        yield part
+
+
+async def test_a_markdown_file_is_stored_as_markdown(
+    account: Account, storage: DocumentStorage
+) -> None:
+    profile = await profile_for(account)
+
+    result = await DocumentService(profile, storage).upload("runbook.md", chunks_of(NOTE.encode()))
+
+    assert result.document.media_type == "text/markdown"
+    # The suffix on disk follows the type. Content addressing makes it decorative for
+    # lookup, and a `.md` written as `.pdf` is a trap for whoever debugs this next.
+    assert storage.path_for(account.tenant_id, result.document.sha256, "text/markdown").exists()
+
+
+async def test_a_plain_text_file_is_stored_as_plain_text(
+    account: Account, storage: DocumentStorage
+) -> None:
+    profile = await profile_for(account)
+
+    result = await DocumentService(profile, storage).upload("notes.txt", chunks_of(NOTE.encode()))
+
+    assert result.document.media_type == "text/plain"
+
+
+async def test_a_pdf_wearing_a_text_name_is_refused(
+    account: Account, storage: DocumentStorage
+) -> None:
+    """Not stored as text and silently indexed as mojibake.
+
+    This is the case the filename-based decision gets wrong on its own, which is why the
+    bytes still have the last word.
+    """
+    profile = await profile_for(account)
+
+    with pytest.raises(UnsupportedFileError):
+        await DocumentService(profile, storage).upload("report.txt", chunks_of(PDF))
+
+    async with tenant_session(profile.context) as session:
+        assert await session.scalar(text("SELECT count(*) FROM documents")) == 0
+
+
+async def test_a_binary_wearing_a_text_name_is_refused(
+    account: Account, storage: DocumentStorage
+) -> None:
+    profile = await profile_for(account)
+
+    with pytest.raises(UnsupportedFileError):
+        await DocumentService(profile, storage).upload(
+            "image.txt", chunks_of(b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR")
+        )
+
+
+async def test_invalid_utf8_is_refused(account: Account, storage: DocumentStorage) -> None:
+    profile = await profile_for(account)
+
+    with pytest.raises(UnsupportedFileError):
+        await DocumentService(profile, storage).upload(
+            "latin.txt", chunks_of(b"caf\xe9 \xff\xfe not utf-8 at all")
+        )
+
+
+async def test_a_character_split_across_two_chunks_is_not_a_rejection(
+    account: Account, storage: DocumentStorage
+) -> None:
+    """A multi-byte character arriving in two network chunks is ordinary, not corruption.
+
+    A decoder handed each chunk on its own would reject this file with a message that reads
+    exactly like a real encoding problem, and the uploader would have no way to tell the
+    difference.
+    """
+    profile = await profile_for(account)
+    body = (NOTE + "café añejo — reconciliación").encode()
+    split = body.index(b"caf\xc3\xa9") + 4  # between the two bytes of "é"
+
+    result = await DocumentService(profile, storage).upload(
+        "acentos.md", chunks_of(body[:split], body[split:])
+    )
+
+    assert result.document.media_type == "text/markdown"
+
+
+async def test_a_word_document_is_refused_like_any_other_unsupported_file(
+    account: Account, storage: DocumentStorage
+) -> None:
+    """`.docx` claims PDF, so it meets the magic-number check and its long-standing message.
+
+    Deliberate: a format we do not support should be refused once, in one sentence, not by
+    whichever branch of the gate happens to catch it.
+    """
+    profile = await profile_for(account)
+
+    with pytest.raises(UnsupportedFileError):
+        await DocumentService(profile, storage).upload("contract.docx", chunks_of(b"PK\x03\x04"))

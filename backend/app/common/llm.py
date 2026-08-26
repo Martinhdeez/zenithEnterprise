@@ -56,8 +56,10 @@ class GenerationResponse:
 class ChunkCitation:
     """One passage the answer leaned on, resolved to something clickable.
 
-    A citation is not the string "page 34" (mvp.md 2.9): clicking it opens the PDF on that
-    page with the chunk highlighted, which is why the boxes travel with it.
+    A citation is not the string "page 34" (mvp.md 2.9): clicking it opens the document at
+    the passage with the chunk highlighted, which is why the geometry travels with it — a
+    page and rectangles for a PDF, a character range for a text file. `media_type` says
+    which of the two to read.
 
     `marker` is the number as it appears in the answer text. It is an index into the
     shortlist that was sent to the model and nothing more — the model never sees a chunk id,
@@ -68,7 +70,10 @@ class ChunkCitation:
     chunk_id: UUID
     document_id: UUID
     filename: str
-    page_num: int
+    media_type: str
+    page_num: int | None
+    char_start: int
+    char_end: int
     text: str
     bboxes: list[dict[str, float]] = field(default_factory=list[dict[str, float]])
 

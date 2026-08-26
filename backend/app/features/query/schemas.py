@@ -45,16 +45,23 @@ class QueryRequest(BaseModel):
 class CitationResponse(BaseModel):
     """A citation is not the string "page 34" (mvp.md 2.9).
 
-    Clicking it opens the PDF on that page with the chunk highlighted, which is why the
-    boxes and the page travel with the marker. `marker` is the number as it appears in the
-    answer text, so the viewer can tie the highlight to the bracket the user clicked.
+    Clicking it opens the document at the passage with the chunk highlighted, which is why
+    the geometry travels with the marker. `marker` is the number as it appears in the answer
+    text, so the viewer can tie the highlight to the bracket the user clicked.
+
+    **Two kinds of geometry, because there are two kinds of document.** A PDF citation is a
+    page and rectangles on it; a text citation is a character range. `media_type` says which
+    of them to read, and the other is empty rather than invented.
     """
 
     marker: int
     chunk_id: UUID
     document_id: UUID
     filename: str
-    page_num: int
+    media_type: str
+    page_num: int | None
+    char_start: int
+    char_end: int
     text: str
     bboxes: list[dict[str, float]]
 
@@ -69,7 +76,7 @@ class ConsultedResponse(BaseModel):
 
     document_id: UUID
     filename: str
-    page_num: int
+    page_num: int | None
 
 
 class QueryResponse(BaseModel):

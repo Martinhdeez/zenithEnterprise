@@ -78,7 +78,10 @@ def _rendered(result: Answer) -> QueryResponse:
                 chunk_id=citation.chunk_id,
                 document_id=citation.document_id,
                 filename=citation.filename,
+                media_type=citation.media_type,
                 page_num=citation.page_num,
+                char_start=citation.char_start,
+                char_end=citation.char_end,
                 text=citation.text,
                 bboxes=citation.bboxes,
             )

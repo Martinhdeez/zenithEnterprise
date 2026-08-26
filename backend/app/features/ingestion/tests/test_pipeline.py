@@ -420,3 +420,104 @@ async def test_the_document_is_not_ready_while_it_is_being_filed(
             text("SELECT status FROM documents WHERE id = :d"), {"d": document_id}
         )
     assert final == "ready"
+
+
+# --- documents that were never PDFs -------------------------------------------------------
+
+MARKDOWN_NOTE = (
+    "# Collector runbook\n\n"
+    "Restart the collector before the reconciler, never the other way round. "
+    "A reconciler started first reads a partial window and writes a gap it will not revisit.\n\n"
+    "## Escalation\n\n"
+    "Page the on-call engineer if the backlog exceeds four hours.\n"
+) * 6
+
+
+async def upload_text(
+    account: Account, storage: DocumentStorage, filename: str, body: str
+) -> tuple[UUID, TenantContext]:
+    profile = await profile_for(account)
+    result = await DocumentService(profile, storage).upload(filename, _stream(body.encode()))
+    return result.document.id, TenantContext.for_tenant(account.tenant_id, result.labels)
+
+
+async def test_a_markdown_document_is_ingested_and_searchable(
+    account: Account, storage: DocumentStorage
+) -> None:
+    """The whole path, with no PDF anywhere in it."""
+    document_id, context = await upload_text(account, storage, "runbook.md", MARKDOWN_NOTE)
+
+    result = await IngestionPipeline(context, storage, StubEmbedder()).run(document_id)  # type: ignore[arg-type]
+
+    assert result.status == "ready"
+    assert result.chunks > 0
+    async with tenant_session(context) as session:
+        # One stored unit: the file. Not one per screenful — a pretend page would put a
+        # page number on a citation that has none.
+        assert await session.scalar(text("SELECT count(*) FROM pages")) == 1
+        assert await session.scalar(text("SELECT count(*) FROM chunk_embeddings")) == result.chunks
+
+
+async def test_a_text_documents_chunks_carry_no_page_number(
+    account: Account, storage: DocumentStorage
+) -> None:
+    """Null all the way to the column, so no reader can render "page 1".
+
+    Asserted against the database rather than the dataclass: the model made the column
+    nullable and a default anywhere between here and there would quietly fill it.
+    """
+    document_id, context = await upload_text(account, storage, "notes.txt", MARKDOWN_NOTE)
+
+    await IngestionPipeline(context, storage, StubEmbedder()).run(document_id)  # type: ignore[arg-type]
+
+    async with tenant_session(context) as session:
+        numbered = "SELECT count(*) FROM chunks WHERE page_num IS NOT NULL"
+        assert await session.scalar(text("SELECT count(*) FROM chunks")) > 0
+        assert await session.scalar(text(numbered)) == 0
+
+
+async def test_a_text_documents_offsets_select_its_own_text(
+    account: Account, storage: DocumentStorage
+) -> None:
+    """End to end, against what was actually stored.
+
+    The chunker's own test proves the arithmetic. This proves the arithmetic survived
+    parsing, normalisation and the round trip through Postgres — which is where an offset
+    computed before `\\r\\n` collapsed would come apart.
+    """
+    document_id, context = await upload_text(account, storage, "runbook.md", MARKDOWN_NOTE)
+
+    await IngestionPipeline(context, storage, StubEmbedder()).run(document_id)  # type: ignore[arg-type]
+
+    async with tenant_session(context) as session:
+        stored = await session.scalar(text("SELECT text FROM pages"))
+        rows = (await session.execute(text("SELECT char_start, char_end, text FROM chunks"))).all()
+
+    assert rows
+    for row in rows:
+        assert stored[row.char_start : row.char_end].strip() == row.text
+
+
+async def test_windows_line_endings_do_not_shift_the_highlight(
+    account: Account, storage: DocumentStorage
+) -> None:
+    """A file written on Windows must chunk and highlight identically to the same file
+    written anywhere else.
+
+    Normalising after the offsets were computed would move every highlight by one character
+    per preceding line — a drift that grows down the document and looks like an off-by-one
+    nobody can reproduce on their own machine.
+    """
+    document_id, context = await upload_text(
+        account, storage, "windows.md", MARKDOWN_NOTE.replace("\n", "\r\n")
+    )
+
+    await IngestionPipeline(context, storage, StubEmbedder()).run(document_id)  # type: ignore[arg-type]
+
+    async with tenant_session(context) as session:
+        stored = await session.scalar(text("SELECT text FROM pages"))
+        rows = (await session.execute(text("SELECT char_start, char_end, text FROM chunks"))).all()
+
+    assert "\r" not in stored
+    for row in rows:
+        assert stored[row.char_start : row.char_end].strip() == row.text
