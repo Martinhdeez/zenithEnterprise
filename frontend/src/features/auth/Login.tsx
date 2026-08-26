@@ -72,14 +72,37 @@ export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair
           {/* No wordmark: the mark carries the brand alone, and the name reappears once,
               small, as the lead word of the caption below rather than twice on the page. */}
           <div className="relative flex size-20 items-center justify-center">
+            {/* The goo filter itself: blur the group, then push the alpha channel through a
+                steep contrast curve. Everything above the threshold becomes solid and
+                everything below it vanishes, so two blurred shapes that overlap read as one
+                shape with a liquid neck between them. That is the whole trick — there is no
+                library here, and adding a dependency to a product shipped into networks
+                with no egress for a decorative effect would be a poor trade. */}
+            <svg aria-hidden="true" className="pointer-events-none absolute size-0">
+              <defs>
+                <filter id="zenith-goo">
+                  <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
+                  <feColorMatrix
+                    in="blur"
+                    type="matrix"
+                    values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9"
+                  />
+                </filter>
+              </defs>
+            </svg>
+
+            {/* Behind the mark, never in front of it: the logo has to stay legible, and an
+                effect that competes with the thing it surrounds is decoration that has
+                stopped serving anything. The two brand colours are the ones already used
+                here — the primary and the cyan that means "healthy" everywhere else. */}
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 blur-xl"
-              style={{
-                background:
-                  "radial-gradient(55% 55% at 50% 45%, rgba(99,102,241,0.45), transparent 70%), radial-gradient(45% 45% at 55% 70%, rgba(0,229,229,0.35), transparent 70%)",
-              }}
-            />
+              className="zenith-goo pointer-events-none absolute -inset-24 opacity-60 blur-[2px]"
+            >
+              <span className="zenith-blob zenith-blob-a absolute top-[28%] left-[24%] size-24 rounded-full bg-primary/60" />
+              <span className="zenith-blob zenith-blob-b absolute top-[38%] left-[46%] size-20 rounded-full bg-zenith-cyan/40" />
+              <span className="zenith-blob zenith-blob-c absolute top-[46%] left-[30%] size-[5.5rem] rounded-full bg-primary/45" />
+            </div>
             <img
               src="/zenith-mark.png"
               alt="Zenith"
@@ -189,8 +212,14 @@ export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair
               <Button
                 type="submit"
                 disabled={busy}
-                style={{ background: "linear-gradient(to right, #6366f1, #4f46e5)" }}
-                className="group mt-1 h-12 w-full rounded-xl text-sm font-semibold tracking-wide text-white shadow-[0_8px_24px_-6px_rgba(99,102,241,0.7)] ring-1 ring-white/15 ring-inset transition-all hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_10px_30px_-4px_rgba(99,102,241,0.85)] active:translate-y-0 active:shadow-[0_4px_14px_-6px_rgba(99,102,241,0.7)] disabled:translate-y-0 disabled:opacity-60"
+                // The gradient was two hardcoded indigos from before the palette moved, so
+                // this button kept the old accent after everything around it changed. Built
+                // from `--primary` now, which is the point of having the token.
+                style={{
+                  background:
+                    "linear-gradient(to right, var(--primary), color-mix(in oklab, var(--primary) 80%, black))",
+                }}
+                className="group mt-1 h-12 w-full rounded-xl text-sm font-semibold tracking-wide text-white shadow-[0_8px_24px_-6px_color-mix(in_oklab,var(--primary)_70%,transparent)] ring-1 ring-white/15 ring-inset transition-all hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 disabled:translate-y-0 disabled:opacity-60"
               >
                 {busy ? "Signing in…" : "Sign In to Workspace"}
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
