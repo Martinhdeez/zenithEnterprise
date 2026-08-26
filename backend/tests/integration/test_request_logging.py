@@ -47,17 +47,19 @@ async def probing(configured_engines: None) -> AsyncIterator[AsyncClient]:
     api.add_middleware(RequestContextMiddleware)
     api.include_router(auth_router)
 
-    @api.get("/_probe")
     async def probe() -> dict[str, object]:
         return dict(structlog.contextvars.get_contextvars())
+
+    api.get("/_probe")(probe)
 
     # The binding happens in the authentication dependency, so reaching it needs a route that
     # actually resolves a profile — which is the arrangement being tested, not a detail of
     # the harness.
-    @api.get("/_probe/auth")
     async def probe_authenticated(profile: CurrentProfile) -> dict[str, object]:
         del profile
         return dict(structlog.contextvars.get_contextvars())
+
+    api.get("/_probe/auth")(probe_authenticated)
 
     async with AsyncClient(transport=ASGITransport(app=api), base_url="http://test") as http:
         yield http
@@ -136,9 +138,10 @@ async def test_a_request_that_raises_is_still_logged(
     start — which is exactly what happened.
     """
 
-    @client._transport.app.get("/boom")  # type: ignore[attr-defined,union-attr]
     async def boom() -> None:
         raise RuntimeError("no")
+
+    client._transport.app.get("/boom")(boom)  # type: ignore[attr-defined,union-attr]
 
     with pytest.raises(RuntimeError):
         await client.get("/boom")

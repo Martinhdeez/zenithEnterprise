@@ -97,7 +97,7 @@ async def test_search_is_not_throttled(client: AsyncClient, account: Account) ->
     protect the expensive one — and the router does not even import the dependency."""
     from app.features.query.router import router
 
-    throttled = {
+    throttled: set[str] = {
         route.path  # type: ignore[attr-defined]
         for route in router.routes
         if any(getattr(d, "dependency", None) is not None for d in route.dependencies)  # type: ignore[attr-defined]
