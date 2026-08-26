@@ -182,6 +182,34 @@ The earlier note in this file said the restore had been verified. It had — int
 *database* inside the cluster it came from, where the roles already existed. That is the only
 place the defect is invisible.
 
-What is still missing: **this is not scheduled and it is not off-site.** A copy on other
-hardware is the remaining work; a backup on the disk that fails is not a backup. `backups/` is
-git-ignored — it holds customer data and must never reach the repository.
+### Scheduling it
+
+```bash
+./scripts/schedule-backup.sh install /path/on/other/hardware
+./scripts/schedule-backup.sh status
+```
+
+A correct backup nobody runs is the same as no backup on the morning it is needed. On 25
+August a Docker reset discarded the database volume and what saved the installation was a copy
+somebody had taken by hand four days earlier — luck with a shell script attached.
+
+Daily at 03:00, because `pg_dump` and the embedder compete for the same cores and F11 measured
+ingestion quadrupling query latency: a backup at nine in the morning is a backup that makes the
+product look slow. `RunAtLoad` is deliberately absent, so a laptop waking from sleep does not
+start a full backup on top of whatever its owner came back to do.
+
+macOS installs a `launchd` agent. Anything else gets the crontab line printed for review rather
+than written — a script that edits a server's crontab unasked is a script with opinions about
+somebody else's machine.
+
+### What is still missing
+
+**Off-site.** Scheduling without a destination on other hardware guarantees only that you will
+never forget to make a backup that a disk failure takes with it, and the script says so every
+time it runs. Pass a path on other hardware to `schedule-backup.sh install` and both halves are
+done.
+
+The destination is a decision rather than a default, and deliberately so: a backup carries user
+password hashes, the SCRAM verifiers in `roles.sql`, and every document of every tenant. Where
+that copy lives is the customer's call, not this repository's. `backups/` is git-ignored for
+the same reason — it must never reach the repository.
