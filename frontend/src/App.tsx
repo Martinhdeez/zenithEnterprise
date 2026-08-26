@@ -36,6 +36,7 @@ import { Chat, type Citation } from "@/features/chat";
 import { System } from "@/features/system";
 import { Ingesting, inFlight } from "@/features/documents";
 import { History } from "@/features/history";
+import { lazyChunk } from "@/shared/lib/lazyChunk";
 import {
   Folders,
   StatusBadge,
@@ -62,16 +63,22 @@ import { forget, read, write } from "@/shared/lib/storage";
 // chunk and leaves nothing behind the `lazy` boundary to split. The rule is "features are
 // imported through their public surface"; a code-splitting boundary is the exception, and
 // the build output is where it shows: `PdfViewer-*.js` has to stay its own chunk.
-const PdfViewer = lazy(() =>
-  import("@/features/documents/viewer/PdfViewer").then((module) => ({ default: module.PdfViewer })),
+const PdfViewer = lazy(
+  lazyChunk(() =>
+    import("@/features/documents/viewer/PdfViewer").then((module) => ({
+      default: module.PdfViewer,
+    })),
+  ),
 );
 // Its own chunk, and a much smaller one: this viewer is a `<pre>` and a `<mark>`, while the
 // PDF viewer drags pdf.js and its worker behind it. Splitting them means a reader who only
 // ever opens Markdown never downloads a PDF engine.
-const TextViewer = lazy(() =>
-  import("@/features/documents/viewer/TextViewer").then((module) => ({
-    default: module.TextViewer,
-  })),
+const TextViewer = lazy(
+  lazyChunk(() =>
+    import("@/features/documents/viewer/TextViewer").then((module) => ({
+      default: module.TextViewer,
+    })),
+  ),
 );
 
 // Session storage rather than local storage: it keeps both tokens out of other tabs and out
