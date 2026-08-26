@@ -394,14 +394,30 @@ export function App() {
                 className={`flex items-center rounded-lg text-left text-[15px] capitalize transition-colors ${
                   collapsed ? "justify-center px-0 py-3" : "gap-3 px-3 py-2"
                 } ${
+                  // A neutral fill and a full-contrast label, with the accent spent on the
+                  // icon alone.
+                  //
+                  // It was `bg-primary/10 text-primary` — a translucent blue block with
+                  // blue text, which is shadcn's default and reads as a highlighter mark
+                  // rather than as a selected row. Tinting both the surface and the text
+                  // the same hue also leaves the label washed out at the exact moment it
+                  // matters most.
+                  //
+                  // Selection is a state, not an emphasis: the row you are on should be the
+                  // most *legible*, and the colour is better spent on one small thing than
+                  // spread across the whole item.
                   view === name
-                    ? "bg-primary/10 font-medium text-primary"
-                    : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                    ? "bg-secondary font-medium text-foreground"
+                    : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
                 }`}
               >
                 {/* Larger when collapsed: at this size the icon is the only thing carrying
                     the meaning, so it gets the room the label gave up. */}
-                <Icon className={collapsed ? "size-6 shrink-0" : "size-[18px] shrink-0"} />
+                <Icon
+                  className={`shrink-0 ${collapsed ? "size-6" : "size-[18px]"} ${
+                    view === name ? "text-primary" : ""
+                  }`}
+                />
                 {!collapsed && name}
               </button>
             ))}
