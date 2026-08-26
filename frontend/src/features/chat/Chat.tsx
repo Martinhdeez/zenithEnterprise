@@ -122,7 +122,7 @@ function EmptyState({ token, onAsk }: { token: string; onAsk: (question: string)
                 <button
                   type="button"
                   onClick={() => onAsk(entry.question)}
-                  className="flex w-full items-center justify-between gap-4 rounded-lg border border-input bg-card px-3.5 py-2 text-left transition-colors hover:border-primary/50"
+                  className="flex w-full items-center justify-between gap-4 rounded-lg border border-input bg-secondary/50 px-4 py-3 text-left transition-colors hover:border-primary/50 hover:bg-secondary"
                 >
                   <span className="truncate text-sm text-foreground">{entry.question}</span>
                   {/* What it produced, in the apparatus face — a count is a measurement and
@@ -150,7 +150,7 @@ function EmptyState({ token, onAsk }: { token: string; onAsk: (question: string)
                 key={question}
                 type="button"
                 onClick={() => onAsk(question)}
-                className="truncate rounded-lg border border-input bg-card px-3.5 py-2 text-left text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                className="truncate rounded-lg border border-input bg-secondary/50 px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:bg-secondary hover:text-foreground"
               >
                 {question}
               </button>

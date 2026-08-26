@@ -300,7 +300,10 @@ export function Search({
                     setQuery(suggestion);
                     void run(suggestion);
                   }}
-                  className="inline-flex max-w-xs items-center gap-1.5 rounded-full border border-input bg-card px-3.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                  // `bg-secondary/50`, not `bg-card`: this palette makes `--card` equal to
+                  // `--background`, so a chip filled with it is a chip with no fill and
+                  // nothing but a hairline saying it can be clicked.
+                  className="inline-flex max-w-xs items-center gap-1.5 rounded-full border border-input bg-secondary/50 px-4 py-2 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:bg-secondary hover:text-foreground"
                 >
                   {recent.length > 0 && <Clock className="size-3 shrink-0 opacity-60" />}
                   <span className="truncate">{suggestion}</span>

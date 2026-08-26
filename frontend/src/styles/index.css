@@ -223,21 +223,43 @@
 .dark {
   --background: oklch(0.1371 0.0360 258.5258);
   --foreground: oklch(0.9838 0.0035 247.8583);
-  --card: oklch(0.1371 0.0360 258.5258);
+  /* A surface ladder, which the theme does not have and this interface needs.
+
+     "Professional" sets `--card` equal to `--background`: surfaces are separated by their
+     border rather than by fill. That works for a page of a few cards. It does not work
+     here, because this application stacks four deep — shell, panel, control, and the thing
+     inside the control — and with one tone for the first two there is nothing for a button
+     to stand on. The symptom is precise: a `bg-card` chip sitting on a panel reads as a
+     hole cut out of it, and the whole of Upload, History, Admin and System was one flat
+     field with hairlines drawn on it.
+
+     Four steps, evenly spaced at about 0.068 of lightness. The spacing is the point: a
+     first attempt used 0.04 and it failed the test that matters — visible up close, gone
+     at arm's length or to anyone whose eyes are not perfect. A step somebody has to lean
+     in for is not a step.
+
+       0.137  --background   the shell
+       0.205  --card         the working surface, and a panel on the shell
+       0.275  --secondary    a panel or control on the working surface
+       0.345  --input        a control on a panel, and the well of a field
+
+     `--zenith-navy` at 0.10 stays the ledge below all of it, for the header and footer
+     bars, so the ladder runs in both directions from the page. */
+  --card: oklch(0.2050 0.0360 258.5258);
   --card-foreground: oklch(0.9838 0.0035 247.8583);
-  --popover: oklch(0.1371 0.0360 258.5258);
+  --popover: oklch(0.2050 0.0360 258.5258);
   --popover-foreground: oklch(0.9838 0.0035 247.8583);
   --primary: oklch(0.6232 0.1879 259.7964);
   --primary-foreground: oklch(0.2079 0.0399 265.7275);
-  --secondary: oklch(0.2800 0.0369 259.9740);
+  --secondary: oklch(0.2750 0.0369 259.9740);
   --secondary-foreground: oklch(0.9838 0.0035 247.8583);
-  --muted: oklch(0.2800 0.0369 259.9740);
+  --muted: oklch(0.2750 0.0369 259.9740);
   --muted-foreground: oklch(0.7107 0.0351 256.7877);
-  --accent: oklch(0.2800 0.0369 259.9740);
+  --accent: oklch(0.2750 0.0369 259.9740);
   --accent-foreground: oklch(0.9838 0.0035 247.8583);
   --destructive: oklch(0.3959 0.1331 25.7205);
   --destructive-foreground: oklch(0.9838 0.0035 247.8583);
-  --border: oklch(0.2800 0.0369 259.9740);
+  --border: oklch(0.2750 0.0369 259.9740);
   /* Lighter than `--border`, which the theme does not do — it sets the two to the same
      value, and adopting that collapsed a distinction this interface was relying on.
 
@@ -250,7 +272,7 @@
      0.38 restores it: the fill sits about 0.10 above the page, which is what the old
      palette gave, and the border stays a step above the fill so the edge is still an
      edge. */
-  --input: oklch(0.3800 0.0369 259.9740);
+  --input: oklch(0.3450 0.0369 259.9740);
   --ring: #00e5e5;
   --zenith: oklch(0.6232 0.1879 259.7964);
   --zenith-foreground: oklch(0.2079 0.0399 265.7275);

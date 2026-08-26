@@ -107,7 +107,7 @@ export function System({ token }: { token: string }) {
       />
 
       {items.length === 0 && (
-        <p className="rounded-md border border-input bg-card p-4 text-sm text-muted-foreground">
+        <p className="rounded-md border border-input bg-input/60 p-4 text-sm text-muted-foreground">
           No organisations yet.
         </p>
       )}
@@ -309,14 +309,14 @@ function NewOrganisation({ token, onCreated }: { token: string; onCreated: () =>
           onChange={(event) => setName(event.target.value)}
           placeholder="Organisation name"
           aria-label="Organisation name"
-          className="min-w-48 flex-1 rounded-md border border-input bg-card px-3 py-2 text-sm"
+          className="min-w-48 flex-1 rounded-md border border-input bg-input/60 px-3 py-2 text-sm"
         />
         <input
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           placeholder="First administrator's email"
           aria-label="First administrator's email"
-          className="min-w-56 flex-1 rounded-md border border-input bg-card px-3 py-2 text-sm"
+          className="min-w-56 flex-1 rounded-md border border-input bg-input/60 px-3 py-2 text-sm"
         />
         <Button
           disabled={!name.trim() || !email.trim()}
@@ -395,7 +395,7 @@ function PurgeDialog({
             id="confirm-name"
             value={typed}
             onChange={(event) => setTyped(event.target.value)}
-            className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
+            className="w-full rounded-md border border-input bg-input/60 px-3 py-2 text-sm"
           />
         </div>
         <div className="flex justify-end gap-2">

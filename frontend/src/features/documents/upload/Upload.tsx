@@ -341,7 +341,7 @@ export function Upload({ token, onUploaded }: Props) {
         // both to register as an edge on its own.
         <div className="space-y-5 rounded-md border border-input bg-secondary p-6">
           <div className="flex items-start gap-3.5">
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-md border border-input bg-card text-primary">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-md border border-input bg-input/50 text-primary">
               <FileText className="size-5" />
             </div>
             <div className="min-w-0 flex-1 space-y-0.5 pt-0.5">
@@ -354,7 +354,7 @@ export function Upload({ token, onUploaded }: Props) {
               type="button"
               aria-label="Cancel"
               onClick={() => setStaged(null)}
-              className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-card hover:text-foreground"
+              className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-input/60 hover:text-foreground"
             >
               <X className="size-4" />
             </button>
@@ -428,7 +428,7 @@ export function Upload({ token, onUploaded }: Props) {
               }}
               disabled={busy}
             />
-            <div className="flex size-12 items-center justify-center rounded-md border border-input bg-card">
+            <div className="flex size-12 items-center justify-center rounded-md border border-input bg-input/60">
               <UploadCloud className="size-6 text-muted-foreground" />
             </div>
             {/* Plural, because the control is. The singular copy this replaced ("Choose a

@@ -107,7 +107,7 @@ export function Profile({ token, onSignedOut, onProfile }: Props) {
               {me.permissions.map((permission) => (
                 <code
                   key={permission}
-                  className="rounded border border-input bg-card px-1.5 py-0.5 font-mono text-xs text-muted-foreground"
+                  className="rounded border border-input bg-input/60 px-1.5 py-0.5 font-mono text-xs text-muted-foreground"
                 >
                   {permission}
                 </code>

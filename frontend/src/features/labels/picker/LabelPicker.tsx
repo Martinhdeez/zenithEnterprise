@@ -252,7 +252,11 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
             className={`group relative inline-flex items-center rounded-full border text-sm transition-colors ${
               selected.has(label.id)
                 ? "border-primary bg-primary/15 font-medium text-primary"
-                : "border-input bg-card text-muted-foreground hover:border-muted-foreground/60 hover:text-foreground"
+                : // `bg-input/50`, not `bg-card`. These chips sit on a `bg-secondary`
+                  // panel, and `--card` is the tone of the surface *under* that panel —
+                  // so a chip filled with it is darker than its own container and reads
+                  // as a hole cut out of the panel rather than as something to click.
+                  "border-input bg-input/50 text-muted-foreground hover:border-muted-foreground/60 hover:bg-input hover:text-foreground"
             }`}
           >
             {/* Equal padding on both sides at rest — the delete button is an absolute
@@ -363,7 +367,7 @@ function Toggle({
       className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
         on
           ? "border-primary bg-primary/15 text-primary"
-          : "border-input bg-card text-muted-foreground hover:text-foreground"
+          : "border-input bg-input/50 text-muted-foreground hover:bg-input hover:text-foreground"
       }`}
     >
       {children}
