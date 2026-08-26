@@ -112,6 +112,19 @@ do not replace. What BM25 buys is that its cost does not grow with the number of
 match, and at 300,000 passages that is the difference between 5,953 ms and single-digit
 milliseconds.
 
+### Before flipping a Spanish corpus: the two indexes do not fold accents the same way
+
+The GIN side is `zenith_text` — `english` with **`unaccent` in front of the stemmer**
+(migration 0018), so `maximo` finds `máximo`. The BM25 side is `en_stem`, which lowercases
+and stems and does **not** fold accents. Switching engine on a Spanish corpus would
+therefore lose accent-insensitive matching silently: no error, no degraded flag, just worse
+answers on the half of the queries where somebody typed without accents.
+
+`en_stem` is the closest tokeniser this index offers today. An equivalent one — unaccent in
+front of the stemmer — has to exist before `ZENITH_LEXICAL_ENGINE=bm25` is defensible on
+anything but an English corpus. That is a prerequisite of the switch, not of this migration,
+and it is written here because this is the file somebody will read when they make it.
+
 So `ZENITH_LEXICAL_ENGINE` defaults to `tsvector` and this migration builds a path that
 nothing takes yet. That is deliberate: the mechanism is proven, isolated and measured, and
 the switch belongs to the installation whose corpus has outgrown the accurate engine — not

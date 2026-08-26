@@ -353,10 +353,20 @@ does real work that BM25's term statistics do not replace. So the default stays 
 and this builds a path nothing takes yet, which is the honest outcome: the switch belongs
 to the installation whose corpus has outgrown the accurate engine.
 
-**What remains before that switch is defensible**: the same measurement at 300k rather than
-13.5k, where the trade reverses; index build time and size on a real corpus; and write
-amplification during ingestion. All three are §6's, and none of them can be answered on a
-demonstration corpus.
+**What remains before that switch is defensible**, and none of it may be promised:
+
+1. The same measurement at **300k** rather than 13.5k, where the trade reverses.
+2. Index build time and size on a real corpus.
+3. Write amplification during ingestion.
+4. **An accent-folding tokeniser.** The GIN side is `zenith_text` — `english` with
+   `unaccent` in front of the stemmer (migration 0018) — and the BM25 side is `en_stem`,
+   which does not fold accents. `maximo` finds `máximo` today and would stop doing so, with
+   no error and no degraded flag. That is a blocker for any Spanish corpus and it is not a
+   blocker for an English one, which is exactly the kind of distinction that gets lost.
+
+The trigger for the switch is concrete rather than aspirational: **an installation whose
+lexical half is already hitting the 10-second statement timeout on `tsvector`.** Until then
+the accurate engine wins and the fast one is a path nobody takes.
 
 ## 10. Sequencing
 
