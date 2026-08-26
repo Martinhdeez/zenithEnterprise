@@ -1,6 +1,6 @@
 ---
 name: run-app
-description: Start Zenith Enterprise locally via Docker Compose — backend API, worker, Postgres (ParadeDB), the embeddings model, and the frontend. No reranker, no local LLM (chat/generation goes through the Gemini API, configured in-app under Admin, not via env var). Use whenever asked to run/start/launch the app, or to verify a change in the real running app.
+description: Start Zenith Enterprise locally via Docker Compose — backend API, worker, Postgres (ParadeDB), the embeddings and reranking models, and the frontend. No local LLM (chat/generation goes through the Gemini API, configured in-app under Admin, not via env var). Use whenever asked to run/start/launch the app, or to verify a change in the real running app.
 ---
 
 # Running Zenith Enterprise
