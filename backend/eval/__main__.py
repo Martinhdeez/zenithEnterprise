@@ -147,7 +147,14 @@ def ef_search() -> int:
     return run()
 
 
-COMMANDS = ("fetch", "layout", "grounding", "answers", "live", "ef-search")
+def rerank_depth() -> int:
+    """How deep the cross-encoder should read on this machine. Read-only, needs no token."""
+    from eval.rerank_depth import run
+
+    return run()
+
+
+COMMANDS = ("fetch", "layout", "grounding", "answers", "live", "ef-search", "rerank-depth")
 
 
 def main() -> int:
@@ -158,9 +165,12 @@ def main() -> int:
             "       python -m eval grounding\n"
             "       python -m eval answers\n"
             "       python -m eval live --token <jwt> [--url http://localhost:8000]\n"
-            "       python -m eval ef-search"
+            "       python -m eval ef-search\n"
+            "       python -m eval rerank-depth"
         )
         return 2
+    if sys.argv[1] == "rerank-depth":
+        return rerank_depth()
     if sys.argv[1] == "ef-search":
         return ef_search()
     if sys.argv[1] == "live":

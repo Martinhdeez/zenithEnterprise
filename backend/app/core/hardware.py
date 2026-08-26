@@ -181,12 +181,28 @@ PROFILES: Final[dict[str, Profile]] = {
     # the choice are in `docker-compose.yml` beside it. **784 ms against 13,731, for
     # identical Recall@8.**
     #
-    # `rerank_candidates` stays at 8 with that model, and the reason is measured rather than
-    # inherited: raising it to 32 made ranking *worse* — Recall@1 66.7% -> 53.3%, mean rank
-    # 1.35 -> 1.62 — because a weaker judge given four times the candidates is wrong four
-    # times as often, and RRF's own top-eight beat its reordering of thirty-two. The latency
-    # headroom the smaller model bought cannot be spent on depth. It could be spent on a
-    # better cross-encoder, which is what a GPU deployment should do.
+    # `rerank_candidates` stays at 8, and the whole curve between the two ends is now
+    # measured rather than the two ends alone (`eval/rerank-depth.json`):
+    #
+    #     depth   Recall@8   Recall@1   mean rank   median
+    #       8       90.0%      66.7%      1.41       965 ms
+    #      12       90.0%      63.3%      1.33      1293 ms
+    #      16       90.0%      60.0%      1.48      1725 ms
+    #      24       90.0%      53.3%      1.81      2428 ms
+    #      32       90.0%      50.0%      1.89      3222 ms
+    #
+    # Recall@8 does not move at any depth, Recall@1 falls monotonically, and latency more
+    # than triples. A weaker judge given four times the candidates is wrong four times as
+    # often, and RRF's own top-eight beats its reordering of thirty-two.
+    #
+    # **The sweep was run to rescue a specific miss, and it disproved the reason for
+    # running it.** `boe-bank-rate` looked like a depth failure: tracing it stage by stage
+    # put the correct passage at lexical rank 18, dense 13, fused 12 — found by both halves
+    # and then cut by a shortlist of 8. At depth 32 that passage *is* in the shortlist, at
+    # rank 12, and the cross-encoder reads it and pushes it out of the top eight anyway.
+    # It is a cross-encoder quality failure, not a depth one, and no value of this number
+    # fixes it. The way out is a better cross-encoder, which is what a GPU deployment
+    # should spend its headroom on — not a larger number here.
     #
     # `hnsw_ef_search` stays at 100, and that is now a finding rather than an inheritance.
     # Swept on the demonstration machine against the live corpus (`eval/ef-search.json`):

@@ -31,7 +31,6 @@ builds a context directly, which is also why it is not a substitute for `live`.
 """
 
 import asyncio
-import dataclasses
 import json
 import statistics
 import time
@@ -45,12 +44,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.core.config import settings
 from app.core.hardware import active as active_profile
-from app.features.auth.service import AccessProfile
 from app.features.retrieval.search import CANDIDATES
-from app.features.retrieval.service import SearchService
-from app.features.tenancy.context import TenantContext
-from eval.live import FILENAMES
-from eval.questions import Question, load_questions
+from eval.harness import installation, score
 
 REPORT = Path(__file__).parent / "ef-search.json"
 
@@ -64,40 +59,12 @@ END_TO_END = (100, 200, 400)
 #: Enough to let the page cache settle; the fastest of the repeats is reported, because
 #: the question is what the scan costs and not what the container was doing at the time.
 REPEATS = 5
-LIMIT = 8
 
 NEIGHBOURS = (
     "SELECT c.id FROM chunk_embeddings e JOIN chunks c ON c.id = e.chunk_id "
     "WHERE e.embedding_model = :model AND e.embedding_version = :version "
     "ORDER BY e.embedding <=> CAST(:embedding AS vector) LIMIT :limit"
 )
-
-
-async def _installation():
-    """Tenant, labels and embedding space of whatever corpus is loaded. Read-only."""
-    engine = create_async_engine(settings.database_owner_url)
-    async with engine.connect() as conn:
-        await conn.execute(text("SET TRANSACTION READ ONLY"))
-        space = (
-            await conn.execute(
-                text(
-                    "SELECT embedding_model AS model, embedding_version AS version, count(*) AS n "
-                    "FROM chunk_embeddings GROUP BY 1, 2 ORDER BY n DESC LIMIT 1"
-                )
-            )
-        ).one()
-        tenant = (await conn.execute(text("SELECT tenant_id FROM chunks LIMIT 1"))).scalar_one()
-        labels = tuple((await conn.execute(text("SELECT id FROM access_labels"))).scalars())
-        user = (
-            await conn.execute(
-                text("SELECT id FROM users WHERE tenant_id = :t LIMIT 1"), {"t": tenant}
-            )
-        ).scalar_one()
-        rows = await conn.execute(text("SELECT filename FROM documents WHERE status = 'ready'"))
-        ready = set(rows.scalars())
-        await conn.rollback()
-    await engine.dispose()
-    return space, tenant, labels, user, ready
 
 
 async def _embed(questions: list[str]) -> list[list[float]]:
@@ -180,96 +147,36 @@ async def _index_sweep(
     return results
 
 
-async def _end_to_end(
-    tenant: UUID,
-    labels: tuple[UUID, ...],
-    user: UUID,
-    questions: list[Question],
-) -> dict[int, dict[str, object]]:
-    """The same questions through the whole path, scored the way `live.py` scores."""
-    profile = AccessProfile(
-        user_id=user,
-        context=TenantContext(tenant_id=tenant, label_ids=labels, user_id=user),
-        permissions=frozenset(),
-    )
-    base = active_profile()
-    results: dict[int, dict[str, object]] = {}
-
-    for ef in END_TO_END:
-        service = SearchService(profile, hardware=dataclasses.replace(base, hnsw_ef_search=ef))
-        ranks: list[tuple[str, bool, int | None]] = []
-        times: list[float] = []
-        degraded = 0
-        for question in questions:
-            wanted = {
-                (FILENAMES[source.document], page)
-                for source in question.sources
-                for page in source.pages
-            }
-            started = time.perf_counter()
-            result = await service.search(question.question, limit=LIMIT)
-            times.append((time.perf_counter() - started) * 1000)
-            degraded += 1 if result.degraded else 0
-            rank = next(
-                (
-                    position + 1
-                    for position, hit in enumerate(result.hits)
-                    if (hit.filename, hit.page_num) in wanted
-                ),
-                None,
-            )
-            ranks.append((question.id, question.counts_towards_headline, rank))
-        headline = [rank for _, counts, rank in ranks if counts]
-        found = [rank for _, _, rank in ranks if rank]
-        results[ef] = {
-            "headline_recall_at_8": round(sum(r is not None for r in headline) / len(headline), 4),
-            "headline_scored": len(headline),
-            "recall_at_8_all": round(sum(r is not None for _, _, r in ranks) / len(ranks), 4),
-            "recall_at_1_all": round(sum(r == 1 for _, _, r in ranks) / len(ranks), 4),
-            "mean_rank": round(statistics.mean(found), 3),
-            "median_ms": round(statistics.median(times)),
-            "p95_ms": round(sorted(times)[int(len(times) * 0.95) - 1]),
-            "degraded": degraded,
-            "missed": [qid for qid, _, rank in ranks if rank is None],
-        }
-        print(f"  ef {ef:<4} {json.dumps(results[ef])}", flush=True)
-    return results
-
-
 async def _run() -> int:
-    space, tenant, labels, user, ready = await _installation()
-    everything = load_questions()
-    # Same exclusion as `live.py`, for the same reason: a question whose document was never
-    # uploaded measures which files happen to be present, not how well retrieval ranks.
-    scorable = [
-        question
-        for question in everything
-        if question.sources and FILENAMES.get(question.sources[0].document) in ready
-    ]
-    if not scorable:
+    where = await installation()
+    if not where.questions:
         print("No question's document is in this corpus — nothing to measure.")
         return 1
 
     print(
-        f"{space.n} embeddings, {len(labels)} labels, "
+        f"{where.space.n} embeddings, {len(where.labels)} labels, "
         f"top-{CANDIDATES}, profile {active_profile().name}"
     )
-    print(f"{len(scorable)} scorable questions of {len(everything)}\n")
+    print(f"{len(where.questions)} scorable questions\n")
 
     print("index, against the exact neighbours:")
-    vectors = await _embed([question.question for question in scorable])
-    index = await _index_sweep(space, tenant, labels, vectors)
+    vectors = await _embed([question.question for question in where.questions])
+    index = await _index_sweep(where.space, where.tenant, where.labels, vectors)
 
     print("\nend to end, scored as live.py scores:")
-    reached = await _end_to_end(tenant, labels, user, scorable)
+    reached: dict[str, object] = {}
+    for ef in END_TO_END:
+        measured = await score(where, hnsw_ef_search=ef)
+        reached[str(ef)] = measured
+        print(f"  ef {ef:<4} {json.dumps(measured)}", flush=True)
 
     report = {
-        "corpus_chunks": space.n,
-        "scored": len(scorable),
+        "corpus_chunks": where.space.n,
+        "scored": len(where.questions),
         "candidates": CANDIDATES,
         "profile": active_profile().name,
         "index": {str(ef): value for ef, value in index.items()},
-        "end_to_end": {str(ef): value for ef, value in reached.items()},
+        "end_to_end": reached,
     }
     REPORT.write_text(json.dumps(report, indent=2) + "\n")
     print(f"\nWritten to {REPORT.name}")
