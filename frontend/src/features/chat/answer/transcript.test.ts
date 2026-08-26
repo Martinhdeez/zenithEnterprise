@@ -18,6 +18,9 @@ const cite = (marker: number, filename: string, page: number) => ({
   document_id: `doc-${marker}`,
   filename,
   page_num: page,
+  media_type: "application/pdf",
+  char_start: 0,
+  char_end: 0,
   text: "",
   bboxes: [],
 });

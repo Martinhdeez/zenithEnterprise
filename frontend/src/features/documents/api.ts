@@ -10,6 +10,9 @@ export interface DocumentSummary {
   filename: string;
   description: string | null;
   sha256: string;
+  /** What kind of file this is, and therefore which viewer opens it. Needed to open a
+      document that was never cited, where there is no citation to read it from. */
+  media_type: string;
   status: string;
   status_detail: string | null;
   page_count: number | null;

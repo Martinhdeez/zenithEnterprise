@@ -45,6 +45,7 @@ const document_ = (id: string) => ({
   filename: `${id}.pdf`,
   description: null,
   sha256: id,
+      media_type: "application/pdf",
   status: "pending",
   status_detail: null,
   page_count: null,

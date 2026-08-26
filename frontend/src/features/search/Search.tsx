@@ -364,7 +364,10 @@ export function Search({
                       chunk_id: hit.chunk_id,
                       document_id: hit.document_id,
                       filename: hit.filename,
+                      media_type: hit.media_type,
                       page_num: hit.page_num,
+                      char_start: hit.char_start,
+                      char_end: hit.char_end,
                       text: hit.text,
                       bboxes: hit.bboxes,
                     })
@@ -388,7 +391,12 @@ export function Search({
                 >
                   <div className="flex items-baseline justify-between gap-4">
                     <p className="truncate text-sm font-medium text-foreground">
-                      {hit.filename} <span className="text-muted-foreground">· page {hit.page_num}</span>
+                      {hit.filename}
+                      {/* Only where there is a page. A document with none says nothing
+                          rather than "page null" or an invented "page 1". */}
+                      {hit.page_num !== null && (
+                        <span className="text-muted-foreground"> · page {hit.page_num}</span>
+                      )}
                     </p>
                     <span className="shrink-0 font-mono text-xs text-muted-foreground">
                       #{index + 1}

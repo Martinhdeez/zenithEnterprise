@@ -483,7 +483,12 @@ class IngestionPipeline:
 
             document = await session.get(Document, document_id)
             if document is not None:
-                document.page_count = len(pages)
+                # `None` for a document with no pages, for the same reason `Chunk.page_num`
+                # is: `len(pages)` here is the count of *stored text units*, which for a
+                # text file is always 1 — and "1 page" is what the library listing would
+                # then print beside a Markdown file. Already nullable, so this needs no
+                # migration; it needed noticing.
+                document.page_count = len(pages) if is_paginated(document.media_type) else None
                 # `classifying`, not `ready`. The zero-chunk rule this method exists to
                 # enforce is about `ready` never *preceding* the chunks; writing it strictly
                 # later than they are keeps that and closes migration 0017's window, whose

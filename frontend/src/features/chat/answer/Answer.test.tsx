@@ -19,6 +19,9 @@ const citation: Citation = {
   document_id: "d1",
   filename: "gdpr.pdf",
   page_num: 33,
+  media_type: "application/pdf",
+  char_start: 0,
+  char_end: 0,
   text: "The controller shall notify…",
   bboxes: [{ x0: 0.1, y0: 0.2, x1: 0.9, y1: 0.25 }],
 };

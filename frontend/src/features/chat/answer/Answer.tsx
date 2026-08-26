@@ -174,7 +174,11 @@ function components(result: QueryResult | null, onCitation: (citation: Citation)
           <button
             type="button"
             onClick={() => onCitation(citation)}
-            title={`${citation.filename}, page ${citation.page_num}`}
+            title={
+              citation.page_num === null
+                ? citation.filename
+                : `${citation.filename}, page ${citation.page_num}`
+            }
             className="mx-0.5 rounded-sm bg-primary/20 px-1 text-sm font-semibold text-primary hover:bg-primary/30"
           >
             {children}

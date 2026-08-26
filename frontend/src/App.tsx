@@ -65,6 +65,14 @@ import { forget, read, write } from "@/shared/lib/storage";
 const PdfViewer = lazy(() =>
   import("@/features/documents/viewer/PdfViewer").then((module) => ({ default: module.PdfViewer })),
 );
+// Its own chunk, and a much smaller one: this viewer is a `<pre>` and a `<mark>`, while the
+// PDF viewer drags pdf.js and its worker behind it. Splitting them means a reader who only
+// ever opens Markdown never downloads a PDF engine.
+const TextViewer = lazy(() =>
+  import("@/features/documents/viewer/TextViewer").then((module) => ({
+    default: module.TextViewer,
+  })),
+);
 
 // Session storage rather than local storage: it keeps both tokens out of other tabs and out
 // of the profile after the browser closes. Not a substitute for the httpOnly cookie an
@@ -470,7 +478,14 @@ export function App() {
               chunk_id: "",
               document_id: document.id,
               filename: document.filename,
-              page_num: 1,
+              media_type: document.media_type,
+              // Opened from the library rather than from an answer, so there is no cited
+              // passage: the first page and no highlight for a PDF, the top of the file
+              // and an empty range for a text document. Inventing either would point the
+              // reader at something the corpus never said.
+              page_num: document.media_type.startsWith("text/") ? null : 1,
+              char_start: 0,
+              char_end: 0,
               text: "",
               bboxes: [],
             });
@@ -685,7 +700,14 @@ export function App() {
             <Suspense
               fallback={<p className="p-6 text-sm text-muted-foreground">Opening the document…</p>}
             >
-              <PdfViewer citation={citation} token={token} />
+              {/* Chosen from the document's stored media type, never from its filename.
+                  A `.txt` opened in the PDF frame is the mixed-list problem this feature
+                  was careful to avoid: a broken PDF sitting beside real ones. */}
+              {citation && citation.media_type.startsWith("text/") ? (
+                <TextViewer citation={citation} token={token} />
+              ) : (
+                <PdfViewer citation={citation} token={token} />
+              )}
             </Suspense>
           </div>
         </ResizablePanel>

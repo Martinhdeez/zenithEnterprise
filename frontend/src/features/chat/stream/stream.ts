@@ -24,7 +24,18 @@ export interface Citation {
   chunk_id: string;
   document_id: string;
   filename: string;
-  page_num: number;
+  /** Which viewer opens this citation, and which half of the geometry below is real.
+      Sent by the server rather than guessed from the filename — `notes.pdf.txt` is the
+      guess going wrong. */
+  media_type: string;
+  /** `null` for a document with no pages. Never render it without checking. */
+  page_num: number | null;
+  /** The passage's character range, within the cited page for a PDF and within the whole
+      file for a text document. It is how a text citation is underlined; in a PDF the
+      highlight is `bboxes`, because offsets and pdf.js's text layer disagree on
+      whitespace, ligatures and hyphenation. */
+  char_start: number;
+  char_end: number;
   text: string;
   bboxes: Array<Record<string, number>>;
 }
@@ -32,7 +43,7 @@ export interface Citation {
 export interface Consulted {
   document_id: string;
   filename: string;
-  page_num: number;
+  page_num: number | null;
 }
 
 export interface QueryResult {

@@ -36,7 +36,13 @@ export function transcript(answer: string, result: QueryResult): string {
 
   const sources = [...seen.values()]
     .sort((a, b) => a.marker - b.marker)
-    .map((citation) => `[${citation.marker}] ${citation.filename} — page ${citation.page_num}`);
+    // A document with no pages is named without one. "page null" in a transcript somebody
+    // pastes into a ticket is worse than a filename on its own.
+    .map((citation) =>
+      citation.page_num === null
+        ? `[${citation.marker}] ${citation.filename}`
+        : `[${citation.marker}] ${citation.filename} — page ${citation.page_num}`,
+    );
 
   if (sources.length === 0) {
     // An abstention, or an answer drawn from the conversation rather than the corpus.

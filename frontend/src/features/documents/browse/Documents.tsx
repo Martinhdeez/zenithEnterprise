@@ -188,7 +188,13 @@ export function Documents({
                     chunk_id: "",
                     document_id: document_.id,
                     filename: document_.filename,
-                    page_num: 1,
+                    media_type: document_.media_type,
+                    // From the library rather than from an answer: no cited passage, so
+                    // the first page and no highlight. Inventing one would point the
+                    // reader at something the corpus never said.
+                    page_num: document_.media_type.startsWith("text/") ? null : 1,
+                    char_start: 0,
+                    char_end: 0,
                     text: "",
                     bboxes: [],
                   })

@@ -9,6 +9,9 @@ class DocumentResponse(BaseModel):
     filename: str
     description: str | None
     sha256: str
+    #: What kind of file this is, and therefore which viewer opens it. The client needs it
+    #: to open a document that was never cited — there is no citation to read it from.
+    media_type: str
     status: str
     status_detail: str | None
     page_count: int | None

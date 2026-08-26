@@ -23,6 +23,7 @@ const doc = (status: string, detail: string | null = null): DocumentSummary => (
   filename: "report.pdf",
   description: null,
   sha256: "abc",
+      media_type: "application/pdf",
   status,
   status_detail: detail,
   page_count: null,

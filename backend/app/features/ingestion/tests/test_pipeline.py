@@ -521,3 +521,21 @@ async def test_windows_line_endings_do_not_shift_the_highlight(
     assert "\r" not in stored
     for row in rows:
         assert stored[row.char_start : row.char_end].strip() == row.text
+
+
+async def test_a_text_document_reports_no_page_count(
+    account: Account, storage: DocumentStorage
+) -> None:
+    """`None`, not 1.
+
+    `len(pages)` is the count of stored text units and is always 1 for a text file, so the
+    obvious assignment writes a page count of one — and the library listing then prints
+    "1 page" beside a Markdown file, which is the same lie the nullable `page_num` was
+    introduced to stop, one column over.
+    """
+    document_id, context = await upload_text(account, storage, "runbook.md", MARKDOWN_NOTE)
+
+    await IngestionPipeline(context, storage, StubEmbedder()).run(document_id)  # type: ignore[arg-type]
+
+    async with tenant_session(context) as session:
+        assert await session.scalar(text("SELECT page_count FROM documents")) is None

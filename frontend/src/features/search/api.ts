@@ -8,7 +8,12 @@ export interface SearchHit {
   chunk_id: string;
   document_id: string;
   filename: string;
-  page_num: number;
+  /** Which viewer opens this passage. See `Citation.media_type`. */
+  media_type: string;
+  /** `null` for a document with no pages. */
+  page_num: number | null;
+  char_start: number;
+  char_end: number;
   text: string;
   bboxes: Array<Record<string, number>>;
   /** The document's labels, as ids. Names come from `GET /labels`, so an id with no name

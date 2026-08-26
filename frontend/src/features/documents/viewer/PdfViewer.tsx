@@ -36,9 +36,20 @@ export function PdfViewer({ citation, token }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
+  /**
+   * The page this citation was found on.
+   *
+   * `Citation.page_num` is nullable because a text document has none, and this component
+   * never receives one — `App` routes by the document's media type. The type cannot say
+   * that, so the fallback is here rather than a non-null assertion: an assertion that is
+   * ever wrong crashes the viewer, and 1 renders the document's first page, which is the
+   * only sensible thing to show if the routing above ever changes.
+   */
+  const cited = citation?.page_num ?? 1;
+
   useEffect(() => {
-    if (citation) setPage(citation.page_num);
-  }, [citation]);
+    if (citation) setPage(cited);
+  }, [citation, cited]);
 
   /**
    * Bring the highlight into view once the page has rendered.
@@ -127,7 +138,7 @@ export function PdfViewer({ citation, token }: Props) {
         <p className="truncate font-medium">{citation.filename}</p>
         <p className="text-sm text-slate-500">
           Page {page}
-          {page !== citation.page_num && " (cited page " + citation.page_num + ")"}
+          {page !== cited && " (cited page " + cited + ")"}
         </p>
       </header>
 
@@ -175,7 +186,7 @@ export function PdfViewer({ citation, token }: Props) {
         </button>
         <button
           type="button"
-          onClick={() => setPage(citation.page_num)}
+          onClick={() => setPage(cited)}
           className="rounded-sm px-2 py-1 text-sky-700"
         >
           Back to citation
