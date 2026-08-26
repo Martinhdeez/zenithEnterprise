@@ -101,6 +101,27 @@ function remember(query: string): string[] {
   return next;
 }
 
+/**
+ * One passage, in the shape the viewer takes.
+ *
+ * Extracted because there are now two callers — clicking a result, and the top result
+ * opening on its own — and a citation built twice is a citation that drifts.
+ */
+function citationOf(hit: SearchHit, index: number): Citation {
+  return {
+    marker: index + 1,
+    chunk_id: hit.chunk_id,
+    document_id: hit.document_id,
+    filename: hit.filename,
+    media_type: hit.media_type,
+    page_num: hit.page_num,
+    char_start: hit.char_start,
+    char_end: hit.char_end,
+    text: hit.text,
+    bboxes: hit.bboxes,
+  };
+}
+
 export function Search({
   token,
   onCitation,
@@ -163,6 +184,18 @@ export function Search({
           reason: result.reason,
           tookMs: result.took_ms,
         });
+        // The best passage opens on its own, rather than waiting to be clicked.
+        //
+        // The preview panel is mounted only while a document is open, and deliberately so:
+        // an empty panel holding "click a citation" spends a third of the viewport on an
+        // instruction. But the answer to that is not to leave the space empty — it is to
+        // put the source in it as soon as there *is* one. The product's whole argument is
+        // that every passage can be checked against its page, and this is that argument
+        // making itself without anybody having to be told.
+        //
+        // The top hit only. Opening anything else would be choosing for the reader.
+        const best = result.hits[0];
+        if (best) onCitation(citationOf(best, 0));
       } catch (error) {
         // An abort is the user cancelling, not a failure — `cancel` below already put the
         // state back to idle, and overwriting that with an error would fight it.
@@ -174,7 +207,7 @@ export function Search({
         });
       }
     },
-    [token, labels],
+    [token, labels, onCitation],
   );
 
   const cancel = useCallback(() => {
@@ -358,20 +391,7 @@ export function Search({
               <li key={hit.chunk_id}>
                 <button
                   type="button"
-                  onClick={() =>
-                    onCitation({
-                      marker: index + 1,
-                      chunk_id: hit.chunk_id,
-                      document_id: hit.document_id,
-                      filename: hit.filename,
-                      media_type: hit.media_type,
-                      page_num: hit.page_num,
-                      char_start: hit.char_start,
-                      char_end: hit.char_end,
-                      text: hit.text,
-                      bboxes: hit.bboxes,
-                    })
-                  }
+                  onClick={() => onCitation(citationOf(hit, index))}
                   // Announced, not just drawn. Colour alone would leave somebody on a
                   // screen reader — or anybody who cannot separate these two greys — with
                   // no way to tell which result is open.

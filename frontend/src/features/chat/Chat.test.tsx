@@ -69,3 +69,72 @@ describe("after a question is sent", () => {
     expect(streamQuery).not.toHaveBeenCalled();
   });
 });
+
+describe("the source opens with the answer", () => {
+  /**
+   * The preview panel mounts only while a document is open. Rather than leave a third of
+   * the viewport holding "click a citation", the first citation opens itself the moment an
+   * answer has one — which is this product's argument, made without a sentence.
+   */
+  const answer = (citations: unknown[]) =>
+    vi.fn(async (_q: string, _t: string, handlers: { onResult: (r: unknown) => void }) => {
+      handlers.onResult({
+        query_id: "q1",
+        answer: citations.length ? "Forty hours a week [1]." : "No answer was found.",
+        citations,
+        abstained: citations.length === 0,
+        consulted: [],
+        model: "test",
+        degraded: false,
+        reason: null,
+        took_retrieval_ms: 1,
+        took_generation_ms: 1,
+      });
+    });
+
+  const citation = {
+    marker: 1,
+    chunk_id: "c1",
+    document_id: "d1",
+    filename: "ley-estatuto-trabajadores.pdf",
+    media_type: "application/pdf",
+    page_num: 33,
+    char_start: 0,
+    char_end: 10,
+    text: "cuarenta horas semanales",
+    bboxes: [],
+  };
+
+  const ask = async (onCitation: () => void, citations: unknown[]) => {
+    const { streamQuery } = await import("./stream/stream");
+    vi.mocked(streamQuery).mockImplementation(answer(citations) as never);
+    await act(async () => {
+      render(<Chat token="t" onCitation={onCitation} searchable />);
+    });
+    fireEvent.change(composer(), { target: { value: "jornada ordinaria" } });
+    await act(async () => {
+      fireEvent.submit(composer().closest("form")!);
+    });
+  };
+
+  it("opens the passage the answer leaned on", async () => {
+    const onCitation = vi.fn();
+
+    await ask(onCitation, [citation]);
+
+    await waitFor(() =>
+      expect(onCitation).toHaveBeenCalledWith(expect.objectContaining({ chunk_id: "c1" })),
+    );
+  });
+
+  it("opens nothing when the answer abstained", async () => {
+    // An abstention has no citations, and leaving the previous document on screen beside
+    // "no answer was found in your documents" would be the interface contradicting the
+    // sentence next to it.
+    const onCitation = vi.fn();
+
+    await ask(onCitation, []);
+
+    expect(onCitation).not.toHaveBeenCalled();
+  });
+});

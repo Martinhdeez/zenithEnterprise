@@ -234,7 +234,18 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
           token,
           {
             onToken: (text) => dispatch({ type: "token", text }),
-            onResult: (result) => dispatch({ type: "result", result }),
+            onResult: (result) => {
+              dispatch({ type: "result", result });
+              // The first citation opens on its own, so the source is beside the answer
+              // without anybody having to be told to click it. That is the product's own
+              // argument — every claim checkable against its page — making itself.
+              //
+              // Nothing opens on an abstention: it has no citations, and leaving the
+              // previous document on screen next to "no answer was found in your
+              // documents" would be the interface contradicting the sentence beside it.
+              const first = result.citations[0];
+              if (first) onCitation(first);
+            },
             onError: (message) => dispatch({ type: "error", message }),
           },
           {
@@ -262,7 +273,7 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
     // `scope` too: it is derived from the composer's text, and an `ask` closed over a
     // stale one would send the previous turn's mentions with this turn's question.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [token, labels, state, turns, question],
+    [token, labels, state, turns, question, onCitation],
   );
 
   const cancel = useCallback(() => {

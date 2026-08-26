@@ -254,3 +254,40 @@ describe("when a search fails", () => {
     expect(results).toHaveBeenLastCalledWith("t", "severance", undefined, expect.anything());
   });
 });
+
+describe("the source opens on its own", () => {
+  /**
+   * The preview panel is mounted only while a document is open, and deliberately so: an
+   * empty panel holding "click a citation" spends a third of the viewport on an
+   * instruction. The answer to that is not to leave the space empty — it is to put a source
+   * in it the moment there is one, which is the product's own argument making itself.
+   */
+  it("opens the best passage without waiting to be clicked", async () => {
+    const { onCitation } = await run(null);
+
+    expect(onCitation).toHaveBeenCalledWith(expect.objectContaining({ chunk_id: "one" }));
+  });
+
+  it("opens the top result and nothing else", async () => {
+    // Opening any other passage would be choosing for the reader, and opening several would
+    // be a panel that flickers through them.
+    const { onCitation } = await run(null);
+
+    expect(onCitation).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens nothing when the search found nothing", async () => {
+    // A panel is worse than no panel when it has nothing to show. This is the case that
+    // would leave the previous document on screen beside "no passages matched".
+    const onCitation = vi.fn();
+    results.mockResolvedValue({ hits: [], degraded: false, reason: null, took_ms: 4 });
+
+    render(<Search token="t" onCitation={onCitation} openChunkId={null} searchable />);
+    const box = screen.getByLabelText("Search");
+    fireEvent.change(box, { target: { value: "nothing at all" } });
+    fireEvent.submit(box.closest("form")!);
+    await screen.findByText(/nothing matched/i);
+
+    expect(onCitation).not.toHaveBeenCalled();
+  });
+});
