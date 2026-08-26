@@ -14,21 +14,31 @@
  * The palette is the theme's own accents at low opacity. Ten of them: enough that adjacent
  * chips rarely collide, few enough that every one stays legible on the dark surface these
  * sit on.
+ *
+ * **The fill is 18%, not 10%, and the change is a repair rather than a preference.** These
+ * chips were drawn on a card that used to sit about 0.066 in lightness above the page, so
+ * a 10% wash had the card's own lift underneath it. The "Professional" palette makes
+ * `--card` equal to `--background` — surfaces are separated by their border there, not by
+ * fill — and that lift went away, taking the chips' contrast with it. 18% puts the fill
+ * back where the eye had it.
+ *
+ * Not higher: these sit directly beside the passage text they describe, and a chip that
+ * out-shouts the sentence it labels has stopped being a label.
  */
 
 import { leaf } from "../namespace";
 
 const PALETTE = [
-  "border-sky-400/30 bg-sky-400/10 text-sky-300",
-  "border-violet-400/30 bg-violet-400/10 text-violet-300",
-  "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
-  "border-amber-400/30 bg-amber-400/10 text-amber-300",
-  "border-rose-400/30 bg-rose-400/10 text-rose-300",
-  "border-cyan-400/30 bg-cyan-400/10 text-cyan-300",
-  "border-fuchsia-400/30 bg-fuchsia-400/10 text-fuchsia-300",
-  "border-lime-400/30 bg-lime-400/10 text-lime-300",
-  "border-orange-400/30 bg-orange-400/10 text-orange-300",
-  "border-teal-400/30 bg-teal-400/10 text-teal-300",
+  "border-sky-400/40 bg-sky-400/18 text-sky-300",
+  "border-violet-400/40 bg-violet-400/18 text-violet-300",
+  "border-emerald-400/40 bg-emerald-400/18 text-emerald-300",
+  "border-amber-400/40 bg-amber-400/18 text-amber-300",
+  "border-rose-400/40 bg-rose-400/18 text-rose-300",
+  "border-cyan-400/40 bg-cyan-400/18 text-cyan-300",
+  "border-fuchsia-400/40 bg-fuchsia-400/18 text-fuchsia-300",
+  "border-lime-400/40 bg-lime-400/18 text-lime-300",
+  "border-orange-400/40 bg-orange-400/18 text-orange-300",
+  "border-teal-400/40 bg-teal-400/18 text-teal-300",
 ];
 
 /** Rendered for a document carrying no labels at all. Frontend-only and deliberately so:
