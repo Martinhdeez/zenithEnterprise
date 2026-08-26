@@ -12,6 +12,11 @@
  * opens a dialogue that will not proceed until the name has been typed out. All three of
  * those are re-checked on the server — this file makes the intent obvious, it does not
  * enforce it.
+ *
+ * **Destroyed organisations are listed, and not as peers of the live ones.** A tombstone
+ * is the record that a purge happened; hiding it would make the irreversible act look as
+ * if it had never. Folding it away is what keeps that record from being the first thing
+ * a buyer sees.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -26,6 +31,7 @@ import {
   purgeOrganisation,
   suspendOrganisation,
 } from "./api";
+import { groupOrganisations } from "./groupOrganisations";
 
 const STATUS_STYLE: Record<string, string> = {
   active: "bg-zenith-cyan/10 text-zenith-cyan",
@@ -92,69 +98,13 @@ export function System({ token }: { token: string }) {
         </p>
       )}
 
-      {/* `divide-input`, not `divide-border`, and two pixels rather than one. `--border`
-          (#1e293b) sits almost on top of the `--secondary` panel it divides (#182238), so a
-          hairline in it was a line nobody could see; `--input` (#334155) is a real step away
-          from both. Each row here is an organisation somebody may be about to suspend, and
-          telling one row from the next is not a decorative concern. */}
-      <ul className="divide-y-2 divide-input overflow-hidden rounded-lg border border-border bg-secondary shadow-sm">
-        {items.map((organisation) => (
-          <li key={organisation.id} className="flex flex-wrap items-center gap-3 p-4">
-            <Building2 className="size-4 shrink-0 text-muted-foreground" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-foreground">{organisation.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {new Date(organisation.created_at).toLocaleDateString()} ·{" "}
-                {organisation.users} user{organisation.users === 1 ? "" : "s"} ·{" "}
-                {organisation.documents} document{organisation.documents === 1 ? "" : "s"} ·{" "}
-                {formatBytes(organisation.storage_bytes)}
-              </p>
-            </div>
-
-            <span
-              className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
-                STATUS_STYLE[organisation.status] ?? "bg-secondary text-muted-foreground"
-              }`}
-            >
-              {organisation.status}
-            </span>
-
-            {organisation.status === "active" && (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={busy === organisation.id}
-                onClick={() => void act(organisation.id, () => suspendOrganisation(token, organisation.id))}
-              >
-                Suspend
-              </Button>
-            )}
-
-            {organisation.status === "suspended" && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={busy === organisation.id}
-                  onClick={() => void act(organisation.id, () => activateOrganisation(token, organisation.id))}
-                >
-                  Activate
-                </Button>
-                {/* The only destructive control in the product, and it is reachable only
-                    from `suspended` — the reversible step has to have happened first. */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive"
-                  onClick={() => setPurging(organisation)}
-                >
-                  Purge
-                </Button>
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
+      <OrganisationList
+        token={token}
+        items={items}
+        busy={busy}
+        onAct={act}
+        onPurge={setPurging}
+      />
 
       {items.length === 0 && (
         <p className="rounded-md border border-input bg-card p-4 text-sm text-muted-foreground">
@@ -173,6 +123,172 @@ export function System({ token }: { token: string }) {
         />
       )}
     </div>
+  );
+}
+
+function OrganisationList({
+  token,
+  items,
+  busy,
+  onAct,
+  onPurge,
+}: {
+  token: string;
+  items: Organisation[];
+  busy: string | null;
+  onAct: (id: string, work: () => Promise<unknown>) => Promise<void>;
+  onPurge: (organisation: Organisation) => void;
+}) {
+  const { active, suspended, destroyed } = groupOrganisations(items);
+  const grouped = suspended.length > 0 || destroyed.length > 0;
+
+  return (
+    <div className="space-y-6">
+      {active.length > 0 && (
+        <OrganisationGroup
+          title={grouped ? "Active" : undefined}
+          organisations={active}
+          token={token}
+          busy={busy}
+          onAct={onAct}
+          onPurge={onPurge}
+        />
+      )}
+      {suspended.length > 0 && (
+        <OrganisationGroup
+          title="Suspended"
+          organisations={suspended}
+          token={token}
+          busy={busy}
+          onAct={onAct}
+          onPurge={onPurge}
+        />
+      )}
+      {destroyed.length > 0 && (
+        <details className="space-y-2">
+          <summary className="cursor-pointer text-sm font-medium text-muted-foreground">
+            Destroyed organisations ({destroyed.length})
+          </summary>
+          <OrganisationGroup
+            organisations={destroyed}
+            token={token}
+            busy={busy}
+            onAct={onAct}
+            onPurge={onPurge}
+          />
+        </details>
+      )}
+    </div>
+  );
+}
+
+function OrganisationGroup({
+  title,
+  organisations,
+  token,
+  busy,
+  onAct,
+  onPurge,
+}: {
+  title?: string;
+  organisations: Organisation[];
+  token: string;
+  busy: string | null;
+  onAct: (id: string, work: () => Promise<unknown>) => Promise<void>;
+  onPurge: (organisation: Organisation) => void;
+}) {
+  return (
+    <section className="space-y-2">
+      {title && <h2 className="text-sm font-medium text-muted-foreground">{title}</h2>}
+      {/* `divide-input`, not `divide-border`, and two pixels rather than one. `--border`
+          (#1e293b) sits almost on top of the `--secondary` panel it divides (#182238), so a
+          hairline in it was a line nobody could see; `--input` (#334155) is a real step away
+          from both. Each row here is an organisation somebody may be about to suspend, and
+          telling one row from the next is not a decorative concern. */}
+      <ul className="divide-y-2 divide-input overflow-hidden rounded-lg border border-border bg-secondary shadow-sm">
+        {organisations.map((organisation) => (
+          <OrganisationRow
+            key={organisation.id}
+            organisation={organisation}
+            token={token}
+            busy={busy}
+            onAct={onAct}
+            onPurge={onPurge}
+          />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function OrganisationRow({
+  organisation,
+  token,
+  busy,
+  onAct,
+  onPurge,
+}: {
+  organisation: Organisation;
+  token: string;
+  busy: string | null;
+  onAct: (id: string, work: () => Promise<unknown>) => Promise<void>;
+  onPurge: (organisation: Organisation) => void;
+}) {
+  return (
+    <li className="flex flex-wrap items-center gap-3 p-4">
+      <Building2 className="size-4 shrink-0 text-muted-foreground" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-foreground">{organisation.name}</p>
+        <p className="text-xs text-muted-foreground">
+          {new Date(organisation.created_at).toLocaleDateString()} ·{" "}
+          {organisation.users} user{organisation.users === 1 ? "" : "s"} ·{" "}
+          {organisation.documents} document{organisation.documents === 1 ? "" : "s"} ·{" "}
+          {formatBytes(organisation.storage_bytes)}
+        </p>
+      </div>
+
+      <span
+        className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+          STATUS_STYLE[organisation.status] ?? "bg-secondary text-muted-foreground"
+        }`}
+      >
+        {organisation.status}
+      </span>
+
+      {organisation.status === "active" && (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={busy === organisation.id}
+          onClick={() => void onAct(organisation.id, () => suspendOrganisation(token, organisation.id))}
+        >
+          Suspend
+        </Button>
+      )}
+
+      {organisation.status === "suspended" && (
+        <>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy === organisation.id}
+            onClick={() => void onAct(organisation.id, () => activateOrganisation(token, organisation.id))}
+          >
+            Activate
+          </Button>
+          {/* The only destructive control in the product, and it is reachable only
+              from `suspended` — the reversible step has to have happened first. */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive"
+            onClick={() => onPurge(organisation)}
+          >
+            Purge
+          </Button>
+        </>
+      )}
+    </li>
   );
 }
 

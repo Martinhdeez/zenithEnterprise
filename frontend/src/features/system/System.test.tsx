@@ -25,6 +25,16 @@ const ACTIVE = {
 
 const SUSPENDED = { ...ACTIVE, id: "t2", name: "Beta Ltd", status: "suspended" as const, users: 3 };
 
+const PURGED = {
+  ...ACTIVE,
+  id: "t3",
+  name: "Prueba Ciclo",
+  status: "purged" as const,
+  users: 0,
+  documents: 0,
+  storage_bytes: 0,
+};
+
 const organisations = vi.fn();
 const suspendOrganisation = vi.fn();
 const activateOrganisation = vi.fn();
@@ -60,6 +70,47 @@ describe("the list", () => {
 
     expect(await screen.findByText("active")).toBeTruthy();
     expect(screen.getByText("suspended")).toBeTruthy();
+  });
+
+  it("lands on the live customer, not on a destroyed trial", async () => {
+    organisations.mockResolvedValue([PURGED, ACTIVE]);
+    render(<System token="t" />);
+
+    expect(await screen.findByText("Acme SA")).toBeTruthy();
+    const destroyed = screen.getByText(/Destroyed organisations \(1\)/).closest("details");
+    expect(destroyed).not.toBeNull();
+    expect(destroyed?.open).toBe(false);
+    expect(screen.getByText("Prueba Ciclo")).toBeTruthy();
+  });
+
+  // An installation with one customer and nothing paused or destroyed should look exactly as
+  // it did before there were groups at all. A heading over the only list on the page names
+  // a distinction that installation does not have, and it is the common case.
+  it("does not head the list when there is only one group", async () => {
+    organisations.mockResolvedValue([ACTIVE]);
+    render(<System token="t" />);
+
+    await screen.findByText("Acme SA");
+    expect(screen.queryByRole("heading", { name: "Active" })).toBeNull();
+  });
+
+  it("heads the groups once there is more than one", async () => {
+    render(<System token="t" />);
+
+    expect(await screen.findByRole("heading", { name: "Active" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Suspended" })).toBeTruthy();
+  });
+
+  // Ordered the same way inside every group, not only the live one. A paused customer with a
+  // corpus and a paused eval run are as easy to confuse as the active ones were.
+  it("orders the suspended by what is behind them too", async () => {
+    const empty = { ...SUSPENDED, id: "s1", name: "M0 baseline", users: 0, documents: 0 };
+    organisations.mockResolvedValue([empty, SUSPENDED]);
+    render(<System token="t" />);
+
+    await screen.findByText("Beta Ltd");
+    const names = screen.getAllByText(/Beta Ltd|M0 baseline/).map((node) => node.textContent);
+    expect(names).toEqual(["Beta Ltd", "M0 baseline"]);
   });
 });
 
