@@ -19,7 +19,7 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.retrieval.lexical import CONFIGURATION, to_tsquery
+from app.features.retrieval.lexical import CONFIGURATION, engine, to_tsquery
 
 CANDIDATES = 50
 
@@ -109,6 +109,9 @@ async def lexical(
     The score comes back alongside the id and goes nowhere near fusion — it is logged, in
     `query_citations.score_bm25`, and that is the only thing it is for.
     """
+    if engine() == "bm25":
+        return await _bm25(session, question, limit, documents)
+
     query = await to_tsquery(session, question)
     if not query:
         return []
@@ -177,6 +180,44 @@ async def dense(
         },
     )
     return [(row.id, float(row.score)) for row in rows]
+
+
+async def _bm25(
+    session: AsyncSession,
+    question: str,
+    limit: int,
+    documents: list[UUID] | None,
+) -> list[tuple[UUID, float]]:
+    """The same contract, resolved inside the index instead of over the whole corpus.
+
+    `ts_rank_cd` has to score every matching row before `LIMIT` can choose, so its cost is
+    linear in matches: 5,953 ms at 300,000 passages under the real policy. ParadeDB resolves
+    the top N inside the index — a different algorithm, which is why the gap is ~130x and
+    why no hardware closes it. Migration 0022 has the measurements and the argument.
+
+    Isolation is not this function's to enforce and it does not try: `zenith_lexical_search`
+    takes no tenant and no labels, and reads both from the session variables the policies
+    read. There is no argument here through which another tenant's corpus can be asked for.
+
+    The document scope stays a SQL filter rather than moving into the Tantivy query. It is
+    not an isolation predicate — `_reachable` has already checked those documents are
+    visible — so leaving it outside costs a filter over at most `want` rows and keeps the
+    scoping rule in one place. Over-fetching covers the rows it discards.
+    """
+    want = limit * 4 if documents else limit
+    rows = await session.execute(
+        text(
+            "SELECT chunk_id, score FROM zenith_lexical_search(:question, :want)"
+            + (
+                " WHERE chunk_id IN (SELECT id FROM chunks WHERE document_id = ANY(:documents))"
+                if documents
+                else ""
+            )
+            + " LIMIT :limit"
+        ),
+        {"question": question, "want": want, "limit": limit, **scope_params(documents)},
+    )
+    return [(row.chunk_id, float(row.score)) for row in rows]
 
 
 def candidates(

@@ -324,6 +324,40 @@ conversation rather than discovered by a customer.
 
 ---
 
+## 9b. Phase 1, built — 2026-08-26
+
+Migration 0022, `ZENITH_LEXICAL_ENGINE`, the isolation matrix, and the measurement the
+rollout section demanded. Two findings the plan did not anticipate, both worth more than
+the feature.
+
+**The custom scan hijacks unrelated queries.** Putting the isolation columns in the BM25
+index — the mechanism this whole plan rests on — tells the planner that pg_search's custom
+scan can serve any query filtering on them. On 0.15.26 it then cannot:
+`SELECT max(length(text)) FROM chunks WHERE tenant_id = ...` fails with `rt_fetch used
+out-of-bounds`. No `@@@` anywhere. It surfaced as an unrelated label-sync test failing on a
+`xmin` read, which is a symptom nobody traces back to retrieval. Resolved by confining the
+custom scan to the one function that needs it, through a per-function `SET`. Every other
+query in the product is now planned as though pg_search were not installed.
+
+**BM25 is a scale trade, not an upgrade**, and §7's hoped-for deletion of `identifiers.py`
+does not follow. Measured against the 30-question set on 13,549 passages:
+
+| engine | headline Recall@8 | Recall@1 | mean rank |
+|---|---|---|---|
+| `tsvector` | **90.0%** | **66.7%** | **1.41** |
+| `bm25`, default tokeniser | 80.0% | 56.7% | 1.40 |
+| `bm25`, `en_stem` | 85.0% | 46.7% | 1.65 |
+
+At this size `ts_rank_cd` is both fast enough and more accurate — its proximity component
+does real work that BM25's term statistics do not replace. So the default stays `tsvector`
+and this builds a path nothing takes yet, which is the honest outcome: the switch belongs
+to the installation whose corpus has outgrown the accurate engine.
+
+**What remains before that switch is defensible**: the same measurement at 300k rather than
+13.5k, where the trade reverses; index build time and size on a real corpus; and write
+amplification during ingestion. All three are §6's, and none of them can be answered on a
+demonstration corpus.
+
 ## 10. Sequencing
 
 This plan is not the most valuable thing to do before the the client presentation, and it would

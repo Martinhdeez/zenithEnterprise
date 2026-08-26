@@ -110,6 +110,18 @@ class Settings(BaseSettings):
     worker_pool_size: int = 5
     statement_timeout_ms: int = 10_000
 
+    # `tsvector` | `bm25`. Which implementation the lexical half of retrieval uses.
+    #
+    # A setting rather than a straight replacement, and only until the BM25 path has been
+    # exercised on real corpora: `ts_rank_cd` is what every recall figure in `eval/` was
+    # measured against, and reverting a retrieval change on a customer installation has to
+    # be a restart rather than a redeploy. Migration 0022 keeps the GIN index for the same
+    # reason — dropping it would make the rollback a reindex.
+    #
+    # Not validated here for the reason `hardware` is not: importing the module that reads
+    # it would be a cycle. `verify_lexical_engine()` runs at startup.
+    lexical_engine: str = "tsvector"
+
     @field_validator("jwt_secret")
     @classmethod
     def secret_must_be_real(cls, value: str) -> str:

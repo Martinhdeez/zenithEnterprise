@@ -2,6 +2,7 @@ from typing import Any
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Computed,
     ForeignKey,
@@ -104,6 +105,25 @@ class Chunk(Base):
     __tablename__ = "chunks"
     __table_args__ = (
         Index("ix_chunks_tsv", "tsv", postgresql_using="gin"),
+        # The BM25 index, migration 0022. The isolation columns are in it on purpose: a
+        # predicate inside the Tantivy query is part of the search, while one outside it is
+        # a filter over the search's output — and that destroys both the scoring and the
+        # plan. See `zenith_lexical_search`.
+        Index(
+            "ix_chunks_bm25",
+            "id",
+            "text",
+            "tenant_id",
+            "label_ids",
+            "unlabelled",
+            postgresql_using="bm25",
+            postgresql_with={
+                "key_field": "'id'",
+                "text_fields": (
+                    '\'{"text": {"tokenizer": {"type": "en_stem", "lowercase": true}}}\''
+                ),
+            },
+        ),
         Index("ix_chunks_label_ids", "label_ids", postgresql_using="gin"),
         Index("ix_chunks_tenant_id", "tenant_id"),
     )
@@ -134,6 +154,12 @@ class Chunk(Base):
     # [{page, x0, y0, x1, y1}, ...] normalised 0-1. A chunk spans several lines and
     # can cross pages, which is why it is a list.
     bboxes: Mapped[list[Any]] = mapped_column(JSONB, server_default="[]")
+    #: `label_ids = '{}'`, materialised. Tantivy expresses "this field has no values"
+    #: poorly, and the product's rule — a document with no labels is visible tenant-wide —
+    #: has to be a first-class clause in the query rather than an absence.
+    unlabelled: Mapped[bool] = mapped_column(
+        Boolean, Computed("label_ids = '{}'::uuid[]", persisted=True)
+    )
     section: Mapped[str | None]
     text: Mapped[str]
     # 1-2 sentences placing the chunk in context; prepended before embedding.
