@@ -76,7 +76,8 @@
   h2,
   h3 {
     font-family: var(--font-heading);
-    letter-spacing: -0.01em;
+    font-weight: 800;
+    letter-spacing: -0.017em;
     text-wrap: balance;
   }
 }
@@ -102,9 +103,21 @@
      `font-mono` was already used in ten places and `--font-mono` was never defined, so all
      ten were falling through to whatever monospace the reader's operating system happens to
      have. Defining it changes those ten without touching a component. */
-  --font-heading: 'Source Serif 4 Variable', Georgia, 'Times New Roman', serif;
+  /* Stellar sets every heading in Inter at weight 800 with -0.017em of tracking, and that
+     weight is most of why it reads the way it does — a heading that is merely larger has no
+     voice, a heading that is heavier and tighter has one.
+
+     Geist rather than Inter, and not to avoid a dependency: they are the same kind of face,
+     Geist is already bundled and already licensed, and `make check` runs a licence gate that
+     a new font package would have to clear for a difference nobody in the room can name.
+
+     This replaces Source Serif 4 in the heading slot. The serif was chosen for a reason that
+     still holds — it was drawn for reading long documents and carries the diacritics this
+     corpus is full of — so it keeps `--font-reading`, for document body text, where that
+     reason actually applies. A heading is not long-form reading. */
+  --font-heading: 'Geist Variable', system-ui, sans-serif;
+  --font-reading: 'Source Serif 4 Variable', Georgia, serif;
   --font-sans: 'Geist Variable', sans-serif;
-  --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
   --color-zenith: var(--zenith);
   --color-zenith-foreground: var(--zenith-foreground);
   --color-zenith-cyan: var(--zenith-cyan);
@@ -152,40 +165,47 @@
   ---break---
 */
 :root {
-  --background: oklch(1.0000 0 0);
-  --foreground: oklch(0.1371 0.0360 258.5258);
+  /* "Stellar" — measured from cruip.com/demos/stellar rather than eyeballed.
+
+     The finding that shaped this: Stellar's shell is oklch(0.2055 0.0439 256.7) and
+     "Professional" was oklch(0.1371 0.0360 258.5). The same hue, near enough the same
+     chroma. What separates them is not colour at all — it is a lighter shell, a violet
+     accent, headings set heavy and tight, and pill-shaped controls. So this palette moves
+     those four things and leaves the hue where it was. */
+  --background: oklch(0.9880 0.0040 257);
+  --foreground: oklch(0.2000 0.0300 257);
   --card: oklch(1.0000 0 0);
-  --card-foreground: oklch(0.1371 0.0360 258.5258);
+  --card-foreground: oklch(0.2000 0.0300 257);
   --popover: oklch(1.0000 0 0);
-  --popover-foreground: oklch(0.1371 0.0360 258.5258);
-  --primary: oklch(0.5460 0.2153 262.8719);
-  --primary-foreground: oklch(0.9838 0.0035 247.8583);
-  --secondary: oklch(0.9684 0.0068 247.8951);
-  --secondary-foreground: oklch(0.2079 0.0399 265.7275);
-  --muted: oklch(0.9684 0.0068 247.8951);
-  --muted-foreground: oklch(0.5547 0.0407 257.4404);
-  --accent: oklch(0.9684 0.0068 247.8951);
-  --accent-foreground: oklch(0.2079 0.0399 265.7275);
-  --destructive: oklch(0.6368 0.2078 25.3259);
-  --destructive-foreground: oklch(0.9838 0.0035 247.8583);
-  --border: oklch(0.9290 0.0126 255.5317);
-  --input: oklch(0.9290 0.0126 255.5317);
-  --ring: oklch(0.5460 0.2153 262.8719);
-  --chart-1: oklch(0.5460 0.2153 262.8719);
-  --chart-2: oklch(0.7211 0.1415 253.1015);
-  --chart-3: oklch(0.6325 0.1843 258.6360);
-  --chart-4: oklch(0.8117 0.0970 249.0979);
-  --chart-5: oklch(0.8829 0.0573 251.9139);
-  --radius: 0.375rem;
+  --popover-foreground: oklch(0.2000 0.0300 257);
+  --primary: oklch(0.4800 0.2100 295);
+  --primary-foreground: oklch(0.9850 0.0040 295);
+  --secondary: oklch(0.9600 0.0070 257);
+  --secondary-foreground: oklch(0.2400 0.0300 257);
+  --muted: oklch(0.9600 0.0070 257);
+  --muted-foreground: oklch(0.4900 0.0250 257);
+  --accent: oklch(0.9600 0.0070 257);
+  --accent-foreground: oklch(0.2400 0.0300 257);
+  --destructive: oklch(0.5500 0.2000 27);
+  --destructive-foreground: oklch(0.9850 0.0040 257);
+  --border: oklch(0.8900 0.0090 257);
+  --input: oklch(0.9300 0.0080 257);
+  --ring: oklch(0.4800 0.2100 295);
+  --chart-1: oklch(0.4800 0.2100 295);
+  --chart-2: oklch(0.6000 0.1800 300);
+  --chart-3: oklch(0.6800 0.1200 240);
+  --chart-4: oklch(0.7600 0.0900 305);
+  --chart-5: oklch(0.8500 0.0550 295);
+  --radius: 0.75rem;
   --tracking-normal: -0.015em;
-  --sidebar: oklch(0.9838 0.0035 247.8583);
-  --sidebar-foreground: oklch(0.2079 0.0399 265.7275);
-  --sidebar-primary: oklch(0.5460 0.2153 262.8719);
+  --sidebar: oklch(0.9700 0.0060 257);
+  --sidebar-foreground: oklch(0.2400 0.0300 257);
+  --sidebar-primary: oklch(0.4800 0.2100 295);
   --sidebar-primary-foreground: oklch(1.0000 0 0);
-  --sidebar-accent: oklch(0.9290 0.0126 255.5317);
-  --sidebar-accent-foreground: oklch(0.5460 0.2153 262.8719);
-  --sidebar-border: oklch(0.9290 0.0126 255.5317);
-  --sidebar-ring: oklch(0.5460 0.2153 262.8719);
+  --sidebar-accent: oklch(0.9300 0.0080 257);
+  --sidebar-accent-foreground: oklch(0.4800 0.2100 295);
+  --sidebar-border: oklch(0.8900 0.0090 257);
+  --sidebar-ring: oklch(0.4800 0.2100 295);
 }
 /*
   ---break---
@@ -221,77 +241,71 @@
   accessibility affordance rather than decoration.
 */
 .dark {
-  --background: oklch(0.1371 0.0360 258.5258);
-  --foreground: oklch(0.9838 0.0035 247.8583);
-  /* A surface ladder, which the theme does not have and this interface needs.
+  /* The shell lifts from 0.1371 to 0.1900, toward Stellar's 0.2055. It does not go the whole
+     way: a landing page is looked at for fifteen seconds and an application is read for an
+     hour, and the extra light that gives a hero its air is glare behind eight rows of
+     search results.
 
-     "Professional" sets `--card` equal to `--background`: surfaces are separated by their
-     border rather than by fill. That works for a page of a few cards. It does not work
-     here, because this application stacks four deep — shell, panel, control, and the thing
-     inside the control — and with one tone for the first two there is nothing for a button
-     to stand on. The symptom is precise: a `bg-card` chip sitting on a panel reads as a
-     hole cut out of it, and the whole of Upload, History, Admin and System was one flat
-     field with hairlines drawn on it.
+     Surfaces and borders both do the defining work here, which is a deliberate revision of
+     what shipped on 26 August. Stellar separates its surfaces with hairlines on almost-flat
+     fills, and that is most of why it looks open. But flat fills are exactly what was
+     reported as unreadable on Upload and Admin — "alguien que ve mal o que ve de lejos no lo
+     va a ver" — and the four-step ladder at 0.068 was the answer to it.
 
-     Four steps, evenly spaced at about 0.068 of lightness. The spacing is the point: a
-     first attempt used 0.04 and it failed the test that matters — visible up close, gone
-     at arm's length or to anyone whose eyes are not perfect. A step somebody has to lean
-     in for is not a step.
+     So: both, each at moderate strength. The fill steps drop to 0.040-0.050, closer to
+     Stellar's flatness, and `--border` rises to 0.340 — above every surface it divides
+     rather than equal to one of them — so a hairline is a line you can actually see doing
+     the separating that the fill no longer does alone.
 
-       0.137  --background   the shell
-       0.205  --card         the working surface, and a panel on the shell
-       0.275  --secondary    a panel or control on the working surface
-       0.345  --input        a control on a panel, and the well of a field
-
-     `--zenith-navy` at 0.10 stays the ledge below all of it, for the header and footer
-     bars, so the ladder runs in both directions from the page. */
-  --card: oklch(0.2050 0.0360 258.5258);
-  --card-foreground: oklch(0.9838 0.0035 247.8583);
-  --popover: oklch(0.2050 0.0360 258.5258);
-  --popover-foreground: oklch(0.9838 0.0035 247.8583);
-  --primary: oklch(0.6232 0.1879 259.7964);
-  --primary-foreground: oklch(0.2079 0.0399 265.7275);
-  --secondary: oklch(0.2750 0.0369 259.9740);
-  --secondary-foreground: oklch(0.9838 0.0035 247.8583);
-  --muted: oklch(0.2750 0.0369 259.9740);
-  --muted-foreground: oklch(0.7107 0.0351 256.7877);
-  --accent: oklch(0.2750 0.0369 259.9740);
-  --accent-foreground: oklch(0.9838 0.0035 247.8583);
-  --destructive: oklch(0.3959 0.1331 25.7205);
-  --destructive-foreground: oklch(0.9838 0.0035 247.8583);
-  --border: oklch(0.2750 0.0369 259.9740);
-  /* Lighter than `--border`, which the theme does not do — it sets the two to the same
-     value, and adopting that collapsed a distinction this interface was relying on.
-
-     A field is a well you type into: `SearchField` says so and deliberately uses
-     `bg-input/30` rather than `bg-card` to get it. At 30% opacity, an `--input` equal to
-     `--border` lands about 0.043 in lightness above the page — near enough to invisible
-     that nothing on screen invited a click. The palette this replaced had `#334155` for
-     the field against `#1e293b` for the border, and that separation was the point.
-
-     0.38 restores it: the fill sits about 0.10 above the page, which is what the old
-     palette gave, and the border stays a step above the fill so the edge is still an
-     edge. */
-  --input: oklch(0.3450 0.0369 259.9740);
-  --ring: #00e5e5;
-  --zenith: oklch(0.6232 0.1879 259.7964);
-  --zenith-foreground: oklch(0.2079 0.0399 265.7275);
+       0.190  --background   the shell
+       0.230  --card         the working surface
+       0.275  --secondary    a panel or control on it
+       0.325  --input        the well of a field
+       0.340  --border       brighter than all of them, on purpose */
+  --background: oklch(0.1900 0.0400 257);
+  --foreground: oklch(0.9676 0.0075 243);
+  --card: oklch(0.2300 0.0400 257);
+  --card-foreground: oklch(0.9676 0.0075 243);
+  --popover: oklch(0.2300 0.0400 257);
+  --popover-foreground: oklch(0.9676 0.0075 243);
+  /* 5.53:1 against the dark text it carries. The lighter violets look closer to Stellar's
+     glow and fail: at 0.74 the same text is 7.64:1 but white on it is 2.20:1, so any
+     component that assumes light-on-primary breaks silently. Dark-on-light is the pattern
+     the rest of this theme already uses. */
+  --primary: oklch(0.6600 0.1900 295);
+  --primary-foreground: oklch(0.1900 0.0400 257);
+  --secondary: oklch(0.2750 0.0400 257);
+  --secondary-foreground: oklch(0.9676 0.0075 243);
+  --muted: oklch(0.2750 0.0400 257);
+  --muted-foreground: oklch(0.7300 0.0200 250);
+  --accent: oklch(0.2750 0.0400 257);
+  --accent-foreground: oklch(0.9676 0.0075 243);
+  --destructive: oklch(0.5800 0.1900 25);
+  --destructive-foreground: oklch(0.9676 0.0075 243);
+  --border: oklch(0.3400 0.0380 257);
+  --input: oklch(0.3250 0.0400 257);
+  --ring: oklch(0.6600 0.1900 295);
+  --zenith: oklch(0.6600 0.1900 295);
+  --zenith-foreground: oklch(0.1900 0.0400 257);
+  /* Untouched. Each is a sentence the interface says — healthy, abstained, destructive —
+     and a restyle that repainted them would change what the product means, not how it
+     looks. */
   --zenith-cyan: #00e5e5;
   --zenith-amber: #f59e0b;
-  --zenith-navy: oklch(0.1000 0.0300 258.5258);
-  --chart-1: oklch(0.4878 0.2170 264.3876);
-  --chart-2: oklch(0.5449 0.2154 262.7414);
+  --zenith-navy: oklch(0.1450 0.0400 257);
+  --chart-1: oklch(0.6600 0.1900 295);
+  --chart-2: oklch(0.5600 0.2000 300);
   --chart-3: oklch(0.6776 0.1481 238.1044);
-  --chart-4: oklch(0.3752 0.0394 256.8467);
-  --chart-5: oklch(0.4691 0.1926 264.5776);
-  --sidebar: oklch(0.1371 0.0360 258.5258);
-  --sidebar-foreground: oklch(0.9838 0.0035 247.8583);
-  --sidebar-primary: oklch(0.6232 0.1879 259.7964);
-  --sidebar-primary-foreground: oklch(0.1371 0.0360 258.5258);
-  --sidebar-accent: oklch(0.2800 0.0369 259.9740);
-  --sidebar-accent-foreground: oklch(0.9838 0.0035 247.8583);
-  --sidebar-border: oklch(0.2800 0.0369 259.9740);
-  --sidebar-ring: #00e5e5;
+  --chart-4: oklch(0.4200 0.0600 295);
+  --chart-5: oklch(0.7800 0.1100 295);
+  --sidebar: oklch(0.1900 0.0400 257);
+  --sidebar-foreground: oklch(0.9676 0.0075 243);
+  --sidebar-primary: oklch(0.6600 0.1900 295);
+  --sidebar-primary-foreground: oklch(0.1900 0.0400 257);
+  --sidebar-accent: oklch(0.2750 0.0400 257);
+  --sidebar-accent-foreground: oklch(0.9676 0.0075 243);
+  --sidebar-border: oklch(0.3400 0.0380 257);
+  --sidebar-ring: oklch(0.6600 0.1900 295);
 }
 
 /* The indeterminate sweep in `ProgressBar`. A plain Tailwind utility can't express "slide
