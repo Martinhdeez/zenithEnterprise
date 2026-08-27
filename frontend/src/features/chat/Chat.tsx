@@ -116,13 +116,13 @@ function EmptyState({ token, onAsk }: { token: string; onAsk: (question: string)
           <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">
             Asked here
           </p>
-          <ul className="flex flex-col gap-1.5">
+          <ul className="flex flex-col gap-3">
             {recent.map((entry) => (
               <li key={entry.query_id}>
                 <button
                   type="button"
                   onClick={() => onAsk(entry.question)}
-                  className="flex w-full items-center justify-between gap-4 rounded-lg border border-input bg-secondary/50 px-4 py-3 text-left transition-colors hover:border-primary/50 hover:bg-secondary"
+                  className="flex w-full items-center justify-between gap-4 rounded-2xl border border-input bg-secondary/50 px-4 py-3 text-left transition-colors hover:border-primary/50 hover:bg-secondary"
                 >
                   <span className="truncate text-sm text-foreground">{entry.question}</span>
                   {/* What it produced, in the apparatus face — a count is a measurement and
@@ -144,13 +144,13 @@ function EmptyState({ token, onAsk }: { token: string; onAsk: (question: string)
           {/* Nothing has been asked yet, so there is nothing to show and the honest thing
               is to offer a way in rather than manufacture evidence. */}
           <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">Try</p>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-3">
             {STARTERS.map((question) => (
               <button
                 key={question}
                 type="button"
                 onClick={() => onAsk(question)}
-                className="truncate rounded-lg border border-input bg-secondary/50 px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:bg-secondary hover:text-foreground"
+                className="truncate rounded-2xl border border-input bg-secondary/50 px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:bg-secondary hover:text-foreground"
               >
                 {question}
               </button>
