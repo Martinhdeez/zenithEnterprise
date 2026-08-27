@@ -428,7 +428,7 @@ export function Upload({ token, onUploaded }: Props) {
               }}
               disabled={busy}
             />
-            <div className="flex size-12 items-center justify-center rounded-2xl border border-input bg-input">
+            <div className="flex size-12 items-center justify-center rounded-2xl border border-input bg-input/60 dark:bg-input">
               <UploadCloud className="size-6 text-muted-foreground" />
             </div>
             {/* Plural, because the control is. The singular copy this replaced ("Choose a

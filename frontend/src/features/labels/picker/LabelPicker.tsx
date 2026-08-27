@@ -205,7 +205,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
             placeholder="Search labels"
             aria-label="Search labels"
             disabled={onlySelected}
-            className="h-9 rounded-full bg-background dark:bg-background shadow-[inset_0_1px_3px_rgb(0_0_0/0.45)] border-muted-foreground/35 hover:border-muted-foreground/55 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/40"
+            className="h-9 rounded-full bg-card border-input hover:border-muted-foreground/40 dark:bg-background dark:border-muted-foreground/35 dark:shadow-[inset_0_1px_3px_rgb(0_0_0/0.45)] dark:hover:border-muted-foreground/55 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/40"
           />
         </div>
         <Select
@@ -258,13 +258,25 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
                     // colour of "the system could not decide" in this interface, which is
                     // exactly what an unclassified document is.
                     "border-zenith-amber/40 bg-zenith-amber/10 text-zenith-amber hover:bg-zenith-amber/20"
-                  : // Solid `bg-input`, not `bg-input/50`. At 50% over a `--secondary`
-                    // panel a chip lands 0.025 of lightness above its own container — a
-                    // third of the 0.068 step this theme measured as the minimum anyone can
-                    // see from across a room, and the whole row read as one flat field.
-                    // Solid puts it 0.050 above: raised, because a label is data you pick
-                    // up. The filters below are recessed for the opposite reason.
-                    "border-input bg-input text-foreground hover:border-muted-foreground/60 hover:bg-input/80"
+                  : // Solid in dark, 60% in light, and the split is not cosmetic. `--input`
+                    // does two jobs in this codebase — it is `border-input` on every control
+                    // and `bg-input/60` on some thirty surfaces — and in light those jobs
+                    // pull opposite ways: a boundary has to go dark to be seen against white,
+                    // a raised surface has to stay light. `--input` follows the boundary,
+                    // because that is the job with a standard behind it, and a fill taken
+                    // from it needs the alpha the rest of the app already uses.
+                    //
+                    // Light leans on the border rather than the fill, which is what a strong
+                    // `--input` buys: at 3.11:1 the edge does the separating, so the fill can
+                    // stay out of the way. A 60% fill was measured first and was not
+                    // unreadable — 9.94:1 for its text — it was simply heavy: seventeen
+                    // mid-grey slugs on a near-white card, darker than the white filters
+                    // above them, which inverted the raised/sunk story the dark theme tells.
+                    //
+                    // Dark keeps the solid value: at 50% a chip landed 0.025 above its own
+                    // panel, a third of the 0.068 step measured as the minimum anyone can see
+                    // from across a room, and the row read as one flat field.
+                    "border-input bg-input/15 text-foreground hover:bg-input/30 dark:bg-input dark:hover:bg-input/80"
             }`}
           >
             {/* Equal padding on both sides at rest — the delete button is an absolute
@@ -337,7 +349,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
           placeholder="Label name"
           aria-label="New label name"
           maxLength={100}
-          className="h-9 max-w-56 rounded-full bg-background dark:bg-background shadow-[inset_0_1px_3px_rgb(0_0_0/0.45)] border-muted-foreground/35 hover:border-muted-foreground/55 px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/40"
+          className="h-9 max-w-56 rounded-full bg-card border-input hover:border-muted-foreground/40 dark:bg-background dark:border-muted-foreground/35 dark:shadow-[inset_0_1px_3px_rgb(0_0_0/0.45)] dark:hover:border-muted-foreground/55 px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/40"
         />
         <Button
           type="submit"
