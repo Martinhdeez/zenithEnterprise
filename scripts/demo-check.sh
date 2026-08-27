@@ -112,17 +112,27 @@ EOF
 fi
 
 # --- the corpus ----------------------------------------------------------------------------
+#
+# Counted per tenant, never summed across them. A total is the wrong number twice over: it
+# is not the corpus anyone will search — every question in the room runs inside one tenant —
+# and summing across tenants is exactly how this project once published a passage count
+# (21,295) that described no installation that existed. Grouping by tenant also makes a
+# second corpus visible as a second corpus rather than as inflation of the first.
 STATUSES="$(${COMPOSE} exec -T db psql -U "${POSTGRES_USER:-zenith}" -d "${POSTGRES_DB:-zenith}" -tAc \
-  "SELECT status, count(*) FROM documents GROUP BY 1" 2>/dev/null || true)"
+  "SELECT d.status, count(*), t.name
+     FROM documents d JOIN tenants t ON t.id = d.tenant_id
+    WHERE t.status <> 'purged'
+    GROUP BY d.status, t.name
+    ORDER BY count(*) DESC" 2>/dev/null || true)"
 if [ -z "${STATUSES}" ]; then
   bad "could not read the corpus"
 else
-  while IFS='|' read -r status count; do
+  while IFS='|' read -r status count tenant; do
     [ -n "${status}" ] || continue
     case "${status}" in
-      ready)  ok "corpus: ${count} documents ready" ;;
-      failed) bad "corpus: ${count} document(s) failed to ingest" ;;
-      *)      warn "corpus: ${count} document(s) ${status} — ingestion is still running, and it holds the embedder" ;;
+      ready)  ok "corpus: ${count} documents ready in ${tenant}" ;;
+      failed) bad "corpus: ${count} document(s) failed to ingest in ${tenant}" ;;
+      *)      warn "corpus: ${count} document(s) ${status} in ${tenant} — ingestion is still running, and it holds the embedder" ;;
     esac
   done <<EOF
 ${STATUSES}
