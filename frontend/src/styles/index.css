@@ -206,6 +206,25 @@
   --sidebar-accent-foreground: oklch(0.4800 0.2100 295);
   --sidebar-border: oklch(0.8900 0.0090 257);
   --sidebar-ring: oklch(0.4800 0.2100 295);
+  /* The five that existed only inside `.dark` until the light theme arrived, and the reason
+     the light theme was not a token swap. Eighteen component files use them, and two of them
+     are sentences the interface says rather than decoration:
+
+       #00e5e5 on white is 1.57:1 and #f59e0b is 2.15:1 — both unreadable, both fine on the
+       dark shell at 11.07:1 and 8.12:1.
+
+     Re-derived at the same hue so they keep meaning what they meant, and dropped in
+     lightness until they clear 4.5:1 on the page: cyan is "the system is healthy", amber is
+     "the model abstained". A signal that changes hue between themes is a different signal.
+
+     `--zenith-navy` inverts rather than darkens. It is the ledge that header and footer bars
+     sit on, a step *below* the page in dark; in light a bar that goes darker than the page
+     reads as a hole, so it goes one step lighter and the ledge still reads as a ledge. */
+  --zenith: oklch(0.4800 0.2100 295);
+  --zenith-foreground: oklch(0.9850 0.0040 295);
+  --zenith-cyan: oklch(0.5200 0.1150 195);
+  --zenith-amber: oklch(0.5600 0.1350 70);
+  --zenith-navy: oklch(0.9450 0.0080 257);
 }
 /*
   ---break---

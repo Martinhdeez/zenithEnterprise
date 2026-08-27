@@ -15,14 +15,18 @@ import {
   Maximize2,
   MessageSquare,
   Minimize2,
+  Monitor,
+  Moon,
   PanelLeftClose,
   PanelLeftOpen,
   Search as SearchIcon,
   Settings,
+  Sun,
   Upload as UploadIcon,
   X,
 } from "lucide-react";
 
+import { apply as applyTheme, remember, stored, type Theme } from "@/shared/lib/theme";
 import { Admin } from "@/features/admin";
 import {
   Login,
@@ -119,6 +123,88 @@ function setPasswordToken(): string | null {
  * Tailwind scans this file as text, and `max-w-${n}xl` would produce a class that exists in
  * the markup and in no stylesheet.
  */
+/**
+ * Three settings, not a switch. "System" is what everybody has before they touch anything,
+ * and a two-state toggle destroys it on the first click with no way back — somebody who
+ * works in a light room by day and a dark one at night would have to flip the application
+ * by hand forever after.
+ *
+ * The choice is applied to `<html>` and the browser is asked again whenever it changes, so
+ * a machine that switches at sunset takes the app with it while "System" is selected.
+ */
+function ThemeControl({ collapsed }: { collapsed: boolean }) {
+  const [theme, setTheme] = useState<Theme>(stored);
+
+  useEffect(() => {
+    applyTheme(theme);
+    if (theme !== "system" || typeof matchMedia !== "function") return;
+    const media = matchMedia("(prefers-color-scheme: dark)");
+    const follow = () => applyTheme("system");
+    media.addEventListener("change", follow);
+    return () => media.removeEventListener("change", follow);
+  }, [theme]);
+
+  const choose = (next: Theme) => {
+    setTheme(next);
+    remember(next);
+  };
+
+  // Records rather than an array indexed by position: `noUncheckedIndexedAccess` is on, and
+  // `options[(at + 1) % options.length]` is only provably defined to a human.
+  const NEXT: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
+  const ICON: Record<Theme, typeof Sun> = { system: Monitor, light: Sun, dark: Moon };
+  // "Auto", not "System". `/system` is the system-administration panel and it sits in this
+  // same sidebar: two controls a few pixels apart, both reading "System", meaning entirely
+  // different things. `App.test.tsx` caught it by asking for a button named System and
+  // finding the wrong one, which is exactly what a user would have done.
+  const LABEL: Record<Theme, string> = { system: "Auto", light: "Light", dark: "Dark" };
+  const ORDER: readonly Theme[] = ["system", "light", "dark"];
+
+  // Collapsed, there is no room for three: it cycles instead, and the tooltip names what
+  // pressing it will do rather than what is currently on — a control should say what it
+  // does, not what it is.
+  if (collapsed) {
+    const next = NEXT[theme];
+    const Icon = ICON[theme];
+    return (
+      <button
+        type="button"
+        onClick={() => choose(next)}
+        title={`Switch to ${LABEL[next].toLowerCase()}`}
+        aria-label={`Switch to ${LABEL[next].toLowerCase()}`}
+        className="flex items-center justify-center rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground"
+      >
+        <Icon className="size-4" />
+      </button>
+    );
+  }
+
+  return (
+    <div role="group" aria-label="Theme" className="flex gap-0.5 rounded-full bg-background p-0.5">
+      {ORDER.map((value) => {
+        const Icon = ICON[value];
+        return (
+        <button
+          key={value}
+          type="button"
+          onClick={() => choose(value)}
+          aria-pressed={theme === value}
+          title={LABEL[value]}
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-1 text-xs transition-colors ${
+            theme === value
+              ? "bg-primary/15 text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Icon className="size-3.5" />
+          {LABEL[value]}
+        </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function measure(view: string): string {
   switch (view) {
     // A form. Wider only makes the label travel further from its field.
@@ -317,7 +403,7 @@ export function App() {
     // bordered card — the sidebar, the workspace and the preview are three surfaces, not
     // one shell with internal dividers, which is the difference between this and the flat
     // edge-to-edge layout it replaced.
-    <div className="dark flex h-screen overflow-hidden gap-3 bg-background p-3 text-foreground">
+    <div className="flex h-screen overflow-hidden gap-3 bg-background p-3 text-foreground">
       {/* Layout, not a workspace: Folders and Upload used to live here as their own
           sections, each with its own scroll, competing with navigation for the same
           narrow column. Both are full screens in the main panel now, reached the same way
@@ -484,6 +570,7 @@ export function App() {
             collapsed ? "items-center px-2" : "px-2"
           }`}
         >
+          <ThemeControl collapsed={collapsed} />
           <button
             type="button"
             onClick={() => open("profile")}
