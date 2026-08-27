@@ -114,6 +114,28 @@ function setPasswordToken(): string | null {
   return match?.[1] ?? null;
 }
 
+/**
+ * How wide a screen is allowed to get. Whole class strings, never built by interpolation:
+ * Tailwind scans this file as text, and `max-w-${n}xl` would produce a class that exists in
+ * the markup and in no stylesheet.
+ */
+function measure(view: string): string {
+  switch (view) {
+    // A form. Wider only makes the label travel further from its field.
+    case "profile":
+      return "max-w-2xl";
+    // Tables. They were the worst served by a single cap and gain the most from losing it.
+    case "admin":
+    case "system":
+    case "folders":
+      return "max-w-6xl 2xl:max-w-7xl";
+    // A result, an upload row and a past question are all a name plus a fragment of text.
+    // Wide enough to stop truncating the name, capped so the fragment stays readable.
+    default:
+      return "max-w-5xl 2xl:max-w-6xl";
+  }
+}
+
 export function App() {
   const [token, setToken] = useState<string | null>(() => read("session", TOKEN_KEY));
   const [status, setStatus] = useState<TenantStatus | null>(null);
@@ -595,11 +617,17 @@ export function App() {
             {/* Every screen is centred and capped here rather than each one setting its own
                 width. They used to carry a `max-w-*` and no `mx-auto`, which pinned them to
                 the left edge — barely noticeable while the preview panel took a third of the
-                row, and obviously wrong the moment that space came back. Capped rather than
-                full-bleed because a line of prose spanning a 27" display is unreadable; the
-                cap widens one step on very large screens so the extra room is used without
-                the measure running away. */}
-            <div className="mx-auto w-full max-w-3xl p-6 2xl:max-w-4xl">
+                row, and obviously wrong the moment that space came back.
+
+                The cap is per view, which it was not: one value of `max-w-3xl` covered a
+                form, a list of results and a table alike, and 768px of a 1114px panel leaves
+                31% of the working area empty on an ordinary laptop. Capped rather than
+                full-bleed still, because the reason for a cap is real — a line of prose
+                across a 27" display is unreadable — but that reason is about prose, and only
+                two of these screens are prose. A table is the opposite: it wants every pixel
+                it can have, and cramming one into a reading measure is what produces the
+                columns nobody can read. */}
+            <div className={`mx-auto w-full p-6 ${measure(view)}`}>
             {view === "search" && (
               <Search
                 token={token}
