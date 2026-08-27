@@ -169,17 +169,28 @@
 
      The finding that shaped this: Stellar's shell is oklch(0.2055 0.0439 256.7) and
      "Professional" was oklch(0.1371 0.0360 258.5). The same hue, near enough the same
-     chroma. What separates them is not colour at all — it is a lighter shell, a violet
+     chroma. What separates them is not colour at all — it is a lighter shell, a saturated
      accent, headings set heavy and tight, and pill-shaped controls. So this palette moves
-     those four things and leaves the hue where it was. */
+     those four things and leaves the hue where it was.
+
+     The accent is the mark's own blue, sampled from `zenith-mark.png` rather than chosen:
+     `#6070f0` covers 72.9% of its coloured pixels, which is oklch(0.6007 0.1911 273.8). Hue
+     and chroma carry across both themes unchanged and only lightness moves, so a button and
+     the Z are the same colour rather than two blues that nearly agree.
+
+     It replaced a violet at hue 295, picked on the reasoning that every other position was
+     already spoken for — cyan says the system is healthy, amber says the model abstained,
+     red says the action destroys something. Sound, and beside the point: the product
+     already had an accent, printed on its own logo, and an interface whose primary action
+     is a different colour from its mark is saying those are two different things. */
   --background: oklch(0.9880 0.0040 257);
   --foreground: oklch(0.2000 0.0300 257);
   --card: oklch(1.0000 0 0);
   --card-foreground: oklch(0.2000 0.0300 257);
   --popover: oklch(1.0000 0 0);
   --popover-foreground: oklch(0.2000 0.0300 257);
-  --primary: oklch(0.4800 0.2100 295);
-  --primary-foreground: oklch(0.9850 0.0040 295);
+  --primary: oklch(0.5000 0.1911 273.8);
+  --primary-foreground: oklch(0.9850 0.0040 273.8);
   --secondary: oklch(0.9600 0.0070 257);
   --secondary-foreground: oklch(0.2400 0.0300 257);
   --muted: oklch(0.9600 0.0070 257);
@@ -190,22 +201,22 @@
   --destructive-foreground: oklch(0.9850 0.0040 257);
   --border: oklch(0.8900 0.0090 257);
   --input: oklch(0.9300 0.0080 257);
-  --ring: oklch(0.4800 0.2100 295);
-  --chart-1: oklch(0.4800 0.2100 295);
-  --chart-2: oklch(0.6000 0.1800 300);
+  --ring: oklch(0.5000 0.1911 273.8);
+  --chart-1: oklch(0.5000 0.1911 273.8);
+  --chart-2: oklch(0.6200 0.1500 273.8);
   --chart-3: oklch(0.6800 0.1200 240);
-  --chart-4: oklch(0.7600 0.0900 305);
-  --chart-5: oklch(0.8500 0.0550 295);
+  --chart-4: oklch(0.7600 0.0900 273.8);
+  --chart-5: oklch(0.8500 0.0550 273.8);
   --radius: 0.75rem;
   --tracking-normal: -0.015em;
   --sidebar: oklch(0.9700 0.0060 257);
   --sidebar-foreground: oklch(0.2400 0.0300 257);
-  --sidebar-primary: oklch(0.4800 0.2100 295);
+  --sidebar-primary: oklch(0.5000 0.1911 273.8);
   --sidebar-primary-foreground: oklch(1.0000 0 0);
   --sidebar-accent: oklch(0.9300 0.0080 257);
-  --sidebar-accent-foreground: oklch(0.4800 0.2100 295);
+  --sidebar-accent-foreground: oklch(0.5000 0.1911 273.8);
   --sidebar-border: oklch(0.8900 0.0090 257);
-  --sidebar-ring: oklch(0.4800 0.2100 295);
+  --sidebar-ring: oklch(0.5000 0.1911 273.8);
   /* The five that existed only inside `.dark` until the light theme arrived, and the reason
      the light theme was not a token swap. Eighteen component files use them, and two of them
      are sentences the interface says rather than decoration:
@@ -220,8 +231,8 @@
      `--zenith-navy` inverts rather than darkens. It is the ledge that header and footer bars
      sit on, a step *below* the page in dark; in light a bar that goes darker than the page
      reads as a hole, so it goes one step lighter and the ledge still reads as a ledge. */
-  --zenith: oklch(0.4800 0.2100 295);
-  --zenith-foreground: oklch(0.9850 0.0040 295);
+  --zenith: oklch(0.5000 0.1911 273.8);
+  --zenith-foreground: oklch(0.9850 0.0040 273.8);
   --zenith-cyan: oklch(0.5200 0.1150 195);
   --zenith-amber: oklch(0.5600 0.1350 70);
   --zenith-navy: oklch(0.9450 0.0080 257);
@@ -296,11 +307,14 @@
   --card-foreground: oklch(0.9676 0.0075 243);
   --popover: oklch(0.2520 0.0400 257);
   --popover-foreground: oklch(0.9676 0.0075 243);
-  /* 5.53:1 against the dark text it carries. The lighter violets look closer to Stellar's
-     glow and fail: at 0.74 the same text is 7.64:1 but white on it is 2.20:1, so any
-     component that assumes light-on-primary breaks silently. Dark-on-light is the pattern
-     the rest of this theme already uses. */
-  --primary: oklch(0.6600 0.1900 295);
+  /* The mark's blue at 0.66, carrying dark text at 5.61:1. Light is the same hue and chroma
+     at 0.50, carrying white at 6.11:1 — each theme moves lightness only, in the direction
+     its own text needs, and neither shifts the hue.
+
+     Going lighter here looks closer to Stellar's glow and fails: at 0.74 dark text reads
+     7.29:1 but white on it collapses, so any component assuming light-on-primary breaks
+     silently. Dark-on-light is the pattern the rest of this theme already uses. */
+  --primary: oklch(0.6600 0.1911 273.8);
   --primary-foreground: oklch(0.1900 0.0400 257);
   --secondary: oklch(0.3140 0.0400 257);
   --secondary-foreground: oklch(0.9676 0.0075 243);
@@ -312,8 +326,8 @@
   --destructive-foreground: oklch(0.9676 0.0075 243);
   --border: oklch(0.4000 0.0380 257);
   --input: oklch(0.3760 0.0400 257);
-  --ring: oklch(0.6600 0.1900 295);
-  --zenith: oklch(0.6600 0.1900 295);
+  --ring: oklch(0.6600 0.1911 273.8);
+  --zenith: oklch(0.6600 0.1911 273.8);
   --zenith-foreground: oklch(0.1900 0.0400 257);
   /* Untouched. Each is a sentence the interface says — healthy, abstained, destructive —
      and a restyle that repainted them would change what the product means, not how it
@@ -321,19 +335,19 @@
   --zenith-cyan: #00e5e5;
   --zenith-amber: #f59e0b;
   --zenith-navy: oklch(0.1450 0.0400 257);
-  --chart-1: oklch(0.6600 0.1900 295);
-  --chart-2: oklch(0.5600 0.2000 300);
+  --chart-1: oklch(0.6600 0.1911 273.8);
+  --chart-2: oklch(0.5400 0.1911 273.8);
   --chart-3: oklch(0.6776 0.1481 238.1044);
-  --chart-4: oklch(0.4200 0.0600 295);
-  --chart-5: oklch(0.7800 0.1100 295);
+  --chart-4: oklch(0.4200 0.0600 273.8);
+  --chart-5: oklch(0.7800 0.1100 273.8);
   --sidebar: oklch(0.1900 0.0400 257);
   --sidebar-foreground: oklch(0.9676 0.0075 243);
-  --sidebar-primary: oklch(0.6600 0.1900 295);
+  --sidebar-primary: oklch(0.6600 0.1911 273.8);
   --sidebar-primary-foreground: oklch(0.1900 0.0400 257);
   --sidebar-accent: oklch(0.3140 0.0400 257);
   --sidebar-accent-foreground: oklch(0.9676 0.0075 243);
   --sidebar-border: oklch(0.4000 0.0380 257);
-  --sidebar-ring: oklch(0.6600 0.1900 295);
+  --sidebar-ring: oklch(0.6600 0.1911 273.8);
 }
 
 /* The indeterminate sweep in `ProgressBar`. A plain Tailwind utility can't express "slide

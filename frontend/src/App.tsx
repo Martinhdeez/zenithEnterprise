@@ -566,7 +566,12 @@ export function App() {
             what makes the difference between them legible. It also stops a destructive
             action sitting permanently one stray click from the navigation. */}
         <div
-          className={`panel-accent flex shrink-0 flex-col gap-1 border-t border-border py-2 ${
+          // `rounded-b-xl` mirrors the `rounded-t-xl` on the brand header at the other end
+          // of this column. Both are `panel-accent`, which paints a gradient rather than
+          // inheriting the sidebar's fill, so a square corner here does not just fail to
+          // curve — it paints over the curve, and the sidebar reads as having one rounded
+          // corner and one blunt one.
+          className={`panel-accent flex shrink-0 flex-col gap-1 rounded-b-xl border-t border-border py-2 ${
             collapsed ? "items-center px-2" : "px-2"
           }`}
         >
