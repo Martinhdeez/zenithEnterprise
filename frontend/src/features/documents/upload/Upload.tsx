@@ -44,6 +44,7 @@ import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useT } from "@/shared/i18n/useT";
 
 interface Props {
   token: string;
@@ -58,6 +59,7 @@ interface Staged {
 }
 
 export function Upload({ token, onUploaded }: Props) {
+  const t = useT();
   const [over, setOver] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -361,8 +363,7 @@ export function Upload({ token, onUploaded }: Props) {
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="staged-filename" className="text-xs font-medium text-muted-foreground">
-              Name <span className="font-normal">(optional — defaults to the file's own name)</span>
+            <label htmlFor="staged-filename" className="text-xs font-medium text-muted-foreground">{t("Name")}<span className="font-normal">{t("(optional — defaults to the file's own name)")}</span>
             </label>
             <Input
               id="staged-filename"
@@ -374,14 +375,13 @@ export function Upload({ token, onUploaded }: Props) {
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="staged-description" className="text-xs font-medium text-muted-foreground">
-              Description <span className="font-normal">(optional)</span>
+            <label htmlFor="staged-description" className="text-xs font-medium text-muted-foreground">{t("Description")}<span className="font-normal">{t("(optional)")}</span>
             </label>
             <Textarea
               id="staged-description"
               value={staged.description}
               onChange={(event) => setStaged((current) => current && { ...current, description: event.target.value })}
-              placeholder="What is this document, or why does it matter?"
+              placeholder={t("What is this document, or why does it matter?")}
               maxLength={2000}
               className="rounded-md border-input bg-background text-foreground focus-visible:border-primary focus-visible:ring-primary/40"
             />
@@ -421,7 +421,7 @@ export function Upload({ token, onUploaded }: Props) {
               accept="application/pdf"
               multiple
               className="sr-only"
-              aria-label="Upload PDFs"
+              aria-label={t("Upload PDFs")}
               onChange={(event) => {
                 choose(event.target.files);
                 if (fileInput.current) fileInput.current.value = "";
@@ -436,21 +436,17 @@ export function Upload({ token, onUploaded }: Props) {
                 since it was written, and people believed it: nobody tries to drag five
                 files at something that asks for one. */}
             <p className="text-sm">
-              <span className="font-semibold text-primary">Choose PDFs</span>
-              <span className="text-muted-foreground"> or drop them here</span>
+              <span className="font-semibold text-primary">{t("Choose PDFs")}</span>
+              <span className="text-muted-foreground"> {t("or drop them here")}</span>
             </p>
             {/* The line here used to read "Several files at once upload immediately", which
                 was true of the flow the staging area replaced and is now the opposite of
                 what happens — a batch is held in the browser until Confirm & Process. Stale
                 copy that contradicts the product is worse than no copy: it teaches people
                 the screen is not to be trusted. */}
-            <p className="text-xs text-muted-foreground">
-              Drop several to tag them together before anything is sent.
-            </p>
+            <p className="text-xs text-muted-foreground">{t("Drop several to tag them together before anything is sent.")}</p>
           </label>
-          <p className="mt-6 text-xs text-muted-foreground">
-            Searches run more slowly while a document is being processed.
-          </p>
+          <p className="mt-6 text-xs text-muted-foreground">{t("Searches run more slowly while a document is being processed.")}</p>
         </div>
       )}
 
@@ -493,7 +489,7 @@ export function Upload({ token, onUploaded }: Props) {
         {/* Below the file list rather than above it. It is the last control pressed, and
             a button that sits before the thing it acts on asks somebody to scroll back up
             to check what they are about to send. */}
-        {busy ? "Uploading…" : "Upload"}
+        {busy ? t("Uploading…") : t("Upload")}
       </Button>
 
       {message && (
@@ -541,6 +537,7 @@ function UploadQueue({
   onCancel: (id: string) => void;
   onCancelAll: () => void;
 }) {
+  const t = useT();
   const summary = summarise(items);
   const stoppable = items.some((item) => cancellable(item.phase));
 
@@ -574,9 +571,7 @@ function UploadQueue({
               type="button"
               onClick={onCancelAll}
               className="rounded-full px-2 py-0.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              Cancel remaining
-            </button>
+            >{t("Cancel remaining")}</button>
           )}
         </span>
       </div>

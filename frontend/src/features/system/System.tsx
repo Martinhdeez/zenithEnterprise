@@ -32,6 +32,7 @@ import {
   suspendOrganisation,
 } from "./api";
 import { groupOrganisations } from "./groupOrganisations";
+import { useT } from "@/shared/i18n/useT";
 
 const STATUS_STYLE: Record<string, string> = {
   active: "bg-zenith-cyan/10 text-zenith-cyan",
@@ -48,6 +49,7 @@ function formatBytes(bytes: number): string {
 }
 
 export function System({ token }: { token: string }) {
+  const t = useT();
   const [items, setItems] = useState<Organisation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +84,7 @@ export function System({ token }: { token: string }) {
   if (loading) {
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" /> Loading organisations…
+        <Loader2 className="size-4 animate-spin" /> {t("Loading organisations…")}
       </p>
     );
   }
@@ -108,7 +110,7 @@ export function System({ token }: { token: string }) {
 
       {items.length === 0 && (
         <p className="rounded-md border border-input bg-input/60 p-4 text-sm text-muted-foreground">
-          No organisations yet.
+          {t("No organisations yet.")}
         </p>
       )}
 
@@ -139,6 +141,7 @@ function OrganisationList({
   onAct: (id: string, work: () => Promise<unknown>) => Promise<void>;
   onPurge: (organisation: Organisation) => void;
 }) {
+  const t = useT();
   const { active, suspended, destroyed } = groupOrganisations(items);
   const grouped = suspended.length > 0 || destroyed.length > 0;
 
@@ -156,7 +159,7 @@ function OrganisationList({
       )}
       {suspended.length > 0 && (
         <OrganisationGroup
-          title="Suspended"
+          title={t("Suspended")}
           organisations={suspended}
           token={token}
           busy={busy}
@@ -293,6 +296,7 @@ function OrganisationRow({
 }
 
 function NewOrganisation({ token, onCreated }: { token: string; onCreated: () => void }) {
+  const t = useT();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [issued, setIssued] = useState<{ email: string; password: string } | null>(null);
@@ -302,20 +306,20 @@ function NewOrganisation({ token, onCreated }: { token: string; onCreated: () =>
     // Raised off the page like every other panel in the product. It was transparent, which
     // on a `bg-card` page means it was the page.
     <section className="space-y-3 rounded-lg border border-border bg-secondary p-4 shadow-sm">
-      <p className="text-sm font-medium text-foreground">New organisation</p>
+      <p className="text-sm font-medium text-foreground">{t("New organisation")}</p>
       <div className="flex flex-wrap gap-2">
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
-          placeholder="Organisation name"
-          aria-label="Organisation name"
+          placeholder={t("Organisation name")}
+          aria-label={t("Organisation name")}
           className="min-w-48 flex-1 rounded-md border border-input bg-input/60 px-3 py-2 text-sm"
         />
         <input
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          placeholder="First administrator's email"
-          aria-label="First administrator's email"
+          placeholder={t("First administrator's email")}
+          aria-label={t("First administrator's email")}
           className="min-w-56 flex-1 rounded-md border border-input bg-input/60 px-3 py-2 text-sm"
         />
         <Button

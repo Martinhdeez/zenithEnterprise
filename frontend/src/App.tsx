@@ -26,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 
+import { setLanguage, useLanguage, useT, type T } from "@/shared/i18n/useT";
 import { apply as applyTheme, remember, stored, type Theme } from "@/shared/lib/theme";
 import { Admin } from "@/features/admin";
 import {
@@ -107,6 +108,28 @@ function capitalise(name: string): string {
 }
 
 /**
+ * A view's name in the reader's language.
+ *
+ * The navigation used to render the view id with `capitalize` in CSS, which works for
+ * exactly one language and silently stops working for the next: "upload" is a verb in
+ * English and "Subir" in Spanish, and no amount of capitalising gets from one to the other.
+ * The id stays the id; this is what a person reads.
+ */
+function viewLabel(view: string, t: T): string {
+  switch (view) {
+    case "search": return t("Search");
+    case "chat": return t("Chat");
+    case "folders": return t("Folders");
+    case "upload": return t("Upload");
+    case "history": return t("History");
+    case "admin": return t("Admin");
+    case "system": return t("System");
+    case "profile": return t("Profile");
+    default: return capitalise(view);
+  }
+}
+
+/**
  * The one path that must work before anybody is signed in.
  *
  * Read from `location` rather than routed, because this app has no router: the shell is a
@@ -132,7 +155,58 @@ function setPasswordToken(): string | null {
  * The choice is applied to `<html>` and the browser is asked again whenever it changes, so
  * a machine that switches at sunset takes the app with it while "System" is selected.
  */
+/**
+ * Two languages, one control, and no "Auto".
+ *
+ * The theme has an Auto because a machine has a light-and-dark preference worth following.
+ * A browser's `navigator.language` is used once here, to pick the first default, and then
+ * the choice is the person's — an interface that silently re-translated itself because
+ * somebody opened it on a different machine would be a bug, not a courtesy.
+ */
+function LanguageControl({ collapsed }: { collapsed: boolean }) {
+  const t = useT();
+  const language = useLanguage();
+  const other = language === "en" ? "es" : "en";
+  const NAME = { en: "English", es: "Español" } as const;
+
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setLanguage(other)}
+        title={NAME[other]}
+        aria-label={NAME[other]}
+        className="flex items-center justify-center rounded-lg p-1.5 text-[11px] font-semibold text-muted-foreground uppercase transition-colors hover:bg-secondary/50 hover:text-foreground"
+      >
+        {language}
+      </button>
+    );
+  }
+
+  return (
+    <div role="group" aria-label={t("Language")} className="flex gap-0.5 rounded-full bg-background p-0.5">
+      {(["en", "es"] as const).map((value) => (
+        <button
+          key={value}
+          type="button"
+          onClick={() => setLanguage(value)}
+          aria-pressed={language === value}
+          title={NAME[value]}
+          className={`flex flex-1 items-center justify-center rounded-full py-1 text-xs transition-colors ${
+            language === value
+              ? "bg-primary/15 text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {NAME[value]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function ThemeControl({ collapsed }: { collapsed: boolean }) {
+  const t = useT();
   const [theme, setTheme] = useState<Theme>(stored);
 
   useEffect(() => {
@@ -157,7 +231,7 @@ function ThemeControl({ collapsed }: { collapsed: boolean }) {
   // same sidebar: two controls a few pixels apart, both reading "System", meaning entirely
   // different things. `App.test.tsx` caught it by asking for a button named System and
   // finding the wrong one, which is exactly what a user would have done.
-  const LABEL: Record<Theme, string> = { system: "Auto", light: "Light", dark: "Dark" };
+  const LABEL: Record<Theme, string> = { system: t("Auto"), light: t("Light"), dark: t("Dark") };
   const ORDER: readonly Theme[] = ["system", "light", "dark"];
 
   // Collapsed, there is no room for three: it cycles instead, and the tooltip names what
@@ -180,7 +254,7 @@ function ThemeControl({ collapsed }: { collapsed: boolean }) {
   }
 
   return (
-    <div role="group" aria-label="Theme" className="flex gap-0.5 rounded-full bg-background p-0.5">
+    <div role="group" aria-label={t("Theme")} className="flex gap-0.5 rounded-full bg-background p-0.5">
       {ORDER.map((value) => {
         const Icon = ICON[value];
         return (
@@ -228,6 +302,7 @@ function measure(view: string): string {
 }
 
 export function App() {
+  const t = useT();
   const [token, setToken] = useState<string | null>(() => read("session", TOKEN_KEY));
   const [status, setStatus] = useState<TenantStatus | null>(null);
   const [me, setMe] = useState<UserProfile | null>(null);
@@ -438,8 +513,8 @@ export function App() {
             <button
               type="button"
               onClick={() => setCollapsed(false)}
-              aria-label="Expand sidebar"
-              title="Expand sidebar"
+              aria-label={t("Expand sidebar")}
+              title={t("Expand sidebar")}
               className="group grid size-8 place-items-center rounded-md transition-colors hover:bg-secondary/60"
             >
               <img
@@ -465,13 +540,13 @@ export function App() {
               />
               <div className="min-w-0 flex-1">
                 <p className="text-sm leading-tight font-semibold text-foreground">Zenith</p>
-                <p className="text-xs leading-tight text-muted-foreground">Ask your documents</p>
+                <p className="text-xs leading-tight text-muted-foreground">{t("Ask your documents")}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setCollapsed(true)}
-                aria-label="Collapse sidebar"
-                title="Collapse sidebar"
+                aria-label={t("Collapse sidebar")}
+                title={t("Collapse sidebar")}
                 className="shrink-0 rounded-md p-1.5 text-muted-foreground/60 transition-colors hover:bg-secondary/60 hover:text-foreground"
               >
                 {/* Matches the collapsed rail's toggle rather than the caption-sized icon
@@ -509,9 +584,9 @@ export function App() {
                 // `title` and `aria-label` carry the name once the label is gone: an icon
                 // alone is a guess for anyone who has not memorised this bar yet, and a
                 // screen reader would otherwise hear an unnamed button.
-                title={collapsed ? capitalise(name) : undefined}
-                aria-label={collapsed ? capitalise(name) : undefined}
-                className={`flex items-center rounded-lg text-left text-[15px] capitalize transition-colors ${
+                title={collapsed ? viewLabel(name, t) : undefined}
+                aria-label={collapsed ? viewLabel(name, t) : undefined}
+                className={`flex items-center rounded-lg text-left text-[15px] transition-colors ${
                   collapsed ? "justify-center px-0 py-3" : "gap-3 px-3 py-2"
                 } ${
                   // A neutral fill and a full-contrast label, with the accent spent on the
@@ -538,7 +613,7 @@ export function App() {
                     view === name ? "text-primary" : ""
                   }`}
                 />
-                {!collapsed && name}
+                {!collapsed && viewLabel(name, t)}
               </button>
             ))}
           </div>
@@ -555,10 +630,10 @@ export function App() {
               <Ingesting status={status} collapsed />
             ) : (
               <>
-                <Section label="Ingestion">
+                <Section label={t("Ingestion")}>
                   <Ingesting status={status} collapsed={false} />
                 </Section>
-                <Section label="Status">
+                <Section label={t("Status")}>
                   <StatusBadge status={status} />
                 </Section>
               </>
@@ -580,6 +655,7 @@ export function App() {
             collapsed ? "items-center px-2" : "px-2"
           }`}
         >
+          <LanguageControl collapsed={collapsed} />
           <ThemeControl collapsed={collapsed} />
           <button
             type="button"
@@ -597,7 +673,7 @@ export function App() {
             <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-medium text-muted-foreground">
               {initial}
             </span>
-            {!collapsed && <span className="truncate text-sm">Profile</span>}
+            {!collapsed && <span className="truncate text-sm">{t("Profile")}</span>}
           </button>
         </div>
       </nav>
@@ -678,7 +754,7 @@ export function App() {
               // The page's actual title, so it is the page's `h1`. It was a `span`, and the
               // whole application had zero `h1` elements — no outline for a screen reader,
               // and nowhere for a typographic hierarchy to attach. One cause, one fix.
-              <h1 className="text-[15px] font-medium text-foreground capitalize">{view}</h1>
+              <h1 className="text-[15px] font-medium text-foreground">{viewLabel(view, t)}</h1>
             )}
             {/* Only Chat and Search actually read `folder` — shown only there, so a filter
                 picked up in Folders doesn't look like it's still following you into Admin
@@ -836,7 +912,7 @@ export function App() {
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Close document preview"
+                aria-label={t("Close document preview")}
                 onClick={() => {
                   setCitation(null);
                   setPdfExpanded(false);
@@ -849,7 +925,7 @@ export function App() {
           </header>
           <div className="flex-1 overflow-auto rounded-b-xl">
             <Suspense
-              fallback={<p className="p-6 text-sm text-muted-foreground">Opening the document…</p>}
+              fallback={<p className="p-6 text-sm text-muted-foreground">{t("Opening the document…")}</p>}
             >
               {/* Chosen from the document's stored media type, never from its filename.
                   A `.txt` opened in the PDF frame is the mixed-list problem this feature

@@ -13,6 +13,7 @@
 import { FileText } from "lucide-react";
 
 import type { DocumentSummary } from "@/features/documents";
+import { useT } from "@/shared/i18n/useT";
 
 export function MentionMenu({
   documents,
@@ -26,18 +27,17 @@ export function MentionMenu({
   onPick: (document: DocumentSummary) => void;
   onHover: (index: number) => void;
 }) {
+  const t = useT();
   if (documents.length === 0) {
     return (
-      <div className="mb-2 rounded-xl border border-input bg-input/60 p-3 text-sm text-muted-foreground shadow-lg">
-        No documents match that.
-      </div>
+      <div className="mb-2 rounded-xl border border-input bg-input/60 p-3 text-sm text-muted-foreground shadow-lg">{t("No documents match that.")}</div>
     );
   }
 
   return (
     <ul
       role="listbox"
-      aria-label="Documents"
+      aria-label={t("Documents")}
       className="mb-2 max-h-64 overflow-y-auto rounded-xl border border-input bg-input/60 py-1 shadow-lg"
     >
       {documents.map((document, index) => (

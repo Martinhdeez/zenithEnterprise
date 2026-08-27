@@ -21,6 +21,7 @@ import { useCallback, useEffect, useState } from "react";
 import { FileText, Loader2, MessageSquare, ShieldAlert, Timer, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useT } from "@/shared/i18n/useT";
 
 import {
   type AuditEntry,
@@ -30,6 +31,7 @@ import {
 } from "../api";
 
 export function Analytics({ token }: { token: string }) {
+  const t = useT();
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,8 +57,7 @@ export function Analytics({ token }: { token: string }) {
   if (!data) {
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" /> Reading the query log…
-      </p>
+        <Loader2 className="size-4 animate-spin" />{t("Reading the query log…")}</p>
     );
   }
 
@@ -95,14 +96,11 @@ export function Analytics({ token }: { token: string }) {
         {tokens === 0 && totals.queries_without_usage > 0 ? (
           // Said plainly rather than shown as a zero. "Nothing was spent" and "nobody
           // reported what was spent" are different answers, and only one is ever true.
-          <p className="text-sm text-muted-foreground">
-            This provider does not report token usage, so there is no cost to show.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("This provider does not report token usage, so there is no cost to show.")}</p>
         ) : (
           <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm">
             <span className="text-foreground">
-              <span className="text-lg font-medium">{tokens.toLocaleString()}</span> total
-            </span>
+              <span className="text-lg font-medium">{tokens.toLocaleString()}</span>{t("total")}</span>
             <span className="text-muted-foreground">
               {totals.prompt_tokens.toLocaleString()} prompt ·{" "}
               {totals.completion_tokens.toLocaleString()} completion
@@ -119,7 +117,7 @@ export function Analytics({ token }: { token: string }) {
       </Panel>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Panel title="Most active">
+        <Panel title={t("Most active")}>
           <Rows
             empty="Nobody has asked anything yet."
             rows={data.most_active.map((person) => ({
@@ -132,7 +130,7 @@ export function Analytics({ token }: { token: string }) {
           />
         </Panel>
 
-        <Panel title="Most cited documents">
+        <Panel title={t("Most cited documents")}>
           <Rows
             empty="No answer has cited anything yet."
             rows={data.top_cited.map((document_) => ({
@@ -225,6 +223,7 @@ function Rows({
  * keyset cursor does not offer, since it names a position forward and nothing else.
  */
 function AuditLog({ token }: { token: string }) {
+  const t = useT();
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -253,20 +252,20 @@ function AuditLog({ token }: { token: string }) {
   }, [load]);
 
   return (
-    <Panel title="Audit log">
+    <Panel title={t("Audit log")}>
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {entries.length === 0 && !loading ? (
-        <p className="text-sm text-muted-foreground">No questions in this window.</p>
+        <p className="text-sm text-muted-foreground">{t("No questions in this window.")}</p>
       ) : (
         <div className="overflow-x-auto rounded-md border border-input bg-input/60">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b-2 border-input text-left text-xs text-muted-foreground">
-                <th className="p-2 font-medium">When</th>
-                <th className="p-2 font-medium">Who</th>
-                <th className="p-2 font-medium">Question</th>
-                <th className="p-2 font-medium">Read</th>
+                <th className="p-2 font-medium">{t("When")}</th>
+                <th className="p-2 font-medium">{t("Who")}</th>
+                <th className="p-2 font-medium">{t("Question")}</th>
+                <th className="p-2 font-medium">{t("Read")}</th>
               </tr>
             </thead>
             <tbody>
@@ -289,7 +288,7 @@ function AuditLog({ token }: { token: string }) {
                         derivable from the answer text, which is why `query_citations`
                         exists. */}
                     {entry.documents.length === 0 ? (
-                      <span className="text-xs text-zenith-amber">found nothing</span>
+                      <span className="text-xs text-zenith-amber">{t("found nothing")}</span>
                     ) : (
                       <span className="text-xs text-muted-foreground">
                         {entry.documents.join(", ")}

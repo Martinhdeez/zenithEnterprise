@@ -12,6 +12,7 @@
 
 import { Button } from "@/components/ui/button";
 import { absoluteLink, type Invitation } from "../api";
+import { useT } from "@/shared/i18n/useT";
 
 export function SingleUseLink({
   issued,
@@ -23,6 +24,7 @@ export function SingleUseLink({
   headline: string;
   onDone: () => void;
 }) {
+  const t = useT();
   const link = absoluteLink(issued.path);
 
   return (
@@ -49,17 +51,13 @@ export function SingleUseLink({
           type="button"
           onClick={() => void navigator.clipboard?.writeText(link)}
           className="rounded-md"
-        >
-          Copy link
-        </Button>
+        >{t("Copy link")}</Button>
         <Button
           type="button"
           variant="outline"
           onClick={onDone}
           className="border-zenith-amber/40 text-foreground hover:bg-zenith-amber/10"
-        >
-          Done
-        </Button>
+        >{t("Done")}</Button>
       </div>
     </div>
   );

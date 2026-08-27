@@ -19,6 +19,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { Citation } from "@/features/chat";
+import { useT } from "@/shared/i18n/useT";
 
 interface Props {
   citation: Citation;
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export function TextViewer({ citation, token }: Props) {
+  const t = useT();
   const highlight = useRef<HTMLElement>(null);
   const [body, setBody] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -103,7 +105,7 @@ export function TextViewer({ citation, token }: Props) {
 
       <div className="flex-1 overflow-auto bg-secondary/30 p-4">
         {body === null ? (
-          <p className="text-sm text-muted-foreground">Opening…</p>
+          <p className="text-sm text-muted-foreground">{t("Opening…")}</p>
         ) : (
           /* `pre-wrap` keeps the author's line breaks and indentation — a runbook's shape
              is part of its meaning — while still wrapping long lines into the panel. */

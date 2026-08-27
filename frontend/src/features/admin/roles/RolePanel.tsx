@@ -21,8 +21,10 @@ import {
 import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/shared/i18n/useT";
 
 export function RolePanel({ token }: { token: string }) {
+  const t = useT();
   const [roles, setRoles] = useState<Role[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -129,18 +131,14 @@ export function RolePanel({ token }: { token: string }) {
                 {role.is_system && (
                   // Stated rather than silently disabled: a screen that offers to edit a
                   // system role is offering a 409.
-                  <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-xs font-normal text-muted-foreground">
-                    built in — not editable
-                  </span>
+                  <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-xs font-normal text-muted-foreground">{t("built in — not editable")}</span>
                 )}
               </p>
               <span className="flex items-center gap-3 text-xs text-muted-foreground">
                 {/* Clearance is the vertical half of the access model and had no control at
                     all. 0 is a compartment — no clearance reaches anything through a group,
                     only an outright grant does — which is the default and the safe one. */}
-                <label className="flex items-center gap-1.5">
-                  clearance
-                  <select
+                <label className="flex items-center gap-1.5">{t("clearance")}<select
                     aria-label={`Clearance of ${role.name}`}
                     disabled={role.is_system || busy === role.id}
                     value={role.priority_level}

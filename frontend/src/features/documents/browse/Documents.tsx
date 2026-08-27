@@ -16,6 +16,7 @@ import { DocumentDetail } from "./DocumentDetail";
 import { ApiError } from "@/shared/api/http";
 import type { Citation } from "@/features/chat";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/shared/i18n/useT";
 import {
   Dialog,
   DialogContent,
@@ -63,6 +64,7 @@ export function Documents({
   refreshKey = 0,
   permissions = [],
 }: Props) {
+  const t = useT();
   const mayInspect = permissions.includes("roles.manage");
   const [inspecting, setInspecting] = useState<string | null>(null);
   // Label ids resolve to names only for the labels this caller reaches — `GET /labels`
@@ -150,7 +152,7 @@ export function Documents({
   );
 
   if (loading && items.length === 0) {
-    return <p className="text-sm text-muted-foreground">Loading documents…</p>;
+    return <p className="text-sm text-muted-foreground">{t("Loading documents…")}</p>;
   }
 
   if (!loading && items.length === 0) {
@@ -223,7 +225,7 @@ export function Documents({
                   <button
                     type="button"
                     aria-label={`Who can open ${document_.filename}`}
-                    title="Who can open this"
+                    title={t("Who can open this")}
                     onClick={() =>
                       setInspecting((current) =>
                         current === document_.id ? null : document_.id,
@@ -282,7 +284,7 @@ export function Documents({
       <Dialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete this document?</DialogTitle>
+            <DialogTitle>{t("Delete this document?")}</DialogTitle>
             <DialogDescription>
               {/* RF-03: physical, cascading deletion — not a soft delete, not reversible
                   from here. Naming the filename rather than saying "this document" is the
@@ -294,16 +296,12 @@ export function Documents({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setConfirming(null)}>
-              Cancel
-            </Button>
+            <Button type="button" variant="outline" onClick={() => setConfirming(null)}>{t("Cancel")}</Button>
             <Button
               type="button"
               onClick={() => confirming && void remove(confirming.id)}
               className="bg-destructive text-white hover:bg-destructive/90"
-            >
-              Delete document
-            </Button>
+            >{t("Delete document")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

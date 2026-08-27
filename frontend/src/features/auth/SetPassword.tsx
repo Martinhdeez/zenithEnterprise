@@ -17,6 +17,7 @@ import { describeCredential, redeemCredential } from "./api";
 import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/shared/i18n/useT";
 
 /** Matches the server's minimum. Checked here so the answer is instant, and there too. */
 const MINIMUM = 12;
@@ -28,6 +29,7 @@ type State =
   | { phase: "dead" };
 
 export function SetPassword({ token }: { token: string }) {
+  const t = useT();
   const [state, setState] = useState<State>({ phase: "checking" });
   const [password, setPassword] = useState("");
   const [again, setAgain] = useState("");
@@ -76,12 +78,12 @@ export function SetPassword({ token }: { token: string }) {
         </div>
 
         {state.phase === "checking" && (
-          <p className="text-sm text-muted-foreground">Checking the link…</p>
+          <p className="text-sm text-muted-foreground">{t("Checking the link…")}</p>
         )}
 
         {state.phase === "dead" && (
           <div className="space-y-2">
-            <h1 className="text-lg font-medium text-foreground">This link no longer works</h1>
+            <h1 className="text-lg font-medium text-foreground">{t("This link no longer works")}</h1>
             <p className="text-sm text-muted-foreground">
               Links can be used once and expire on their own. Ask your administrator to send
               a new one.
@@ -92,12 +94,10 @@ export function SetPassword({ token }: { token: string }) {
         {state.phase === "done" && (
           <div className="space-y-4">
             <div className="space-y-2">
-              <h1 className="text-lg font-medium text-foreground">Your password is set</h1>
-              <p className="text-sm text-muted-foreground">You can sign in now.</p>
+              <h1 className="text-lg font-medium text-foreground">{t("Your password is set")}</h1>
+              <p className="text-sm text-muted-foreground">{t("You can sign in now.")}</p>
             </div>
-            <Button type="button" onClick={() => (window.location.href = "/")} className="rounded-md">
-              Go to sign in
-            </Button>
+            <Button type="button" onClick={() => (window.location.href = "/")} className="rounded-md">{t("Go to sign in")}</Button>
           </div>
         )}
 
@@ -116,8 +116,7 @@ export function SetPassword({ token }: { token: string }) {
               {/* Naming the account matters most on a reset: somebody with two addresses
                   needs to know which one this link is about before they commit a password
                   to it. */}
-              <p className="text-sm text-muted-foreground">
-                Setting the password for <span className="text-foreground">{state.email}</span>.
+              <p className="text-sm text-muted-foreground">{t("Setting the password for")}<span className="text-foreground">{state.email}</span>.
               </p>
             </div>
 

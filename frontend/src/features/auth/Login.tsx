@@ -29,6 +29,7 @@ import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/shared/i18n/useT";
 
 // Focus ring matches the Sign In button's own colour (--primary, "Indigo Electric") rather
 // than the cyan used for status/security indicators elsewhere on this screen — cyan means
@@ -43,6 +44,7 @@ const FIELD =
   "focus-visible:border-primary focus-visible:ring-primary/40";
 
 export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair) => void }) {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [visible, setVisible] = useState(false);
@@ -108,9 +110,7 @@ export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair
           {/* A different typeface from the rest of the interface on purpose — the same
               treatment as the "RLS Security Enforced" badge below, so the caption reads as
               a designed detail rather than a plain paragraph of the UI's body font. */}
-          <p className="mt-5 font-mono text-xs tracking-wide text-balance text-muted-foreground">
-            Zenith Enterprise Document Intelligence Platform
-          </p>
+          <p className="mt-5 font-mono text-xs tracking-wide text-balance text-muted-foreground">{t("Zenith Enterprise Document Intelligence Platform")}</p>
         </header>
 
         <div className="w-full max-w-md">
@@ -140,9 +140,7 @@ export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair
               className="flex flex-col gap-5"
             >
               <div className="flex flex-col gap-2">
-                <Label htmlFor="email" className="text-sm text-foreground/80">
-                  Work email
-                </Label>
+                <Label htmlFor="email" className="text-sm text-foreground/80">{t("Work email")}</Label>
                 <div className="relative">
                   <Mail
                     aria-hidden="true"
@@ -163,9 +161,7 @@ export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label htmlFor="password" className="text-sm text-foreground/80">
-                  Password
-                </Label>
+                <Label htmlFor="password" className="text-sm text-foreground/80">{t("Password")}</Label>
                 <div className="relative">
                   <Lock
                     aria-hidden="true"
@@ -215,7 +211,7 @@ export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair
                 }}
                 className="group mt-1 h-12 w-full rounded-xl text-sm font-semibold tracking-wide text-white shadow-[0_8px_24px_-6px_color-mix(in_oklab,var(--primary)_70%,transparent)] ring-1 ring-white/15 ring-inset transition-all hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 disabled:translate-y-0 disabled:opacity-60"
               >
-                {busy ? "Signing in…" : "Sign In to Workspace"}
+                {busy ? t("Signing in…") : t("Sign In to Workspace")}
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
               </Button>
             </form>
@@ -226,18 +222,14 @@ export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair
               <div className="inline-flex items-center gap-2 rounded-full border border-input bg-secondary/50 px-3 py-1.5 font-mono text-[11px] tracking-tight text-muted-foreground">
                 <ShieldCheck className="size-3.5 text-zenith-cyan" />
                 <span className="flex items-center gap-1.5">
-                  <span className="size-1.5 rounded-full bg-zenith-cyan shadow-[0_0_6px_rgba(0,229,229,0.9)]" />
-                  RLS Security Enforced
-                </span>
+                  <span className="size-1.5 rounded-full bg-zenith-cyan shadow-[0_0_6px_rgba(0,229,229,0.9)]" />{t("RLS Security Enforced")}</span>
                 <span className="text-white/15">|</span>
-                <span>Multi-Tenant Isolated</span>
+                <span>{t("Multi-Tenant Isolated")}</span>
               </div>
             </div>
           </div>
 
-          <p className="mt-6 text-center text-xs text-muted-foreground">
-            No account? Your workspace administrator creates one for you.
-          </p>
+          <p className="mt-6 text-center text-xs text-muted-foreground">{t("No account? Your workspace administrator creates one for you.")}</p>
         </div>
       </div>
     </div>

@@ -16,6 +16,7 @@ import { FIELD } from "../fieldStyle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/shared/i18n/useT";
 import {
   Select,
   SelectContent,
@@ -25,6 +26,7 @@ import {
 } from "@/components/ui/select";
 
 export function InvitePanel({ token }: { token: string }) {
+  const t = useT();
   const [email, setEmail] = useState("");
   // "none" rather than "" — Radix `Select.Item` refuses an empty-string value, since that's
   // reserved to mean "cleared" internally.
@@ -70,9 +72,7 @@ export function InvitePanel({ token }: { token: string }) {
       className="flex flex-wrap items-end gap-3"
     >
       <div className="min-w-56 flex-1 space-y-1.5">
-        <Label htmlFor="invite-email" className="text-sm text-foreground/80">
-          Email
-        </Label>
+        <Label htmlFor="invite-email" className="text-sm text-foreground/80">{t("Email")}</Label>
         <Input
           id="invite-email"
           type="email"
@@ -83,15 +83,13 @@ export function InvitePanel({ token }: { token: string }) {
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="invite-role" className="text-sm text-foreground/80">
-          Role
-        </Label>
+        <Label htmlFor="invite-role" className="text-sm text-foreground/80">{t("Role")}</Label>
         <Select value={roleId} onValueChange={setRoleId}>
           <SelectTrigger id="invite-role" className={`h-10 w-40 ${FIELD}`}>
             <SelectValue placeholder="none" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">none</SelectItem>
+            <SelectItem value="none">{t("none")}</SelectItem>
             {available.map((role) => (
               <SelectItem key={role.id} value={role.id}>
                 {role.name}
@@ -100,9 +98,7 @@ export function InvitePanel({ token }: { token: string }) {
           </SelectContent>
         </Select>
       </div>
-      <Button type="submit" className="h-10 bg-primary text-white hover:bg-primary/90">
-        Invite
-      </Button>
+      <Button type="submit" className="h-10 bg-primary text-white hover:bg-primary/90">{t("Invite")}</Button>
 
       {error && (
         <p role="alert" className="w-full text-sm text-destructive">

@@ -25,6 +25,7 @@ import {
 import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/shared/i18n/useT";
 
 interface Props {
   token: string;
@@ -39,6 +40,7 @@ interface Props {
 }
 
 export function Profile({ token, onSignedOut, onProfile }: Props) {
+  const t = useT();
   const [me, setMe] = useState<UserProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,19 +81,19 @@ export function Profile({ token, onSignedOut, onProfile }: Props) {
 
   return (
     <div className="space-y-6">
-      <Panel title="Account">
+      <Panel title={t("Account")}>
         <dl className="space-y-3 text-sm">
           <Row label="Name">
             <EditableName token={token} value={me.name} onSaved={remember} />
           </Row>
           <Row label="Email">{me.email}</Row>
-          <Row label="Organisation">{me.tenant_name ?? <Absent>Unnamed</Absent>}</Row>
+          <Row label="Organisation">{me.tenant_name ?? <Absent>{t("Unnamed")}</Absent>}</Row>
           <Row label="Member since">{new Date(me.created_at).toLocaleDateString()}</Row>
           <Row label="Documents uploaded">{me.documents_uploaded}</Row>
         </dl>
       </Panel>
 
-      <Panel title="Access">
+      <Panel title={t("Access")}>
         <div className="space-y-4 text-sm">
           <Field label="Roles">
             <Chips values={me.roles} empty="No roles assigned" />
@@ -121,7 +123,7 @@ export function Profile({ token, onSignedOut, onProfile }: Props) {
         <PasswordForm token={token} onChanged={onSignedOut} />
       </Panel>
 
-      <Panel title="Sessions">
+      <Panel title={t("Sessions")}>
         <Sessions token={token} onSignedOut={onSignedOut} />
       </Panel>
     </div>
@@ -144,6 +146,7 @@ function EditableName({
   value: string | null;
   onSaved: (profile: UserProfile) => void;
 }) {
+  const t = useT();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ?? "");
   const [busy, setBusy] = useState(false);
@@ -187,8 +190,8 @@ function EditableName({
       <input
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
-        placeholder="Your name"
-        aria-label="Your name"
+        placeholder={t("Your name")}
+        aria-label={t("Your name")}
         maxLength={200}
         autoFocus
         // Escape leaves without saving, which is the shortcut anyone editing in place
@@ -230,6 +233,7 @@ function EditableName({
 }
 
 function PasswordForm({ token, onChanged }: { token: string; onChanged: () => void }) {
+  const t = useT();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [busy, setBusy] = useState(false);
@@ -258,7 +262,7 @@ function PasswordForm({ token, onChanged }: { token: string; onChanged: () => vo
     <form onSubmit={(event) => void submit(event)} className="max-w-sm space-y-3">
       <div className="space-y-1.5">
         <label htmlFor="current-password" className="text-xs font-medium text-muted-foreground">
-          Current password
+          {t("Current password")}
         </label>
         <Input
           id="current-password"
@@ -271,7 +275,7 @@ function PasswordForm({ token, onChanged }: { token: string; onChanged: () => vo
       </div>
       <div className="space-y-1.5">
         <label htmlFor="new-password" className="text-xs font-medium text-muted-foreground">
-          New password <span className="font-normal">(at least 8 characters)</span>
+          {t("New password")} <span className="font-normal">{t("(at least 8 characters)")}</span>
         </label>
         <Input
           id="new-password"

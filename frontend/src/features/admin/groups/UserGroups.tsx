@@ -27,8 +27,10 @@ import {
 } from "../api";
 import { ApiError } from "@/shared/api/http";
 import { SingleUseLink } from "../invite/SingleUseLink";
+import { useT } from "@/shared/i18n/useT";
 
 export function UserGroups({ token }: { token: string }) {
+  const t = useT();
   const [members, setMembers] = useState<Member[]>([]);
   // The endpoint has existed and been tested since the credential links shipped, and no
   // screen called it. There is no outbound mail on an on-premise install, so the alternative
@@ -104,16 +106,13 @@ export function UserGroups({ token }: { token: string }) {
   if (loading) {
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" /> Loading people…
-      </p>
+        <Loader2 className="size-4 animate-spin" />{t("Loading people…")}</p>
     );
   }
 
   if (groups.length === 0) {
     return (
-      <p className="rounded-md border border-input bg-input/60 p-4 text-sm text-muted-foreground">
-        No groups yet. Create one above, then come back to put people in it.
-      </p>
+      <p className="rounded-md border border-input bg-input/60 p-4 text-sm text-muted-foreground">{t("No groups yet. Create one above, then come back to put people in it.")}</p>
     );
   }
 
@@ -176,9 +175,7 @@ export function UserGroups({ token }: { token: string }) {
                         return rest;
                       })
                     }
-                  >
-                    Cancel
-                  </Button>
+                  >{t("Cancel")}</Button>
                   <Button size="sm" disabled={saving === member.id} onClick={() => void save(member)}>
                     {saving === member.id ? "Saving…" : "Save"}
                   </Button>
@@ -212,9 +209,7 @@ export function UserGroups({ token }: { token: string }) {
             {held(member).length === 0 && (
               // Said rather than left as an empty row. Somebody in no group reaches nothing
               // through groups at all, which is easy to mistake for "not configured yet".
-              <p className="text-xs text-muted-foreground">
-                In no group — reaches documents only through labels granted to their roles.
-              </p>
+              <p className="text-xs text-muted-foreground">{t("In no group — reaches documents only through labels granted to their roles.")}</p>
             )}
           </li>
         ))}

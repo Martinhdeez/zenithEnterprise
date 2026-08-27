@@ -37,6 +37,7 @@ import {
 import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/shared/i18n/useT";
 import {
   Select,
   SelectContent,
@@ -46,13 +47,6 @@ import {
 } from "@/components/ui/select";
 
 const PAGE = 24;
-
-const SORTS: { value: LabelSort; label: string }[] = [
-  { value: "last_used", label: "Recently used" },
-  { value: "name", label: "Name" },
-  { value: "usage_count", label: "Most used" },
-  { value: "created_at", label: "Newest" },
-];
 
 interface Props {
   token: string;
@@ -75,6 +69,19 @@ interface Props {
 }
 
 export function LabelPicker({ token, selected, onToggle, known, onCreated, onRemoved }: Props) {
+  const t = useT();
+  // Built here, not as a module constant. A constant is evaluated once at import — before
+  // anyone has chosen a language and long before they can change it — so a translated label
+  // frozen there stays in whatever language the first render happened to want. It also puts
+  // the strings where a reader can see them: a key held in a data table is invisible to
+  // anything that scans call sites, including the test that guarantees every key has a
+  // Spanish sentence.
+  const SORTS: { value: LabelSort; label: string }[] = [
+    { value: "last_used", label: t("Recently used") },
+    { value: "name", label: t("Name") },
+    { value: "usage_count", label: t("Most used") },
+    { value: "created_at", label: t("Newest") },
+  ];
   const [query, setQuery] = useState("");
   // "Recently used" first: at this scale the label you want is usually one you have used
   // before, and alphabetical order buries it among thousands you have not.
@@ -172,11 +179,10 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
 
   return (
     <fieldset className="space-y-3 rounded-2xl border border-input bg-secondary p-5">
-      <legend className="px-1 text-xs font-semibold tracking-wide text-foreground uppercase">
-        Labels
-      </legend>
+      <legend className="px-1 text-xs font-semibold tracking-wide text-foreground uppercase">{t("Labels")}</legend>
       <p className="-mt-1 text-xs text-muted-foreground">
-        File under {selected.size === 0 && "(no label — visible tenant-wide)"}
+        {t("File under")}
+        {selected.size === 0 && ` ${t("(no label — visible tenant-wide)")}`}
       </p>
 
       {selected.size > 0 && (
@@ -202,7 +208,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search labels"
+            placeholder={t("Search labels")}
             aria-label="Search labels"
             disabled={onlySelected}
             className="h-9 rounded-full bg-card border-input hover:border-muted-foreground/40 dark:bg-background dark:border-muted-foreground/35 dark:shadow-[inset_0_1px_3px_rgb(0_0_0/0.45)] dark:hover:border-muted-foreground/55 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/40"
@@ -215,7 +221,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
         >
           <SelectTrigger
             className="h-9 w-40 rounded-full border-input bg-card"
-            aria-label="Sort labels"
+            aria-label={t("Sort labels")}
           >
             <SelectValue />
           </SelectTrigger>
@@ -230,18 +236,14 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Toggle on={inUse} onClick={() => setInUse(!inUse)} disabled={onlySelected}>
-          In use
-        </Toggle>
-        <Toggle on={mine} onClick={() => setMine(!mine)} disabled={onlySelected}>
-          Mine
-        </Toggle>
+        <Toggle on={inUse} onClick={() => setInUse(!inUse)} disabled={onlySelected}>{t("In use")}</Toggle>
+        <Toggle on={mine} onClick={() => setMine(!mine)} disabled={onlySelected}>{t("Mine")}</Toggle>
         <Toggle
           on={onlySelected}
           onClick={() => setOnlySelected(!onlySelected)}
           disabled={selected.size === 0}
         >
-          Selected {selected.size > 0 && `(${selected.size})`}
+          {t("Selected")} {selected.size > 0 && `(${selected.size})`}
         </Toggle>
       </div>
 
@@ -314,9 +316,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
 
       {loading && (
         <p className="flex items-center justify-center gap-2 py-1 text-xs text-muted-foreground">
-          <Loader2 className="size-3.5 animate-spin" />
-          Searching…
-        </p>
+          <Loader2 className="size-3.5 animate-spin" />{t("Searching…")}</p>
       )}
 
       {!loading && shown.length === 0 && (
@@ -331,9 +331,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
           variant="outline"
           onClick={() => void load(cursor)}
           className="h-8 w-full rounded-md text-xs"
-        >
-          Load more
-        </Button>
+        >{t("Load more")}</Button>
       )}
 
       <form
@@ -346,8 +344,8 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
         <Input
           value={newLabel}
           onChange={(event) => setNewLabel(event.target.value)}
-          placeholder="Label name"
-          aria-label="New label name"
+          placeholder={t("Label name")}
+          aria-label={t("New label name")}
           maxLength={100}
           className="h-9 max-w-56 rounded-full bg-card border-input hover:border-muted-foreground/40 dark:bg-background dark:border-muted-foreground/35 dark:shadow-[inset_0_1px_3px_rgb(0_0_0/0.45)] dark:hover:border-muted-foreground/55 px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/40"
         />
@@ -357,9 +355,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
           disabled={!newLabel.trim() || exists}
           className="h-9 gap-1.5 rounded-md border-dashed text-sm font-medium"
         >
-          <Plus className="size-4" />
-          New label
-        </Button>
+          <Plus className="size-4" />{t("New label")}</Button>
       </form>
 
       {error && <p className="text-xs text-destructive">{error}</p>}

@@ -35,6 +35,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SearchField } from "@/shared/ui/SearchField";
+import { useT } from "@/shared/i18n/useT";
 import {
   Select,
   SelectContent,
@@ -52,6 +53,7 @@ const SORTS: { value: LabelSort; label: string }[] = [
 ];
 
 export function TagManager({ token }: { token: string }) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<LabelSort>("name");
   const [items, setItems] = useState<LabelSearchItem[]>([]);
@@ -139,11 +141,11 @@ export function TagManager({ token }: { token: string }) {
             value={query}
             onChange={setQuery}
             label="Search labels"
-            placeholder="Search labels"
+            placeholder={t("Search labels")}
           />
         </div>
         <Select value={sort} onValueChange={(value) => setSort(value as LabelSort)}>
-          <SelectTrigger className="h-9 w-36 rounded-md border-input bg-input/50" aria-label="Sort by">
+          <SelectTrigger className="h-9 w-36 rounded-md border-input bg-input/50" aria-label={t("Sort by")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -202,7 +204,7 @@ export function TagManager({ token }: { token: string }) {
             <span className="min-w-0 flex-1 truncate text-sm text-foreground">
               {item.name}
               {item.is_default && (
-                <span className="ml-2 text-xs text-muted-foreground">default</span>
+                <span className="ml-2 text-xs text-muted-foreground">{t("default")}</span>
               )}
             </span>
             {/* "documents you can see", not a tenant total — the count is RLS-scoped.
@@ -232,9 +234,7 @@ export function TagManager({ token }: { token: string }) {
 
       {loading && (
         <p className="flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          Loading…
-        </p>
+          <Loader2 className="size-4 animate-spin" />{t("Loading…")}</p>
       )}
 
       {cursor && !loading && (
@@ -243,9 +243,7 @@ export function TagManager({ token }: { token: string }) {
           variant="outline"
           onClick={() => void load({ append: cursor })}
           className="w-full rounded-md"
-        >
-          Load more
-        </Button>
+        >{t("Load more")}</Button>
       )}
 
       {merging && (
@@ -289,6 +287,7 @@ function MergeDialog({
   onClose: () => void;
   onMerged: (merged: string[]) => void;
 }) {
+  const t = useT();
   const [target, setTarget] = useState(selected[0]?.id ?? "");
   const [preview, setPreview] = useState<LabelMergeResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -327,7 +326,7 @@ function MergeDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Merge labels</DialogTitle>
+          <DialogTitle>{t("Merge labels")}</DialogTitle>
           <DialogDescription>
             Every document and role carrying the other labels will carry the one you keep
             instead. The others are deleted.
@@ -336,7 +335,7 @@ function MergeDialog({
 
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Keep</span>
+            <span className="text-xs font-medium text-muted-foreground">{t("Keep")}</span>
             <Select value={target} onValueChange={setTarget}>
               <SelectTrigger className="h-9 rounded-md border-input bg-input/50" aria-label="Keep">
                 <SelectValue />
@@ -401,9 +400,7 @@ function MergeDialog({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose} className="rounded-md">
-            Cancel
-          </Button>
+          <Button type="button" variant="outline" onClick={onClose} className="rounded-md">{t("Cancel")}</Button>
           {preview ? (
             <Button
               type="button"

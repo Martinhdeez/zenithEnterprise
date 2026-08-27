@@ -8,9 +8,11 @@
  */
 
 import { IN_FLIGHT, type TenantStatus } from "@/shared/api/tenant";
+import { useT } from "@/shared/i18n/useT";
 
 export function StatusBadge({ status }: { status: TenantStatus | null }) {
-  if (!status) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  const t = useT();
+  if (!status) return <p className="text-sm text-muted-foreground">{t("Loading…")}</p>;
 
   const ready = status.documents.ready ?? 0;
   const failed = status.documents.failed ?? 0;
@@ -55,7 +57,10 @@ export function StatusBadge({ status }: { status: TenantStatus | null }) {
             </span>
           </p>
           <p className="mt-1.5 text-xs tracking-wide text-muted-foreground/70 uppercase">
-            document{ready === 1 ? "" : "s"} ready
+            {/* Two keys rather than one with `{count}` in it. English has no catalogue —
+                it falls through to the key itself — so a key containing `{count}` renders
+                the number a second time under one that is already on screen. */}
+            {t(ready === 1 ? "document ready" : "documents ready")}
           </p>
         </div>
 
@@ -63,9 +68,7 @@ export function StatusBadge({ status }: { status: TenantStatus | null }) {
           <p className="text-2xl leading-none font-semibold tracking-tight tabular-nums text-foreground">
             {status.chunks.toLocaleString()}
           </p>
-          <p className="mt-1.5 text-xs tracking-wide text-muted-foreground/70 uppercase">
-            passages
-          </p>
+          <p className="mt-1.5 text-xs tracking-wide text-muted-foreground/70 uppercase">{t("passages")}</p>
         </div>
       </div>
 
@@ -75,7 +78,7 @@ export function StatusBadge({ status }: { status: TenantStatus | null }) {
         // without being alarming, which is what the amber text alone read as.
         <p
           className="inline-flex items-center gap-1.5 rounded-full bg-zenith-amber/10 px-2 py-0.5 text-xs font-medium text-zenith-amber"
-          title="Searches run more slowly while a document is being processed."
+          title={t("Searches run more slowly while a document is being processed.")}
         >
           <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-zenith-amber" />
           {processing} processing
@@ -92,12 +95,12 @@ export function StatusBadge({ status }: { status: TenantStatus | null }) {
       )}
 
       {!status.searchable && (
-        <p className="text-muted-foreground">Nothing to search yet.</p>
+        <p className="text-muted-foreground">{t("Nothing to search yet.")}</p>
       )}
 
       <dl className="border-t border-border pt-2 text-xs text-muted-foreground">
         <div className="flex justify-between">
-          <dt>Hardware</dt>
+          <dt>{t("Hardware")}</dt>
           <dd>{status.hardware}</dd>
         </div>
         {!status.components.reranker && (
@@ -106,14 +109,14 @@ export function StatusBadge({ status }: { status: TenantStatus | null }) {
           // for that hardware — the cross-encoder cannot rerank ten passages inside the
           // interactive timeout on four cores.
           <div className="flex justify-between">
-            <dt>Reranking</dt>
-            <dd>off for this hardware</dd>
+            <dt>{t("Reranking")}</dt>
+            <dd>{t("off for this hardware")}</dd>
           </div>
         )}
         {!status.components.generation && (
           <div className="flex justify-between">
-            <dt>Answers</dt>
-            <dd>no model configured</dd>
+            <dt>{t("Answers")}</dt>
+            <dd>{t("no model configured")}</dd>
           </div>
         )}
       </dl>

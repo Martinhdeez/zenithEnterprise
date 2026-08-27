@@ -31,6 +31,7 @@ import { leaf, parentPath } from "@/features/labels";
 import { folders, type FolderTree } from "../api";
 import type { Citation } from "@/features/chat";
 import { Documents } from "./Documents";
+import { useT } from "@/shared/i18n/useT";
 
 /** `null` at the grid. `filter: null` on a selection means "All documents" specifically —
     every reachable document, not "nothing selected". */
@@ -58,6 +59,7 @@ export function Folders({
   refreshKey = 0,
   permissions,
 }: Props) {
+  const t = useT();
   const [tree, setTree] = useState<FolderTree | null>(null);
 
   useEffect(() => {
@@ -83,7 +85,7 @@ export function Folders({
     );
   }
 
-  if (!tree) return <p className="text-sm text-muted-foreground">Loading folders…</p>;
+  if (!tree) return <p className="text-sm text-muted-foreground">{t("Loading folders…")}</p>;
 
   // Sorted so a namespace's folders sit together and in order. Grouping is presentational:
   // every folder is still its own label and its own filter, and no parent selects its
@@ -105,7 +107,7 @@ export function Folders({
         >
           <FileStack className="size-5 text-muted-foreground" />
           <div>
-            <p className="text-sm font-medium text-foreground">All documents</p>
+            <p className="text-sm font-medium text-foreground">{t("All documents")}</p>
             <p className="text-xs text-muted-foreground">{tree.total_documents} total</p>
           </div>
         </button>
@@ -131,7 +133,7 @@ export function Folders({
               <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
                 <span>{folder.documents} documents</span>
                 {folder.processing > 0 && (
-                  <span className="text-zenith-amber" title="still being processed">
+                  <span className="text-zenith-amber" title={t("still being processed")}>
                     {folder.processing}⋯
                   </span>
                 )}
@@ -139,7 +141,7 @@ export function Folders({
                   // Surfaced per folder, not only in aggregate. A failed document is
                   // invisible in search, so this is the only place its absence can be
                   // explained — and "which folder" is the first thing anybody asks next.
-                  <span className="text-destructive" title="failed to process">
+                  <span className="text-destructive" title={t("failed to process")}>
                     {folder.failed} failed
                   </span>
                 )}
@@ -150,9 +152,7 @@ export function Folders({
       </div>
 
       {tree.folders.length === 0 && (
-        <p className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          No folders yet — they appear as soon as an uploaded document carries a label.
-        </p>
+        <p className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">{t("No folders yet — they appear as soon as an uploaded document carries a label.")}</p>
       )}
     </section>
   );

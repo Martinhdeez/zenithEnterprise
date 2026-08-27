@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProgressBar } from "@/shared/components/ProgressBar";
 import { forget, read, write } from "@/shared/lib/storage";
+import { useT } from "@/shared/i18n/useT";
 
 interface Props {
   token: string;
@@ -132,6 +133,7 @@ export function Search({
   filterName,
   onClearFilter,
 }: Props) {
+  const t = useT();
   // Resolved from what this caller reaches; an unknown id belongs to a label they see the
   // passage through some other route, and is not theirs to learn the name of.
   const [known, setKnown] = useState<Map<string, string>>(new Map());
@@ -217,9 +219,7 @@ export function Search({
 
   if (!searchable) {
     return (
-      <p className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
-        There are no documents to search yet. Upload one to get started.
-      </p>
+      <p className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">{t("There are no documents to search yet. Upload one to get started.")}</p>
     );
   }
 
@@ -243,8 +243,8 @@ export function Search({
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search passages by keyword and meaning"
-            aria-label="Search"
+            placeholder={t("Search passages by keyword and meaning")}
+            aria-label={t("Search")}
             maxLength={1000}
             // `dark:bg-transparent` is load-bearing: the base `Input` carries
             // `dark:bg-input/30`, which outlives a plain `bg-transparent` in the dark theme
@@ -257,16 +257,14 @@ export function Search({
               type="button"
               onClick={cancel}
               className="h-9 shrink-0 rounded-full bg-foreground px-4 text-sm text-background hover:bg-foreground/90"
-            >
-              Stop
-            </Button>
+            >{t("Stop")}</Button>
           ) : (
             <Button
               type="submit"
               disabled={!query.trim()}
               className="h-9 shrink-0 rounded-full bg-primary px-5 text-sm text-white hover:bg-primary/90 disabled:opacity-40"
             >
-              Search
+              {t("Search")}
             </Button>
           )}
         </div>
@@ -281,15 +279,14 @@ export function Search({
             <SearchIcon className="size-5 text-primary" />
           </div>
           <div className="space-y-1.5">
-            <h2 className="text-2xl font-normal text-foreground">Search your corpus</h2>
+            <h2 className="text-2xl font-normal text-foreground">{t("Search your corpus")}</h2>
             <p className="mx-auto max-w-md text-sm text-muted-foreground">
-              Keyword and meaning at once — passages come back ranked, with the page they
-              came from. Nothing is generated here; use Chat for a written answer.
+              {t("Keyword and meaning at once — passages come back ranked, with the page they came from. Nothing is generated here; use Chat for a written answer.")}
             </p>
           </div>
           <div className="space-y-2">
             <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">
-              {recent.length > 0 ? "Recent" : "Try"}
+              {recent.length > 0 ? t("Recent") : t("Try")}
             </p>
             <div className="flex flex-wrap justify-center gap-2">
               {(recent.length > 0 ? recent : SUGGESTIONS).map((suggestion) => (
@@ -318,9 +315,7 @@ export function Search({
                   setRecent([]);
                 }}
                 className="text-xs text-muted-foreground/60 transition-colors hover:text-foreground"
-              >
-                Clear
-              </button>
+              >{t("Clear")}</button>
             )}
           </div>
         </div>
@@ -343,9 +338,7 @@ export function Search({
             type="button"
             onClick={() => void run(state.query)}
             className="shrink-0 rounded-full border border-destructive/40 px-3 py-1 text-xs font-medium transition-colors hover:bg-destructive/20"
-          >
-            Try again
-          </button>
+          >{t("Try again")}</button>
         </div>
       )}
 
@@ -461,17 +454,18 @@ export function Search({
  * by exact wording, is the hybrid search earning its keep.
  */
 function Ranking({ hit }: { hit: SearchHit }) {
+  const t = useT();
   return (
     <p className="mt-2 flex flex-wrap gap-x-3 font-mono text-xs text-muted-foreground/80">
       {hit.lexical_rank !== null ? (
         <span>keyword #{hit.lexical_rank} ({hit.lexical_score?.toFixed(3)})</span>
       ) : (
-        <span className="text-muted-foreground/50">keyword —</span>
+        <span className="text-muted-foreground/50">{t("keyword —")}</span>
       )}
       {hit.dense_rank !== null ? (
         <span>meaning #{hit.dense_rank} ({hit.dense_score?.toFixed(3)})</span>
       ) : (
-        <span className="text-muted-foreground/50">meaning —</span>
+        <span className="text-muted-foreground/50">{t("meaning —")}</span>
       )}
       {hit.rerank_score !== null && <span>reranked {hit.rerank_score.toFixed(3)}</span>}
       <span>combined {hit.score.toFixed(4)}</span>
@@ -499,28 +493,26 @@ function NothingMatched({
   filterName?: string | null;
   onClearFilter?: () => void;
 }) {
+  const t = useT();
   return (
     <div className="space-y-3 rounded-lg border border-dashed border-border p-8 text-center text-sm">
-      <p className="text-foreground">Nothing matched that query.</p>
+      <p className="text-foreground">{t("Nothing matched that query.")}</p>
 
       {filterName && onClearFilter ? (
         <>
-          <p className="text-muted-foreground">
-            This search only looked inside <span className="text-foreground">{filterName}</span>.
+          <p className="text-muted-foreground">{t("This search only looked inside")}<span className="text-foreground">{filterName}</span>.
           </p>
           <button
             type="button"
             onClick={onClearFilter}
             className="rounded-full border border-input px-3 py-1 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-secondary"
-          >
-            Search everything instead
-          </button>
+          >{t("Search everything instead")}</button>
         </>
       ) : (
         <ul className="mx-auto max-w-sm space-y-1 text-left text-xs text-muted-foreground">
-          <li>· Try fewer words — every one of them has to appear.</li>
-          <li>· Try the wording the document itself would use.</li>
-          <li>· Ask it as a question in Chat, which reads the passages for you.</li>
+          <li>{t("· Try fewer words — every one of them has to appear.")}</li>
+          <li>{t("· Try the wording the document itself would use.")}</li>
+          <li>{t("· Ask it as a question in Chat, which reads the passages for you.")}</li>
         </ul>
       )}
     </div>

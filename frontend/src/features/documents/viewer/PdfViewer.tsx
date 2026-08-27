@@ -21,6 +21,7 @@ import type { Citation } from "@/features/chat";
 // was unreachable would be indistinguishable from a broken document.
 import * as pdfjs from "pdfjs-dist";
 import PdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { useT } from "@/shared/i18n/useT";
 
 pdfjs.GlobalWorkerOptions.workerSrc = PdfWorker;
 
@@ -30,6 +31,7 @@ interface Props {
 }
 
 export function PdfViewer({ citation, token }: Props) {
+  const t = useT();
   const canvas = useRef<HTMLCanvasElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
@@ -126,9 +128,7 @@ export function PdfViewer({ citation, token }: Props) {
 
   if (!citation) {
     return (
-      <aside className="flex h-full items-center justify-center p-6 text-center text-sm text-slate-500">
-        Click a citation in an answer to open the page it came from.
-      </aside>
+      <aside className="flex h-full items-center justify-center p-6 text-center text-sm text-slate-500">{t("Click a citation in an answer to open the page it came from.")}</aside>
     );
   }
 
@@ -181,23 +181,17 @@ export function PdfViewer({ citation, token }: Props) {
           onClick={() => setPage((current) => Math.max(1, current - 1))}
           disabled={page <= 1}
           className="rounded-sm px-2 py-1 disabled:opacity-40"
-        >
-          ← Previous
-        </button>
+        >{t("← Previous")}</button>
         <button
           type="button"
           onClick={() => setPage(cited)}
           className="rounded-sm px-2 py-1 text-sky-700"
-        >
-          Back to citation
-        </button>
+        >{t("Back to citation")}</button>
         <button
           type="button"
           onClick={() => setPage((current) => current + 1)}
           className="rounded-sm px-2 py-1"
-        >
-          Next →
-        </button>
+        >{t("Next →")}</button>
       </footer>
     </aside>
   );

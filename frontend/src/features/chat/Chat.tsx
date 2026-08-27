@@ -26,6 +26,7 @@ import { streamQuery, type Citation } from "./stream/stream";
 import { Answer } from "./answer/Answer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/shared/i18n/useT";
 
 const INITIAL: AnswerState = { phase: "idle" };
 
@@ -73,6 +74,7 @@ const STARTERS = [
  * are *not* written there; here the data is the right data.
  */
 function EmptyState({ token, onAsk }: { token: string; onAsk: (question: string) => void }) {
+  const t = useT();
   // The whole entry, not just its text: what a question *produced* is the part that shows
   // the product working, and it is already in the response.
   const [recent, setRecent] = useState<HistoryEntry[]>([]);
@@ -104,18 +106,15 @@ function EmptyState({ token, onAsk }: { token: string; onAsk: (question: string)
       </div>
 
       <div className="space-y-1.5">
-        <h2 className="text-2xl font-normal text-foreground">Ask your documents</h2>
+        <h2 className="text-2xl font-normal text-foreground">{t("Ask your documents")}</h2>
         <p className="text-sm text-muted-foreground">
-          Answered only from what is in your corpus — never from what the model happens to
-          know.
+          {t("Answered only from what is in your corpus — never from what the model happens to know.")}
         </p>
       </div>
 
       {recent.length > 0 ? (
         <div className="w-full space-y-2">
-          <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">
-            Asked here
-          </p>
+          <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">{t("Asked here")}</p>
           <ul className="flex flex-col gap-3">
             {recent.map((entry) => (
               <li key={entry.query_id}>
@@ -131,8 +130,8 @@ function EmptyState({ token, onAsk }: { token: string; onAsk: (question: string)
                       software. */}
                   <span className="shrink-0 font-mono text-xs text-muted-foreground">
                     {entry.citations > 0
-                      ? `${entry.citations} cited`
-                      : "found nothing"}
+                      ? t("{count} cited", { count: entry.citations })
+                      : t("found nothing")}
                   </span>
                 </button>
               </li>
@@ -143,7 +142,7 @@ function EmptyState({ token, onAsk }: { token: string; onAsk: (question: string)
         <div className="w-full space-y-2">
           {/* Nothing has been asked yet, so there is nothing to show and the honest thing
               is to offer a way in rather than manufacture evidence. */}
-          <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">Try</p>
+          <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">{t("Try")}</p>
           <div className="flex flex-col gap-3">
             {STARTERS.map((question) => (
               <button
@@ -183,6 +182,7 @@ interface Props {
 }
 
 export function Chat({ token, onCitation, searchable, labels, prefill }: Props) {
+  const t = useT();
   const [state, dispatch] = useReducer(reduce, INITIAL);
   // Every turn before the live one — pushed the moment a *new* question starts, not when
   // the old one finishes, so a cancelled or errored turn still keeps its place in the
@@ -387,7 +387,7 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
             says so before they press send. */}
         {scope.length > 0 && (
           <p className="mb-2 flex flex-wrap items-center gap-1.5 px-1 text-xs text-muted-foreground">
-            <span>Answering from</span>
+            <span>{t("Answering from")}</span>
             {scope.map((document) => (
               <span
                 key={document.id}
@@ -396,7 +396,7 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
                 {document.filename}
               </span>
             ))}
-            <span>only</span>
+            <span>{t("only")}</span>
           </p>
         )}
 
@@ -448,7 +448,7 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
               }
             }}
             onBlur={() => setMention(null)}
-            placeholder="Ask a question — @ to answer from one document"
+            placeholder={t("Ask a question — @ to answer from one document")}
             aria-label="Question"
             maxLength={1000}
             // `dark:bg-transparent` is load-bearing, same as the search bar: the base
@@ -465,7 +465,7 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
               type="button"
               size="icon"
               onClick={cancel}
-              aria-label="Stop generating"
+              aria-label={t("Stop generating")}
               className="size-9 shrink-0 rounded-full bg-foreground text-background hover:bg-foreground/90"
             >
               <Square className="size-3 fill-current" />
@@ -475,7 +475,7 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
               type="submit"
               size="icon"
               disabled={!question.trim()}
-              aria-label="Send"
+              aria-label={t("Send")}
               className="size-9 shrink-0 rounded-full bg-primary text-white transition-opacity hover:bg-primary/90 disabled:opacity-30"
             >
               <ArrowUp className="size-4" />

@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { SearchField } from "@/shared/ui/SearchField";
 import type { Label } from "@/features/labels";
 import { type Group, groups as fetchGroups, setGroupLabels, setLabelClearance } from "../api";
+import { useT } from "@/shared/i18n/useT";
 
 interface Props {
   token: string;
@@ -34,6 +35,7 @@ interface Props {
 }
 
 export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
+  const t = useT();
   const [groups, setGroups] = useState<Group[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [draft, setDraft] = useState<Set<string> | null>(null);
@@ -119,8 +121,7 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
   if (loading) {
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" /> Loading groups…
-      </p>
+        <Loader2 className="size-4 animate-spin" />{t("Loading groups…")}</p>
     );
   }
 
@@ -249,9 +250,7 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
                     header. A tick alone opens nothing without it, and that is the one thing
                     this screen must not let anybody misread. */}
                 {justSaved === label.id && (
-                  <span className="shrink-0 text-xs text-zenith-cyan" role="status">
-                    saved
-                  </span>
+                  <span className="shrink-0 text-xs text-zenith-cyan" role="status">{t("saved")}</span>
                 )}
                 <select
                   value={label.priority_level ?? 0}
@@ -260,7 +259,7 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
                   title="Applies to this label everywhere, not just to this group — saved as soon as you change it."
                   className="mr-3 shrink-0 rounded-md border border-input bg-input/60 px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
                 >
-                  <option value={0}>no clearance</option>
+                  <option value={0}>{t("no clearance")}</option>
                   {Array.from({ length: 10 }, (_, index) => index + 1).map((level) => (
                     <option key={level} value={level}>
                       level {level}
@@ -273,9 +272,7 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
           </ul>
 
           {shown.length === 0 && (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              No label matches that.
-            </p>
+            <p className="py-6 text-center text-sm text-muted-foreground">{t("No label matches that.")}</p>
           )}
 
           <div className="flex items-center justify-between gap-3 pt-1">
@@ -287,9 +284,7 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
             </p>
             {dirty && (
               <div className="flex shrink-0 gap-2">
-                <Button variant="ghost" size="sm" onClick={() => setDraft(null)}>
-                  Cancel
-                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setDraft(null)}>{t("Cancel")}</Button>
                 <Button size="sm" disabled={saving} onClick={() => void save()}>
                   {saving ? "Saving…" : "Save"}
                 </Button>
@@ -304,6 +299,7 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
 
 /** Creating and removing groups, beside the matrix that maps them. */
 export function GroupManager({ token, onChanged }: { token: string; onChanged?: () => void }) {
+  const t = useT();
   const [groups, setGroups] = useState<Group[]>([]);
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -317,7 +313,7 @@ export function GroupManager({ token, onChanged }: { token: string; onChanged?: 
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
-          placeholder="Finance, Engineering, Project-Alpha…"
+          placeholder={t("Finance, Engineering, Project-Alpha…")}
           aria-label="New group name"
           className="flex-1 rounded-md border border-input bg-input/60 px-3 py-2 text-sm"
         />
@@ -335,9 +331,7 @@ export function GroupManager({ token, onChanged }: { token: string; onChanged?: 
               setError(problem instanceof Error ? problem.message : "That group was not created.");
             }
           }}
-        >
-          Add group
-        </Button>
+        >{t("Add group")}</Button>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <ul className="divide-y divide-border rounded-md border border-input">
@@ -368,9 +362,7 @@ export function GroupManager({ token, onChanged }: { token: string; onChanged?: 
                 reload();
                 onChanged?.();
               }}
-            >
-              Delete
-            </Button>
+            >{t("Delete")}</Button>
           </li>
         ))}
       </ul>

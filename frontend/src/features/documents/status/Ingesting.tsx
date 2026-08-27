@@ -19,6 +19,7 @@
 import { Check, Loader2 } from "lucide-react";
 
 import { IN_FLIGHT, type TenantStatus } from "@/shared/api/tenant";
+import { useT } from "@/shared/i18n/useT";
 
 export function inFlight(status: TenantStatus | null): number {
   if (!status) return 0;
@@ -36,6 +37,7 @@ export function Ingesting({
   status: TenantStatus | null;
   collapsed: boolean;
 }) {
+  const t = useT();
   const processing = inFlight(status);
   const done = ready(status);
 
@@ -65,9 +67,7 @@ export function Ingesting({
     // widget die" is exactly the question this exists to answer.
     return (
       <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Check className="size-3.5 shrink-0" />
-        Nothing being ingested
-      </p>
+        <Check className="size-3.5 shrink-0" />{t("Nothing being ingested")}</p>
     );
   }
 
@@ -89,9 +89,7 @@ export function Ingesting({
           style={{ width: `${total === 0 ? 0 : Math.round((done / total) * 100)}%` }}
         />
       </div>
-      <p className="text-[11px] text-muted-foreground">
-        Searches run more slowly while this is happening.
-      </p>
+      <p className="text-[11px] text-muted-foreground">{t("Searches run more slowly while this is happening.")}</p>
     </div>
   );
 }

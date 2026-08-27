@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { LabelPicker, TagChips, type Label } from "@/features/labels";
 import { excerpt } from "./excerpt";
 import { suggestLabels } from "../api";
+import { useT } from "@/shared/i18n/useT";
 import {
   addToSelected,
   range,
@@ -48,6 +49,7 @@ interface Props {
 }
 
 export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props) {
+  const t = useT();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [anchor, setAnchor] = useState<string | null>(null);
   const [picking, setPicking] = useState<Set<string>>(new Set());
@@ -127,7 +129,7 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
           type="button"
           role="checkbox"
           aria-checked={allSelected}
-          aria-label="Select all staged files"
+          aria-label={t("Select all staged files")}
           onClick={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)))}
           className="flex items-center gap-2 rounded-md px-1.5 py-1 text-sm text-foreground transition-colors hover:bg-card"
         >
@@ -148,7 +150,7 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
           size="sm"
           disabled={!selected.size || !!suggesting}
           onClick={() => void autoTag()}
-          title="Suggest tags from each file's opening pages, using the configured model"
+          title={t("Suggest tags from each file's opening pages, using the configured model")}
         >
           {suggesting ? (
             <>
@@ -157,9 +159,7 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
             </>
           ) : (
             <>
-              <Sparkles className="mr-1.5 size-3.5" />
-              Auto-tag
-            </>
+              <Sparkles className="mr-1.5 size-3.5" />{t("Auto-tag")}</>
           )}
         </Button>
 
@@ -168,9 +168,7 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
           size="sm"
           disabled={!selected.size}
           onClick={() => setPicking(new Set(selected))}
-        >
-          Tag selected
-        </Button>
+        >{t("Tag selected")}</Button>
 
         <Button
           variant="ghost"
@@ -203,9 +201,7 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
             onCreated={(label) => onChange(addToSelected(rows, picking, [label.id]))}
             onRemoved={() => {}}
           />
-          <Button size="sm" variant="ghost" onClick={() => setPicking(new Set())}>
-            Done
-          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setPicking(new Set())}>{t("Done")}</Button>
         </div>
       )}
 

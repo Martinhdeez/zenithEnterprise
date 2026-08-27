@@ -27,6 +27,7 @@ import { UserGroups } from "./groups/UserGroups";
 import { InvitePanel } from "./invite/InvitePanel";
 import { LlmPanel } from "./model/LlmPanel";
 import { RolePanel } from "./roles/RolePanel";
+import { useT } from "@/shared/i18n/useT";
 
 /** One administration panel: a title, a hairline rule beneath it, generous padding around
     the content. Every panel on this screen shares this frame so the eye reads them as one
@@ -50,6 +51,7 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
 }
 
 export function Admin({ token }: { token: string }) {
+  const t = useT();
   const [labels, setLabels] = useState<LabelType[]>([]);
   // Reloaded rather than mutated in place: a label's clearance is edited from inside the
   // matrix, and the matrix is drawn from this list, so the change has to come back through
@@ -66,34 +68,34 @@ export function Admin({ token }: { token: string }) {
       {/* First, because it is the only panel that answers a question rather than setting
           something — an administrator opening this screen usually wants to know what is
           happening before changing anything. */}
-      <Panel title="Analytics">
+      <Panel title={t("Analytics")}>
         <Analytics token={token} />
       </Panel>
       {/* Directly under the analytics it is easily confused with, and named for what it
           actually holds. The panel above records questions asked; this one records changes
           to who may ask them of what. */}
-      <Panel title="Access record">
+      <Panel title={t("Access record")}>
         <AuditTrail token={token} />
       </Panel>
-      <Panel title="Invite a colleague">
+      <Panel title={t("Invite a colleague")}>
         <InvitePanel token={token} />
       </Panel>
-      <Panel title="Groups">
+      <Panel title={t("Groups")}>
         <GroupManager token={token} onChanged={reloadLabels} />
       </Panel>
-      <Panel title="People and groups">
+      <Panel title={t("People and groups")}>
         <UserGroups token={token} />
       </Panel>
-      <Panel title="Access matrix">
+      <Panel title={t("Access matrix")}>
         <AccessMatrix token={token} labels={labels} onLabelsChanged={reloadLabels} />
       </Panel>
-      <Panel title="Roles">
+      <Panel title={t("Roles")}>
         <RolePanel token={token} />
       </Panel>
-      <Panel title="Labels">
+      <Panel title={t("Labels")}>
         <TagManager token={token} />
       </Panel>
-      <Panel title="Answer model">
+      <Panel title={t("Answer model")}>
         <LlmPanel token={token} />
       </Panel>
     </div>

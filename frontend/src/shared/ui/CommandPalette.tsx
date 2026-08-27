@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/command";
 import { listDocuments, type DocumentSummary } from "@/features/documents";
 import { history, type HistoryEntry } from "@/features/history";
+import { useT } from "@/shared/i18n/useT";
 
 /** Long enough that typing a word is one request, short enough to feel immediate. */
 const DEBOUNCE_MS = 200;
@@ -54,6 +55,7 @@ const SCREENS: Array<{ id: string; label: string }> = [
 ];
 
 export function CommandPalette({ token, actions }: { token: string; actions: PaletteAction }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
@@ -120,7 +122,7 @@ export function CommandPalette({ token, actions }: { token: string; actions: Pal
           string and quietly drop the ones its fuzzy rules disagreed with. */}
       <Command shouldFilter={false}>
       <CommandInput
-        placeholder="Go to a screen, find a document, or repeat a question…"
+        placeholder={t("Go to a screen, find a document, or repeat a question…")}
         value={query}
         onValueChange={setQuery}
       />

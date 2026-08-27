@@ -25,6 +25,7 @@ import type { Citation, QueryResult } from "../stream/stream";
 import { displayed, isProvisional, type AnswerState } from "./answerState";
 import { transcript } from "./transcript";
 import { ProgressBar } from "@/shared/components/ProgressBar";
+import { useT } from "@/shared/i18n/useT";
 
 interface Props {
   state: AnswerState;
@@ -32,6 +33,7 @@ interface Props {
 }
 
 export function Answer({ state, onCitation }: Props) {
+  const t = useT();
   if (state.phase === "idle") return null;
 
   if (state.phase === "error") {
@@ -62,7 +64,7 @@ export function Answer({ state, onCitation }: Props) {
     <div>
       {result?.abstained && (
         <p className="mb-2 text-sm font-medium text-zenith-amber">
-          No answer was found in your documents.
+          {t("No answer was found in your documents.")}
         </p>
       )}
 

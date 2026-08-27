@@ -16,6 +16,7 @@ import { FileText, Hash, Layers, Quote, User } from "lucide-react";
 
 import { documentInsights, type DocumentInsights, type DocumentSummary } from "../api";
 import { TagChips } from "@/features/labels";
+import { useT } from "@/shared/i18n/useT";
 
 function bytes(size: number): string {
   if (size < 1024) return `${size} B`;
@@ -64,6 +65,7 @@ export function DocumentDetail({
   labelNames: string[];
   onSelectTag?: (name: string) => void;
 }) {
+  const t = useT();
   const [insights, setInsights] = useState<DocumentInsights | null>(null);
 
   useEffect(() => {
@@ -142,16 +144,14 @@ export function DocumentDetail({
       </div>
 
       <div className="space-y-1.5">
-        <p className="text-xs text-muted-foreground">Readable through</p>
+        <p className="text-xs text-muted-foreground">{t("Readable through")}</p>
         {labelNames.length > 0 ? (
           <TagChips names={labelNames} onSelect={onSelectTag} short />
         ) : (
           // Not the same as "no labels": the caller may reach this document through a
           // compartment they are not entitled to see the name of, and inventing "None"
           // would state something the API deliberately does not.
-          <p className="text-sm text-muted-foreground">
-            No labels you can see. Ask an administrator if this looks wrong.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("No labels you can see. Ask an administrator if this looks wrong.")}</p>
         )}
       </div>
     </div>

@@ -14,8 +14,10 @@ import { FIELD } from "../fieldStyle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/shared/i18n/useT";
 
 export function LlmPanel({ token }: { token: string }) {
+  const t = useT();
   const [config, setConfig] = useState<LlmConfig | null>(null);
   const [endpoint, setEndpoint] = useState("");
   const [model, setModel] = useState("");
@@ -62,9 +64,7 @@ export function LlmPanel({ token }: { token: string }) {
       )}
 
       <div className="space-y-1.5">
-        <Label htmlFor="llm-endpoint" className="text-sm text-foreground/80">
-          Endpoint
-        </Label>
+        <Label htmlFor="llm-endpoint" className="text-sm text-foreground/80">{t("Endpoint")}</Label>
         <Input
           id="llm-endpoint"
           value={endpoint}
@@ -74,9 +74,7 @@ export function LlmPanel({ token }: { token: string }) {
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="llm-model" className="text-sm text-foreground/80">
-          Model
-        </Label>
+        <Label htmlFor="llm-model" className="text-sm text-foreground/80">{t("Model")}</Label>
         <Input
           id="llm-model"
           value={model}
@@ -86,9 +84,7 @@ export function LlmPanel({ token }: { token: string }) {
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="llm-key" className="text-sm text-foreground/80">
-          API key
-        </Label>
+        <Label htmlFor="llm-key" className="text-sm text-foreground/80">{t("API key")}</Label>
         <Input
           id="llm-key"
           type="password"
@@ -100,9 +96,7 @@ export function LlmPanel({ token }: { token: string }) {
       </div>
 
       <div className="flex items-center gap-3">
-        <Button type="submit" className="h-10 bg-primary text-white hover:bg-primary/90">
-          Save
-        </Button>
+        <Button type="submit" className="h-10 bg-primary text-white hover:bg-primary/90">{t("Save")}</Button>
         {message && <p className="text-sm text-muted-foreground">{message}</p>}
       </div>
     </form>

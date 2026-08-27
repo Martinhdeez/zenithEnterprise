@@ -17,6 +17,7 @@ import { ShieldCheck } from "lucide-react";
 import { auditEvents, type AuditEvent } from "../api";
 import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/shared/i18n/useT";
 
 /** The verbs, in the order somebody scanning the list would want to recognise them. */
 const SENTENCES: Record<string, string> = {
@@ -116,6 +117,7 @@ function Detail({ event }: { event: AuditEvent }) {
 }
 
 export function AuditTrail({ token }: { token: string }) {
+  const t = useT();
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -154,9 +156,7 @@ export function AuditTrail({ token }: { token: string }) {
 
   if (events.length === 0 && !busy) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Nothing has changed access yet. Grants, group edits and clearance changes appear here.
-      </p>
+      <p className="text-sm text-muted-foreground">{t("Nothing has changed access yet. Grants, group edits and clearance changes appear here.")}</p>
     );
   }
 

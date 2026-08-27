@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from "react";
 import { history, type HistoryEntry } from "./api";
 import { Button } from "@/components/ui/button";
 import { SearchField } from "@/shared/ui/SearchField";
+import { useT } from "@/shared/i18n/useT";
 
 export function History({
   token,
@@ -26,6 +27,7 @@ export function History({
   /** Re-runs a past question through the ask box, exactly as if the user had typed it. */
   onAsk: (question: string) => void;
 }) {
+  const t = useT();
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -87,27 +89,21 @@ export function History({
         value={typed}
         onChange={setTyped}
         label="Search questions"
-        placeholder="Search your questions"
+        placeholder={t("Search your questions")}
         // Commits what is typed now rather than waiting out the debounce. Same value, no
         // pause — which is the whole point of pressing it.
         onSubmit={() => setSearch(typed)}
         action={
-          <Button type="submit" size="sm" className="shrink-0 rounded-full">
-            Search
-          </Button>
+          <Button type="submit" size="sm" className="shrink-0 rounded-full">{t("Search")}</Button>
         }
       />
       <div className="flex flex-wrap gap-1.5">
         {/* Only offered when there is somebody else's question to look away from. A filter
             that never changes anything is a control that teaches people to ignore controls. */}
         {shared && (
-          <Chip active={mine} onClick={() => setMine((on) => !on)}>
-            Only mine
-          </Chip>
+          <Chip active={mine} onClick={() => setMine((on) => !on)}>{t("Only mine")}</Chip>
         )}
-        <Chip active={unanswered} onClick={() => setUnanswered((on) => !on)}>
-          Found nothing
-        </Chip>
+        <Chip active={unanswered} onClick={() => setUnanswered((on) => !on)}>{t("Found nothing")}</Chip>
       </div>
     </div>
   );

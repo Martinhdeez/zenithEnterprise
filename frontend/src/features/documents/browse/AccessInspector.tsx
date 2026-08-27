@@ -21,6 +21,7 @@ import { Loader2, ShieldCheck } from "lucide-react";
 
 import { type Group, type Role, groups as fetchGroups, roles as fetchRoles } from "@/features/admin";
 import type { Label } from "@/features/labels";
+import { useT } from "@/shared/i18n/useT";
 
 interface Props {
   token: string;
@@ -32,6 +33,7 @@ interface Props {
 }
 
 export function AccessInspector({ token, filename, labelIds, labels }: Props) {
+  const t = useT();
   const [groups, setGroups] = useState<Group[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,8 +60,7 @@ export function AccessInspector({ token, filename, labelIds, labels }: Props) {
   if (loading) {
     return (
       <p className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" /> Working out who can open this…
-      </p>
+        <Loader2 className="size-4 animate-spin" />{t("Working out who can open this…")}</p>
     );
   }
 
@@ -112,9 +113,7 @@ export function AccessInspector({ token, filename, labelIds, labels }: Props) {
                     " — members also need the clearance above"}
                 </p>
               ) : (
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  No group opens this label.
-                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{t("No group opens this label.")}</p>
               )}
 
               {throughGrant.length > 0 && (
