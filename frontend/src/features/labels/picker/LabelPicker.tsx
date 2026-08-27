@@ -171,7 +171,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
   const exists = items.some((item) => item.name.toLowerCase() === trimmed.toLowerCase());
 
   return (
-    <fieldset className="space-y-3 rounded-md border border-input bg-secondary p-5">
+    <fieldset className="space-y-3 rounded-2xl border border-input bg-secondary p-5">
       <legend className="px-1 text-xs font-semibold tracking-wide text-foreground uppercase">
         Labels
       </legend>
@@ -251,12 +251,20 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
             key={label.id}
             className={`group relative inline-flex items-center rounded-full border text-sm transition-colors ${
               selected.has(label.id)
-                ? "border-primary bg-primary/15 font-medium text-primary"
-                : // `bg-input/50`, not `bg-card`. These chips sit on a `bg-secondary`
-                  // panel, and `--card` is the tone of the surface *under* that panel —
-                  // so a chip filled with it is darker than its own container and reads
-                  // as a hole cut out of the panel rather than as something to click.
-                  "border-input bg-input/50 text-muted-foreground hover:border-muted-foreground/60 hover:bg-input hover:text-foreground"
+                ? "border-primary bg-primary/20 font-medium text-primary"
+                : quarantine(label)
+                  ? // The one label the product itself treats differently: unfiled uploads
+                    // land here and only an administrator reaches it. Amber is already the
+                    // colour of "the system could not decide" in this interface, which is
+                    // exactly what an unclassified document is.
+                    "border-zenith-amber/40 bg-zenith-amber/10 text-zenith-amber hover:bg-zenith-amber/20"
+                  : // Solid `bg-input`, not `bg-input/50`. At 50% over a `--secondary`
+                    // panel a chip lands 0.025 of lightness above its own container — a
+                    // third of the 0.068 step this theme measured as the minimum anyone can
+                    // see from across a room, and the whole row read as one flat field.
+                    // Solid puts it 0.050 above: raised, because a label is data you pick
+                    // up. The filters below are recessed for the opposite reason.
+                    "border-input bg-input text-foreground hover:border-muted-foreground/60 hover:bg-input/80"
             }`}
           >
             {/* Equal padding on both sides at rest — the delete button is an absolute
@@ -275,7 +283,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
               onClick={() => onToggle(label)}
               className="py-1.5 pr-3.5 pl-3.5 transition-[padding] duration-150 group-hover:pr-7"
             >
-              {label.name}
+              <LabelName name={label.name} />
             </button>
             <button
               type="button"
@@ -366,12 +374,40 @@ function Toggle({
       onClick={onClick}
       className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
         on
-          ? "border-primary bg-primary/15 text-primary"
-          : "border-input bg-input/50 text-muted-foreground hover:bg-input hover:text-foreground"
+          ? "border-primary bg-primary/20 text-primary"
+          : // Recessed to `--background`, below the panel, where the search field and the
+            // name field also sit. A filter is a control and a label is data, and until
+            // now they were the same pill in the same fill directly above one another.
+            // Raised means "pick me up", sunk means "operate me"; the distinction is worth
+            // more than another hue would be.
+            "border-input bg-background text-muted-foreground hover:bg-background/60 hover:text-foreground"
       }`}
     >
       {children}
     </button>
+  );
+}
+
+/** The tenant's quarantine label, seeded by migration 0017 and reserved by 0020. */
+function quarantine(label: { name: string }): boolean {
+  return label.name === "Unclassified";
+}
+
+/**
+ * A label like `finance/2026/invoices` is a path, and the leaf is the part that identifies
+ * it — the parents repeat across every sibling. Dimming them puts the weight on the word
+ * that differs instead of setting seventeen chips at one uniform value and asking the
+ * reader to find the end of each. Encodes hierarchy that is already in the name; adds no
+ * colour to do it.
+ */
+function LabelName({ name }: { name: string }) {
+  const cut = name.lastIndexOf("/");
+  if (cut < 0) return <>{name}</>;
+  return (
+    <>
+      <span className="opacity-55">{name.slice(0, cut + 1)}</span>
+      {name.slice(cut + 1)}
+    </>
   );
 }
 
