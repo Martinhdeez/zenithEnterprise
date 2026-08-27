@@ -128,6 +128,7 @@ export const es: Catalogue = {
   "Recently used": "Uso reciente",
   "Most used": "Más usadas",
   Newest: "Más recientes",
+  "Command palette": "Paleta de comandos",
   Selected: "Seleccionadas",
   "File under": "Archivar en",
   "(no label — visible tenant-wide)":

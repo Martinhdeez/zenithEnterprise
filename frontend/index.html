@@ -29,6 +29,19 @@
           choice === "dark" ||
           (choice !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
         if (dark) document.documentElement.classList.add("dark");
+
+        // The language, for the same reason and in the same place. `lang` was only ever set
+        // by the control, so a reload of a Spanish installation rendered Spanish text under
+        // `lang="en"` — invisible on screen and wrong in the one place it matters, since it
+        // is what a screen reader uses to choose a voice.
+        var lang = "en";
+        try {
+          lang = localStorage.getItem("zenith.language") || "";
+        } catch (e) {}
+        if (lang !== "es" && lang !== "en") {
+          lang = (navigator.language || "en").indexOf("es") === 0 ? "es" : "en";
+        }
+        document.documentElement.lang = lang;
       })();
     </script>
     <!-- The product name is a brand, and the interface text is the product. Chrome's

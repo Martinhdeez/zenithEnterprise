@@ -110,7 +110,16 @@ export function CommandPalette({ token, actions }: { token: string; actions: Pal
   );
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
+    // `title` and `description` are the dialog's accessible name and hint — read aloud, never
+    // drawn. They default to English inside the shadcn primitive, which is fine until the
+    // interface is not, and a Spanish screen announced as "Command Palette" is exactly the
+    // seam a screen-reader user hears first.
+    <CommandDialog
+      open={open}
+      onOpenChange={setOpen}
+      title={t("Command palette")}
+      description={t("Go to a screen, find a document, or repeat a question…")}
+    >
       {/* `CommandDialog` renders a Dialog and drops its children straight in — it does not
           wrap them in the cmdk root, which every Input and List needs to exist inside.
           Without this the palette throws "reading 'subscribe'" and takes the whole app

@@ -46,14 +46,16 @@ import {
 
 const PAGE = 20;
 
-const SORTS: { value: LabelSort; label: string }[] = [
-  { value: "name", label: "Name" },
-  { value: "usage_count", label: "Most used" },
-  { value: "created_at", label: "Newest" },
-];
-
 export function TagManager({ token }: { token: string }) {
   const t = useT();
+  // Built per render, not as a module constant: a constant is evaluated once at import,
+  // before anyone has chosen a language, so a translated label frozen there stays in
+  // whatever language the first render happened to want.
+  const SORTS: { value: LabelSort; label: string }[] = [
+    { value: "name", label: t("Name") },
+    { value: "usage_count", label: t("Most used") },
+    { value: "created_at", label: t("Newest") },
+  ];
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<LabelSort>("name");
   const [items, setItems] = useState<LabelSearchItem[]>([]);
