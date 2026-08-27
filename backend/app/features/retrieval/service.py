@@ -17,15 +17,17 @@ from dataclasses import dataclass, replace
 from uuid import UUID
 
 import structlog
+from sqlalchemy import text
 
 from app.common.exceptions import PermissionDeniedError
 from app.core.database import tenant_session
 from app.core.hardware import Profile
 from app.core.hardware import active as active_profile
-from app.features.auth.permissions import CATALOGUE
+from app.features.auth.access.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
 from app.features.embeddings.client import MODEL, VERSION, TeiClient
 from app.features.retrieval.breaker import Breaker
+from app.features.retrieval.degradation import RERANKING_UNAVAILABLE, SEMANTIC_UNAVAILABLE
 from app.features.retrieval.identifiers import exact
 from app.features.retrieval.reranker import TeiReranker
 from app.features.retrieval.search import (
@@ -86,16 +88,24 @@ class SearchService:
         )
 
     async def search(
-        self, question: str, limit: int = DEFAULT_LIMIT, labels: list[UUID] | None = None
+        self,
+        question: str,
+        limit: int = DEFAULT_LIMIT,
+        labels: list[UUID] | None = None,
+        documents: list[UUID] | None = None,
     ) -> SearchResult:
         started = time.perf_counter()
         limit = max(1, min(limit, MAX_LIMIT))
         context = self._narrowed(labels)
+        documents = documents or None
 
         embedding, degraded_reason = await self._embed(question)
 
+        if documents:
+            await self._reachable(documents)
+
         async with tenant_session(context) as session:
-            lexical_scored = await lexical(session, question, CANDIDATES)
+            lexical_scored = await lexical(session, question, CANDIDATES, documents)
             dense_scored = (
                 await dense(
                     session,
@@ -104,6 +114,7 @@ class SearchService:
                     VERSION,
                     CANDIDATES,
                     self.hardware.hnsw_ef_search,
+                    documents,
                 )
                 if embedding
                 else []
@@ -116,7 +127,7 @@ class SearchService:
             # case it exists for — a chunk holding the exact identifier ranked 52nd by
             # `ts_rank_cd`, two places outside the candidate set, because frequency
             # ranking has no notion of how rare a term is.
-            exact_scored = await exact(session, question)
+            exact_scored = await exact(session, question, documents=documents)
             lexical_ids = [chunk_id for chunk_id, _ in lexical_scored]
             dense_ids = [chunk_id for chunk_id, _ in dense_scored]
             exact_ids = [chunk_id for chunk_id, _ in exact_scored]
@@ -125,7 +136,10 @@ class SearchService:
             # good at the second.
             reranking = self.reranker is not None and self.hardware.rerank_candidates > 0
             ranked = (
-                candidates(lexical_ids, dense_ids, exact_ids)[: self.hardware.rerank_candidates]
+                # The limit goes *into* `candidates`, not around it. Slicing afterwards
+                # discards the promoted leaders and turns this back into a plain RRF
+                # top-N — see `candidates`.
+                candidates(lexical_ids, dense_ids, exact_ids, self.hardware.rerank_candidates)
                 if reranking
                 else fuse(lexical_ids, dense_ids, limit, exact_ids)
             )
@@ -146,6 +160,7 @@ class SearchService:
             lexical=len(lexical_ids),
             dense=len(dense_ids),
             exact=len(exact_ids),
+            scoped=len(documents or []),
             returned=len(hits),
             degraded=bool(degraded_reason),
             took_ms=took,
@@ -177,14 +192,21 @@ class SearchService:
             #
             # Still reported as degraded, because it is: the answer is the fused order and
             # the customer paid for better.
-            return hits[:limit], "reranking unavailable (circuit open); fused order"
+            #
+            # The circuit being open is a fact about this installation, not about the
+            # reader's results, so it goes to the log and the sentence they see says what
+            # actually changed for them. See `degradation.py`.
+            log.info("rerank_skipped", cause="circuit_open")
+            return hits[:limit], RERANKING_UNAVAILABLE
 
         try:
             scored = await self.reranker.rank(question, [hit.text for hit in hits])
         except Exception as exc:  # noqa: BLE001 - degrading is the point
             self.breaker.failed()
-            log.warning("rerank_failed", error=str(exc))
-            return hits[:limit], f"reranking unavailable ({type(exc).__name__}); fused order"
+            # The exception name stays here, where somebody who can fix it will look. It used
+            # to travel to the screen as well: `reranking unavailable (ReadTimeout)`.
+            log.warning("rerank_failed", error=str(exc), cause=type(exc).__name__)
+            return hits[:limit], RERANKING_UNAVAILABLE
 
         self.breaker.succeeded()
 
@@ -202,8 +224,39 @@ class SearchService:
         try:
             return await self.embedder.embed_query(question), None
         except Exception as exc:  # noqa: BLE001 - degrading is the point
-            log.warning("search_embedding_failed", error=str(exc))
-            return [], f"semantic search unavailable ({type(exc).__name__}); lexical only"
+            log.warning("search_embedding_failed", error=str(exc), cause=type(exc).__name__)
+            return [], SEMANTIC_UNAVAILABLE
+
+    async def _reachable(self, documents: list[UUID]) -> None:
+        """Scoping to a document you cannot open is a 403, not an empty answer.
+
+        The filter itself is already safe — it narrows a set the policies produced, so an
+        unreachable id can only ever match nothing. This check is about what the caller is
+        told. A scoped question that silently returns nothing reads as *"that fact is not in
+        this document"*, which is a claim about the corpus rather than about permissions,
+        and it is the wrong one.
+
+        It leaks nothing: the lookup runs inside a `tenant_session`, so a document in another
+        tenant and a document that does not exist are indistinguishable here, and both
+        produce the same message. That is the same trade `_narrowed` makes for labels.
+
+        **Against the caller's full reach, not the narrowed context.** Narrowing to `finance`
+        and naming a document filed under `default` is a contradiction rather than a
+        permission problem — the caller can read that document and has just asked to look
+        away from it — so the two filters compose and the answer is empty. Checking inside
+        the narrowed context would report that as a 403 and tell them they cannot read a
+        document they can.
+        """
+        async with tenant_session(self.context) as session:
+            found = set(
+                await session.scalars(
+                    text("SELECT id FROM documents WHERE id = ANY(:ids)"),
+                    {"ids": [str(document) for document in documents]},
+                )
+            )
+        beyond = [str(document) for document in documents if document not in found]
+        if beyond:
+            raise PermissionDeniedError(f"you cannot read document(s): {', '.join(sorted(beyond))}")
 
     def _narrowed(self, labels: list[UUID] | None) -> TenantContext:
         """A caller may filter down to a subset of what they reach. Never up.

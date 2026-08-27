@@ -17,7 +17,15 @@ import { request } from "@/shared/api/http";
  * the server sends, so a typo here is not a type error — it is a counter that reads zero
  * forever. Which is exactly what happened before F16 noticed.
  */
-export const IN_FLIGHT = ["pending", "parsing", "chunking", "embedding"] as const;
+export const IN_FLIGHT = [
+  "pending",
+  "parsing",
+  "chunking",
+  "embedding",
+  // Filing, after the chunks are committed. A document here is already searchable by
+  // whoever reaches its labels; what is undecided is which labels those will be.
+  "classifying",
+] as const;
 
 export interface TenantStatus {
   documents: Record<string, number>;

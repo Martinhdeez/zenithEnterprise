@@ -181,8 +181,10 @@ async def test_label_listing_hides_what_the_caller_cannot_reach(
     # secret label just created.
     assert [label["id"] for label in member.json()] == [str(account.default_label)]
     # The administrator holds `labels.manage`: managing a set you cannot enumerate is not
-    # management. Three labels now — the default, Finance, and the secret one.
-    assert len(admin.json()) == 3
+    # management. Five now — the default, Finance, HR, the secret one, and the quarantine
+    # label, which an administrator has to see precisely because filing what waits there is
+    # their job.
+    assert len(admin.json()) == 5
 
 
 async def test_label_management_requires_the_permission(

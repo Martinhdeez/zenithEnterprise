@@ -1,5 +1,5 @@
 .PHONY: up up-models down logs migrate revision test lint format format-check types licenses \
-	web-install web-types web-test web check
+	web-install web-types web-test web check demo-check backup
 
 COMPOSE := docker compose -f docker/docker-compose.yml
 UV := cd backend && uv run
@@ -59,3 +59,17 @@ web: web-types web-test
 # What has to pass before every commit. Mirrors the CI job exactly, so a green
 # `check` locally means a green pipeline.
 check: lint format-check types test licenses web
+
+# A different question from `check`, and the one to ask before a demonstration. `check` says
+# the code is correct; this says the *running installation* is fit to be shown — the right
+# models loaded, the proxy reaching the API, and search answering without falling back to a
+# degraded path. The product degrades rather than fails by design, which is why nobody
+# notices until the answers are visibly worse in front of an audience.
+#
+#   make demo-check EMAIL=you@example.com PASSWORD=...
+demo-check:
+	./scripts/demo-check.sh $(EMAIL) $(PASSWORD)
+
+# Database and documents, verified. See docs/deployment.md.
+backup:
+	./scripts/backup.sh $(TO)

@@ -12,9 +12,11 @@ from sqlalchemy import text
 
 from app.common.exceptions import PermissionDeniedError
 from app.core.database import owner_session, tenant_session
+from app.core.hardware import PROFILES
 from app.features.auth.service import AccessProfile
 from app.features.embeddings.client import DIMENSION, MODEL, VERSION
-from app.features.retrieval.search import RRF_K, fuse
+from app.features.retrieval.degradation import SEMANTIC_UNAVAILABLE
+from app.features.retrieval.search import RRF_K, candidates, fuse
 from app.features.retrieval.service import SearchService
 from app.features.tenancy.context import TenantContext
 from conftest import Account, LexicalOnlyEmbedder
@@ -83,7 +85,7 @@ async def seed(
 
 
 async def profile_for(account: Account, labels: tuple[UUID, ...] | None = None) -> AccessProfile:
-    from app.features.auth.permissions import CATALOGUE
+    from app.features.auth.access.permissions import CATALOGUE
 
     async with owner_session() as session:
         reachable = tuple(
@@ -158,7 +160,7 @@ async def test_a_tenant_cannot_search_another_tenants_corpus(account: Account) -
     query, which is exactly what this design refuses to rely on.
     """
     await seed(account.tenant_id, account.default_label)
-    from app.features.auth.permissions import CATALOGUE
+    from app.features.auth.access.permissions import CATALOGUE
 
     intruder = AccessProfile(
         user_id=uuid4(),
@@ -219,7 +221,7 @@ async def test_an_unreachable_embedding_service_degrades_rather_than_failing(
     result = await service(await profile_for(account)).search("technical measures")
 
     assert result.degraded is True
-    assert result.reason and "lexical" in result.reason
+    assert result.reason == SEMANTIC_UNAVAILABLE
     assert result.hits, "the lexical half must still answer"
 
 
@@ -279,3 +281,72 @@ def test_rrf_uses_positions_never_scores() -> None:
     first, second = uuid4(), uuid4()
 
     assert fuse([first, second], [], 2)[0][1] == pytest.approx(1 / (RRF_K + 1))
+
+
+async def test_an_identifier_survives_a_dense_half_that_disagrees(account: Account) -> None:
+    """Milestone 1's acceptance case: an exact alphanumeric id wins even when meaning does
+    not.
+
+    The embedding stub points at chunk 0 — the data-protection passage — so the dense half
+    ranks the identifier's chunk last or not at all, which is exactly what a real embedder
+    does with a question that is a bare serial number: it has no semantics to work with.
+    Only the lexical and exact halves can find it, and the fused result has to keep it
+    anyway.
+
+    This is the case RRF alone gets wrong, and it is why `_promote_leaders` exists: agreement
+    between two mediocre semantic matches outscores a single decisive exact one, so the right
+    passage is found, ranked, and then buried by arithmetic.
+    """
+    from conftest import WorkingEmbedder
+
+    await seed(account.tenant_id, account.default_label)
+    profile = await profile_for(account)
+
+    # A profile without a cross-encoder, stated rather than inherited. This test is about
+    # what fusion does with the two halves, and `degraded` is asserted below — left to the
+    # ambient profile it would instead report whether a reranker happened to be listening,
+    # which passes on a developer's machine with `ZENITH_HARDWARE=low-spec` in `.env` and
+    # fails in CI for a reason that has nothing to do with ranking.
+    result = await SearchService(
+        profile,
+        embedder=WorkingEmbedder(),  # type: ignore[arg-type]
+        hardware=PROFILES["low-spec"],
+    ).search("1545-0074", limit=3)
+
+    assert result.hits, "an exact identifier must be findable"
+    assert result.hits[0].page_num == 2, "and it must be first, not merely present"
+    assert not result.degraded, "both halves ran; this is not a fallback"
+
+
+def test_the_leader_floor_survives_the_reranker_budget() -> None:
+    """The bug that put the Código Penal where the Constitución belonged.
+
+    `_promote_leaders` guarantees each half's top hit a place. It is applied inside `fuse`,
+    against the limit `fuse` was given — so calling `candidates()` with no limit and slicing
+    the result afterwards makes it a no-op: nothing is ever missing from an unbounded list,
+    so nothing is promoted, and the slice is a plain RRF top-N.
+
+    That is not a hypothetical ordering. RRF rewards agreement, so seven passages ranked
+    mediocrely by both halves outscore one ranked *first* by a single half — 1/61 against
+    1/106 + 1/83 — and the single-half leader falls outside a budget of eight.
+
+    Asserted on the arithmetic rather than on a corpus: the dense leader here appears in no
+    other ranking, which is exactly the shape RRF discards and the reranker most needs to
+    see.
+    """
+    dense_leader = uuid4()
+    shared = [uuid4() for _ in range(8)]
+
+    # Every shared chunk is ranked by both halves, so each collects two reciprocal scores
+    # and outranks the leader's single one.
+    result = candidates(
+        lexical_ids=[*shared],
+        dense_ids=[dense_leader, *shared],
+        exact_ids=[],
+        limit=8,
+    )
+
+    assert len(result) == 8
+    assert dense_leader in {chunk_id for chunk_id, _ in result}, (
+        "the dense half's first choice must survive the reranker's budget"
+    )

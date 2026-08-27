@@ -18,12 +18,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.llm import BaseLLMProvider, ChunkCitation
 from app.core.database import tenant_session
-from app.features.auth.permissions import CATALOGUE
+from app.features.auth.access.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
-from app.features.generation import citations as binding
-from app.features.generation import prompt, providers
-from app.features.generation.crypto import decrypt
-from app.features.generation.streaming import filtered
+from app.features.generation.answering import citations as binding
+from app.features.generation.answering import conversation, prompt, routing
+from app.features.generation.answering.streaming import filtered
+from app.features.generation.connector.resolve import provider_for
 from app.features.retrieval.search import Hit
 from app.features.retrieval.service import SearchResult, SearchService
 
@@ -81,9 +81,26 @@ class AnswerService:
         self.search = search or SearchService(profile)
         self._provider = provider
 
-    async def answer(self, question: str, labels: list[UUID] | None = None) -> Answer:
-        found = await self.search.search(question, PASSAGES, labels)
+    async def answer(
+        self,
+        question: str,
+        labels: list[UUID] | None = None,
+        history: list[conversation.Turn] | None = None,
+        documents: list[UUID] | None = None,
+    ) -> Answer:
         provider = self._provider or await self._resolve()
+        thread = conversation.bounded(history or [])
+        intent = await routing.resolve(thread, question, provider)
+
+        # `and not documents`: naming a document is an instruction to read it. The router
+        # classifies "and what about the second one?" as conversational — correctly, in a
+        # thread — but a caller who attached `@handbook.pdf` to that turn is asking for
+        # retrieval, and answering from the thread alone would ignore the one thing they
+        # said explicitly. Same reasoning in `stream`.
+        if intent.conversational and not documents:
+            return await self._conversational(question, thread, provider)
+
+        found = await self.search.search(intent.query or question, PASSAGES, labels, documents)
 
         if not found.hits:
             # Nothing retrieved, so nothing to ground an answer in. Calling the model here
@@ -92,15 +109,20 @@ class AnswerService:
             # produce something this system must then refuse to show.
             bound = binding.Bound(prompt.ABSTENTION, [], abstained=True, fabricated=0)
             model, generation_ms = "", 0
+            # No model was called, so there is nothing it could have reported.
+            usage: tuple[int | None, int | None] | None = None
         else:
             started = time.perf_counter()
-            completion = await provider.complete(prompt.SYSTEM, prompt.build(question, found.hits))
+            completion = await provider.complete(
+                prompt.SYSTEM, prompt.build(question, found.hits, thread.rendered())
+            )
             generation_ms = int((time.perf_counter() - started) * 1000)
             model = completion.model
             bound = binding.bind(completion.text, found.hits)
+            usage = (completion.prompt_tokens, completion.completion_tokens)
 
         query_id = await self._record(
-            question, bound, found.hits, model, found.took_ms, generation_ms
+            question, bound, found.hits, model, found.took_ms, generation_ms, usage
         )
         log.info(
             "query",
@@ -127,7 +149,11 @@ class AnswerService:
         )
 
     async def stream(
-        self, question: str, labels: list[UUID] | None = None
+        self,
+        question: str,
+        labels: list[UUID] | None = None,
+        history: list[conversation.Turn] | None = None,
+        documents: list[UUID] | None = None,
     ) -> AsyncIterator[Streamed]:
         """The same answer, delivered in pieces, with one guarantee weakened on purpose.
 
@@ -140,8 +166,20 @@ class AnswerService:
         The log is written from the accumulated text, so a streamed query is as auditable as
         a buffered one — `queries` and `query_citations` cannot tell the difference.
         """
-        found = await self.search.search(question, PASSAGES, labels)
         provider = self._provider or await self._resolve()
+        thread = conversation.bounded(history or [])
+        intent = await routing.resolve(thread, question, provider)
+
+        if intent.conversational and not documents:
+            # Streamed as one piece rather than token by token. The conversational path has
+            # no passages, so `MarkerFilter` has no marker range to validate against and the
+            # buffered call is the honest way to get text that is already whole.
+            answered = await self._conversational(question, thread, provider)
+            yield Streamed(token=answered.answer)
+            yield Streamed(result=answered)
+            return
+
+        found = await self.search.search(intent.query or question, PASSAGES, labels, documents)
 
         if not found.hits:
             bound = binding.Bound(prompt.ABSTENTION, [], abstained=True, fabricated=0)
@@ -152,7 +190,7 @@ class AnswerService:
         started = time.perf_counter()
         pieces: list[str] = []
         async for text_piece in filtered(
-            provider.stream(prompt.SYSTEM, prompt.build(question, found.hits)),
+            provider.stream(prompt.SYSTEM, prompt.build(question, found.hits, thread.rendered())),
             range(1, len(found.hits) + 1),
         ):
             pieces.append(text_piece)
@@ -165,8 +203,20 @@ class AnswerService:
         # two would drift.
         bound = binding.bind("".join(pieces), found.hits)
         model = getattr(provider, "model", "")
+        # A streamed response carries no usage object unless it was asked for, which the
+        # adapter now does (`stream_options.include_usage`). Read off the provider after
+        # the stream rather than yielded through it: the interface is an iterator of text,
+        # and widening it to carry a cost report would put a field in every adapter for
+        # something only one of them can answer. `(None, None)` for a provider that does
+        # not report — still not zero.
         query_id = await self._record(
-            question, bound, found.hits, model, found.took_ms, generation_ms
+            question,
+            bound,
+            found.hits,
+            model,
+            found.took_ms,
+            generation_ms,
+            getattr(provider, "last_usage", None),
         )
         log.info(
             "query_streamed",
@@ -176,6 +226,58 @@ class AnswerService:
             fabricated=bound.fabricated,
         )
         yield Streamed(result=self._answer(query_id, bound, found, model, generation_ms))
+
+    async def _conversational(
+        self, message: str, thread: conversation.Thread, provider: BaseLLMProvider
+    ) -> Answer:
+        """A turn answered from the transcript, with no retrieval at all.
+
+        Not a search that happened to find nothing: nothing was searched. `consulted` is
+        empty because no document was read, `abstained` is false because there was nothing
+        to abstain from, and `took_retrieval_ms` is zero because no retrieval ran. Reporting
+        this as an abstention would tell the user their documents failed to answer a
+        question that was never about their documents.
+
+        Still recorded. It is a message the user sent to the system, and the audit log's
+        claim to be complete does not survive a category of question it silently drops.
+        """
+        started = time.perf_counter()
+        completion = await provider.complete(
+            prompt.CHAT_SYSTEM, prompt.build_chat(thread.rendered(), message)
+        )
+        generation_ms = int((time.perf_counter() - started) * 1000)
+
+        # Markers are stripped rather than bound. Any marker the model wrote despite rule 2
+        # is invalid by construction — there were no passages — and would otherwise reach
+        # the client as a link to something that was never consulted. `bind` is not usable
+        # here: with no hits it finds no valid citation and replaces the whole answer with
+        # the abstention sentence, which is the right rule for a turn that was offered
+        # passages and the wrong one for a turn that never asked for any.
+        text_only, markers = binding.stripped(completion.text)
+        bound = binding.Bound(text_only, [], abstained=False, fabricated=markers)
+
+        query_id = await self._record(
+            message,
+            bound,
+            [],
+            completion.model,
+            0,
+            generation_ms,
+            (completion.prompt_tokens, completion.completion_tokens),
+        )
+        log.info("query_conversational", query_id=str(query_id), generation_ms=generation_ms)
+        return Answer(
+            query_id=query_id,
+            answer=bound.answer,
+            citations=[],
+            abstained=False,
+            consulted=[],
+            model=completion.model,
+            degraded=False,
+            reason=None,
+            took_retrieval_ms=0,
+            took_generation_ms=generation_ms,
+        )
 
     def _answer(
         self,
@@ -199,41 +301,8 @@ class AnswerService:
         )
 
     async def _resolve(self) -> BaseLLMProvider:
-        """The tenant's own configuration, or the installation's, built by the registry.
-
-        This method reads a row and returns a `Configuration`; `providers.build` decides
-        what class that becomes. The split is what keeps provider selection in one place —
-        otherwise "which adapter runs" would be answered here for tenants and in settings
-        for everyone else, and the two would drift.
-
-        Read inside `tenant_session`, so the policy `tenant_id = zenith_current_tenant()`
-        does the scoping and the RLS bypass surface stays at the four routes 5.1 names.
-        There is nothing here a customer's own session may not read — it is their
-        configuration.
-        """
-        async with tenant_session(self.context) as session:
-            row = (
-                await session.execute(
-                    text(
-                        "SELECT endpoint_url, model_name, api_key_encrypted FROM llm_config LIMIT 1"
-                    )
-                )
-            ).first()
-
-        if row is None:
-            return providers.build(providers.from_settings())
-
-        return providers.build(
-            providers.Configuration(
-                # A tenant configures an endpoint and a model, never an adapter: which
-                # adapter speaks to that endpoint is an operator's decision about the
-                # installation, not a customer's about their account.
-                provider=providers.from_settings().provider,
-                endpoint_url=row.endpoint_url,
-                model=row.model_name,
-                api_key=decrypt(row.api_key_encrypted) if row.api_key_encrypted else None,
-            )
-        )
+        """The tenant's connector. See `connector/resolve.py` for why it lives there."""
+        return await provider_for(self.context)
 
     async def _record(
         self,
@@ -243,6 +312,7 @@ class AnswerService:
         model: str,
         retrieval_ms: int,
         generation_ms: int,
+        usage: tuple[int | None, int | None] | None = None,
     ) -> UUID:
         """The query log — observability now, the audit trail in iteration 4 (mvp.md 2.13).
 
@@ -260,9 +330,10 @@ class AnswerService:
             query_id = await session.scalar(
                 text(
                     "INSERT INTO queries (tenant_id, user_id, question, answer, model_used, "
-                    "latency_retrieval_ms, latency_generation_ms) "
+                    "latency_retrieval_ms, latency_generation_ms, prompt_tokens, "
+                    "completion_tokens) "
                     "VALUES (:tenant, :user, :question, :answer, :model, :retrieval, "
-                    ":generation) RETURNING id"
+                    ":generation, :prompt_tokens, :completion_tokens) RETURNING id"
                 ),
                 {
                     "tenant": self.context.tenant_id,
@@ -272,6 +343,10 @@ class AnswerService:
                     "model": model or None,
                     "retrieval": retrieval_ms,
                     "generation": generation_ms,
+                    # NULL when the provider said nothing, which is not zero. See
+                    # `GenerationResponse` — a local binding reports no usage at all.
+                    "prompt_tokens": usage[0] if usage else None,
+                    "completion_tokens": usage[1] if usage else None,
                 },
             )
             assert query_id is not None

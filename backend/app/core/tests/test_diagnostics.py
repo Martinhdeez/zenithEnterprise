@@ -6,8 +6,11 @@ that is absent exactly when it is needed.
 """
 
 import json
+from pathlib import Path
+from uuid import uuid4
 
 import pytest
+from sqlalchemy import text
 from typer.testing import CliRunner
 
 from app.cli import app
@@ -84,7 +87,7 @@ async def test_every_check_runs_even_when_the_database_is_unreachable() -> None:
 
     checks = await run_diagnostics()
 
-    assert len(checks) == 11
+    assert len(checks) == 14
     assert any(check.status == "fail" for check in checks)
     # And the failure still says nothing it should not.
     assert "nothing" not in " ".join(check.detail for check in checks)
@@ -157,13 +160,196 @@ def test_json_output_is_parseable(configured_engines: None) -> None:
     assert {check["name"] for check in payload["checks"]} >= {"migrations", "row-level security"}
 
 
-def test_the_exit_code_reports_failure(configured_engines: None) -> None:
+def test_the_exit_code_reports_failure(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Non-zero on any failure, so this doubles as a smoke test after an install.
 
-    The model services are not running in the test environment, so this run fails — which
-    is exactly the signal an operator who forgot to start them needs.
+    The unreachable service is **pointed at explicitly** rather than assumed. This test used
+    to rely on nothing listening on the default ports, and passed for as long as that was
+    true of the developer's machine: the day the reranker was started locally, `diagnose`
+    correctly reported everything healthy and the test failed for being right. A test whose
+    outcome depends on what the person running it happens to have open is not testing the
+    exit code, it is testing their laptop.
     """
+    monkeypatch.setattr(settings, "tei_embed_url", "http://127.0.0.1:1")
+
     result = runner.invoke(app, ["diagnose"])
 
     assert result.exit_code == 1
     assert "FAIL" in result.output
+
+
+def _serving(monkeypatch: pytest.MonkeyPatch, info: dict[str, str] | None) -> None:
+    """Stand in for every TEI container: healthy, and `/info` answering or absent."""
+    import httpx
+
+    class Fake:
+        async def __aenter__(self) -> "Fake":
+            return self
+
+        async def __aexit__(self, *_exc: object) -> None:
+            return None
+
+        async def get(self, url: str) -> httpx.Response:
+            if url.endswith("/info"):
+                return httpx.Response(200, json=info) if info else httpx.Response(404)
+            return httpx.Response(200)
+
+    def client(**_kwargs: object) -> Fake:
+        return Fake()
+
+    monkeypatch.setattr(httpx, "AsyncClient", client)
+
+
+async def test_a_model_service_reports_which_model_it_is_serving(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ "Responding" hid the failure that cost this project a working reranker twice.
+
+    A TEI container serving the wrong weights answers `/health` exactly like one serving the
+    right ones. The only symptoms are quality, which nobody can see, and latency, which
+    everybody blames on something else. Naming the model turns both into a line of
+    `zenith diagnose`.
+    """
+    _serving(monkeypatch, {"model_id": "BAAI/bge-reranker-v2-m3"})
+
+    checks = await run_diagnostics()
+    rerank = next(check for check in checks if check.name == "reranking service")
+
+    assert "BAAI/bge-reranker-v2-m3" in rerank.detail
+
+
+async def test_a_model_service_without_an_info_route_is_still_healthy(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An older TEI is a working service. Failing it over a missing label would cry wolf."""
+    _serving(monkeypatch, None)
+
+    checks = await run_diagnostics()
+    rerank = next(check for check in checks if check.name == "reranking service")
+
+    assert rerank.status == "ok"
+    assert "responding" in rerank.detail
+
+
+async def test_a_missing_job_queue_is_reported(configured_engines: None) -> None:
+    """The half of the install that `alembic upgrade head` does not do.
+
+    Procrastinate owns its own schema, so the queue tables come from a separate command. An
+    installation that skips it accepts uploads and ingests none of them: 201, a row, and a
+    status that stays `pending` for ever, with the only complaint in a worker log nobody
+    reads. The test database is exactly such an installation, which is what makes this
+    assertion the real thing rather than a simulation of it.
+    """
+    checks = {check.name: check for check in await run_diagnostics()}
+
+    assert checks["job queue"].status == "fail"
+    # The actionable sentence has to survive `_scrub`. Naming the command as `zenith
+    # install-queue` did not: the default database password *is* the word `zenith`, so the
+    # instruction came out as `Run `*** install-queue``.
+    assert "install-queue" in checks["job queue"].detail
+    assert "***" not in checks["job queue"].detail
+
+
+async def test_a_document_row_without_its_file_is_reported(
+    configured_engines: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The one inconsistency the product's own write ordering permits.
+
+    `DocumentService.create` commits the row and then writes the file, deliberately, so a
+    rolled-back transaction can never leave a file nobody can find. The accepted residue is
+    the reverse — and nothing surfaced it until somebody clicked the document and the viewer
+    said "That document is no longer available", in front of whoever was being shown it.
+    """
+    from app.core.database import owner_session
+
+    monkeypatch.setenv("ZENITH_STORAGE_DIR", str(tmp_path))
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
+
+    async with owner_session() as session:
+        tenant_id = await session.scalar(
+            text("INSERT INTO tenants (name) VALUES (:n) RETURNING id"),
+            {"n": f"Orphan {uuid4()}"},
+        )
+        await session.execute(
+            text(
+                "INSERT INTO documents (tenant_id, filename, sha256, size_bytes) "
+                "VALUES (:t, 'vanished.pdf', :sha, 10)"
+            ),
+            # A real digest shape: `path_for` refuses anything else, which is the guard that
+            # keeps a stored key from walking out of its tenant directory.
+            {"t": tenant_id, "sha": uuid4().hex + uuid4().hex},
+        )
+
+    checks = {check.name: check for check in await run_diagnostics()}
+
+    # A warning, not a failure: search over every other document is unaffected and the repair
+    # — re-upload, or delete the row — is a person's decision.
+    assert checks["document files"].status == "warn", checks["document files"].detail
+    assert "vanished.pdf" in checks["document files"].detail
+
+
+async def test_one_corrupt_storage_key_does_not_take_down_the_check(
+    configured_engines: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`path_for` refuses anything that is not a SHA-256 digest — the guard that keeps a
+    stored key from walking out of its tenant directory.
+
+    A row that trips it has no reachable file by definition, so it belongs in the count. It
+    used to raise instead, which reported `fail` for the whole installation and said nothing
+    about the other nine hundred documents. A diagnostic that dies on the condition it
+    diagnoses is worse than no diagnostic, which `backup.sh` learned the same way.
+    """
+    from app.core.config import settings
+    from app.core.database import owner_session
+
+    monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
+
+    async with owner_session() as session:
+        tenant_id = await session.scalar(
+            text("INSERT INTO tenants (name) VALUES (:n) RETURNING id"),
+            {"n": f"Corrupt {uuid4()}"},
+        )
+        await session.execute(
+            text(
+                "INSERT INTO documents (tenant_id, filename, sha256, size_bytes) "
+                "VALUES (:t, 'bad-key.pdf', :sha, 10)"
+            ),
+            {"t": tenant_id, "sha": "../../etc/passwd"},
+        )
+
+    checks = {check.name: check for check in await run_diagnostics()}
+
+    assert checks["document files"].status == "warn", checks["document files"].detail
+    assert "bad-key.pdf" in checks["document files"].detail
+
+
+async def test_a_pending_document_with_no_job_is_reported(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`zenith reingest` could always find these; nothing ever said they existed.
+
+    Two paths strand a document, both chosen deliberately: a failed enqueue does not fail the
+    upload, and a document relabelled between upload and ingestion strands its own job. Either
+    way it sits at `pending` for ever, looking to its owner exactly like one queued behind
+    others.
+    """
+    from app.core.database import owner_session
+
+    async with owner_session() as session:
+        # The queue tables are absent in the test database, so the check reports that it
+        # cannot tell rather than guessing — which is the honest answer and the one asserted
+        # here. A wrong guess in either direction is worse: "nothing stranded" hides real
+        # ones, and "everything stranded" cries wolf on every installation.
+        installed = await session.scalar(text("SELECT to_regclass('public.procrastinate_jobs')"))
+
+    checks = {check.name: check for check in await run_diagnostics()}
+
+    if installed is None:
+        assert checks["stranded documents"].status == "warn"
+        assert "cannot tell" in checks["stranded documents"].detail
+    else:
+        assert checks["stranded documents"].status in {"ok", "warn"}

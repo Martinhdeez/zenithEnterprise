@@ -85,7 +85,7 @@ async def reachable() -> str | None:
     connectivity problem.
     """
     from app.common.llm import GenerationUnavailableError
-    from app.features.generation import providers
+    from app.features.generation.connector import providers
 
     try:
         provider = providers.build(providers.from_settings())

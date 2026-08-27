@@ -13,6 +13,7 @@ from app.features.ingestion.chunking.chunker import (
     TARGET_CHARACTERS,
     _merge_lines,  # type: ignore[reportPrivateUsage]
     chunk_page,
+    chunk_stream,
 )
 from app.features.ingestion.parsers.base import Box, ParsedPage, Word
 
@@ -177,3 +178,80 @@ def test_boxes_on_different_lines_stay_separate() -> None:
     merged = _merge_lines([_box(0.10, 0.20, y0=0.30), _box(0.205, 0.31, y0=0.60)])
 
     assert len(merged) == 2
+
+
+# --- documents with no pages -------------------------------------------------------------
+#
+# `chunk_stream` is what a `.txt` or `.md` goes through. Its two load-bearing properties are
+# different from `chunk_page`'s: there are no boxes to check, and the offsets are the
+# citation rather than a debugging aid, so they have to be exactly right.
+
+
+def test_a_text_document_has_no_page_numbers() -> None:
+    """`None`, not 1. A placeholder is what puts "page 1" under a Markdown file."""
+    chunks = chunk_stream(SENTENCE * 40)
+
+    assert chunks
+    assert all(chunk.page_num is None for chunk in chunks)
+
+
+def test_a_text_document_has_no_boxes() -> None:
+    """There is no geometry to have. An empty tuple, never an invented rectangle."""
+    assert all(chunk.boxes == () for chunk in chunk_stream(SENTENCE * 40))
+
+
+def test_offsets_index_the_text_they_came_from() -> None:
+    """The property the whole feature rests on.
+
+    A text citation is underlined by slicing the file at `char_start:char_end`. If those
+    offsets do not select the chunk's own text, every highlight in the product is in the
+    wrong place — and it would look plausible, because it would still be somewhere in the
+    document.
+    """
+    body = SENTENCE * 40
+
+    for chunk in chunk_stream(body):
+        assert body[chunk.char_start : chunk.char_end].strip() == chunk.text
+
+
+def test_offsets_run_the_length_of_the_document_not_of_a_page() -> None:
+    """`chunk_page` restarts at zero on each page; this must not.
+
+    A reader that assumed one rule for both would highlight the wrong span, and the two
+    functions exist separately so that assumption cannot be made silently.
+    """
+    body = SENTENCE * 60
+    chunks = chunk_stream(body)
+
+    assert chunks[0].char_start == 0
+    assert chunks[-1].char_end == len(body)
+    assert chunks[-1].char_start > TARGET_CHARACTERS
+
+
+def test_consecutive_chunks_overlap_so_a_split_sentence_survives_whole() -> None:
+    """Same guarantee `chunk_page` gives, and for the same reason: a fact spanning the
+    boundary must be retrievable from at least one chunk rather than from neither."""
+    chunks = chunk_stream(SENTENCE * 60)
+
+    assert len(chunks) > 1
+    for earlier, later in zip(chunks, chunks[1:], strict=False):
+        assert later.char_start < earlier.char_end
+
+
+def test_a_document_too_short_to_be_worth_indexing_produces_nothing() -> None:
+    """Same floor as a page. A two-line note is not a searchable document, and admitting
+    one would put a chunk in the index that matches everything weakly."""
+    assert chunk_stream("Restart it.") == []
+
+
+def test_no_text_chunk_can_exceed_the_token_budget() -> None:
+    """The one hard bound, and it applies to both splitters.
+
+    A chunk over the budget is permanently unembeddable — no batch containing it is ever
+    legal — so the document would ingest and then fail at the last stage. Measured against
+    the smallest budget any profile sets, the same way `chunk_page`'s bound is: a chunk
+    that fits everywhere fits here.
+    """
+    smallest = min(profile.max_batch_tokens for profile in PROFILES.values())
+
+    assert all(chunk.estimated_tokens < smallest for chunk in chunk_stream(SENTENCE * 200))

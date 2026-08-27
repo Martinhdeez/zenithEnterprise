@@ -158,6 +158,145 @@ async def _migration_state() -> tuple[Status, str]:
     )
 
 
+async def _job_queue() -> tuple[Status, str]:
+    """Are the job-queue tables installed?
+
+    Procrastinate owns its own schema and manages it itself, so it is deliberately not part
+    of our migrations — mixing the two would mean our `downgrade` had opinions about a
+    library's tables. The cost of that separation is a second install step, `zenith
+    install-queue`, and a fresh installation that runs only `alembic upgrade head` gets an
+    application which accepts uploads and never ingests one of them.
+
+    That failure is quiet in the worst way: `POST /documents` answers 201, the row appears,
+    the status stays `pending` forever, and the only complaint is in a worker log nobody is
+    reading. It is exactly the shape of failure this whole module exists to make loud.
+    """
+    async with get_owner_session_factory()() as session:
+        installed = await session.scalar(text("SELECT to_regclass('public.procrastinate_jobs')"))
+
+    if installed is None:
+        # The command is named without the `zenith` prefix on purpose. `_scrub` removes every
+        # known secret from every detail, and an installation whose database password happens
+        # to be the word `zenith` — which is the default in `.env.example`, and therefore in
+        # every development and test environment — gets `Run \`*** install-queue\``. The one
+        # actionable sentence in this whole check, redacted into nonsense exactly where it is
+        # read most.
+        return "fail", "job-queue tables are missing. Run the `install-queue` CLI command."
+
+    # The owner connection, because that is the one Procrastinate itself uses — `tasks.py`
+    # says why: the queue tables are ours rather than customer data, they carry no RLS, and
+    # the worker has to read a job before it has any tenant context to read it with. So
+    # `zenith_app` holds no privilege on them *by design*, and asking with the application
+    # role reported `permission denied` on a perfectly healthy installation. A check that
+    # cries wolf is a check somebody switches off.
+    async with get_owner_session_factory()() as session:
+        waiting = await session.scalar(
+            text("SELECT count(*) FROM procrastinate_jobs WHERE status = 'todo'")
+        )
+    return "ok", f"installed, {waiting} job(s) waiting"
+
+
+async def _stranded_documents() -> tuple[Status, str]:
+    """Documents that should be in the pipeline and are not.
+
+    Two paths leave one behind, both chosen deliberately and both documented in
+    `ingestion/requeue.py`: a failed enqueue does not fail the upload, because losing a
+    customer's document to a queue insert would be far worse than leaving it `pending`; and a
+    document relabelled between upload and ingestion strands its own job, which is the price
+    of keeping the RLS bypass surface at four routes.
+
+    `zenith reingest` has been able to find and fix these since it was written. Nothing ever
+    said they existed — the document sits at `pending` for ever, looking to its owner exactly
+    like one that is merely queued behind others.
+
+    Which is why this asks a narrower question than `find_stranded` does. Anything `pending`
+    *with* a job waiting is a healthy queue doing its work; only `pending` with nothing behind
+    it is stuck. A check that counted the first would report a busy installation as broken
+    every time somebody uploaded a batch.
+    """
+    from app.features.documents.model import IN_FLIGHT
+
+    async with get_owner_session_factory()() as session:
+        if not await session.scalar(text("SELECT to_regclass('public.procrastinate_jobs')")):
+            # The queue check above already reports this, and with the sentence that fixes it.
+            return "warn", "cannot tell: the job-queue tables are not installed"
+
+        # Every in-flight status, not only `pending`. A worker killed mid-document leaves it
+        # at whatever stage it had reached and nothing moves it again — always true of
+        # `parsing`, `chunking` and `embedding`, and one more since `classifying` (0019).
+        # Derived from the model rather than listed, for the reason `IN_FLIGHT` exists.
+        stranded = await session.scalar(
+            text(
+                "SELECT count(*) FROM documents d "
+                "WHERE d.status = ANY(:statuses) AND NOT EXISTS ("
+                "  SELECT 1 FROM procrastinate_jobs j "
+                "  WHERE j.status IN ('todo', 'doing') "
+                "    AND j.args->>'document_id' = d.id::text"
+                ")"
+            ),
+            {"statuses": list(IN_FLIGHT)},
+        )
+
+    if not stranded:
+        return "ok", "no documents waiting without a job"
+    return "warn", (
+        f"{stranded} document(s) are pending with no job behind them and will never ingest. "
+        f"Run the `reingest` CLI command to put them back in the queue."
+    )
+
+
+async def _orphaned_documents() -> tuple[Status, str]:
+    """Rows whose PDF is no longer on disk.
+
+    The one inconsistency the product's own ordering permits. `DocumentService.create` commits
+    the row and *then* writes the file, deliberately, so a rolled-back transaction can never
+    leave a file nobody can find — the accepted residue being the reverse: a row pointing at a
+    file that was never written, or one lost to a restore, a migration between machines, or a
+    storage directory that moved.
+
+    Nothing surfaces it until somebody clicks the document and the viewer says *"That document
+    is no longer available"* — in front of whoever is being shown the product, on a corpus that
+    reports itself complete everywhere else. `backup.sh` has reported this for a while; it is
+    the sort of thing an operator should not have to take a backup to discover.
+
+    A warning rather than a failure. The installation works, search over every other document
+    is unaffected, and the repair — re-upload, or delete the row — is a decision for a person.
+    """
+    from app.features.documents.storage import DocumentStorage
+
+    storage = DocumentStorage()
+    async with get_owner_session_factory()() as session:
+        rows = (
+            await session.execute(
+                text("SELECT tenant_id, sha256, filename, media_type FROM documents")
+            )
+        ).all()
+
+    def absent(row: Any) -> bool:
+        try:
+            return not storage.path_for(row.tenant_id, row.sha256, row.media_type).exists()
+        except Exception:  # noqa: BLE001
+            # `path_for` refuses anything that is not a SHA-256 digest — the guard that keeps
+            # a stored key from walking out of its tenant directory. A row that trips it has
+            # no reachable file by definition, so it belongs in this count; letting it raise
+            # would take down the whole check over one bad row and report nothing about the
+            # other nine hundred.
+            return True
+
+    missing = [row for row in rows if absent(row)]
+    if not missing:
+        return "ok", f"{len(rows)} document(s), every file present"
+
+    # Named, up to a point: an operator with three broken documents wants to know which, and
+    # one with three hundred wants the number and a place to start.
+    shown = ", ".join(row.filename for row in missing[:3])
+    more = f" and {len(missing) - 3} more" if len(missing) > 3 else ""
+    return "warn", (
+        f"{len(missing)} of {len(rows)} document(s) have no file on disk ({shown}{more}). "
+        f"They appear in listings and fail when opened."
+    )
+
+
 async def _extensions() -> tuple[Status, str]:
     required = {"vector", "pg_search", "pgcrypto"}
     async with get_session_factory()() as session:
@@ -201,12 +340,36 @@ async def _vector_space() -> tuple[Status, str]:
 
 
 def _model_service(name: str, url: str) -> Callable[[], Awaitable[tuple[Status, str]]]:
+    """Reachable, and **serving what**.
+
+    "Responding" was not enough. A TEI container serving a different model than the
+    deployment intends looks identical to a correct one from the outside: it answers
+    `/health`, it returns scores, and nothing anywhere says which weights produced them. The
+    two ways that goes wrong are both real — a cross-encoder swapped for a faster one is a
+    quality change nobody can see, and one swapped for a heavier one is the difference
+    between a search that takes 800 ms and one that takes fourteen seconds.
+
+    Reported rather than checked against an expected value: the model is a deployment
+    decision, and this file's job is to make decisions visible, not to have opinions about
+    them.
+    """
+
     async def check() -> tuple[Status, str]:
+        base = url.rstrip("/")
         async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(f"{url.rstrip('/')}/health")
-        if response.status_code == 200:
-            return "ok", f"{redact(url)} responding"
-        return "fail", f"{redact(url)} returned {response.status_code}"
+            response = await client.get(f"{base}/health")
+            if response.status_code != 200:
+                return "fail", f"{redact(url)} returned {response.status_code}"
+            # Best effort. An older TEI without `/info` is still a working service, and
+            # failing the check over a missing label would cry wolf.
+            served = ""
+            try:
+                info = await client.get(f"{base}/info")
+                if info.status_code == 200:
+                    served = str(info.json().get("model_id") or "")
+            except Exception:  # noqa: BLE001 - the health answer is what decides the status
+                served = ""
+        return "ok", f"{redact(url)} responding{f', serving {served}' if served else ''}"
 
     check.__name__ = name
     return check
@@ -286,9 +449,15 @@ async def run_diagnostics() -> list[Check]:
         await _timed("database (application role)", _application_connection),
         await _timed("row-level security", _rls_active),
         await _timed("migrations", _migration_state),
+        # Right after migrations, because it is the half of the install that `alembic upgrade
+        # head` does not do and that nothing else would report as missing.
+        await _timed("job queue", _job_queue),
         await _timed("extensions", _extensions),
         await _timed("content", _content),
         await _timed("document storage", _storage),
+        # After storage, because it needs the storage root to be readable to mean anything.
+        await _timed("document files", _orphaned_documents),
+        await _timed("stranded documents", _stranded_documents),
         await _timed("hardware profile", _hardware),
         await _timed("vector space", _vector_space),
         await _timed("embedding service", _model_service("embed", settings.tei_embed_url)),

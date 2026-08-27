@@ -8,7 +8,7 @@ import jwt
 import structlog
 from sqlalchemy import text
 
-from app.common.exceptions import AuthenticationError, NotFoundError
+from app.common.exceptions import AuthenticationError, NotFoundError, TenantSuspendedError
 from app.core.database import tenant_session, unscoped_session
 from app.core.security import (
     TokenKind,
@@ -20,6 +20,7 @@ from app.core.security import (
 from app.features.auth.repository import UserRepository
 from app.features.auth.throttle import run_hash
 from app.features.tenancy.context import TenantContext
+from app.features.tenancy.model import ACTIVE
 
 log = structlog.get_logger(__name__)
 
@@ -74,6 +75,10 @@ class Profile:
     labels: list[str]
     documents_uploaded: int
     created_at: datetime
+    #: Authority above every tenant. The nav item for the system panel hangs off this, and
+    #: the API refuses those routes regardless — hiding it only spares somebody a screen
+    #: full of 403s.
+    is_system_admin: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +92,13 @@ class AccessProfile:
     user_id: UUID
     context: TenantContext
     permissions: frozenset[str]
+    #: Authority above every tenant. Read from `users` per request rather than carried in
+    #: the token, so revoking it takes effect on the next request instead of whenever the
+    #: access token happens to expire.
+    is_system_admin: bool = False
+    #: The caller's own address, stamped onto audit rows so the record survives their
+    #: deletion. Resolved in the same session that reads permissions, so it is free.
+    email: str = ""
 
 
 class AuthService:
@@ -138,16 +150,38 @@ class AuthService:
         The tenant comes from the token; the labels come from the roles. This is the
         single place labels are resolved, and it is deliberately not somewhere a
         handler can influence.
+
+        **It is also where a suspended organisation is cut off**, and it has to be here
+        rather than at login. Refusing to issue new tokens would leave everybody already
+        signed in working for up to an access token's lifetime, and "suspend this customer"
+        that takes fifteen minutes to mean anything is not a suspension. This runs on every
+        request, so the next one after the switch is thrown is refused.
+
+        It costs no extra round trip: the tenant's own row is visible under its own RLS
+        policy inside the session this method already opens.
         """
         async with tenant_session(TenantContext(tenant_id=tenant_id)) as session:
             users = UserRepository(session)
             permissions = await users.permission_codes(user_id)
             labels = await users.label_ids(user_id)
+            status = await users.tenant_status()
+            is_system_admin = await users.is_system_admin(user_id)
+            email = await users.email(user_id)
+
+        # System administrators are exempt, and must be: the panel that reactivates a
+        # suspended organisation is reachable from an account that lives in one, and a
+        # check without this exception can lock the operator out of their own recovery.
+        # `/system/*` is the only surface they reach while suspended — every other route
+        # resolves this same profile and refuses below.
+        if status != ACTIVE and not is_system_admin:
+            raise TenantSuspendedError("this organisation is suspended")
 
         return AccessProfile(
             user_id=user_id,
             context=TenantContext.for_tenant(tenant_id, labels),
             permissions=permissions,
+            is_system_admin=is_system_admin,
+            email=email,
         )
 
     async def describe(self, profile: AccessProfile) -> Profile:
@@ -173,6 +207,7 @@ class AuthService:
                 tenant_name=await users.tenant_name(),
                 roles=await users.role_names(user.id),
                 permissions=sorted(profile.permissions),
+                is_system_admin=profile.is_system_admin,
                 labels=await users.label_names(profile.context.label_ids),
                 documents_uploaded=await users.documents_uploaded(user.id),
                 created_at=user.created_at,

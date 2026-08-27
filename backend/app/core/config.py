@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://zenith_app:change-me@localhost:5432/zenith"
     # Schema owner, bypasses RLS. Migrations and the install CLI only.
     database_owner_url: str = "postgresql+psycopg://zenith:zenith@localhost:5432/zenith"
+    # Bypasses RLS, holds no DDL. The system administration panel only — the one bypass
+    # that is reachable over HTTP, which is why it is a role of its own rather than the
+    # owner: it can destroy a tenant's data, and it cannot destroy the schema.
+    database_platform_url: str = (
+        "postgresql+psycopg://zenith_platform:change-me@localhost:5432/zenith"
+    )
     tei_embed_url: str = "http://localhost:8081"
     tei_rerank_url: str = "http://localhost:8082"
 
@@ -103,6 +109,18 @@ class Settings(BaseSettings):
     api_pool_size: int = 10
     worker_pool_size: int = 5
     statement_timeout_ms: int = 10_000
+
+    # `tsvector` | `bm25`. Which implementation the lexical half of retrieval uses.
+    #
+    # A setting rather than a straight replacement, and only until the BM25 path has been
+    # exercised on real corpora: `ts_rank_cd` is what every recall figure in `eval/` was
+    # measured against, and reverting a retrieval change on a customer installation has to
+    # be a restart rather than a redeploy. Migration 0022 keeps the GIN index for the same
+    # reason — dropping it would make the rollback a reindex.
+    #
+    # Not validated here for the reason `hardware` is not: importing the module that reads
+    # it would be a cycle. `verify_lexical_engine()` runs at startup.
+    lexical_engine: str = "tsvector"
 
     @field_validator("jwt_secret")
     @classmethod

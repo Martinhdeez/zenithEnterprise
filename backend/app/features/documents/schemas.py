@@ -9,12 +9,23 @@ class DocumentResponse(BaseModel):
     filename: str
     description: str | None
     sha256: str
+    #: What kind of file this is, and therefore which viewer opens it. The client needs it
+    #: to open a document that was never cited — there is no citation to read it from.
+    media_type: str
     status: str
     status_detail: str | None
     page_count: int | None
     size_bytes: int
     uploaded_by: UUID | None
     created_at: datetime
+    #: The labels this document carries, read from `documents.label_ids` — the denormalised
+    #: copy RLS itself evaluates, so what a client is shown is what the policy used.
+    #:
+    #: Ids rather than names: a name is a disclosure, and the caller may reach only some of
+    #: these. The client resolves the ones it already holds from `GET /labels` and shows
+    #: nothing for the rest, which keeps this endpoint from leaking a compartment's name
+    #: through a document somebody can otherwise see.
+    label_ids: list[UUID]
 
     model_config = {"from_attributes": True}
 
@@ -64,3 +75,17 @@ class FolderResponse(BaseModel):
 class FolderTreeResponse(BaseModel):
     folders: list[FolderResponse]
     total_documents: int
+
+
+class DocumentInsights(BaseModel):
+    """What a document is made of, and how much it has been used."""
+
+    #: Passages after chunking. The unit retrieval actually searches, so it says more about
+    #: whether a document is findable than its page count does.
+    chunks: int
+    #: How many distinct generated answers have cited it. Zero on a document nobody's
+    #: question has reached yet — which is a fact worth showing rather than hiding.
+    answers: int
+    #: The uploader's address. Null when that user has since been deleted — `uploaded_by`
+    #: is `ON DELETE SET NULL`, so a document outlives the person who added it.
+    uploaded_by: str | None = None

@@ -1,0 +1,102 @@
+# The "Cyber Standards Archive" demonstration corpus.
+#
+# The PDFs are not committed — they belong to their publishers and a repository is a poor
+# place for a hundred megabytes. What is committed is where each came from, why it is in the
+# set, and the checksum of the bytes actually ingested. Public URLs are not immutable: an
+# agency reissues a document and a corpus silently becomes a different corpus.
+#
+# Every file here is freely redistributable. NIST publications are US government work in the
+# public domain; CISA publishes its guidance openly.
+#
+# This corpus has **no measured recall figure** and must never be quoted as if it did. The
+# measured baseline is the other tenant's — see `.artifacts/specs/2026-08-26-what-this-demo-claims.md`.
+
+[[document]]
+id = "nist-csf-2"
+url = "https://nvlpubs.nist.gov/nistpubs/CSWP/NIST.CSWP.29.pdf"
+sha256 = "3c31f46fee98cac0c4323453e5109291a213b4de7fef8c058af9bf67f717433c"
+why = "The framework everything else maps to. Function/category identifiers — PR.AA-05 — are what the exact-match half of retrieval exists for."
+
+[[document]]
+id = "nist-sp-800-53r5"
+url = "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-53r5.pdf"
+sha256 = "fc63bcd61715d0181dd8e85998b1e6201ae3515fc6626102101cab1841e11ec6"
+why = "The control catalogue, 492 pages. The largest document in the set and the densest in identifiers."
+
+[[document]]
+id = "nist-sp-800-53b"
+url = "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-53B.pdf"
+sha256 = "8a9dae903c2e4924d7b67c246faa32757d15f9731abb85922fad63f9ea0e02fa"
+why = "Control baselines, almost entirely tables. The format this pipeline flattens by design, present so the limitation is visible rather than hidden."
+
+[[document]]
+id = "nist-sp-800-171r3"
+url = "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-171r3.pdf"
+sha256 = "3e4631df8b5d61f40a6e542b52779ef30ddbbfff31e09214fa94ad6e6f5e6d08"
+why = "Derived from 800-53. Half of a genuine cross-document question."
+
+[[document]]
+id = "nist-sp-800-207-zero-trust"
+url = "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-207.pdf"
+sha256 = "0290d6ece24874287316f4bf430fef770aa4ec08a2227c8f2c1e5b2ff975e03d"
+why = "Zero trust architecture. Pairs with the CISA maturity model below on the same subject in different words — a paraphrase question the lexical half cannot answer alone."
+
+[[document]]
+id = "cisa-zero-trust-maturity"
+url = "https://www.cisa.gov/sites/default/files/2023-04/zero_trust_maturity_model_v2_508.pdf"
+sha256 = "4a95fdff55a64e2468b69af075b7f208176b88c751af92aefc3b7dacad26fdb4"
+why = "The other half of that pair, from a different agency."
+
+[[document]]
+id = "nist-sp-800-61r2-incident"
+url = "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-61r2.pdf"
+sha256 = "b1c5ead0632dcfb979c59d8c462b094ad2465ddaf62d5c246289d6d9b4419df1"
+why = "Incident handling. Procedural prose rather than controls."
+
+[[document]]
+id = "nist-sp-800-63b-identity"
+url = "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-63b.pdf"
+sha256 = "ccfce7510a1267933f912d023306c6e7d485f21be63d271108b61aad6139127e"
+why = "Authentication assurance levels. Specific numeric requirements — entropy, session lifetimes — that a wrong answer gets visibly wrong."
+
+[[document]]
+id = "nist-ai-rmf-100-1"
+url = "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf"
+sha256 = "7576edb531d9848825814ee88e28b1795d3a84b435b4b797d3670eafdc4a89f1"
+why = "AI risk management. The subject a buyer is most likely to ask an unscripted question about."
+
+[[document]]
+id = "nist-sp-800-30r1-risk"
+url = "https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-30r1.pdf"
+sha256 = "f214087f0bdb35932a28c16eb93932a33c67a6edfb5e6f1638866bd201c98e04"
+why = "Risk assessment procedure, and an older typesetting than the rest — a different extraction path through the same parser."
+
+[[document]]
+id = "nist-sp-800-37r2-rmf"
+url = "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-37r2.pdf"
+sha256 = "4f75e1136bb905a654f1bcd9eefefb4108f47597276ee5eec0688f6d96f6a01d"
+why = "The risk management framework the others sit inside. Second largest, 183 pages."
+
+[[document]]
+id = "nist-sp-800-218-ssdf"
+url = "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-218.pdf"
+sha256 = "617746e553a9e2da49bfbd4eef0dfc3094758a39b869314e4173ac36605cde22"
+why = "Secure software development. Short and practice-shaped."
+
+[[document]]
+id = "nist-sp-800-88r1-sanitization"
+url = "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-88r1.pdf"
+sha256 = "acd2315cb1823d51db93b180d898fabfdf5e964e3fcb41cf44d14b4c3ec8c5c4"
+why = "Media sanitisation. Narrow, concrete, and the kind of question with exactly one right answer."
+
+[[document]]
+id = "nist-sp-800-145-cloud"
+url = "https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-145.pdf"
+sha256 = "7b0c1a9fdfc67218b8ba2098f448c100c27070db91736b3c87fed63bfa21d418"
+why = "Seven pages. The shortest document in the set, so a retrieval failure cannot be blamed on length."
+
+[[document]]
+id = "nist-sp-800-146-cloud-synopsis"
+url = "https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-146.pdf"
+sha256 = "03dd14aafeb121566b5c79167824327e8e3b1ed1cb5bd68989370ca8f23cf55c"
+why = "The long treatment of what the previous document defines in seven pages. The pair is a good demonstration of ranking the right length of answer."

@@ -24,6 +24,13 @@ class AccessLabel(Base):
             unique=True,
             postgresql_where=text("is_default"),
         ),
+        # And at most one quarantine label, for the same reason and enforced the same way.
+        Index(
+            "uq_access_labels_one_quarantine_per_tenant",
+            "tenant_id",
+            unique=True,
+            postgresql_where=text("is_quarantine"),
+        ),
         # `GET /labels/search`'s recency ordering. `id` is in the key because `created_at`
         # is not unique: migration 0007 backfilled every pre-existing row with the same
         # timestamp, so a cursor on the timestamp alone could not separate them.
@@ -43,6 +50,25 @@ class AccessLabel(Base):
     # `tenants.default_label_id` because that column would close a foreign-key cycle
     # between the two tables.
     is_default: Mapped[bool] = mapped_column(default=False, server_default="false")
+    #: Where an upload waits until the classifier files it (migration 0017). Granted to
+    #: `admin` and to nobody else, so an unfiled document is readable by an administrator and
+    #: by whoever uploaded it — not by the whole tenant, which is what the default label used
+    #: to mean.
+    #:
+    #: A flag rather than a name match: the name is a display string an administrator may
+    #: rename, and an access decision that turns on an editable string is not one.
+    is_quarantine: Mapped[bool] = mapped_column(default=False, server_default="false")
+    #: How much clearance this label demands, 0 to 10.
+    #:
+    #: **0 means compartment**, and it is the default: no clearance reaches this label, only
+    #: an explicit `role_labels` grant. That is the model the product shipped with, and it
+    #: is what a label should be unless somebody decides otherwise — a compartment is not
+    #: "low security", it is "orthogonal to seniority", and HR salary data is the example
+    #: that makes the distinction matter.
+    #:
+    #: 1 to 10 makes it a classification: any role whose `priority_level` is at or above it
+    #: reaches it without a grant.
+    priority_level: Mapped[int] = mapped_column(default=0, server_default="0")
 
 
 class RoleLabel(Base):

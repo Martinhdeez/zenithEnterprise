@@ -52,6 +52,14 @@ services:
       - "${TEI_EMBED_PORT:-8081}:80"
     volumes:
       - hf_cache:/data
+    # Embedding on CPU will take every core it is given: unlimited, this container ran at
+    # 1301% on a 14-core laptop and the machine got hot enough for its owner to come asking
+    # what was wrong. Ingestion is a background job and nobody is watching it finish, so the
+    # trade is the right way round — the box stays usable while a long document is indexed.
+    #
+    # It is a ceiling, not a reservation, and it is here rather than in a `docker update`
+    # because that one is lost the next time the container is recreated.
+    cpus: ${TEI_CPUS:-4.0}
 
   tei-rerank:
     image: ${TEI_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.8}
@@ -70,9 +78,31 @@ services:
     # They share the embedder's variables deliberately. One TEI setting must never be
     # configurable in two places that can disagree — that is the mistake this comment
     # exists to prevent from recurring.
+    # The model is a variable because it is a latency decision, and the right answer differs
+    # by an order of magnitude between a CPU and a GPU. Measured on the 30-question live set
+    # over a 21,295-passage corpus, same queries, same everything else:
+    #
+    #                              Recall@8   Recall@1   mean rank   median latency
+    #   mmarco-mMiniLMv2-L12         85.0%      66.7%       1.35          784 ms
+    #   bge-reranker-v2-m3           85.0%      76.7%       1.12       13,731 ms
+    #
+    # **Recall@8 is identical**, which is the number the answer path depends on: generation
+    # is handed eight passages either way, so the model sees the same evidence. What the
+    # larger cross-encoder buys is the *order* within those eight — ten points more often
+    # putting the answer first — and on this hardware it costs 17x the latency to do it.
+    #
+    # The default is therefore the small one, because a 13-second search is not a product.
+    # On a GPU the trade reverses: set `TEI_RERANK_MODEL=BAAI/bge-reranker-v2-m3` there and
+    # it is strictly better.
+    #
+    # Not calibrated by candidate count either — that was tried. `rerank_candidates=32` with
+    # the small model made it *worse*: Recall@1 66.7% -> 53.3%, mean rank 1.35 -> 1.62, at
+    # 2,781 ms. A weaker cross-encoder handed four times the candidates has four times the
+    # opportunities to be wrong, and RRF's ordering of the top eight was better than its
+    # reordering of thirty-two. Depth is not a substitute for a better judge.
     command:
       - "--model-id"
-      - "BAAI/bge-reranker-v2-m3"
+      - "${TEI_RERANK_MODEL:-cross-encoder/mmarco-mMiniLMv2-L12-H384-v1}"
       - "--auto-truncate"
       - "--max-batch-tokens"
       - "${TEI_MAX_BATCH_TOKENS:-2048}"
@@ -94,6 +124,10 @@ services:
       # policy, which `verify_rls_active()` refuses to start against. See db.7's role setup.
       ZENITH_DATABASE_URL: postgresql+psycopg://zenith_app:${ZENITH_APP_PASSWORD:-zenith_app}@db:5432/${POSTGRES_DB:-zenith}
       ZENITH_DATABASE_OWNER_URL: postgresql+psycopg://${POSTGRES_USER:-zenith}:${POSTGRES_PASSWORD:-zenith}@db:5432/${POSTGRES_DB:-zenith}
+      # Bypasses RLS and holds no DDL: the system administration panel only, via
+      # `platform_session`. Migration 0010 creates the role NOLOGIN — the operator sets
+      # the password, exactly as with zenith_app.
+      ZENITH_DATABASE_PLATFORM_URL: postgresql+psycopg://zenith_platform:${ZENITH_PLATFORM_PASSWORD:-zenith_platform}@db:5432/${POSTGRES_DB:-zenith}
       ZENITH_TEI_EMBED_URL: http://tei-embed:80
       ZENITH_TEI_RERANK_URL: http://tei-rerank:80
     ports:
@@ -115,6 +149,11 @@ services:
     # One document at a time by default. On `low-spec` that is not a preference: the
     # parser's memory and the embedder's must not overlap on a machine M0 already pushed
     # into an out-of-memory kill.
+    #
+    # This argument is what actually decides it — `Profile.ingestion_concurrency` records the
+    # value for the hardware and cannot enforce it, because procrastinate fixes concurrency at
+    # launch. `zenith diagnose` prints the active profile; `tasks.worker_concurrency()` is the
+    # number to put here for it.
     command:
       - "procrastinate"
       - "--app=app.features.ingestion.tasks.app"
@@ -127,6 +166,7 @@ services:
       # an API reading them (see `core.database.verify_rls_active`).
       ZENITH_DATABASE_URL: postgresql+psycopg://zenith_app:${ZENITH_APP_PASSWORD:-zenith_app}@db:5432/${POSTGRES_DB:-zenith}
       ZENITH_DATABASE_OWNER_URL: postgresql+psycopg://${POSTGRES_USER:-zenith}:${POSTGRES_PASSWORD:-zenith}@db:5432/${POSTGRES_DB:-zenith}
+      ZENITH_DATABASE_PLATFORM_URL: postgresql+psycopg://zenith_platform:${ZENITH_PLATFORM_PASSWORD:-zenith_platform}@db:5432/${POSTGRES_DB:-zenith}
       ZENITH_TEI_EMBED_URL: http://tei-embed:80
       ZENITH_TEI_RERANK_URL: http://tei-rerank:80
     volumes:

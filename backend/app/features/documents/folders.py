@@ -53,10 +53,16 @@ class Folder:
 @dataclass(frozen=True, slots=True)
 class FolderTree:
     folders: list[Folder] = field(default_factory=list[Folder])
-
-    @property
-    def total_documents(self) -> int:
-        return sum(folder.documents for folder in self.folders)
+    #: How many documents the caller can actually reach — counted, not summed.
+    #:
+    #: Summing the folders was right only while a document had at most one label. It has
+    #: had several since documents began carrying independent `label_ids`, and a document
+    #: filed under five labels appears in five folders and was counted five times: nine
+    #: documents were reported to the user as twenty-one, on the first screen.
+    #:
+    #: A folder count and a corpus size are different questions, and the second one cannot
+    #: be derived from the first when the sets overlap.
+    total_documents: int = 0
 
 
 async def tree(context: TenantContext) -> FolderTree:
@@ -111,6 +117,11 @@ async def tree(context: TenantContext) -> FolderTree:
             )
         ).one()
 
+        # The whole reachable corpus, in its own query. Every row `documents` would return
+        # to this caller, counted once regardless of how many labels it carries — which is
+        # the one thing a sum over the folders above cannot say.
+        total = await session.scalar(text("SELECT count(*) FROM documents")) or 0
+
     if unlabelled.documents:
         folders.append(
             Folder(
@@ -124,4 +135,4 @@ async def tree(context: TenantContext) -> FolderTree:
             )
         )
 
-    return FolderTree(folders=folders)
+    return FolderTree(folders=folders, total_documents=int(total))

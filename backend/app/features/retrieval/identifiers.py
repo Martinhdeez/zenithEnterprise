@@ -35,6 +35,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.retrieval.lexical import CONFIGURATION
+from app.features.retrieval.search import scope_params, scoped
 
 # How many exact matches to admit. Small on purpose: this query is precise by construction,
 # so a long tail would only add noise to a union the reranker then has to read.
@@ -58,7 +59,10 @@ def identifier_like(lexeme: str) -> bool:
 
 
 async def exact(
-    session: AsyncSession, question: str, limit: int = EXACT_CANDIDATES
+    session: AsyncSession,
+    question: str,
+    limit: int = EXACT_CANDIDATES,
+    documents: list[UUID] | None = None,
 ) -> list[tuple[UUID, float]]:
     """Passages containing *every* identifier in the question.
 
@@ -84,8 +88,9 @@ async def exact(
         text(
             "SELECT c.id, ts_rank_cd(c.tsv, q) AS score FROM chunks c, "
             "to_tsquery(:config, :query) q "
-            "WHERE c.tsv @@ q ORDER BY score DESC, c.id LIMIT :limit"
+            f"{scoped('WHERE c.tsv @@ q', documents)} "
+            "ORDER BY score DESC, c.id LIMIT :limit"
         ),
-        {"config": CONFIGURATION, "query": query, "limit": limit},
+        {"config": CONFIGURATION, "query": query, "limit": limit, **scope_params(documents)},
     )
     return [(row.id, float(row.score)) for row in rows]

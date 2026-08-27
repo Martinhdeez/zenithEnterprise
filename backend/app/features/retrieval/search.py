@@ -13,15 +13,25 @@ checks `label_ids`. Dropping that join to "simplify" the query would return pass
 documents the caller cannot open.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from uuid import UUID
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.retrieval.lexical import CONFIGURATION, to_tsquery
+from app.features.retrieval.lexical import CONFIGURATION, engine, to_tsquery
 
 CANDIDATES = 50
+
+# pgvector 0.8's answer to the post-filter problem, and the reason a scoped search is not
+# quietly worse than an unscoped one. An HNSW scan walks the graph for the nearest `ef`
+# vectors and *then* applies `WHERE document_id = ANY(...)`; scoped to two documents out of
+# a thousand, every one of those neighbours can belong to some other document, and the
+# dense half returns nothing while the index is working perfectly. Iterative scan keeps
+# walking until it has enough rows that survive the filter. `relaxed_order` rather than
+# `strict_order` because the results are re-ranked by RRF and the cross-encoder anyway —
+# paying for a total order here would buy something that is immediately thrown away.
+ITERATIVE_SCAN = "relaxed_order"
 
 # Reciprocal Rank Fusion. `k` damps the influence of the very top positions, so a chunk
 # ranked first by one half and absent from the other does not automatically beat a chunk
@@ -34,7 +44,17 @@ class Hit:
     chunk_id: UUID
     document_id: UUID
     filename: str
-    page_num: int
+    #: How this document is opened and highlighted. A paginated one gets a page and boxes;
+    #: a text one gets the character range. The client picks the viewer from this rather
+    #: than from the filename, because an extension is a guess and this is a fact.
+    media_type: str
+    #: `None` for a document with no pages.
+    page_num: int | None
+    #: Offsets into the stored text unit — the page for a PDF, the whole file for a text
+    #: document. What a text citation highlights with; meaningless as a highlight in a PDF,
+    #: where pdfplumber's text and pdf.js's text layer do not agree.
+    char_start: int
+    char_end: int
     text: str
     bboxes: list[dict[str, float]]
     # Positions rather than scores. `ts_rank_cd` and cosine distance live on different,
@@ -49,10 +69,36 @@ class Hit:
     lexical_score: float | None = None
     dense_score: float | None = None
     rerank_score: float | None = None
+    # The document's labels, so a result can say what it is filed under. Read from
+    # `documents.label_ids` rather than the chunk's copy: the two are kept in step by a
+    # trigger, and the document's is what the citation refers to.
+    #
+    # Defaulted because it is a display concern. A test about prompt construction or
+    # citation binding should not have to invent one to say what those functions do.
+    label_ids: list[UUID] = field(default_factory=list[UUID])
+
+
+def scoped(clause: str, documents: list[UUID] | None) -> str:
+    """The document filter, appended to a `WHERE` that already exists.
+
+    A narrowing filter and nothing else: it is applied *on top of* the policies, never
+    instead of them, and it can only ever remove rows the caller was already entitled to.
+    The `chunks` alias is deliberate — filtering `chunk_embeddings.document_id` would work
+    and would be wrong, because that table's policy is tenant-scoped only and the join to
+    `chunks` is what carries label isolation.
+    """
+    return f"{clause} AND c.document_id = ANY(:documents)" if documents else clause
+
+
+def scope_params(documents: list[UUID] | None) -> dict[str, object]:
+    return {"documents": [str(document) for document in documents]} if documents else {}
 
 
 async def lexical(
-    session: AsyncSession, question: str, limit: int = CANDIDATES
+    session: AsyncSession,
+    question: str,
+    limit: int = CANDIDATES,
+    documents: list[UUID] | None = None,
 ) -> list[tuple[UUID, float]]:
     """Exact terms: identifiers, product codes, proper nouns, acronyms.
 
@@ -63,6 +109,9 @@ async def lexical(
     The score comes back alongside the id and goes nowhere near fusion — it is logged, in
     `query_citations.score_bm25`, and that is the only thing it is for.
     """
+    if engine() == "bm25":
+        return await _bm25(session, question, limit, documents)
+
     query = await to_tsquery(session, question)
     if not query:
         return []
@@ -71,10 +120,10 @@ async def lexical(
         text(
             "SELECT c.id, ts_rank_cd(c.tsv, q) AS score FROM chunks c, "
             "to_tsquery(:config, :query) q "
-            "WHERE c.tsv @@ q "
+            f"{scoped('WHERE c.tsv @@ q', documents)} "
             "ORDER BY score DESC, c.id LIMIT :limit"
         ),
-        {"config": CONFIGURATION, "query": query, "limit": limit},
+        {"config": CONFIGURATION, "query": query, "limit": limit, **scope_params(documents)},
     )
     return [(row.id, float(row.score)) for row in rows]
 
@@ -86,6 +135,7 @@ async def dense(
     version: str,
     limit: int = CANDIDATES,
     ef_search: int | None = None,
+    documents: list[UUID] | None = None,
 ) -> list[tuple[UUID, float]]:
     """Meaning: intent, synonyms, paraphrase — everything the lexical half cannot reach.
 
@@ -99,6 +149,16 @@ async def dense(
         # caps below what the data supports.
         await session.execute(text(f"SET LOCAL hnsw.ef_search = {int(ef_search)}"))
 
+    if documents:
+        # Only when scoped. Iterative scan costs nothing on a query with no filter — there
+        # is nothing to discard — but it is a behaviour change to the hot path, and the hot
+        # path is not what this is for.
+        await session.execute(text(f"SET LOCAL hnsw.iterative_scan = {ITERATIVE_SCAN}"))
+
+    # One embedding space only. `embedding_spaces` exists so several can coexist during a
+    # reindex, and vectors from two models rank against each other as confident nonsense.
+    space = "WHERE e.embedding_model = :model AND e.embedding_version = :version"
+
     rows = await session.execute(
         text(
             # Reported as *similarity* rather than distance, so both score columns in
@@ -108,7 +168,7 @@ async def dense(
             # Not decoration: `chunk_embeddings` is filtered by tenant only, so this join is
             # where label isolation is enforced for the dense half.
             "JOIN chunks c ON c.id = e.chunk_id "
-            "WHERE e.embedding_model = :model AND e.embedding_version = :version "
+            f"{scoped(space, documents)} "
             "ORDER BY e.embedding <=> CAST(:embedding AS vector) LIMIT :limit"
         ),
         {
@@ -116,13 +176,55 @@ async def dense(
             "version": version,
             "embedding": str(embedding),
             "limit": limit,
+            **scope_params(documents),
         },
     )
     return [(row.id, float(row.score)) for row in rows]
 
 
+async def _bm25(
+    session: AsyncSession,
+    question: str,
+    limit: int,
+    documents: list[UUID] | None,
+) -> list[tuple[UUID, float]]:
+    """The same contract, resolved inside the index instead of over the whole corpus.
+
+    `ts_rank_cd` has to score every matching row before `LIMIT` can choose, so its cost is
+    linear in matches: 5,953 ms at 300,000 passages under the real policy. ParadeDB resolves
+    the top N inside the index — a different algorithm, which is why the gap is ~130x and
+    why no hardware closes it. Migration 0022 has the measurements and the argument.
+
+    Isolation is not this function's to enforce and it does not try: `zenith_lexical_search`
+    takes no tenant and no labels, and reads both from the session variables the policies
+    read. There is no argument here through which another tenant's corpus can be asked for.
+
+    The document scope stays a SQL filter rather than moving into the Tantivy query. It is
+    not an isolation predicate — `_reachable` has already checked those documents are
+    visible — so leaving it outside costs a filter over at most `want` rows and keeps the
+    scoping rule in one place. Over-fetching covers the rows it discards.
+    """
+    want = limit * 4 if documents else limit
+    rows = await session.execute(
+        text(
+            "SELECT chunk_id, score FROM zenith_lexical_search(:question, :want)"
+            + (
+                " WHERE chunk_id IN (SELECT id FROM chunks WHERE document_id = ANY(:documents))"
+                if documents
+                else ""
+            )
+            + " LIMIT :limit"
+        ),
+        {"question": question, "want": want, "limit": limit, **scope_params(documents)},
+    )
+    return [(row.chunk_id, float(row.score)) for row in rows]
+
+
 def candidates(
-    lexical_ids: list[UUID], dense_ids: list[UUID], exact_ids: list[UUID] | None = None
+    lexical_ids: list[UUID],
+    dense_ids: list[UUID],
+    exact_ids: list[UUID] | None = None,
+    limit: int | None = None,
 ) -> list[tuple[UUID, float]]:
     """Everything either half proposed, in fused order.
 
@@ -133,14 +235,23 @@ def candidates(
 
     Measured: identifier questions scored 0% at rank 8, and two of six were not in the fused
     top-50 at all — found by the lexical half, ranked out of existence by agreement.
+
+    **`limit` is the cut the caller will actually take, and passing it is what keeps the
+    leader floor alive.** The reranker's budget is smaller than the union — 8 candidates
+    against a union of up to 110 — so the caller truncates. Truncating *afterwards* silently
+    undoes `_promote_leaders`: with no limit here nothing is ever missing, no leader is
+    promoted, and the caller's slice is a plain RRF top-N, which is the exact ordering this
+    function exists to avoid.
+
+    It was not theoretical. Asked *"¿cuánto tiempo máximo puede durar la detención
+    preventiva?"* over a Spanish legal corpus, the passage answering it — Constitución
+    article 17, **rank 1 in the dense half** — scored 1/61 for its single first place while
+    seven passages ranked mediocrely by *both* halves scored more, and the slice to 8 threw
+    it away. The answer was assembled from the Código Penal instead.
     """
     exact_ids = exact_ids or []
-    return fuse(
-        lexical_ids,
-        dense_ids,
-        limit=len(lexical_ids) + len(dense_ids) + len(exact_ids),
-        exact_ids=exact_ids,
-    )
+    total = len(lexical_ids) + len(dense_ids) + len(exact_ids)
+    return fuse(lexical_ids, dense_ids, limit=limit or total, exact_ids=exact_ids)
 
 
 def fuse(
@@ -234,7 +345,8 @@ async def hydrate(
 
     rows = await session.execute(
         text(
-            "SELECT c.id, c.document_id, d.filename, c.page_num, c.text, c.bboxes "
+            "SELECT c.id, c.document_id, d.filename, d.media_type, c.page_num, "
+            "       c.char_start, c.char_end, c.text, c.bboxes, d.label_ids "
             "FROM chunks c JOIN documents d ON d.id = c.document_id "
             "WHERE c.id = ANY(:ids)"
         ),
@@ -246,9 +358,13 @@ async def hydrate(
             chunk_id=row.id,
             document_id=row.document_id,
             filename=row.filename,
+            media_type=row.media_type,
             page_num=row.page_num,
+            char_start=row.char_start,
+            char_end=row.char_end,
             text=row.text,
             bboxes=list(row.bboxes or []),
+            label_ids=list(row.label_ids or []),
             lexical_rank=lexical_positions.get(row.id),
             dense_rank=dense_positions.get(row.id),
             score=dict(ranked)[row.id],

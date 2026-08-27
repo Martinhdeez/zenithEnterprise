@@ -15,16 +15,28 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
-import { ArrowUp, MessageSquare, Quote, Search as SearchIcon, ShieldCheck, Square } from "lucide-react";
+import { ArrowUp, MessageSquare, Square } from "lucide-react";
 
-import { history } from "@/features/history";
-import { reduce, type AnswerState } from "./answerState";
-import { streamQuery, type Citation } from "./stream";
-import { Answer } from "./Answer";
+import { history, type HistoryEntry } from "@/features/history";
+import { listDocuments, type DocumentSummary } from "@/features/documents";
+import { complete, mentionAt, mentioned, type Mention } from "./compose/mentions";
+import { MentionMenu } from "./compose/MentionMenu";
+import { asThread, reduce, type AnswerState } from "./answer/answerState";
+import { streamQuery, type Citation } from "./stream/stream";
+import { Answer } from "./answer/Answer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 const INITIAL: AnswerState = { phase: "idle" };
+
+/** Long enough that typing a word is one request, short enough to feel immediate — the same
+    value the command palette settled on, for the same reason. */
+const MENTION_DEBOUNCE_MS = 200;
+
+/** How many documents the mention menu offers at once. More than fits without scrolling is
+    a list to read rather than a menu to pick from; the answer to "mine isn't here" is to
+    type another letter, which is cheaper than scrolling. */
+const MENTION_LIMIT = 6;
 
 /** Shapes of question this corpus can answer, for somebody who has never used it. Kept
     generic — the tenant's documents are not known here — and only shown until there is
@@ -41,32 +53,49 @@ const STARTERS = [
  * It used to be a heading and one line, which left the two things nobody guesses
  * unexplained: that every sentence carries a citation you can click to open the page it
  * came from, and that the model is required to refuse rather than fill a gap from its own
- * knowledge. Both are the point of the product, and the empty screen is the only moment
- * there is room to say them.
+ * knowledge.
+ *
+ * **Both are demonstrated rather than described.** This screen used to make them in four
+ * bullet points with icons — every fact carries a citation, it abstains rather than
+ * inventing, it remembers the thread, use Search for passages. All true, and all read as
+ * documentation: somebody arriving here met a manual before they met a tool, and every
+ * claim in it was one they could have verified by asking a single question.
+ *
+ * So the claims are shown by the record instead. Each past question carries what it
+ * actually produced — the passages it cited, or that it found nothing — which makes the
+ * citation promise and the abstention promise visible as facts about this corpus rather
+ * than as assurances about the software. The one sentence that survives is the one nothing
+ * on screen can demonstrate on its own: that answers come from the corpus and never from
+ * what the model happens to know.
  *
  * Past questions come from `GET /query/history` — the real record, which is what this
  * endpoint holds. `Search`'s equivalent list is local storage precisely because searches
  * are *not* written there; here the data is the right data.
  */
 function EmptyState({ token, onAsk }: { token: string; onAsk: (question: string) => void }) {
-  const [recent, setRecent] = useState<string[]>([]);
+  // The whole entry, not just its text: what a question *produced* is the part that shows
+  // the product working, and it is already in the response.
+  const [recent, setRecent] = useState<HistoryEntry[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     void history(token)
       .then((page) => {
         if (cancelled) return;
-        // Deduplicated: asking the same thing twice should not fill the list with it.
-        const asked = page.entries.map((entry) => entry.question);
-        setRecent([...new Set(asked)].slice(0, 3));
+        // Deduplicated by question: asking the same thing twice should not fill the list
+        // with it, and the first occurrence is the most recent.
+        const seen = new Set<string>();
+        setRecent(
+          page.entries
+            .filter((entry) => !seen.has(entry.question) && seen.add(entry.question))
+            .slice(0, 4),
+        );
       })
       .catch(() => !cancelled && setRecent([]));
     return () => {
       cancelled = true;
     };
   }, [token]);
-
-  const offered = recent.length > 0 ? recent : STARTERS;
 
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center gap-6 py-12 text-center">
@@ -75,56 +104,64 @@ function EmptyState({ token, onAsk }: { token: string; onAsk: (question: string)
       </div>
 
       <div className="space-y-1.5">
-        <p className="text-lg font-medium text-foreground">Ask your documents</p>
+        <h2 className="text-2xl font-normal text-foreground">Ask your documents</h2>
         <p className="text-sm text-muted-foreground">
           Answered only from what is in your corpus — never from what the model happens to
           know.
         </p>
       </div>
 
-      <ul className="w-full space-y-2.5 text-left">
-        <Point icon={<Quote className="size-4" />}>
-          Every fact is followed by a citation. Click one to open the page it came from,
-          highlighted.
-        </Point>
-        <Point icon={<ShieldCheck className="size-4" />}>
-          If your documents do not answer the question, it says so instead of inventing an
-          answer.
-        </Point>
-        <Point icon={<SearchIcon className="size-4" />}>
-          Looking for the passages themselves rather than a written answer? Use Search.
-        </Point>
-      </ul>
-
-      <div className="w-full space-y-2">
-        <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">
-          {recent.length > 0 ? "Ask again" : "Try"}
-        </p>
-        <div className="flex flex-col gap-1.5">
-          {offered.map((question) => (
-            <button
-              key={question}
-              type="button"
-              onClick={() => onAsk(question)}
-              className="truncate rounded-lg border border-input bg-card px-3.5 py-2 text-left text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
-            >
-              {question}
-            </button>
-          ))}
+      {recent.length > 0 ? (
+        <div className="w-full space-y-2">
+          <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">
+            Asked here
+          </p>
+          <ul className="flex flex-col gap-3">
+            {recent.map((entry) => (
+              <li key={entry.query_id}>
+                <button
+                  type="button"
+                  onClick={() => onAsk(entry.question)}
+                  className="flex w-full items-center justify-between gap-4 rounded-2xl border border-input bg-secondary/50 px-4 py-3 text-left transition-colors hover:border-primary/50 hover:bg-secondary"
+                >
+                  <span className="truncate text-sm text-foreground">{entry.question}</span>
+                  {/* What it produced, in the apparatus face — a count is a measurement and
+                      reads as one. This is the citation promise and the abstention promise
+                      shown as facts about this corpus rather than asserted about the
+                      software. */}
+                  <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                    {entry.citations > 0
+                      ? `${entry.citations} cited`
+                      : "found nothing"}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
-      </div>
+      ) : (
+        <div className="w-full space-y-2">
+          {/* Nothing has been asked yet, so there is nothing to show and the honest thing
+              is to offer a way in rather than manufacture evidence. */}
+          <p className="text-xs tracking-wide text-muted-foreground/70 uppercase">Try</p>
+          <div className="flex flex-col gap-3">
+            {STARTERS.map((question) => (
+              <button
+                key={question}
+                type="button"
+                onClick={() => onAsk(question)}
+                className="truncate rounded-2xl border border-input bg-secondary/50 px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:bg-secondary hover:text-foreground"
+              >
+                {question}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function Point({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-      <span className="mt-0.5 shrink-0 text-primary">{icon}</span>
-      <span>{children}</span>
-    </li>
-  );
-}
 
 interface Props {
   token: string;
@@ -154,6 +191,54 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
   const [question, setQuestion] = useState("");
   const inflight = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // The mention being typed, the documents offered for it, and the row the keyboard is on.
+  const [mention, setMention] = useState<Mention | null>(null);
+  const [matches, setMatches] = useState<DocumentSummary[]>([]);
+  const [active, setActive] = useState(0);
+  // Every document mentioned so far this session. Kept rather than replaced by each search
+  // so that `mentioned()` — which resolves the ids from the text — can still find a file
+  // that was named three edits ago and no longer matches what is in the box.
+  const [known, setKnown] = useState<DocumentSummary[]>([]);
+
+  // Searched on the server, like the palette. Filtering one page in the browser finds the
+  // documents near the top of the list and silently misses the rest, which reads as the
+  // document not existing.
+  useEffect(() => {
+    if (!mention) return;
+    const timer = setTimeout(() => {
+      void listDocuments(token, null, null, mention.query.trim() || undefined)
+        .then((page) => {
+          setMatches(page.items.slice(0, MENTION_LIMIT));
+          setActive(0);
+          setKnown((current) => {
+            const seen = new Set(current.map((document) => document.id));
+            return [...current, ...page.items.filter((document) => !seen.has(document.id))];
+          });
+        })
+        .catch(() => setMatches([]));
+    }, MENTION_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [token, mention]);
+
+  // The scope, derived from the text on every render rather than held in its own state.
+  // Deleting `@handbook.pdf` from the box has to un-scope the question, and a separate list
+  // of chips would have to be kept in step with the words by hand — which is the bug where
+  // an answer is quietly restricted to a document the user cannot see mentioned anywhere.
+  const scope = mentioned(question, known);
+
+  const pick = useCallback(
+    (document: DocumentSummary) => {
+      setQuestion((current) => {
+        const at = mentionAt(current, inputRef.current?.selectionStart ?? current.length);
+        return at ? complete(current, at, document.filename) : current;
+      });
+      setMention(null);
+      inputRef.current?.focus();
+    },
+    [],
+  );
 
   const ask = useCallback(
     async (asked: string) => {
@@ -161,6 +246,7 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
       const controller = new AbortController();
       inflight.current = controller;
 
+      const thread = [...turns, state];
       setTurns((current) => (state.phase === "idle" ? current : [...current, state]));
       dispatch({ type: "ask", question: asked });
       try {
@@ -169,10 +255,26 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
           token,
           {
             onToken: (text) => dispatch({ type: "token", text }),
-            onResult: (result) => dispatch({ type: "result", result }),
+            onResult: (result) => {
+              dispatch({ type: "result", result });
+              // The first citation opens on its own, so the source is beside the answer
+              // without anybody having to be told to click it. That is the product's own
+              // argument — every claim checkable against its page — making itself.
+              //
+              // Nothing opens on an abstention: it has no citations, and leaving the
+              // previous document on screen next to "no answer was found in your
+              // documents" would be the interface contradicting the sentence beside it.
+              const first = result.citations[0];
+              if (first) onCitation(first);
+            },
             onError: (message) => dispatch({ type: "error", message }),
           },
-          { labels, signal: controller.signal },
+          {
+            labels,
+            signal: controller.signal,
+            history: asThread(thread),
+            documents: scope.map((document) => document.id),
+          },
         );
       } catch (error) {
         // An abort is the user asking something else, not a failure to report.
@@ -185,8 +287,14 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
     },
     // `state` deliberately included: the closure needs the *current* live turn at the
     // moment a new question starts, to carry it into `turns` before replacing it.
+    // `state` and `turns` deliberately included: the closure needs the *current* thread at
+    // the moment a new question starts — to carry the live turn into `turns`, and to send
+    // the finished ones as the context the next answer is allowed to refer to. Omitting
+    // `turns` would send a thread frozen at the first question.
+    // `scope` too: it is derived from the composer's text, and an `ask` closed over a
+    // stale one would send the previous turn's mentions with this turn's question.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [token, labels, state],
+    [token, labels, state, turns, question, onCitation],
   );
 
   const cancel = useCallback(() => {
@@ -201,7 +309,11 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
 
   useEffect(() => {
     if (!prefill) return;
-    setQuestion(prefill.text);
+    // Asked, not typed. Putting the text in the composer left it sitting there after the
+    // answer had streamed, so the next question had to start with deleting the last one —
+    // and the question is already on screen at the top of its own turn, which is where a
+    // thread shows what was asked. The composer's job is what you are about to send.
+    setQuestion("");
     void ask(prefill.text);
     // `prefill.nonce` is the trigger — a click on the same past question a second time
     // still asks it again, which `[prefill]` alone (identity-equal to itself) would not.
@@ -260,16 +372,83 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
         }}
         className="mx-auto w-full max-w-3xl shrink-0 p-4 2xl:max-w-4xl"
       >
+        {mention && (
+          <MentionMenu
+            documents={matches}
+            active={active}
+            onPick={pick}
+            onHover={setActive}
+          />
+        )}
+
+        {/* What the question is restricted to, in the same words the composer uses. The
+            answer will be grounded in these documents and nothing else, and a scope the
+            user cannot see is a scope they cannot correct — this is the only place that
+            says so before they press send. */}
+        {scope.length > 0 && (
+          <p className="mb-2 flex flex-wrap items-center gap-1.5 px-1 text-xs text-muted-foreground">
+            <span>Answering from</span>
+            {scope.map((document) => (
+              <span
+                key={document.id}
+                className="max-w-[16rem] truncate rounded-md border border-primary/40 bg-primary/15 px-1.5 py-0.5 text-foreground"
+              >
+                {document.filename}
+              </span>
+            ))}
+            <span>only</span>
+          </p>
+        )}
+
         {/* One rounded pill rather than an input-plus-button row — the border lives on
             this wrapper and the input itself is borderless inside it, which is the
             difference between "a text field next to a button" and the single composer
             every chat interface this is modelled on uses. One surface too: the wrapper
             takes the field's own colour so the two do not read as stacked shapes. */}
-        <div className="flex items-center gap-2 rounded-3xl border border-input bg-input/30 py-1.5 pr-1.5 pl-4 shadow-sm transition-colors focus-within:border-primary/40">
+        {/* `rounded-full`, matching `SearchField` exactly rather than approximately. It was
+            `rounded-3xl`, which is derived from `--radius` — so when the radius dropped to
+            0.375rem this went from about 22px to about 13px and started reading as a
+            rectangle beside a pill. The two places a person types in this product should be
+            the same shape, and "nearly the same" is the version that breaks the first time
+            a token moves. */}
+        <div className="flex items-center gap-2 rounded-full border border-input bg-input/30 py-1.5 pr-1.5 pl-4 shadow-sm transition-colors focus-within:border-primary/40">
           <Input
+            ref={inputRef}
             value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            placeholder="Ask a question about your documents"
+            onChange={(event) => {
+              setQuestion(event.target.value);
+              setMention(mentionAt(event.target.value, event.target.selectionStart ?? 0));
+            }}
+            // The cursor can move without the text changing — an arrow key, a click into
+            // the middle of a word — and the menu has to follow it, or it stays open over
+            // a mention the caret has already left.
+            onSelect={(event) => {
+              const field = event.target as HTMLInputElement;
+              setMention(mentionAt(field.value, field.selectionStart ?? 0));
+            }}
+            onKeyDown={(event) => {
+              if (!mention) return;
+              if (event.key === "Escape") {
+                event.preventDefault();
+                setMention(null);
+              } else if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setActive((current) => (current + 1) % Math.max(matches.length, 1));
+              } else if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setActive(
+                  (current) => (current - 1 + matches.length) % Math.max(matches.length, 1),
+                );
+              } else if ((event.key === "Enter" || event.key === "Tab") && matches[active]) {
+                // Enter accepts the highlighted document rather than sending the question.
+                // Sending a half-typed mention is the one outcome nobody wants: the
+                // question goes off unscoped with `@han` sitting in the middle of it.
+                event.preventDefault();
+                pick(matches[active]);
+              }
+            }}
+            onBlur={() => setMention(null)}
+            placeholder="Ask a question — @ to answer from one document"
             aria-label="Question"
             maxLength={1000}
             // `dark:bg-transparent` is load-bearing, same as the search bar: the base

@@ -9,22 +9,44 @@
  * generation ever answers the second one.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { search, type SearchHit } from "./api";
 import { ApiError } from "@/shared/api/http";
 import type { Citation } from "@/features/chat";
 import { Clock, Search as SearchIcon } from "lucide-react";
 
+import { TagChips, labels as fetchLabels } from "@/features/labels";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProgressBar } from "@/shared/components/ProgressBar";
+import { forget, read, write } from "@/shared/lib/storage";
 
 interface Props {
   token: string;
   onCitation: (citation: Citation) => void;
+  /**
+   * The chunk the PDF panel is currently showing, or null when it is closed.
+   *
+   * Owned by the parent, which owns the viewer. A result list that remembered its own last
+   * click would keep a row lit after somebody closed the panel — pointing at something that
+   * is not on screen, which is worse than pointing at nothing.
+   */
+  openChunkId?: string | null;
   searchable: boolean;
   labels?: string[];
+  /** Clicking a chip on a result narrows the workspace to that label. */
+  onSelectTag?: (name: string) => void;
+  /**
+   * The folder this search is confined to, and how to leave it.
+   *
+   * Both, or neither. A search that found nothing inside one folder is the single most
+   * common way this screen ends up looking broken, and the empty state cannot say so
+   * without knowing the folder's name — nor offer the fix without a way to take it.
+   */
+  filterName?: string | null;
+  onClearFilter?: () => void;
 }
 
 type State =
@@ -57,11 +79,12 @@ const RECENT_LIMIT = 5;
  */
 function readRecent(): string[] {
   try {
-    const raw: unknown = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
+    const raw: unknown = JSON.parse(read("local", RECENT_KEY) ?? "[]");
     return Array.isArray(raw) ? raw.filter((item): item is string => typeof item === "string") : [];
   } catch {
     // Hand-edited or written by an older version. A broken preference is not worth an
-    // error on a screen whose job is to search.
+    // error on a screen whose job is to search. (`read` handles a browser that refuses
+    // storage; this handles a value that is there and is not JSON.)
     return [];
   }
 }
@@ -70,15 +93,76 @@ function remember(query: string): string[] {
   // Most recent first, no duplicates: searching the same thing twice should move it to the
   // top rather than fill the list with one word.
   const next = [query, ...readRecent().filter((item) => item !== query)].slice(0, RECENT_LIMIT);
-  localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  // Guarded in `shared/lib/storage`, and the reason is recorded there: `setItem` throws when
+  // the quota is full or the browser refuses storage, and this call sits inside the `try`
+  // around the search itself. A search that worked perfectly once reported "The search
+  // failed", because a convenience nobody asked for could not save a string.
+  write("local", RECENT_KEY, JSON.stringify(next));
   return next;
 }
 
-export function Search({ token, onCitation, searchable, labels }: Props) {
+/**
+ * One passage, in the shape the viewer takes.
+ *
+ * Extracted because there are now two callers — clicking a result, and the top result
+ * opening on its own — and a citation built twice is a citation that drifts.
+ */
+function citationOf(hit: SearchHit, index: number): Citation {
+  return {
+    marker: index + 1,
+    chunk_id: hit.chunk_id,
+    document_id: hit.document_id,
+    filename: hit.filename,
+    media_type: hit.media_type,
+    page_num: hit.page_num,
+    char_start: hit.char_start,
+    char_end: hit.char_end,
+    text: hit.text,
+    bboxes: hit.bboxes,
+  };
+}
+
+export function Search({
+  token,
+  onCitation,
+  openChunkId,
+  searchable,
+  labels,
+  onSelectTag,
+  filterName,
+  onClearFilter,
+}: Props) {
+  // Resolved from what this caller reaches; an unknown id belongs to a label they see the
+  // passage through some other route, and is not theirs to learn the name of.
+  const [known, setKnown] = useState<Map<string, string>>(new Map());
   const [state, setState] = useState<State>({ phase: "idle" });
   const [query, setQuery] = useState("");
   const [recent, setRecent] = useState<string[]>(readRecent);
+  // One switch for the whole list rather than one per result: the card itself is a
+  // `<button>`, and an expander inside it would be an interactive element nested in another
+  // — invalid, and unreachable by keyboard. It also matches how the detail is actually used:
+  // somebody asks how the ranking works, and every result answers at once.
+  const [showRanking, setShowRanking] = useState(false);
   const inflight = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchLabels(token)
+      .then((all) => !cancelled && setKnown(new Map(all.map((l) => [l.id, l.name]))))
+      .catch(() => !cancelled && setKnown(new Map()));
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const namesFor = useCallback(
+    (hit: SearchHit): string[] =>
+      hit.label_ids
+        .map((id) => known.get(id))
+        .filter((name): name is string => name !== undefined)
+        .sort(),
+    [known],
+  );
 
   const run = useCallback(
     async (q: string) => {
@@ -100,6 +184,18 @@ export function Search({ token, onCitation, searchable, labels }: Props) {
           reason: result.reason,
           tookMs: result.took_ms,
         });
+        // The best passage opens on its own, rather than waiting to be clicked.
+        //
+        // The preview panel is mounted only while a document is open, and deliberately so:
+        // an empty panel holding "click a citation" spends a third of the viewport on an
+        // instruction. But the answer to that is not to leave the space empty — it is to
+        // put the source in it as soon as there *is* one. The product's whole argument is
+        // that every passage can be checked against its page, and this is that argument
+        // making itself without anybody having to be told.
+        //
+        // The top hit only. Opening anything else would be choosing for the reader.
+        const best = result.hits[0];
+        if (best) onCitation(citationOf(best, 0));
       } catch (error) {
         // An abort is the user cancelling, not a failure — `cancel` below already put the
         // state back to idle, and overwriting that with an error would fight it.
@@ -111,7 +207,7 @@ export function Search({ token, onCitation, searchable, labels }: Props) {
         });
       }
     },
-    [token, labels],
+    [token, labels, onCitation],
   );
 
   const cancel = useCallback(() => {
@@ -185,7 +281,7 @@ export function Search({ token, onCitation, searchable, labels }: Props) {
             <SearchIcon className="size-5 text-primary" />
           </div>
           <div className="space-y-1.5">
-            <p className="text-base font-medium text-foreground">Search your corpus</p>
+            <h2 className="text-2xl font-normal text-foreground">Search your corpus</h2>
             <p className="mx-auto max-w-md text-sm text-muted-foreground">
               Keyword and meaning at once — passages come back ranked, with the page they
               came from. Nothing is generated here; use Chat for a written answer.
@@ -204,7 +300,10 @@ export function Search({ token, onCitation, searchable, labels }: Props) {
                     setQuery(suggestion);
                     void run(suggestion);
                   }}
-                  className="inline-flex max-w-xs items-center gap-1.5 rounded-full border border-input bg-card px-3.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                  // `bg-secondary/50`, not `bg-card`: this palette makes `--card` equal to
+                  // `--background`, so a chip filled with it is a chip with no fill and
+                  // nothing but a hairline saying it can be clicked.
+                  className="inline-flex max-w-xs items-center gap-1.5 rounded-full border border-input bg-secondary/50 px-4 py-2 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:bg-secondary hover:text-foreground"
                 >
                   {recent.length > 0 && <Clock className="size-3 shrink-0 opacity-60" />}
                   <span className="truncate">{suggestion}</span>
@@ -215,7 +314,7 @@ export function Search({ token, onCitation, searchable, labels }: Props) {
               <button
                 type="button"
                 onClick={() => {
-                  localStorage.removeItem(RECENT_KEY);
+                  forget("local", RECENT_KEY);
                   setRecent([]);
                 }}
                 className="text-xs text-muted-foreground/60 transition-colors hover:text-foreground"
@@ -232,24 +331,56 @@ export function Search({ token, onCitation, searchable, labels }: Props) {
       )}
 
       {state.phase === "error" && (
-        <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-          {state.message}
-        </p>
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive"
+        >
+          <span>{state.message}</span>
+          {/* A failed search is usually a moment of trouble rather than a permanent one — a
+              restarted container, a connection that dropped — and the query is still on
+              screen. Retyping it to find out was the only way to try again. */}
+          <button
+            type="button"
+            onClick={() => void run(state.query)}
+            className="shrink-0 rounded-full border border-destructive/40 px-3 py-1 text-xs font-medium transition-colors hover:bg-destructive/20"
+          >
+            Try again
+          </button>
+        </div>
       )}
 
       {state.phase === "done" && (
         <div className="space-y-3">
-          <p className="text-xs text-muted-foreground">
-            {state.hits.length} passage{state.hits.length === 1 ? "" : "s"} · {state.tookMs} ms
-            {state.degraded && (
-              <span className="ml-2 text-zenith-amber">Degraded: {state.reason}</span>
+          <div className="flex items-baseline justify-between gap-4 text-xs">
+            <p className="text-muted-foreground">
+              {state.hits.length} passage{state.hits.length === 1 ? "" : "s"} · {state.tookMs} ms
+              {state.degraded && (
+                // No "Degraded:" prefix any more. The sentence from `degradation.py` is
+                // already a complete statement written for a reader, and a label in front of
+                // it turns it back into a status code with prose attached.
+                <span className="ml-2 text-zenith-amber">{state.reason}</span>
+              )}
+            </p>
+            {state.hits.length > 0 && (
+              // The ranking evidence is genuinely the product's argument — this is the one
+              // search you can ask *why* — but it is an argument for somebody who asked. In
+              // front of an audience it read as four rows of decimals under every result,
+              // which is the first thing the eye lands on and the last thing a business
+              // reader can use. Off by default, one click away, and the button says what it
+              // reveals rather than naming the numbers.
+              <button
+                type="button"
+                onClick={() => setShowRanking((current) => !current)}
+                aria-pressed={showRanking}
+                className="shrink-0 rounded-full px-2 py-0.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                {showRanking ? "Hide ranking detail" : "Why these results?"}
+              </button>
             )}
-          </p>
+          </div>
 
           {state.hits.length === 0 && (
-            <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-              Nothing matched that query.
-            </div>
+            <NothingMatched filterName={filterName} onClearFilter={onClearFilter} />
           )}
 
           {/* Separate cards, same as the history and document lists. A hit is a filename,
@@ -257,48 +388,141 @@ export function Search({ token, onCitation, searchable, labels }: Props) {
               rule gives the eye nothing to tell it where one result stops and the next
               starts. */}
           <ul className="space-y-2">
-            {state.hits.map((hit, index) => (
+            {state.hits.map((hit, index) => {
+              const open = hit.chunk_id === openChunkId;
+              return (
               <li key={hit.chunk_id}>
                 <button
                   type="button"
-                  onClick={() =>
-                    onCitation({
-                      marker: index + 1,
-                      chunk_id: hit.chunk_id,
-                      document_id: hit.document_id,
-                      filename: hit.filename,
-                      page_num: hit.page_num,
-                      text: hit.text,
-                      bboxes: hit.bboxes,
-                    })
-                  }
-                  className="w-full rounded-lg border border-border bg-secondary px-4 py-3.5 text-left transition-colors hover:bg-secondary/70"
+                  onClick={() => onCitation(citationOf(hit, index))}
+                  // Announced, not just drawn. Colour alone would leave somebody on a
+                  // screen reader — or anybody who cannot separate these two greys — with
+                  // no way to tell which result is open.
+                  aria-current={open ? "true" : undefined}
+                  // Brighter *and* bluer, which the first attempt at this got wrong. An
+                  // unselected row is `--secondary` (#182238); indigo at 10% over the panel
+                  // lands near #171b34 — the same lightness, a different hue, and on a dark
+                  // screen that is no difference at all. At 25% the row genuinely lifts off
+                  // the page, and the full-strength border and the 4px bar down the left
+                  // edge give the eye two more things to catch. The bar is what survives a
+                  // glance: it breaks the straight edge every other row shares.
+                  className={`w-full rounded-lg border px-4 py-3.5 text-left transition-colors ${
+                    open
+                      ? "border-primary bg-primary/25 shadow-[inset_4px_0_0_0_var(--color-primary)]"
+                      : "border-border bg-secondary hover:bg-secondary/70"
+                  }`}
                 >
                   <div className="flex items-baseline justify-between gap-4">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {hit.filename} <span className="text-muted-foreground">· page {hit.page_num}</span>
+                    {/* A filename and a page are a reference, not a sentence. In the body
+                        face they read as prose the eye has to parse; in the apparatus face
+                        they read as what they are — the thing you write down to go and
+                        check. Same reason the rank on the right is set this way. */}
+                    <p className="truncate font-mono text-[15px] font-medium text-foreground">
+                      {hit.filename}
+                      {/* Only where there is a page. A document with none says nothing
+                          rather than "page null" or an invented "page 1". */}
+                      {hit.page_num !== null && (
+                        <span className="text-muted-foreground"> · page {hit.page_num}</span>
+                      )}
                     </p>
                     <span className="shrink-0 font-mono text-xs text-muted-foreground">
                       #{index + 1}
                     </span>
                   </div>
                   <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{hit.text}</p>
-                  <p className="mt-2 flex flex-wrap gap-x-3 font-mono text-xs text-muted-foreground/80">
-                    {hit.lexical_rank !== null && (
-                      <span>lexical #{hit.lexical_rank} ({hit.lexical_score?.toFixed(3)})</span>
-                    )}
-                    {hit.dense_rank !== null && (
-                      <span>dense #{hit.dense_rank} ({hit.dense_score?.toFixed(3)})</span>
-                    )}
-                    {hit.rerank_score !== null && <span>rerank {hit.rerank_score.toFixed(3)}</span>}
-                    <span>rrf {hit.score.toFixed(4)}</span>
-                  </p>
+                  {/* What this passage is filed under, on the result itself — otherwise
+                      the only way to know is to open the document and look. */}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <TagChips names={namesFor(hit)} onSelect={onSelectTag} short />
+                  </div>
+                  {showRanking && <Ranking hit={hit} />}
                 </button>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * The evidence behind one result.
+ *
+ * This is the product's argument in four numbers: which half of the hybrid search found the
+ * passage, where each ranked it, and what the fusion and the reranker made of it. Nothing
+ * else in the product can answer "why is this first" — which is exactly why it is worth
+ * keeping, and exactly why it is not on by default. A row of decimals under every result is
+ * the first thing the eye lands on and the last thing a business reader can use.
+ *
+ * `lexical_rank` and `dense_rank` are null when that half did not return the passage at all,
+ * and that absence is the most informative case here: a result found only by meaning, or only
+ * by exact wording, is the hybrid search earning its keep.
+ */
+function Ranking({ hit }: { hit: SearchHit }) {
+  return (
+    <p className="mt-2 flex flex-wrap gap-x-3 font-mono text-xs text-muted-foreground/80">
+      {hit.lexical_rank !== null ? (
+        <span>keyword #{hit.lexical_rank} ({hit.lexical_score?.toFixed(3)})</span>
+      ) : (
+        <span className="text-muted-foreground/50">keyword —</span>
+      )}
+      {hit.dense_rank !== null ? (
+        <span>meaning #{hit.dense_rank} ({hit.dense_score?.toFixed(3)})</span>
+      ) : (
+        <span className="text-muted-foreground/50">meaning —</span>
+      )}
+      {hit.rerank_score !== null && <span>reranked {hit.rerank_score.toFixed(3)}</span>}
+      <span>combined {hit.score.toFixed(4)}</span>
+    </p>
+  );
+}
+
+/**
+ * A search that matched nothing, and what to do about it.
+ *
+ * "Nothing matched that query." is true and useless. It is also, in a demonstration, the
+ * moment the product looks broken — and the commonest cause is not the corpus but a folder
+ * filter picked up two screens ago and still quietly applied. The reader cannot see that from
+ * a result list with nothing in it.
+ *
+ * So the filter is named first and offered back, and only then the two things that actually
+ * change a lexical search's outcome: fewer words, and different ones. The suggestions are
+ * deliberately about *wording* rather than encouragement — this half of the search matches
+ * terms, and "try rephrasing" is advice for the other half.
+ */
+function NothingMatched({
+  filterName,
+  onClearFilter,
+}: {
+  filterName?: string | null;
+  onClearFilter?: () => void;
+}) {
+  return (
+    <div className="space-y-3 rounded-lg border border-dashed border-border p-8 text-center text-sm">
+      <p className="text-foreground">Nothing matched that query.</p>
+
+      {filterName && onClearFilter ? (
+        <>
+          <p className="text-muted-foreground">
+            This search only looked inside <span className="text-foreground">{filterName}</span>.
+          </p>
+          <button
+            type="button"
+            onClick={onClearFilter}
+            className="rounded-full border border-input px-3 py-1 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-secondary"
+          >
+            Search everything instead
+          </button>
+        </>
+      ) : (
+        <ul className="mx-auto max-w-sm space-y-1 text-left text-xs text-muted-foreground">
+          <li>· Try fewer words — every one of them has to appear.</li>
+          <li>· Try the wording the document itself would use.</li>
+          <li>· Ask it as a question in Chat, which reads the passages for you.</li>
+        </ul>
+      )}
+    </div>
   );
 }

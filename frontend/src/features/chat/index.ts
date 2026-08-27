@@ -7,6 +7,6 @@
  * the type because chat is what produces one.
  */
 export { Chat } from "./Chat";
-export { Answer } from "./Answer";
-export { streamQuery, type Citation, type Consulted, type QueryResult } from "./stream";
-export { reduce, displayed, isProvisional, type AnswerState } from "./answerState";
+export { Answer } from "./answer/Answer";
+export { streamQuery, type Citation, type Consulted, type QueryResult } from "./stream/stream";
+export { reduce, displayed, isProvisional, type AnswerState } from "./answer/answerState";

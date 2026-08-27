@@ -7,11 +7,14 @@ from fastapi import APIRouter, Depends, File, Form, Query, Request, Response, Up
 from fastapi.responses import FileResponse
 
 from app.common.exceptions import LimitExceededError, NotFoundError
+from app.common.units import bytes_as_text
 from app.core.config import settings
-from app.features.auth.dependencies import CurrentProfile, requires, requires_any
+from app.features.audit.service import record
+from app.features.auth.access.dependencies import CurrentProfile, requires, requires_any
 from app.features.documents.folders import tree
 from app.features.documents.pagination import MAX_LIMIT
 from app.features.documents.schemas import (
+    DocumentInsights,
     DocumentPage,
     DocumentResponse,
     FolderResponse,
@@ -103,6 +106,7 @@ async def list_documents(
     # "the parameter is present and its value is null" distinctly from "the parameter is
     # absent", so the one folder with no id needs its own flag to be requestable at all.
     unlabelled: bool = False,
+    search: Annotated[str | None, Query(description="Matched against the filename.")] = None,
 ) -> DocumentPage:
     """The documents the caller's labels reach, newest first, one page at a time.
 
@@ -124,6 +128,7 @@ async def list_documents(
         status=status_filter,
         label_id=label_id,
         unlabelled=unlabelled,
+        search=search,
     )
     return DocumentPage(
         items=[DocumentResponse.model_validate(document) for document in documents],
@@ -145,13 +150,18 @@ async def download_document(document_id: UUID, profile: CurrentProfile) -> FileR
     them confirms that it exists.
     """
     document = await DocumentService(profile).get(document_id)
-    path = DocumentStorage().path_for(profile.context.tenant_id, document.sha256)
+    path = DocumentStorage().path_for(
+        profile.context.tenant_id, document.sha256, document.media_type
+    )
     if not path.exists():
         # A row whose file is missing. Possible by design — the upload commits the row
         # first, so a crash between the two leaves this state rather than an orphan file
         # nobody can find. Reported as missing rather than as a 500.
         raise NotFoundError(f"the stored file for {document_id} is missing")
-    return FileResponse(path, media_type="application/pdf", filename=document.filename)
+    # The stored type, not a constant. Serving a `.md` as `application/pdf` makes the
+    # browser download a file it could have rendered, and makes the text viewer's fetch
+    # look like a failure it is not.
+    return FileResponse(path, media_type=document.media_type, filename=document.filename)
 
 
 @router.delete(
@@ -167,7 +177,23 @@ async def delete_document(document_id: UUID, profile: CurrentProfile) -> None:
     disclose that the document exists, but only to a caller who can already see it in the
     list, so it discloses nothing they did not have.
     """
-    await DocumentService(profile).delete(document_id)
+    service = DocumentService(profile)
+    # Read before it is destroyed. `DocumentService.delete` justifies erasing the link between
+    # past answers and the passages that produced them by saying "the audit design records the
+    # deletion event instead" — and nothing recorded it, so the trade the docstring described
+    # was only being paid on one side. An entry naming an id nobody can resolve afterwards
+    # would have been the same omission wearing a row.
+    document = await service.get(document_id)
+    filename = document.filename
+
+    await service.delete(document_id)
+    await record(
+        profile,
+        "document.deleted",
+        target_type="document",
+        target_id=document_id,
+        target_name=filename,
+    )
 
 
 def _reject_obviously_oversized(request: Request) -> None:
@@ -180,9 +206,32 @@ def _reject_obviously_oversized(request: Request) -> None:
     """
     declared = request.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > settings.max_file_bytes:
-        raise LimitExceededError(f"file exceeds the {settings.max_file_bytes} byte limit")
+        raise LimitExceededError(
+            f"this file is larger than the {bytes_as_text(settings.max_file_bytes)} limit"
+        )
 
 
 async def _stream(file: UploadFile) -> AsyncIterator[bytes]:
     while data := await file.read(CHUNK_BYTES):
         yield data
+
+
+@router.get(
+    "/documents/{document_id}/insights",
+    operation_id="getDocumentInsights",
+    summary="What this document is made of, and how much it has been used",
+    responses={404: {"description": "No such document, or one this caller cannot reach"}},
+)
+async def document_insights(document_id: UUID, profile: CurrentProfile) -> DocumentInsights:
+    """The numbers a document detail panel needs and `GET /documents/{id}` does not carry.
+
+    Kept off the list endpoint deliberately. Both counts are aggregates over other tables,
+    and paying for them on every row of every page — to render a list that shows neither —
+    is work nobody asked for. A detail panel is opened one document at a time.
+
+    `answers` is the interesting one: how many generated answers have cited this document.
+    It is the difference between a corpus somebody has to trust and one they can see being
+    used, and it comes from `query_citations`, which is scoped by the same policy as the
+    query log itself — so this counts answers in this tenant and no other.
+    """
+    return await DocumentService(profile).insights(document_id)

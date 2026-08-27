@@ -9,40 +9,52 @@
 
 import { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import {
+  Building2,
   Folder as FolderIcon,
   History as HistoryIcon,
   Maximize2,
   MessageSquare,
   Minimize2,
+  Monitor,
+  Moon,
   PanelLeftClose,
   PanelLeftOpen,
   Search as SearchIcon,
   Settings,
+  Sun,
   Upload as UploadIcon,
   X,
 } from "lucide-react";
 
+import { apply as applyTheme, remember, stored, type Theme } from "@/shared/lib/theme";
 import { Admin } from "@/features/admin";
 import {
   Login,
+  SetPassword,
   Profile,
   profile as fetchMyProfile,
   refreshTokens,
   type UserProfile,
 } from "@/features/auth";
 import { Chat, type Citation } from "@/features/chat";
+import { System } from "@/features/system";
+import { Ingesting, inFlight } from "@/features/documents";
 import { History } from "@/features/history";
+import { lazyChunk } from "@/shared/lib/lazyChunk";
 import {
   Folders,
   StatusBadge,
   Upload,
+  folders,
   type FolderSelection,
 } from "@/features/documents";
 import { Search } from "@/features/search";
 import { tenantStatus, type TenantStatus } from "@/shared/api/tenant";
+import { CommandPalette } from "@/shared/ui/CommandPalette";
 import { Section } from "@/shared/components/Section";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
+import { forget, read, write } from "@/shared/lib/storage";
 
 // Lazily loaded, and for a measured reason: `pdf.js` is roughly 1.4 MB of worker plus its
 // own runtime, and none of it is needed until someone clicks a citation. F11 made
@@ -55,8 +67,22 @@ import { Button } from "@/components/ui/button";
 // chunk and leaves nothing behind the `lazy` boundary to split. The rule is "features are
 // imported through their public surface"; a code-splitting boundary is the exception, and
 // the build output is where it shows: `PdfViewer-*.js` has to stay its own chunk.
-const PdfViewer = lazy(() =>
-  import("@/features/documents/PdfViewer").then((module) => ({ default: module.PdfViewer })),
+const PdfViewer = lazy(
+  lazyChunk(() =>
+    import("@/features/documents/viewer/PdfViewer").then((module) => ({
+      default: module.PdfViewer,
+    })),
+  ),
+);
+// Its own chunk, and a much smaller one: this viewer is a `<pre>` and a `<mark>`, while the
+// PDF viewer drags pdf.js and its worker behind it. Splitting them means a reader who only
+// ever opens Markdown never downloads a PDF engine.
+const TextViewer = lazy(
+  lazyChunk(() =>
+    import("@/features/documents/viewer/TextViewer").then((module) => ({
+      default: module.TextViewer,
+    })),
+  ),
 );
 
 // Session storage rather than local storage: it keeps both tokens out of other tabs and out
@@ -80,8 +106,129 @@ function capitalise(name: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
+/**
+ * The one path that must work before anybody is signed in.
+ *
+ * Read from `location` rather than routed, because this app has no router: the shell is a
+ * `view` union and every screen inside it assumes a token. Adding one for a single public
+ * page would be a dependency bought to serve one screen.
+ */
+function setPasswordToken(): string | null {
+  const match = window.location.pathname.match(/^\/set-password\/(.+)$/);
+  return match?.[1] ?? null;
+}
+
+/**
+ * How wide a screen is allowed to get. Whole class strings, never built by interpolation:
+ * Tailwind scans this file as text, and `max-w-${n}xl` would produce a class that exists in
+ * the markup and in no stylesheet.
+ */
+/**
+ * Three settings, not a switch. "System" is what everybody has before they touch anything,
+ * and a two-state toggle destroys it on the first click with no way back — somebody who
+ * works in a light room by day and a dark one at night would have to flip the application
+ * by hand forever after.
+ *
+ * The choice is applied to `<html>` and the browser is asked again whenever it changes, so
+ * a machine that switches at sunset takes the app with it while "System" is selected.
+ */
+function ThemeControl({ collapsed }: { collapsed: boolean }) {
+  const [theme, setTheme] = useState<Theme>(stored);
+
+  useEffect(() => {
+    applyTheme(theme);
+    if (theme !== "system" || typeof matchMedia !== "function") return;
+    const media = matchMedia("(prefers-color-scheme: dark)");
+    const follow = () => applyTheme("system");
+    media.addEventListener("change", follow);
+    return () => media.removeEventListener("change", follow);
+  }, [theme]);
+
+  const choose = (next: Theme) => {
+    setTheme(next);
+    remember(next);
+  };
+
+  // Records rather than an array indexed by position: `noUncheckedIndexedAccess` is on, and
+  // `options[(at + 1) % options.length]` is only provably defined to a human.
+  const NEXT: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
+  const ICON: Record<Theme, typeof Sun> = { system: Monitor, light: Sun, dark: Moon };
+  // "Auto", not "System". `/system` is the system-administration panel and it sits in this
+  // same sidebar: two controls a few pixels apart, both reading "System", meaning entirely
+  // different things. `App.test.tsx` caught it by asking for a button named System and
+  // finding the wrong one, which is exactly what a user would have done.
+  const LABEL: Record<Theme, string> = { system: "Auto", light: "Light", dark: "Dark" };
+  const ORDER: readonly Theme[] = ["system", "light", "dark"];
+
+  // Collapsed, there is no room for three: it cycles instead, and the tooltip names what
+  // pressing it will do rather than what is currently on — a control should say what it
+  // does, not what it is.
+  if (collapsed) {
+    const next = NEXT[theme];
+    const Icon = ICON[theme];
+    return (
+      <button
+        type="button"
+        onClick={() => choose(next)}
+        title={`Switch to ${LABEL[next].toLowerCase()}`}
+        aria-label={`Switch to ${LABEL[next].toLowerCase()}`}
+        className="flex items-center justify-center rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground"
+      >
+        <Icon className="size-4" />
+      </button>
+    );
+  }
+
+  return (
+    <div role="group" aria-label="Theme" className="flex gap-0.5 rounded-full bg-background p-0.5">
+      {ORDER.map((value) => {
+        const Icon = ICON[value];
+        return (
+        <button
+          key={value}
+          type="button"
+          onClick={() => choose(value)}
+          aria-pressed={theme === value}
+          title={LABEL[value]}
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-1 text-xs transition-colors ${
+            theme === value
+              ? "bg-primary/15 text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Icon className="size-3.5" />
+          {LABEL[value]}
+        </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function measure(view: string): string {
+  switch (view) {
+    // A form. Wider only makes the label travel further from its field.
+    case "profile":
+      return "max-w-2xl";
+    // Tables. They were the worst served by a single cap and gain the most from losing it.
+    case "admin":
+    case "system":
+    case "folders":
+      return "max-w-6xl 2xl:max-w-7xl";
+    // A result, an upload row and a past question are all a name plus a fragment of text.
+    //
+    // 4xl, not 5xl. 5xl was tried and it used the screen at the cost of looking uncentred:
+    // the search bar stretched the full width of the column while the empty state under it
+    // stayed a centred block, so the eye got a hard left edge at one width and centred text
+    // at another, and read the whole page as shoved left. The gap on each side is what tells
+    // you a column is centred, and at 5xl there was not enough of it left to say so.
+    default:
+      return "max-w-4xl 2xl:max-w-5xl";
+  }
+}
+
 export function App() {
-  const [token, setToken] = useState<string | null>(() => sessionStorage.getItem(TOKEN_KEY));
+  const [token, setToken] = useState<string | null>(() => read("session", TOKEN_KEY));
   const [status, setStatus] = useState<TenantStatus | null>(null);
   const [me, setMe] = useState<UserProfile | null>(null);
   const [citation, setCitation] = useState<Citation | null>(null);
@@ -97,7 +244,7 @@ export function App() {
   // Search is the landing screen, not Chat: it is the one screen that shows what the
   // retrieval mechanism actually did, and that is the more useful first thing to see than
   // an empty ask box — Chat is one click away in the same nav, never removed.
-  const [view, setView] = useState<"chat" | "search" | "folders" | "upload" | "history" | "admin" | "profile">(
+  const [view, setView] = useState<"chat" | "search" | "folders" | "upload" | "history" | "admin" | "system" | "profile">(
     "search",
   );
   // Owned here, not inside `Folders`, so the breadcrumb in the main header can show *and*
@@ -119,12 +266,17 @@ export function App() {
   // Remembered across reloads: someone who collapsed the bar to get room back does not
   // want it handed to them again on every refresh. `localStorage` rather than session,
   // because unlike the tokens beside it this is a preference and discloses nothing.
-  const [collapsed, setCollapsed] = useState(
-    () => localStorage.getItem(SIDEBAR_KEY) === "true",
-  );
+  //
+  // **Guarded on both sides, and here that is not a nicety.** `localStorage` is absent or
+  // throws in Safari's private browsing and under enterprise policies that block site data,
+  // and this call sits in the render path of the whole application: unguarded, a blocked
+  // preference store took down the entire product rather than one sidebar setting. `Search`
+  // learned the same lesson where it cost a search result; this is the version that costs
+  // everything.
+  const [collapsed, setCollapsed] = useState(() => read("local", SIDEBAR_KEY) === "true");
 
   useEffect(() => {
-    localStorage.setItem(SIDEBAR_KEY, String(collapsed));
+    write("local", SIDEBAR_KEY, String(collapsed));
   }, [collapsed]);
 
   // Changing section closes whatever document was open. The preview belongs to the screen
@@ -137,10 +289,29 @@ export function App() {
   }, []);
 
   const signOut = useCallback(() => {
-    sessionStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(REFRESH_KEY);
+    forget("session", TOKEN_KEY);
+    forget("session", REFRESH_KEY);
     setToken(null);
   }, []);
+
+  // A tag chip anywhere — a document row, a search result — narrows the workspace to that
+  // label. Resolved by name against the folder tree the server already computes, so a chip
+  // for a label this caller cannot reach has nothing to select and does nothing.
+  const selectTag = useCallback(
+    (name: string) => {
+      // Declared above the point where `token` is narrowed by the login guard below, so
+      // the check is here rather than in the type.
+      if (!token) return;
+      void folders(token).then((computed) => {
+        const match = computed.folders.find((entry) => entry.name === name);
+        if (!match) return;
+        setFolderSelection({ name: match.name, filter: { labelId: match.label_id } });
+        open("folders");
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [token],
+  );
 
   const refresh = useCallback(async () => {
     if (!token) return;
@@ -175,38 +346,51 @@ export function App() {
     // Thirty seconds is slow enough to be invisible on the network and fast enough that a
     // finished upload appears before anyone reaches for a reload.
     if (!token) return;
-    const timer = setInterval(() => void refresh(), 30_000);
+    // Adaptive, because the two states want opposite things. Idle, this is a background
+    // heartbeat and thirty seconds is already more often than anything changes. Mid-batch
+    // it is the only thing telling somebody their thousand files are moving, and half a
+    // minute between updates makes a working system look stalled.
+    const busy = inFlight(status) > 0;
+    const timer = setInterval(() => void refresh(), busy ? 5_000 : 30_000);
     return () => clearInterval(timer);
-  }, [token, refresh]);
+  }, [token, refresh, status]);
 
   useEffect(() => {
     if (!token) return;
     const timer = setInterval(() => {
-      const held = sessionStorage.getItem(REFRESH_KEY);
+      const held = read("session", REFRESH_KEY);
       if (!held) return;
       void refreshTokens(held)
         .then((pair) => {
-          sessionStorage.setItem(TOKEN_KEY, pair.access_token);
-          sessionStorage.setItem(REFRESH_KEY, pair.refresh_token);
+          write("session", TOKEN_KEY, pair.access_token);
+          write("session", REFRESH_KEY, pair.refresh_token);
           setToken(pair.access_token);
         })
         .catch(() => {
           // The refresh token itself is gone or revoked — nothing left to do but ask the
           // user to sign in again, same as if the access token had simply run out.
-          sessionStorage.removeItem(TOKEN_KEY);
-          sessionStorage.removeItem(REFRESH_KEY);
+          forget("session", TOKEN_KEY);
+          forget("session", REFRESH_KEY);
           setToken(null);
         });
     }, REFRESH_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [token]);
 
+  // Checked before the token, and that order is the whole point: the people who need this
+  // page either have no account yet or cannot get into the one they have. Rendering Login
+  // first would send them to a form they cannot complete.
+  const invitation = setPasswordToken();
+  if (invitation) {
+    return <SetPassword token={invitation} />;
+  }
+
   if (!token) {
     return (
       <Login
         onAuthenticated={(issued) => {
-          sessionStorage.setItem(TOKEN_KEY, issued.access_token);
-          sessionStorage.setItem(REFRESH_KEY, issued.refresh_token);
+          write("session", TOKEN_KEY, issued.access_token);
+          write("session", REFRESH_KEY, issued.refresh_token);
           setToken(issued.access_token);
         }}
       />
@@ -224,7 +408,7 @@ export function App() {
     // bordered card — the sidebar, the workspace and the preview are three surfaces, not
     // one shell with internal dividers, which is the difference between this and the flat
     // edge-to-edge layout it replaced.
-    <div className="dark flex h-screen gap-3 bg-background p-3 text-foreground">
+    <div className="flex h-screen overflow-hidden gap-3 bg-background p-3 text-foreground">
       {/* Layout, not a workspace: Folders and Upload used to live here as their own
           sections, each with its own scroll, competing with navigation for the same
           narrow column. Both are full screens in the main panel now, reached the same way
@@ -309,8 +493,15 @@ export function App() {
                 { name: "upload", icon: UploadIcon },
                 { name: "history", icon: HistoryIcon },
                 { name: "admin", icon: Settings },
+                // Above every tenant, so it is above every tenant's nav too: drawn only
+                // for the handful of people who hold it. Hiding it is courtesy rather than
+                // security — `/system/*` refuses everyone else on its own — but a nav item
+                // that always 403s is a worse product than one that is not there.
+                { name: "system", icon: Building2 },
               ] as const
-            ).map(({ name, icon: Icon }) => (
+            )
+              .filter(({ name }) => name !== "system" || me?.is_system_admin)
+              .map(({ name, icon: Icon }) => (
               <button
                 key={name}
                 type="button"
@@ -323,14 +514,30 @@ export function App() {
                 className={`flex items-center rounded-lg text-left text-[15px] capitalize transition-colors ${
                   collapsed ? "justify-center px-0 py-3" : "gap-3 px-3 py-2"
                 } ${
+                  // A neutral fill and a full-contrast label, with the accent spent on the
+                  // icon alone.
+                  //
+                  // It was `bg-primary/10 text-primary` — a translucent blue block with
+                  // blue text, which is shadcn's default and reads as a highlighter mark
+                  // rather than as a selected row. Tinting both the surface and the text
+                  // the same hue also leaves the label washed out at the exact moment it
+                  // matters most.
+                  //
+                  // Selection is a state, not an emphasis: the row you are on should be the
+                  // most *legible*, and the colour is better spent on one small thing than
+                  // spread across the whole item.
                   view === name
-                    ? "bg-primary/10 font-medium text-primary"
-                    : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                    ? "bg-secondary font-medium text-foreground"
+                    : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
                 }`}
               >
                 {/* Larger when collapsed: at this size the icon is the only thing carrying
                     the meaning, so it gets the room the label gave up. */}
-                <Icon className={collapsed ? "size-6 shrink-0" : "size-[18px] shrink-0"} />
+                <Icon
+                  className={`shrink-0 ${collapsed ? "size-6" : "size-[18px]"} ${
+                    view === name ? "text-primary" : ""
+                  }`}
+                />
                 {!collapsed && name}
               </button>
             ))}
@@ -340,13 +547,23 @@ export function App() {
               to search", which is worth glancing at and never the reason you came to this
               bar. Dropped entirely when collapsed — it is prose and a set of numbers, and
               there is no honest way to render either in 64 pixels. */}
-          {!collapsed && (
-            <div className="mt-auto">
-              <Section label="Status">
-                <StatusBadge status={status} />
-              </Section>
-            </div>
-          )}
+          {/* Above the status panel and outside the `!collapsed` guard: ingestion is the
+              one thing here worth seeing from a narrow sidebar, because it is the only
+              number that changes while you are looking at another screen. */}
+          <div className="mt-auto">
+            {collapsed ? (
+              <Ingesting status={status} collapsed />
+            ) : (
+              <>
+                <Section label="Ingestion">
+                  <Ingesting status={status} collapsed={false} />
+                </Section>
+                <Section label="Status">
+                  <StatusBadge status={status} />
+                </Section>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Just the profile now. Signing out moved onto that screen, next to "sign out
@@ -354,10 +571,16 @@ export function App() {
             what makes the difference between them legible. It also stops a destructive
             action sitting permanently one stray click from the navigation. */}
         <div
-          className={`panel-accent flex shrink-0 flex-col gap-1 border-t border-border py-2 ${
+          // `rounded-b-xl` mirrors the `rounded-t-xl` on the brand header at the other end
+          // of this column. Both are `panel-accent`, which paints a gradient rather than
+          // inheriting the sidebar's fill, so a square corner here does not just fail to
+          // curve — it paints over the curve, and the sidebar reads as having one rounded
+          // corner and one blunt one.
+          className={`panel-accent flex shrink-0 flex-col gap-1 rounded-b-xl border-t border-border py-2 ${
             collapsed ? "items-center px-2" : "px-2"
           }`}
         >
+          <ThemeControl collapsed={collapsed} />
           <button
             type="button"
             onClick={() => open("profile")}
@@ -382,6 +605,40 @@ export function App() {
       {/* Every size below is a string on purpose: this library reads a bare number as
           pixels, not percent — `defaultSize={65}` is a 65-pixel-wide panel on a 1440px
           screen, which is the bug that made the preview panel render as a sliver. */}
+      {/* Global, and mounted once: the shortcut is registered on the window, so it works
+          from every screen without each of them knowing about it. */}
+      <CommandPalette
+        token={token}
+        actions={{
+          go: (next) => open(next as typeof view),
+          openDocument: (document) => {
+            // The viewer wants a citation; a document opened from the palette has no
+            // passage behind it, so page one with no highlights is the honest shape —
+            // rather than inventing bounding boxes that point at nothing.
+            setCitation({
+              marker: 0,
+              chunk_id: "",
+              document_id: document.id,
+              filename: document.filename,
+              media_type: document.media_type,
+              // Opened from the library rather than from an answer, so there is no cited
+              // passage: the first page and no highlight for a PDF, the top of the file
+              // and an empty range for a text document. Inventing either would point the
+              // reader at something the corpus never said.
+              page_num: document.media_type.startsWith("text/") ? null : 1,
+              char_start: 0,
+              char_end: 0,
+              text: "",
+              bboxes: [],
+            });
+          },
+          ask: (question) => {
+            setPrefill({ text: question, nonce: Date.now() });
+            open("chat");
+          },
+        }}
+      />
+
       <ResizablePanelGroup orientation="horizontal" className="min-w-0 flex-1 gap-3">
         <ResizablePanel
           // Only meaningful while the preview is mounted; with nothing beside it this
@@ -418,7 +675,10 @@ export function App() {
                 )}
               </>
             ) : (
-              <span className="font-medium text-foreground capitalize">{view}</span>
+              // The page's actual title, so it is the page's `h1`. It was a `span`, and the
+              // whole application had zero `h1` elements — no outline for a screen reader,
+              // and nowhere for a typographic hierarchy to attach. One cause, one fix.
+              <h1 className="text-[15px] font-medium text-foreground capitalize">{view}</h1>
             )}
             {/* Only Chat and Search actually read `folder` — shown only there, so a filter
                 picked up in Folders doesn't look like it's still following you into Admin
@@ -454,17 +714,33 @@ export function App() {
             {/* Every screen is centred and capped here rather than each one setting its own
                 width. They used to carry a `max-w-*` and no `mx-auto`, which pinned them to
                 the left edge — barely noticeable while the preview panel took a third of the
-                row, and obviously wrong the moment that space came back. Capped rather than
-                full-bleed because a line of prose spanning a 27" display is unreadable; the
-                cap widens one step on very large screens so the extra room is used without
-                the measure running away. */}
-            <div className="mx-auto w-full max-w-3xl p-6 2xl:max-w-4xl">
+                row, and obviously wrong the moment that space came back.
+
+                The cap is per view, which it was not: one value of `max-w-3xl` covered a
+                form, a list of results and a table alike, and 768px of a 1114px panel leaves
+                31% of the working area empty on an ordinary laptop. Capped rather than
+                full-bleed still, because the reason for a cap is real — a line of prose
+                across a 27" display is unreadable — but that reason is about prose, and only
+                two of these screens are prose. A table is the opposite: it wants every pixel
+                it can have, and cramming one into a reading measure is what produces the
+                columns nobody can read. */}
+            <div className={`mx-auto w-full p-6 ${measure(view)}`}>
             {view === "search" && (
               <Search
                 token={token}
                 onCitation={setCitation}
+                // Which result the viewer is showing, so the list can mark it. Read from
+                // the citation rather than tracked inside `Search`: closing the viewer sets
+                // this to null, and a copy kept in the list would stay lit over a panel
+                // that is no longer open.
+                openChunkId={citation?.chunk_id ?? null}
                 searchable={status?.searchable ?? true}
                 labels={folder ? [folder] : undefined}
+                onSelectTag={selectTag}
+                // The empty result is where a forgotten folder filter finally becomes
+                // visible, so it gets both the name and the way out.
+                filterName={folderSelection?.name ?? null}
+                onClearFilter={() => setFolderSelection(null)}
               />
             )}
             {view === "folders" && (
@@ -472,8 +748,10 @@ export function App() {
                 token={token}
                 onCitation={setCitation}
                 refreshKey={uploads}
+                permissions={me?.permissions}
                 selection={folderSelection}
                 onSelect={setFolderSelection}
+                onSelectTag={selectTag}
               />
             )}
             {view === "upload" && (
@@ -499,6 +777,7 @@ export function App() {
               />
             )}
             {view === "admin" && <Admin token={token} />}
+            {view === "system" && <System token={token} />}
             {view === "profile" && (
               <Profile token={token} onSignedOut={signOut} onProfile={setMe} />
             )}
@@ -572,7 +851,14 @@ export function App() {
             <Suspense
               fallback={<p className="p-6 text-sm text-muted-foreground">Opening the document…</p>}
             >
-              <PdfViewer citation={citation} token={token} />
+              {/* Chosen from the document's stored media type, never from its filename.
+                  A `.txt` opened in the PDF frame is the mixed-list problem this feature
+                  was careful to avoid: a broken PDF sitting beside real ones. */}
+              {citation && citation.media_type.startsWith("text/") ? (
+                <TextViewer citation={citation} token={token} />
+              ) : (
+                <PdfViewer citation={citation} token={token} />
+              )}
             </Suspense>
           </div>
         </ResizablePanel>

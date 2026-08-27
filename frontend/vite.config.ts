@@ -20,6 +20,9 @@ export default defineConfig({
       // then these silently fell through to Vite's own server and returned index.html,
       // which `request()` in api/client.ts saw as "Unexpected token '<'".
       "/roles": "http://localhost:8000",
+      "/groups": "http://localhost:8000",
+      "/system": "http://localhost:8000",
+      "/analytics": "http://localhost:8000",
       "/llm-config": "http://localhost:8000",
       "/users": "http://localhost:8000",
     },

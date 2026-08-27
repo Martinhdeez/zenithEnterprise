@@ -64,7 +64,27 @@ class HistoryService:
     def __init__(self, profile: AccessProfile) -> None:
         self.profile = profile
 
-    async def page(self, limit: int | None = None, cursor: str | None = None) -> HistoryPage:
+    async def page(
+        self,
+        limit: int | None = None,
+        cursor: str | None = None,
+        search: str | None = None,
+        mine_only: bool = False,
+        unanswered_only: bool = False,
+    ) -> HistoryPage:
+        """One page of past questions, optionally narrowed.
+
+        **The filters narrow; they never widen.** `mine_only` restricts a caller who can
+        already read everyone's history to their own rows, which is a request the client is
+        entitled to make. There is deliberately no filter in the other direction — whether
+        this caller sees anybody else's questions is decided from their permissions below
+        and handed to the policy, not asked for in a query string.
+
+        Cursors survive a filter change without encoding one, unlike `LabelCursor`. That
+        cursor had to carry its sort because a position in one ordering names nothing in
+        another; here the ordering is always newest-first and a cursor means only "older
+        than this row", which stays true whatever the filters remove.
+        """
         if not {OWN, ANY} & self.profile.permissions:
             raise PermissionDeniedError("you may not read query history")
 
@@ -80,8 +100,36 @@ class HistoryService:
         #
         # **No `user_id` condition.** The policy applies it, from the context bound below.
         conditions: list[str] = []
+        parameters: dict[str, object] = {}
         if after:
             conditions.append("(q.created_at, q.id) < (:after_at, :after_id)")
+            parameters |= {"after_at": after.created_at, "after_id": after.id}
+
+        if search and search.strip():
+            # `ILIKE` over the question only, never the answer. Searching answers would
+            # surface somebody's question because of words the *model* wrote, which is a
+            # confusing result and, on a shared history, a slightly invasive one.
+            #
+            # Bound, not interpolated — a question containing a quote is ordinary here, and
+            # `%` and `_` are escaped so a search for "50%" is not a wildcard.
+            conditions.append("q.question ILIKE :search")
+            escaped = search.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            parameters["search"] = f"%{escaped}%"
+
+        if mine_only:
+            # Narrowing only. The policy has already decided whether other people's rows are
+            # visible at all; this is somebody with that right asking to look away from it.
+            conditions.append("q.user_id = :me")
+            parameters["me"] = self.profile.user_id
+
+        if unanswered_only:
+            # The questions the corpus could not answer — what is missing from it. Derived
+            # from the citation rows rather than stored, the same way the analytics
+            # abstention count is, so the two cannot disagree.
+            conditions.append(
+                "NOT EXISTS (SELECT 1 FROM query_citations c WHERE c.query_id = q.id)"
+            )
+
         where = f"WHERE {' AND '.join(conditions)} " if conditions else ""
 
         scoped = replace(
@@ -100,10 +148,7 @@ class HistoryService:
                     f"{where}"
                     "ORDER BY q.created_at DESC, q.id DESC LIMIT :limit"
                 ),
-                {
-                    "limit": size + 1,
-                    **({"after_at": after.created_at, "after_id": after.id} if after else {}),
-                },
+                {"limit": size + 1, **parameters},
             )
             found = list(rows)
 

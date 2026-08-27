@@ -128,7 +128,33 @@ def answers() -> int:
     return 0
 
 
-COMMANDS = ("fetch", "layout", "grounding", "answers")
+def live() -> int:
+    """Recall of the running installation, over HTTP — the deployment, not the design."""
+    from eval.live import run
+
+    if "--token" not in sys.argv:
+        print("usage: python -m eval live --token <jwt> [--url http://localhost:8000]")
+        return 2
+    token = sys.argv[sys.argv.index("--token") + 1]
+    url = sys.argv[sys.argv.index("--url") + 1] if "--url" in sys.argv else "http://localhost:8000"
+    return run(url, token)
+
+
+def ef_search() -> int:
+    """What `hnsw_ef_search` is worth on this machine. Read-only, needs no token."""
+    from eval.ef_search import run
+
+    return run()
+
+
+def rerank_depth() -> int:
+    """How deep the cross-encoder should read on this machine. Read-only, needs no token."""
+    from eval.rerank_depth import run
+
+    return run()
+
+
+COMMANDS = ("fetch", "layout", "grounding", "answers", "live", "ef-search", "rerank-depth")
 
 
 def main() -> int:
@@ -137,9 +163,18 @@ def main() -> int:
             "usage: python -m eval fetch [--record]\n"
             "       python -m eval layout [--limit N]\n"
             "       python -m eval grounding\n"
-            "       python -m eval answers"
+            "       python -m eval answers\n"
+            "       python -m eval live --token <jwt> [--url http://localhost:8000]\n"
+            "       python -m eval ef-search\n"
+            "       python -m eval rerank-depth"
         )
         return 2
+    if sys.argv[1] == "rerank-depth":
+        return rerank_depth()
+    if sys.argv[1] == "ef-search":
+        return ef_search()
+    if sys.argv[1] == "live":
+        return live()
     if sys.argv[1] == "grounding":
         return grounding()
     if sys.argv[1] == "answers":

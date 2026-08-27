@@ -4,6 +4,9 @@ Each case here is a document that actually broke, reconstructed as the smallest 
 reproduces the signature.
 """
 
+import pytest
+
+from app.features.ingestion import routing
 from app.features.ingestion.parsers.base import Box, ParsedPage, Word
 from app.features.ingestion.routing import Route, decide
 
@@ -54,9 +57,31 @@ def single_column() -> tuple[Word, ...]:
     return tuple(words)
 
 
-def test_a_page_with_no_text_layer_goes_to_ocr() -> None:
+def test_a_page_with_no_text_layer_is_unreadable_even_where_ocr_is_allowed() -> None:
     """The NASA case: a scan whose publisher never ran OCR. 925 characters per page against
-    the ~4,000 an equivalent text page carries."""
+    the ~4,000 an equivalent text page carries.
+
+    The profile permitting OCR is not the same as this build being able to do it, and until
+    `OCR_IMPLEMENTED` says otherwise the honest answer is a refusal. Routing such a page to
+    `LAYOUT` sent it to pdfplumber, which returned nothing — fine in a fully scanned document,
+    which then fails loudly, and silent in a mixed one, where the readable pages carried the
+    document to `ready` with the scanned ones absent from the index.
+    """
+    decision = decide(page("  \n \x0c "), ocr_available=True)
+
+    assert decision.route is Route.UNREADABLE
+    assert "OCR" in decision.reason
+
+
+def test_the_ocr_route_is_reachable_once_an_engine_exists(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The refusal above is about this build, not about the rule.
+
+    Without this test, wiring an engine and flipping the flag would be a change with no
+    coverage of the path it turns on — and the routing rule itself, which M0 measured against
+    thirteen documents, would look like it had been deleted rather than parked.
+    """
+    monkeypatch.setattr(routing, "OCR_IMPLEMENTED", True)
+
     decision = decide(page("  \n \x0c "), ocr_available=True)
 
     assert decision.route is Route.LAYOUT
@@ -73,7 +98,7 @@ def test_without_ocr_that_page_is_unreadable_rather_than_empty() -> None:
     decision = decide(page(""), ocr_available=False)
 
     assert decision.route is Route.UNREADABLE
-    assert "OCR is disabled" in decision.reason
+    assert "no OCR is available" in decision.reason
 
 
 def test_a_few_stray_characters_do_not_count_as_a_text_layer() -> None:
@@ -81,7 +106,7 @@ def test_a_few_stray_characters_do_not_count_as_a_text_layer() -> None:
     "has text" is how a 4,000-character page ingests as twelve characters of nothing."""
     decision = decide(page("Form 1040   Page 3"), ocr_available=True)
 
-    assert decision.route is Route.LAYOUT
+    assert decision.route is Route.UNREADABLE
 
 
 def test_ordinary_prose_takes_the_fast_path() -> None:

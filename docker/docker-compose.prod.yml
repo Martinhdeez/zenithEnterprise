@@ -1,0 +1,82 @@
+# Production overlay. Applied on top of `docker-compose.yml`, never instead of it:
+#
+#     docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# An overlay rather than a second full file, because two complete compose files drift. The
+# base already encodes what is true everywhere — the TEI flags that keep the embedder alive,
+# the shared document mount, the health checks — and duplicating those to change three
+# things is how a deployment ends up running settings nobody meant.
+#
+# What actually differs in production, and only this:
+#
+#   1. **No published ports.** Locally every service publishes one so a browser and `psql`
+#      can reach it. On a public box that is the whole attack surface: Postgres on 5432 and
+#      an unauthenticated embedding service on 8081, open to the internet. Here nothing is
+#      published; Traefik reaches the frontend over a Docker network, and everything else is
+#      reachable only from inside it.
+#
+#   2. **Traefik labels on the frontend.** The proxy routes by `Host()` header and issues
+#      the certificate. It is Coolify's proxy, already running and already holding :80/:443,
+#      so this joins its network rather than binding those ports itself.
+#
+#   3. **Restart policy.** The box reboots; the stack has to come back without a person.
+#
+# The hardware profile is *not* set here. It lives in `.env` beside the secrets, because it
+# is a property of the machine rather than of "production" — and this machine, measured, is
+# a 4-core 7.75 GB VPS with about 5 GB free after the 28 containers already on it. That is
+# `low-spec`: the cross-encoder alone wants 5 GB, which is why the reranker is off and why
+# the UI says "Degraded" on searches rather than pretending otherwise.
+
+services:
+  db:
+    ports: !override []
+    restart: unless-stopped
+
+  tei-embed:
+    ports: !override []
+    restart: unless-stopped
+
+  # Not started on this box — the cross-encoder wants 5 GB and there are 5 GB free in total.
+  # The port is closed anyway: `docker compose up -d` with no service list would otherwise
+  # start it *and* publish an unauthenticated inference API on 8082 to the internet.
+  tei-rerank:
+    ports: !override []
+    restart: unless-stopped
+
+  api:
+    ports: !override []
+    restart: unless-stopped
+    # Coolify removes untagged local images on stop/restart, and these are built here rather
+    # than pulled from a registry. Without this the next restart tries to pull
+    # `zenith-api:latest` from Docker Hub and fails on a stack that was working a moment ago.
+    pull_policy: never
+
+  worker:
+    restart: unless-stopped
+    pull_policy: never
+
+  frontend:
+    ports: !override []
+    restart: unless-stopped
+    pull_policy: never
+    networks:
+      - default
+      - coolify
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+      - "traefik.http.routers.zenith.rule=Host(`zenith.example.com`)"
+      - "traefik.http.routers.zenith.entrypoints=https"
+      - "traefik.http.routers.zenith.tls=true"
+      - "traefik.http.routers.zenith.tls.certresolver=letsencrypt"
+      - "traefik.http.services.zenith.loadbalancer.server.port=80"
+      # Plain HTTP exists only to be redirected. A product that handles other people's
+      # documents must not be reachable unencrypted even briefly.
+      - "traefik.http.routers.zenith-http.rule=Host(`zenith.example.com`)"
+      - "traefik.http.routers.zenith-http.entrypoints=http"
+      - "traefik.http.routers.zenith-http.middlewares=zenith-https"
+      - "traefik.http.middlewares.zenith-https.redirectscheme.scheme=https"
+
+networks:
+  coolify:
+    external: true

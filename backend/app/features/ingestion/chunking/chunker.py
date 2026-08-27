@@ -27,7 +27,9 @@ CHARACTERS_PER_TOKEN = 3
 
 @dataclass(frozen=True, slots=True)
 class Chunk:
-    page_num: int
+    #: `None` for a document with no pages. See `documents.model.Chunk.page_num` for why
+    #: that is a null and not a 1.
+    page_num: int | None
     char_start: int
     char_end: int
     text: str
@@ -70,6 +72,42 @@ def chunk_page(page: ParsedPage, target: int = TARGET_CHARACTERS) -> list[Chunk]
             break
         # Overlap so a sentence cut in half is whole in one of the two chunks. Without it,
         # a fact spanning the boundary is retrievable from neither.
+        start = max(end - OVERLAP_CHARACTERS, start + 1)
+
+    return chunks
+
+
+def chunk_stream(text: str, target: int = TARGET_CHARACTERS) -> list[Chunk]:
+    """Split a document that has no pages, on the same boundaries and the same overlap.
+
+    Deliberately a second entry point rather than a flag on `chunk_page`. The two differ in
+    exactly one respect — what the offsets are relative to — and that difference is the
+    whole reason a text citation can highlight a range while a PDF citation cannot. Hiding
+    it behind `if paginated:` inside one function would put the two contracts in one body
+    where a later change can blur them.
+
+    The splitting itself is shared: `_boundary` decides where to cut for both, so a
+    paragraph break means the same thing in a Markdown file as in a PDF page, and improving
+    it improves both.
+
+    No boxes, because there is no geometry, and `page_num=None`, because there are no pages.
+    The offsets are relative to the whole file, which is the *only* text this document has —
+    that is what makes them a usable highlight here and not in a PDF.
+    """
+    if len(text.strip()) < MIN_CHARACTERS:
+        return []
+
+    chunks: list[Chunk] = []
+    start = 0
+    while start < len(text):
+        end = _boundary(text, start, target)
+        body = text[start:end]
+        if body.strip():
+            chunks.append(
+                Chunk(page_num=None, char_start=start, char_end=end, text=body.strip(), boxes=())
+            )
+        if end >= len(text):
+            break
         start = max(end - OVERLAP_CHARACTERS, start + 1)
 
     return chunks

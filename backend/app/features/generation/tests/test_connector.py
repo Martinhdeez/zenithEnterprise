@@ -91,3 +91,49 @@ async def test_a_200_with_the_wrong_shape_says_what_is_wrong() -> None:
 
     with pytest.raises(GenerationUnavailableError, match="OpenAI-compatible"):
         await provider(wrong_shape).complete("s", "u")
+
+
+def test_a_streamed_usage_chunk_is_read_rather_than_skipped() -> None:
+    """The chunk that made the cost dashboard useless.
+
+    With `include_usage`, the final SSE chunk has an *empty* `choices` and a populated
+    `usage`. A decoder that only looked for text threw it away, so every streamed answer —
+    which is every answer the chat produces — recorded NULL tokens and the dashboard had
+    nothing to show for the path people actually use.
+    """
+    from app.features.generation.adapters.openai_compatible import (
+        decoded,
+        delta_of,
+        usage_of,
+    )
+
+    final = decoded('data: {"choices":[],"usage":{"prompt_tokens":812,"completion_tokens":97}}')
+
+    assert final is not None
+    assert delta_of(final) is None, "it carries no text, which is why it was being dropped"
+    assert usage_of(final) == (812, 97)
+
+
+def test_an_ordinary_chunk_still_yields_its_text() -> None:
+    from app.features.generation.adapters.openai_compatible import (
+        decoded,
+        delta_of,
+    )
+
+    chunk = decoded('data: {"choices":[{"delta":{"content":"Fines"}}]}')
+
+    assert chunk is not None
+    assert delta_of(chunk) == "Fines"
+
+
+def test_a_provider_that_reports_nothing_gives_none_rather_than_zero() -> None:
+    """An unknown cost and a zero cost are different answers, and only one is ever true.
+    A local binding reports no usage at all."""
+    from app.features.generation.adapters.openai_compatible import (
+        usage_of,
+    )
+
+    assert usage_of({"choices": []}) == (None, None)
+    # A proxy is free to send it as a string; anything that is not an integer is "not
+    # reported" rather than coerced into a number somebody will budget against.
+    assert usage_of({"usage": {"prompt_tokens": "812"}}) == (None, None)

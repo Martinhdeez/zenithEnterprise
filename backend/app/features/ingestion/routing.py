@@ -22,6 +22,7 @@ must not be indistinguishable from a clean one.
 from dataclasses import dataclass
 from enum import Enum
 
+from app.core.hardware import OCR_IMPLEMENTED
 from app.features.ingestion.columns import is_multi_column
 from app.features.ingestion.parsers.base import ParsedPage, Word
 
@@ -29,6 +30,7 @@ from app.features.ingestion.parsers.base import ParsedPage, Word
 # few stray characters from a header stamp or a form field, and treating those as "has
 # text" is how an un-OCR'd 4,000-character page ingests as 12 characters of nothing.
 MIN_CHARACTERS = 100
+
 
 # A run of this many characters with no whitespace is not a word. M0's arXiv pages produced
 # `densevectorindexofWikipedia`; ordinary English tops out around 20 characters, and a URL
@@ -71,11 +73,11 @@ def decide(page: ParsedPage, *, ocr_available: bool) -> Decision:
     which document a query finds.
     """
     if len(page.text.strip()) < MIN_CHARACTERS:
-        if ocr_available:
+        if ocr_available and OCR_IMPLEMENTED:
             return Decision(Route.LAYOUT, "no extractable text layer; needs OCR")
         return Decision(
             Route.UNREADABLE,
-            "no extractable text layer, and OCR is disabled on this hardware profile",
+            "no extractable text layer, and no OCR is available to this installation",
         )
 
     warnings: list[str] = []

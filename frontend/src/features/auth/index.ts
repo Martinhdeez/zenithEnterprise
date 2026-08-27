@@ -1,6 +1,7 @@
 /** Signing in. `api` is exported too: the shell holds the token and refreshes it. */
 export { Login } from "./Login";
 export { Profile } from "./Profile";
+export { SetPassword } from "./SetPassword";
 export {
   login,
   refreshTokens,

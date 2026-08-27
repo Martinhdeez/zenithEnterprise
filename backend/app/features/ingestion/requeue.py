@@ -21,11 +21,19 @@ from uuid import UUID
 from sqlalchemy import text
 
 from app.core.database import owner_session
+from app.features.documents.model import IN_FLIGHT
 
-# `pending` is a document that never started. `failed` is one that started and stopped, and
-# re-running it is exactly what an operator wants after fixing the cause — a missing OCR
-# model, an embedding service that was down, a disk that was full.
-REQUEUABLE = ("pending", "failed")
+# `failed` is a document that started and stopped, and re-running it is exactly what an
+# operator wants after fixing the cause — a missing OCR model, an embedding service that was
+# down, a disk that was full. It never has a job behind it.
+#
+# Every *in-flight* status can strand too, and not only `pending`: a worker killed mid-document
+# leaves it at whatever stage it had reached, and nothing ever moves it again. That was always
+# true of `parsing`, `chunking` and `embedding`; `classifying` (migration 0019) made it one
+# more. Listing them by name would be the mistake `IN_FLIGHT` was derived to prevent — F16
+# shipped a folder count filtering on a status that had never existed — so it is derived here
+# too.
+REQUEUABLE = (*IN_FLIGHT, "failed")
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +48,13 @@ class Stranded:
 async def find_stranded(tenant_id: UUID | None = None, status: str | None = None) -> list[Stranded]:
     """Documents that should be in the pipeline and are not.
 
+    **Stranded means "no job behind it", not "in one of these statuses".** A document a worker
+    is processing right now is `embedding` with a live job, and requeuing it would run the
+    whole pipeline over it a second time — concurrently. The status alone cannot tell those
+    apart, which is why the queue is consulted rather than assumed: `failed` never has a job,
+    an in-flight document usually does, and the ones that do not are exactly the ones this
+    exists to find.
+
     `label_ids` comes from `document_labels` rather than from `documents.label_ids`: the
     array is a denormalised copy maintained by a trigger, and a requeue built from the copy
     would propagate a drift into the worker's context instead of exposing it.
@@ -51,6 +66,20 @@ async def find_stranded(tenant_id: UUID | None = None, status: str | None = None
         parameters["tenant_id"] = tenant_id
 
     async with owner_session() as session:
+        # Asked before the query rather than folded into it. Postgres resolves table names at
+        # parse time, so `to_regclass(...) IS NULL OR ... FROM procrastinate_jobs` does not
+        # short-circuit — it fails to parse on an installation that has not run
+        # `install-queue`. `purge.py` learned the same thing: a failed statement aborts the
+        # transaction, taking everything with it.
+        queued = await session.scalar(text("SELECT to_regclass('public.procrastinate_jobs')"))
+        if queued:
+            conditions.append(
+                "NOT EXISTS ("
+                "  SELECT 1 FROM procrastinate_jobs j "
+                "  WHERE j.status IN ('todo', 'doing') AND j.args->>'document_id' = d.id::text"
+                ")"
+            )
+
         rows = (
             await session.execute(
                 text(
