@@ -386,6 +386,7 @@ function PurgeDialog({
   onCancel: () => void;
   onConfirm: (name: string) => Promise<void>;
 }) {
+  const t = useT();
   const [typed, setTyped] = useState("");
   const matches = typed === organisation.name;
 
@@ -430,7 +431,7 @@ function PurgeDialog({
             className="bg-destructive text-white hover:bg-destructive/90"
             onClick={() => void onConfirm(typed)}
           >
-            Purge permanently
+            {t("Purge permanently")}
           </Button>
         </div>
       </div>

@@ -78,6 +78,6 @@ describe("in a collapsed sidebar", () => {
     render(<Ingesting status={status({ embedding: 7 })} collapsed />);
 
     expect(screen.queryByText(/Searches run more slowly/)).toBeNull();
-    expect(screen.getByTitle("Ingesting 7 document(s)")).toBeTruthy();
+    expect(screen.getByTitle("Ingesting 7 documents")).toBeTruthy();
   });
 });

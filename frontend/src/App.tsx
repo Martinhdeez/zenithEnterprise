@@ -660,8 +660,8 @@ export function App() {
           <button
             type="button"
             onClick={() => open("profile")}
-            title={collapsed ? "Profile" : undefined}
-            aria-label={collapsed ? "Profile" : undefined}
+            title={collapsed ? t("Profile") : undefined}
+            aria-label={collapsed ? t("Profile") : undefined}
             className={`flex items-center rounded-lg transition-colors ${
               collapsed ? "justify-center p-1.5" : "w-full gap-2.5 px-2 py-1.5"
             } ${
@@ -746,7 +746,14 @@ export function App() {
                 {folderSelection && (
                   <>
                     <span className="text-muted-foreground/50">/</span>
-                    <span className="font-medium text-foreground">{folderSelection.name}</span>
+                    <span className="font-medium text-foreground">
+                      {/* Only the one name this application owns. Every other value here is
+                          a label the customer created, and translating those would rename
+                          their own filing in front of them. */}
+                      {folderSelection.name === "All documents"
+                        ? t("All documents")
+                        : folderSelection.name}
+                    </span>
                   </>
                 )}
               </>

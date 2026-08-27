@@ -47,7 +47,11 @@ export function Ingesting({
     return (
       <div
         className="flex flex-col items-center gap-1 py-2"
-        title={processing > 0 ? `Ingesting ${processing} document(s)` : "Nothing being ingested"}
+        title={
+          processing > 0
+            ? t("Ingesting {count} documents", { count: processing })
+            : t("Nothing being ingested")
+        }
       >
         {processing > 0 ? (
           <>

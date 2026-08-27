@@ -406,4 +406,13 @@ export const es: Catalogue = {
   Purge: "Purgar",
   Create: "Crear",
   "Destroyed organisations ({count})": "Organizaciones destruidas ({count})",
+  "This link is no longer valid. Ask your administrator for a new one.":
+    "Este enlace ya no es válido. Pide otro a tu administrador.",
+  "Ingesting {count} documents": { one: "Procesando {count} documento", other: "Procesando {count} documentos" },
+  "Sign out on this device. Your other sessions are untouched.":
+    "Cierra la sesión en este dispositivo. Las demás no se tocan.",
+  "Sign out":
+    "Cerrar sesión",
+  "Purge permanently":
+    "Purgar permanentemente",
 };

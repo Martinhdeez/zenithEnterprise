@@ -326,11 +326,11 @@ function Sessions({ token, onSignedOut }: { token: string; onSignedOut: () => vo
     <div className="space-y-5">
       <div className="space-y-3">
         <p className="max-w-prose text-sm text-muted-foreground">
-          Sign out on this device. Your other sessions are untouched.
+          {t("Sign out on this device. Your other sessions are untouched.")}
         </p>
         <Button type="button" variant="outline" onClick={onSignedOut} className="gap-1.5 rounded-md">
           <LogOut className="size-4" />
-          Sign out
+          {t("Sign out")}
         </Button>
       </div>
 

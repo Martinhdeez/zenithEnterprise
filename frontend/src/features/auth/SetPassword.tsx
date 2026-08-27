@@ -62,7 +62,7 @@ export function SetPassword({ token }: { token: string }) {
     } catch (error) {
       setMessage(
         error instanceof ApiError && error.status === 404
-          ? "This link is no longer valid. Ask your administrator for a new one."
+          ? t("This link is no longer valid. Ask your administrator for a new one.")
           : t("The password could not be set."),
       );
     } finally {
