@@ -33,8 +33,13 @@ import { Label } from "@/components/ui/label";
 // Focus ring matches the Sign In button's own colour (--primary, "Indigo Electric") rather
 // than the cyan used for status/security indicators elsewhere on this screen — cyan means
 // "the system is healthy" here, and reusing it for focus would blur that meaning.
+// Tokens, not literals. This screen carries `dark` on its root, so `--input`,
+// `--secondary`, `--foreground` and `--muted-foreground` already resolve to the dark
+// palette here — the hex values these replaced were frozen copies of exactly those four,
+// and a copy is only ever right until the palette moves. It moved once already, on 26
+// August, and this screen kept the old field colours while every screen behind it changed.
 const FIELD =
-  "h-11 border-[#334155] bg-[#182238] text-[#f8fafc] placeholder:text-[#64748b] " +
+  "h-11 border-input bg-secondary text-foreground placeholder:text-muted-foreground " +
   "focus-visible:border-primary focus-visible:ring-primary/40";
 
 export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair) => void }) {
@@ -218,7 +223,7 @@ export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair
             {/* Both claims are true of this build: migration 0001 puts tenant isolation in
                 Postgres policies rather than in application code. */}
             <div className="mt-7 flex justify-center border-t border-white/5 pt-6">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#1e293b] bg-secondary/50 px-3 py-1.5 font-mono text-[11px] tracking-tight text-muted-foreground">
+              <div className="inline-flex items-center gap-2 rounded-full border border-input bg-secondary/50 px-3 py-1.5 font-mono text-[11px] tracking-tight text-muted-foreground">
                 <ShieldCheck className="size-3.5 text-zenith-cyan" />
                 <span className="flex items-center gap-1.5">
                   <span className="size-1.5 rounded-full bg-zenith-cyan shadow-[0_0_6px_rgba(0,229,229,0.9)]" />
