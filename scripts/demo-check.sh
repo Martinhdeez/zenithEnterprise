@@ -191,7 +191,7 @@ if [ -z "${LEFTOVERS}" ]; then
 else
   COUNT="$(printf '%s\n' "${LEFTOVERS}" | grep -c .)"
   warn "the system panel will show ${COUNT} active organisation(s) with no users and no documents:"
-  # Quoted through a here-doc: an organisation may legitimately be called "Grupo the client",
+  # Quoted through a here-doc: an organisation may legitimately be called "Example Group",
   # and an unquoted expansion prints that as two organisations.
   while IFS= read -r leftover; do
     [ -n "${leftover}" ] && printf '        %s\n' "${leftover}"
