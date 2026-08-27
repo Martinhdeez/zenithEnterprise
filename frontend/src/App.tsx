@@ -216,9 +216,14 @@ function measure(view: string): string {
     case "folders":
       return "max-w-6xl 2xl:max-w-7xl";
     // A result, an upload row and a past question are all a name plus a fragment of text.
-    // Wide enough to stop truncating the name, capped so the fragment stays readable.
+    //
+    // 4xl, not 5xl. 5xl was tried and it used the screen at the cost of looking uncentred:
+    // the search bar stretched the full width of the column while the empty state under it
+    // stayed a centred block, so the eye got a hard left edge at one width and centred text
+    // at another, and read the whole page as shoved left. The gap on each side is what tells
+    // you a column is centred, and at 5xl there was not enough of it left to say so.
     default:
-      return "max-w-5xl 2xl:max-w-6xl";
+      return "max-w-4xl 2xl:max-w-5xl";
   }
 }
 
