@@ -322,7 +322,7 @@ export function Search({
       )}
 
       {state.phase === "loading" && (
-        <ProgressBar key={state.query} label="Ranking passages" />
+        <ProgressBar key={state.query} label={t("Ranking passages")} />
       )}
 
       {state.phase === "error" && (

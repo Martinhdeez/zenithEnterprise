@@ -129,6 +129,30 @@ export function formatStamp(
   }).format(new Date(value));
 }
 
+/**
+ * The keys whose English form changes with the count.
+ *
+ * English keys are their own translation, which works for every string except a plural: a
+ * key cannot be both "1 answer" and "3 answers". Before this, `{count} answer` rendered
+ * "3 answer" on an English screen — the Spanish was right and the source language was not,
+ * which is the one direction nobody thinks to check.
+ *
+ * Deliberately small, and it should stay that way. A key that needs an entry here is a key
+ * whose English is doing work, and most sentences can be written so the count sits apart
+ * from the noun instead.
+ */
+const EN_PLURALS: Record<string, { one: string; other: string }> = {
+  "{count} answer": { one: "{count} answer", other: "{count} answers" },
+  "{count} question reported no usage — not counted": {
+    one: "{count} question reported no usage — not counted",
+    other: "{count} questions reported no usage — not counted",
+  },
+  "Delete {group}? Its {count} member(s) lose whatever it opened.": {
+    one: "Delete {group}? Its one member loses whatever it opened.",
+    other: "Delete {group}? Its {count} members lose whatever it opened.",
+  },
+};
+
 export function translate(
   language: Language,
   key: string,
@@ -136,8 +160,12 @@ export function translate(
 ): string {
   // English is the source. Its catalogue is the keys themselves, so a missing English entry
   // is impossible by construction and only Spanish can be incomplete — which is what the
-  // parity test asserts.
-  if (language === "en") return fill(key, vars);
+  // parity test asserts. The one exception is a plural: a key cannot be its own singular
+  // *and* its own plural, so those few carry an English entry like any other language.
+  if (language === "en") {
+    const plural = EN_PLURALS[key];
+    return plural ? fill(choose(plural, language, vars), vars) : fill(key, vars);
+  }
   const entry = es[key];
   if (entry === undefined) {
     // The English text, never an empty string or the raw key in brackets. An untranslated

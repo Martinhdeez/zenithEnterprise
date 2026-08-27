@@ -12,7 +12,7 @@
 
 import { Button } from "@/components/ui/button";
 import { absoluteLink, type Invitation } from "../api";
-import { useT } from "@/shared/i18n/useT";
+import { useFormat, useT } from "@/shared/i18n/useT";
 
 export function SingleUseLink({
   issued,
@@ -25,6 +25,7 @@ export function SingleUseLink({
   onDone: () => void;
 }) {
   const t = useT();
+  const format = useFormat();
   const link = absoluteLink(issued.path);
 
   return (
@@ -37,14 +38,10 @@ export function SingleUseLink({
         {link}
       </code>
       <p className="text-muted-foreground">
-        They choose their own password. The link works once and expires{" "}
-        {new Date(issued.expires_at).toLocaleString(undefined, {
-          day: "2-digit",
-          month: "short",
-          hour: "2-digit",
-          minute: "2-digit",
-        })}
-        , so it stops being a way in if it is left in a chat window.
+        {t(
+          "They choose their own password. The link works once and expires {when}, so it stops being a way in if it is left in a chat window.",
+          { when: format.stamp(issued.expires_at) },
+        )}
       </p>
       <div className="flex gap-2">
         <Button

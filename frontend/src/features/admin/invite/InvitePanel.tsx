@@ -48,7 +48,7 @@ export function InvitePanel({ token }: { token: string }) {
     return (
       <SingleUseLink
         issued={issued}
-        headline={`Send this link to ${issued.email}.`}
+        headline={t("Send this link to {email}.", { email: issued.email })}
         onDone={() => setIssued(null)}
       />
     );
@@ -86,7 +86,7 @@ export function InvitePanel({ token }: { token: string }) {
         <Label htmlFor="invite-role" className="text-sm text-foreground/80">{t("Role")}</Label>
         <Select value={roleId} onValueChange={setRoleId}>
           <SelectTrigger id="invite-role" className={`h-10 w-40 ${FIELD}`}>
-            <SelectValue placeholder="none" />
+            <SelectValue placeholder={t("none")} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="none">{t("none")}</SelectItem>

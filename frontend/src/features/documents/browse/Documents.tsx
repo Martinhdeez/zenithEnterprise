@@ -16,7 +16,7 @@ import { DocumentDetail } from "./DocumentDetail";
 import { ApiError } from "@/shared/api/http";
 import type { Citation } from "@/features/chat";
 import { Button } from "@/components/ui/button";
-import { useT } from "@/shared/i18n/useT";
+import { useFormat, useT } from "@/shared/i18n/useT";
 import {
   Dialog,
   DialogContent,
@@ -65,6 +65,7 @@ export function Documents({
   permissions = [],
 }: Props) {
   const t = useT();
+  const format = useFormat();
   const mayInspect = permissions.includes("roles.manage");
   const [inspecting, setInspecting] = useState<string | null>(null);
   // Label ids resolve to names only for the labels this caller reaches — `GET /labels`
@@ -210,7 +211,7 @@ export function Documents({
                     {formatSize(document_.size_bytes)}
                     {document_.page_count !== null && ` · ${document_.page_count} pages`}
                     {" · "}
-                    {new Date(document_.created_at).toLocaleDateString()}
+                    {format.date(document_.created_at)}
                   </p>
                 </div>
               </button>

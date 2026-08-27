@@ -17,7 +17,7 @@ import { ShieldCheck } from "lucide-react";
 import { auditEvents, type AuditEvent } from "../api";
 import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
-import { useT, type T } from "@/shared/i18n/useT";
+import { useFormat, useT, type T } from "@/shared/i18n/useT";
 
 /** The verbs, in the order somebody scanning the list would want to recognise them. */
 const SENTENCES: Record<string, string> = {
@@ -83,15 +83,6 @@ const GRAVE = new Set([
   "label.deleted",
 ]);
 
-function when(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 /**
  * A permission change carries both sides, so the difference is readable without going and
  * finding the previous row. That is the one shape worth rendering specially — everything
@@ -121,6 +112,7 @@ function Detail({ event }: { event: AuditEvent }) {
 
 export function AuditTrail({ token }: { token: string }) {
   const t = useT();
+  const format = useFormat();
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -181,7 +173,7 @@ export function AuditTrail({ token }: { token: string }) {
               </p>
               <Detail event={event} />
             </div>
-            <span className="shrink-0 text-xs text-muted-foreground">{when(event.created_at)}</span>
+            <span className="shrink-0 text-xs text-muted-foreground">{format.stamp(event.created_at)}</span>
           </li>
         ))}
       </ul>

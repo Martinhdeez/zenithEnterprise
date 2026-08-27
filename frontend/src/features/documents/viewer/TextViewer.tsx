@@ -19,7 +19,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { Citation } from "@/features/chat";
-import { useT } from "@/shared/i18n/useT";
+import { useFormat, useT } from "@/shared/i18n/useT";
 
 interface Props {
   citation: Citation;
@@ -28,6 +28,7 @@ interface Props {
 
 export function TextViewer({ citation, token }: Props) {
   const t = useT();
+  const format = useFormat();
   const highlight = useRef<HTMLElement>(null);
   const [body, setBody] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +100,9 @@ export function TextViewer({ citation, token }: Props) {
         {/* Deliberately not "page 1". This document has no pages, and naming a position
             that does not exist is the thing the nullable column was introduced to stop. */}
         <p className="text-sm text-muted-foreground">
-          {body === null ? "Opening…" : `Characters ${start.toLocaleString()}–${end.toLocaleString()}`}
+          {body === null
+            ? t("Opening…")
+            : t("Characters {from}–{to}", { from: format.number(start), to: format.number(end) })}
         </p>
       </header>
 

@@ -131,7 +131,7 @@ export function Folders({
               )}
               <p className="truncate text-sm font-medium text-foreground">{node.leaf}</p>
               <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-                <span>{folder.documents} documents</span>
+                <span>{t("{count} documents", { count: folder.documents })}</span>
                 {folder.processing > 0 && (
                   <span className="text-zenith-amber" title={t("still being processed")}>
                     {folder.processing}⋯

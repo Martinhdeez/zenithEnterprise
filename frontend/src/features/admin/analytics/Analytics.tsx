@@ -21,7 +21,7 @@ import { useCallback, useEffect, useState } from "react";
 import { FileText, Loader2, MessageSquare, ShieldAlert, Timer, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { useT } from "@/shared/i18n/useT";
+import { useFormat, useT } from "@/shared/i18n/useT";
 
 import {
   type AuditEntry,
@@ -32,6 +32,7 @@ import {
 
 export function Analytics({ token }: { token: string }) {
   const t = useT();
+  const format = useFormat();
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,7 +67,7 @@ export function Analytics({ token }: { token: string }) {
 
   return (
     <div className="space-y-6">
-      <p className="text-xs text-muted-foreground">Last {data.window_days} days</p>
+      <p className="text-xs text-muted-foreground">{t("Last {days} days", { days: data.window_days })}</p>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi icon={<MessageSquare className="size-4" />} label={t("Questions")} value={totals.queries} />
@@ -85,7 +86,7 @@ export function Analytics({ token }: { token: string }) {
           // what is missing from it.
           note={
             totals.queries > 0
-              ? `${Math.round((totals.abstentions / totals.queries) * 100)}% of questions`
+              ? t("{percent}% of questions", { percent: Math.round((totals.abstentions / totals.queries) * 100) })
               : undefined
           }
           tone={totals.abstentions > 0 ? "warn" : undefined}
@@ -160,6 +161,7 @@ function Kpi({
   note?: string;
   tone?: "warn";
 }) {
+  const format = useFormat();
   return (
     // A step above the panel it sits in, which is itself a step above the page. Three
     // surfaces of the same navy rather than three borders on one flat one: depth is what
@@ -224,6 +226,7 @@ function Rows({
  */
 function AuditLog({ token }: { token: string }) {
   const t = useT();
+  const format = useFormat();
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);

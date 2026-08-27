@@ -8,10 +8,11 @@
  */
 
 import { IN_FLIGHT, type TenantStatus } from "@/shared/api/tenant";
-import { useT } from "@/shared/i18n/useT";
+import { useFormat, useT } from "@/shared/i18n/useT";
 
 export function StatusBadge({ status }: { status: TenantStatus | null }) {
   const t = useT();
+  const format = useFormat();
   if (!status) return <p className="text-sm text-muted-foreground">{t("Loading…")}</p>;
 
   const ready = status.documents.ready ?? 0;
@@ -53,7 +54,7 @@ export function StatusBadge({ status }: { status: TenantStatus | null }) {
           <p className="flex items-baseline gap-1.5">
             <span className="size-1.5 shrink-0 self-center rounded-full bg-zenith-cyan shadow-[0_0_6px_rgba(0,229,229,0.9)]" />
             <span className="text-2xl leading-none font-semibold tracking-tight tabular-nums text-foreground">
-              {ready.toLocaleString()}
+              {format.number(ready)}
             </span>
           </p>
           <p className="mt-1.5 text-xs tracking-wide text-muted-foreground/70 uppercase">
@@ -66,7 +67,7 @@ export function StatusBadge({ status }: { status: TenantStatus | null }) {
 
         <div className="min-w-0">
           <p className="text-2xl leading-none font-semibold tracking-tight tabular-nums text-foreground">
-            {status.chunks.toLocaleString()}
+            {format.number(status.chunks)}
           </p>
           <p className="mt-1.5 text-xs tracking-wide text-muted-foreground/70 uppercase">{t("passages")}</p>
         </div>

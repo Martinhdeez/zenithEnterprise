@@ -140,7 +140,7 @@ export function CommandPalette({ token, actions }: { token: string; actions: Pal
       <CommandList>
         {/* One empty state for the whole palette, not one per group: three "no results"
             messages stacked on top of each other reads as three things being broken. */}
-        <CommandEmpty>Nothing matches that.</CommandEmpty>
+        <CommandEmpty>{t("Nothing matches that.")}</CommandEmpty>
 
         {screens.length > 0 && (
           <CommandGroup heading={t("Go to")}>

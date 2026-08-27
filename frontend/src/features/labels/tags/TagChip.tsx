@@ -26,6 +26,7 @@
  * out-shouts the sentence it labels has stopped being a label.
  */
 
+import { useT } from "@/shared/i18n/useT";
 import { leaf } from "../namespace";
 
 const PALETTE = [
@@ -70,6 +71,7 @@ interface Props {
 }
 
 export function TagChip({ name, onClick, short = false, uncategorised = false }: Props) {
+  const t = useT();
   const label = short ? leaf(name) : name;
   const tone = uncategorised ? UNCATEGORISED : hue(name);
   const shared = `inline-flex max-w-48 items-center rounded-full border px-2 py-0.5 text-xs ${tone}`;
@@ -91,7 +93,7 @@ export function TagChip({ name, onClick, short = false, uncategorised = false }:
         event.stopPropagation();
         onClick(name);
       }}
-      title={`Filter by ${name}`}
+      title={t("Filter by {name}", { name })}
       className={`${shared} transition-opacity hover:opacity-80`}
     >
       <span className="truncate">{label}</span>

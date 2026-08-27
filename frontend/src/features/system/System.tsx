@@ -32,7 +32,7 @@ import {
   suspendOrganisation,
 } from "./api";
 import { groupOrganisations } from "./groupOrganisations";
-import { useT } from "@/shared/i18n/useT";
+import { useFormat, useT, type T } from "@/shared/i18n/useT";
 
 const STATUS_STYLE: Record<string, string> = {
   active: "bg-zenith-cyan/10 text-zenith-cyan",
@@ -149,7 +149,7 @@ function OrganisationList({
     <div className="space-y-6">
       {active.length > 0 && (
         <OrganisationGroup
-          title={grouped ? "Active" : undefined}
+          title={grouped ? t("Active") : undefined}
           organisations={active}
           token={token}
           busy={busy}
@@ -170,7 +170,7 @@ function OrganisationList({
       {destroyed.length > 0 && (
         <details className="space-y-2">
           <summary className="cursor-pointer text-sm font-medium text-muted-foreground">
-            Destroyed organisations ({destroyed.length})
+            {t("Destroyed organisations ({count})", { count: destroyed.length })}
           </summary>
           <OrganisationGroup
             organisations={destroyed}
@@ -224,6 +224,28 @@ function OrganisationGroup({
   );
 }
 
+/**
+ * A lifecycle status in the reader's language.
+ *
+ * A switch of literals rather than `t(organisation.status)`, for the same reason the upload
+ * stages are: a key reached through a variable is invisible to the test that guarantees every
+ * key has a Spanish sentence, so it would silently render English forever.
+ */
+function statusWord(status: string, t: T): string {
+  switch (status) {
+    case "active":
+      return t("active");
+    case "suspended":
+      return t("suspended");
+    case "purging":
+      return t("purging");
+    case "purged":
+      return t("purged");
+    default:
+      return status;
+  }
+}
+
 function OrganisationRow({
   organisation,
   token,
@@ -237,13 +259,15 @@ function OrganisationRow({
   onAct: (id: string, work: () => Promise<unknown>) => Promise<void>;
   onPurge: (organisation: Organisation) => void;
 }) {
+  const t = useT();
+  const format = useFormat();
   return (
     <li className="flex flex-wrap items-center gap-3 p-4">
       <Building2 className="size-4 shrink-0 text-muted-foreground" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground">{organisation.name}</p>
         <p className="text-xs text-muted-foreground">
-          {new Date(organisation.created_at).toLocaleDateString()} ·{" "}
+          {format.date(organisation.created_at)} ·{" "}
           {organisation.users} user{organisation.users === 1 ? "" : "s"} ·{" "}
           {organisation.documents} document{organisation.documents === 1 ? "" : "s"} ·{" "}
           {formatBytes(organisation.storage_bytes)}
@@ -255,7 +279,7 @@ function OrganisationRow({
           STATUS_STYLE[organisation.status] ?? "bg-secondary text-muted-foreground"
         }`}
       >
-        {organisation.status}
+        {statusWord(organisation.status, t)}
       </span>
 
       {organisation.status === "active" && (
@@ -264,9 +288,7 @@ function OrganisationRow({
           size="sm"
           disabled={busy === organisation.id}
           onClick={() => void onAct(organisation.id, () => suspendOrganisation(token, organisation.id))}
-        >
-          Suspend
-        </Button>
+        >{t("Suspend")}</Button>
       )}
 
       {organisation.status === "suspended" && (
@@ -276,9 +298,7 @@ function OrganisationRow({
             size="sm"
             disabled={busy === organisation.id}
             onClick={() => void onAct(organisation.id, () => activateOrganisation(token, organisation.id))}
-          >
-            Activate
-          </Button>
+          >{t("Activate")}</Button>
           {/* The only destructive control in the product, and it is reachable only
               from `suspended` — the reversible step has to have happened first. */}
           <Button
@@ -286,9 +306,7 @@ function OrganisationRow({
             size="sm"
             className="text-destructive"
             onClick={() => onPurge(organisation)}
-          >
-            Purge
-          </Button>
+          >{t("Purge")}</Button>
         </>
       )}
     </li>
@@ -339,9 +357,7 @@ function NewOrganisation({ token, onCreated }: { token: string; onCreated: () =>
               setError(problem instanceof Error ? problem.message : t("That was not created."));
             }
           }}
-        >
-          Create
-        </Button>
+        >{t("Create")}</Button>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}

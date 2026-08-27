@@ -209,7 +209,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t("Search labels")}
-            aria-label="Search labels"
+            aria-label={t("Search labels")}
             disabled={onlySelected}
             className="h-9 rounded-full bg-card border-input hover:border-muted-foreground/40 dark:bg-background dark:border-muted-foreground/35 dark:shadow-[inset_0_1px_3px_rgb(0_0_0/0.45)] dark:hover:border-muted-foreground/55 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/40"
           />
@@ -301,7 +301,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
             </button>
             <button
               type="button"
-              aria-label={`Delete label ${label.name}`}
+              aria-label={t("Delete label {label}", { label: label.name })}
               // The tenant's own labels, not this product's fixed set — every one of them,
               // default included, has to stay removable or "configurable" is a lie the
               // moment the first mistaken one gets created.
@@ -321,7 +321,9 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
 
       {!loading && shown.length === 0 && (
         <p className="py-2 text-center text-xs text-muted-foreground">
-          {trimmed ? `No labels match “${trimmed}”.` : t("No labels match those filters.")}
+          {trimmed
+            ? t("No labels match “{term}”.", { term: trimmed })
+            : t("No labels match those filters.")}
         </p>
       )}
 

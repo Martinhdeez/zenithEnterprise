@@ -17,7 +17,7 @@ import { useCallback, useEffect, useState } from "react";
 import { history, type HistoryEntry } from "./api";
 import { Button } from "@/components/ui/button";
 import { SearchField } from "@/shared/ui/SearchField";
-import { useT } from "@/shared/i18n/useT";
+import { useFormat, useT } from "@/shared/i18n/useT";
 
 export function History({
   token,
@@ -28,6 +28,7 @@ export function History({
   onAsk: (question: string) => void;
 }) {
   const t = useT();
+  const format = useFormat();
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -155,10 +156,10 @@ export function History({
               <p className="mt-2.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground/80">
                 <span>{format.dateTime(entry.created_at)}</span>
                 <span>
-                  {entry.citations} citation{entry.citations === 1 ? "" : "s"}
+                  {t("{count} citation", { count: entry.citations })}
                 </span>
                 {entry.model_used && <span className="font-mono">{entry.model_used}</span>}
-                {shared && <span>{entry.mine ? "you" : "a colleague"}</span>}
+                {shared && <span>{entry.mine ? t("you") : t("a colleague")}</span>}
               </p>
             </button>
           </li>

@@ -16,22 +16,12 @@ import { FileText, Hash, Layers, Quote, User } from "lucide-react";
 
 import { documentInsights, type DocumentInsights, type DocumentSummary } from "../api";
 import { TagChips } from "@/features/labels";
-import { useT } from "@/shared/i18n/useT";
+import { useFormat, useT } from "@/shared/i18n/useT";
 
 function bytes(size: number): string {
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${Math.round(size / 1024)} kB`;
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function when(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 /** One label-and-value row. The icon is what makes six of these scannable. */
@@ -66,6 +56,7 @@ export function DocumentDetail({
   onSelectTag?: (name: string) => void;
 }) {
   const t = useT();
+  const format = useFormat();
   const [insights, setInsights] = useState<DocumentInsights | null>(null);
 
   useEffect(() => {
@@ -115,30 +106,30 @@ export function DocumentDetail({
       )}
 
       <div className="space-y-2">
-        <Fact icon={FileText} label="Pages">
+        <Fact icon={FileText} label={t("Pages")}>
           {document.page_count ?? "—"}
         </Fact>
-        <Fact icon={Layers} label="Passages">
+        <Fact icon={Layers} label={t("Passages")}>
           {/* The unit retrieval actually searches, which says more about whether this is
               findable than a page count does. */}
           {insights ? insights.chunks : "…"}
         </Fact>
-        <Fact icon={Quote} label="Cited by">
+        <Fact icon={Quote} label={t("Cited by")}>
           {insights === null
             ? "…"
             : insights.answers === 0
               ? t("No answers yet")
-              : `${insights.answers} answer${insights.answers === 1 ? "" : "s"}`}
+              : t("{count} answer", { count: insights.answers })}
         </Fact>
-        <Fact icon={User} label="Uploaded">
+        <Fact icon={User} label={t("Uploaded")}>
           {/* From `insights`, not from the document: the list payload carries the uploader
               as an id, and "uploaded by 7b1c5fd3-a760…" answers nothing a person asked. */}
           {insights === null
             ? "…"
-            : (insights.uploaded_by ?? "someone since removed")}{" "}
-          · {when(document.created_at)}
+            : (insights.uploaded_by ?? t("someone since removed"))}{" "}
+          · {format.stamp(document.created_at, { year: true })}
         </Fact>
-        <Fact icon={Hash} label="Size">
+        <Fact icon={Hash} label={t("Size")}>
           {bytes(document.size_bytes)}
         </Fact>
       </div>

@@ -14,6 +14,7 @@
 import { describe, expect, it } from "vitest";
 
 import { es } from "./es";
+import { translate } from "./index";
 
 const sources = import.meta.glob("/src/**/*.{ts,tsx}", {
   query: "?raw",
@@ -86,6 +87,54 @@ describe("the Spanish catalogue", () => {
     const used = new Set(keysUsedInSource().keys());
     const orphans = Object.keys(es).filter((key) => !used.has(key));
     expect(orphans, `translated but unused:\n  ${orphans.join("\n  ")}`).toEqual([]);
+  });
+
+  /**
+   * The other half, and the one the catalogue test cannot see.
+   *
+   * A green catalogue proves every `t(…)` resolves. It proves nothing about a string that
+   * never became a `t(…)` — and that is where every seam found by walking the screens
+   * actually lived: `label="Pages"`, `aria-label="Cancel"`, `empty="No roles assigned"`.
+   * They render in English on a Spanish screen, they are invisible to a reviewer reading a
+   * diff of the catalogue, and half of them are read aloud rather than drawn, so nobody
+   * sees them at all.
+   *
+   * Only the props that are unambiguously read by a person. `title` is included because on
+   * a control it is the tooltip; `alt` because it is the image for anyone who cannot see it.
+   */
+  const VISIBLE = ["label", "placeholder", "aria-label", "title", "hint", "empty", "headline", "alt"];
+
+  /** Values that are deliberately the same in every language. */
+  const LITERAL = new Set(["Zenith", "true", "false", "none", "editor", "you@company.com"]);
+
+  it("wraps every user-visible attribute in t()", () => {
+    const offenders: string[] = [];
+    for (const [path, source] of Object.entries(sources)) {
+      if (path.includes(".test.") || path.includes("/i18n/") || path.includes("/components/ui/"))
+        continue;
+      // Blank out the inside of every `t(…)` so its own literals are not reported.
+      const outside = source.split("\n").map((line) => line.replace(/\bt\([^\n]*/g, ""));
+      outside.forEach((line, index) => {
+        for (const match of line.matchAll(/\b([a-zA-Z-]+)="([^"]{2,})"/g)) {
+          const [, prop, value] = match;
+          if (!VISIBLE.includes(prop!) || LITERAL.has(value!)) continue;
+          // A className or a token list, not a sentence.
+          if (!/[a-z]{3}/.test(value!) || /^[a-z0-9:/[\]-]+(\s+[a-z0-9:/[\]-]+)+$/.test(value!))
+            continue;
+          offenders.push(`  ${path}:${index + 1}  ${prop}="${value}"`);
+        }
+      });
+    }
+    expect(offenders, `not translated:\n${offenders.join("\n")}`).toEqual([]);
+  });
+
+  it("counts correctly in English too, not only in Spanish", () => {
+    // The direction nobody checks: English keys are their own translation, so a plural key
+    // rendered its singular form for every count until it carried an English entry.
+    expect(translate("en", "{count} answer", { count: 1 })).toBe("1 answer");
+    expect(translate("en", "{count} answer", { count: 3 })).toBe("3 answers");
+    expect(translate("es", "{count} answer", { count: 1 })).toBe("1 respuesta");
+    expect(translate("es", "{count} answer", { count: 3 })).toBe("3 respuestas");
   });
 
   it("keeps both forms of every plural", () => {

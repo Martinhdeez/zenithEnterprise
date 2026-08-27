@@ -101,7 +101,7 @@ export function AccessInspector({ token, filename, labelIds, labels }: Props) {
                 {label.name}
                 <span className="ml-2 text-xs font-normal text-muted-foreground">
                   {label.priority_level > 0
-                    ? `needs clearance ${label.priority_level}`
+                    ? t("needs clearance {level}", { level: label.priority_level })
                     : "needs no clearance"}
                 </span>
               </p>
