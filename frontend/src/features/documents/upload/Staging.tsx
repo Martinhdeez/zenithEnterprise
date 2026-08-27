@@ -140,7 +140,7 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
           >
             {allSelected && <Check className="size-2.5" strokeWidth={3.5} />}
           </span>
-          {selected.size > 0 ? `${selected.size} selected` : "Select all"}
+          {selected.size > 0 ? `${selected.size} selected` : t("Select all")}
         </button>
 
         <div className="flex-1" />
@@ -254,7 +254,7 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
       )}
 
       <Button className="w-full" disabled={busy || !rows.length} onClick={onConfirm}>
-        {busy ? "Uploading…" : `Confirm & process ${rows.length} file${rows.length === 1 ? "" : "s"}`}
+        {busy ? t("Uploading…") : `Confirm & process ${rows.length} file${rows.length === 1 ? "" : "s"}`}
       </Button>
 
       {summary.untagged > 0 && (

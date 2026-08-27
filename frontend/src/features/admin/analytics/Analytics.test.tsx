@@ -100,7 +100,7 @@ describe("the audit log", () => {
     render(<Analytics token="t" />);
     await screen.findByText("first question");
 
-    expect(screen.queryByRole("button", { name: /Cargar más/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Load more/ })).toBeNull();
   });
 });
 
@@ -115,7 +115,7 @@ describe("loading more", () => {
 
   it("passes the cursor back rather than an offset", async () => {
     render(<Analytics token="t" />);
-    fireEvent.click(await screen.findByRole("button", { name: /Cargar más/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Load more/ }));
 
     await waitFor(() => expect(auditLog).toHaveBeenCalledWith("t", "CURSOR"));
   });
@@ -124,7 +124,7 @@ describe("loading more", () => {
     // Replacing them would discard pages somebody has already scrolled through — and a
     // keyset cursor names a position forward only, so there is no going back for them.
     render(<Analytics token="t" />);
-    fireEvent.click(await screen.findByRole("button", { name: /Cargar más/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Load more/ }));
 
     expect(await screen.findByText("second question")).toBeTruthy();
     expect(screen.getByText("first question")).toBeTruthy();
@@ -132,10 +132,10 @@ describe("loading more", () => {
 
   it("stops offering the button at the end", async () => {
     render(<Analytics token="t" />);
-    fireEvent.click(await screen.findByRole("button", { name: /Cargar más/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Load more/ }));
     await screen.findByText("second question");
 
-    expect(screen.queryByRole("button", { name: /Cargar más/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Load more/ })).toBeNull();
   });
 });
 

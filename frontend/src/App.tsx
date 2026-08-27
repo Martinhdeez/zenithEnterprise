@@ -244,8 +244,8 @@ function ThemeControl({ collapsed }: { collapsed: boolean }) {
       <button
         type="button"
         onClick={() => choose(next)}
-        title={`Switch to ${LABEL[next].toLowerCase()}`}
-        aria-label={`Switch to ${LABEL[next].toLowerCase()}`}
+        title={t("Switch to {theme}", { theme: LABEL[next].toLowerCase() })}
+        aria-label={t("Switch to {theme}", { theme: LABEL[next].toLowerCase() })}
         className="flex items-center justify-center rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground"
       >
         <Icon className="size-4" />
@@ -902,7 +902,7 @@ export function App() {
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                aria-label={pdfExpanded ? "Exit fullscreen" : "Fullscreen"}
+                aria-label={pdfExpanded ? t("Exit fullscreen") : t("Fullscreen")}
                 onClick={() => setPdfExpanded((expanded) => !expanded)}
                 className="text-muted-foreground hover:text-foreground"
               >

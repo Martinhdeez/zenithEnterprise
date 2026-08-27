@@ -75,7 +75,7 @@ export function System({ token }: { token: string }) {
       // customer is switched off.
       load();
     } catch (problem) {
-      setError(problem instanceof Error ? problem.message : "That change was not saved.");
+      setError(problem instanceof Error ? problem.message : t("That change was not saved."));
     } finally {
       setBusy(null);
     }
@@ -336,7 +336,7 @@ function NewOrganisation({ token, onCreated }: { token: string; onCreated: () =>
               setEmail("");
               onCreated();
             } catch (problem) {
-              setError(problem instanceof Error ? problem.message : "That was not created.");
+              setError(problem instanceof Error ? problem.message : t("That was not created."));
             }
           }}
         >

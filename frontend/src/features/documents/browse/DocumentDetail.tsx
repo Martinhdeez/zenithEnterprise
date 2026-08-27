@@ -127,7 +127,7 @@ export function DocumentDetail({
           {insights === null
             ? "…"
             : insights.answers === 0
-              ? "No answers yet"
+              ? t("No answers yet")
               : `${insights.answers} answer${insights.answers === 1 ? "" : "s"}`}
         </Fact>
         <Fact icon={User} label="Uploaded">

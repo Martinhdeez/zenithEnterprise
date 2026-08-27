@@ -142,7 +142,7 @@ export function TagManager({ token }: { token: string }) {
           <SearchField
             value={query}
             onChange={setQuery}
-            label="Search labels"
+            label={t("Search labels")}
             placeholder={t("Search labels")}
           />
         </div>
@@ -230,7 +230,7 @@ export function TagManager({ token }: { token: string }) {
 
       {items.length === 0 && !loading && (
         <p className="py-6 text-center text-sm text-muted-foreground">
-          {query ? "No labels match." : "This tenant has no labels yet."}
+          {query ? t("No labels match.") : t("This tenant has no labels yet.")}
         </p>
       )}
 
@@ -339,7 +339,7 @@ function MergeDialog({
           <div className="space-y-1.5">
             <span className="text-xs font-medium text-muted-foreground">{t("Keep")}</span>
             <Select value={target} onValueChange={setTarget}>
-              <SelectTrigger className="h-9 rounded-md border-input bg-input/50" aria-label="Keep">
+              <SelectTrigger className="h-9 rounded-md border-input bg-input/50" aria-label={t("Keep")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -415,10 +415,10 @@ function MergeDialog({
               }
             >
               {busy
-                ? "Merging…"
+                ? t("Merging…")
                 : preview.visibility_widening > 0
-                  ? "Merge and widen access"
-                  : "Merge"}
+                  ? t("Merge and widen access")
+                  : t("Merge")}
             </Button>
           ) : (
             <Button
@@ -427,7 +427,7 @@ function MergeDialog({
               onClick={() => void run(false)}
               className="rounded-md"
             >
-              {busy ? "Checking…" : "Preview changes"}
+              {busy ? t("Checking…") : t("Preview changes")}
             </Button>
           )}
         </DialogFooter>

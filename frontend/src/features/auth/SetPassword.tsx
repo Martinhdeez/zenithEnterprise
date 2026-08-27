@@ -63,7 +63,7 @@ export function SetPassword({ token }: { token: string }) {
       setMessage(
         error instanceof ApiError && error.status === 404
           ? "This link is no longer valid. Ask your administrator for a new one."
-          : "The password could not be set.",
+          : t("The password could not be set."),
       );
     } finally {
       setBusy(false);
@@ -111,7 +111,7 @@ export function SetPassword({ token }: { token: string }) {
           >
             <div className="space-y-2">
               <h1 className="text-lg font-medium text-foreground">
-                {state.purpose === "reset" ? "Choose a new password" : "Welcome to Zenith"}
+                {state.purpose === "reset" ? t("Choose a new password") : t("Welcome to Zenith")}
               </h1>
               {/* Naming the account matters most on a reset: somebody with two addresses
                   needs to know which one this link is about before they commit a password
@@ -124,8 +124,8 @@ export function SetPassword({ token }: { token: string }) {
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="New password"
-              aria-label="New password"
+              placeholder={t("New password")}
+              aria-label={t("New password")}
               autoFocus
               className="rounded-md"
             />
@@ -133,15 +133,15 @@ export function SetPassword({ token }: { token: string }) {
               type="password"
               value={again}
               onChange={(event) => setAgain(event.target.value)}
-              placeholder="Repeat it"
-              aria-label="Repeat the password"
+              placeholder={t("Repeat it")}
+              aria-label={t("Repeat the password")}
               className="rounded-md"
             />
 
             {message && <p className="text-sm text-destructive">{message}</p>}
 
             <Button type="submit" disabled={busy} className="w-full rounded-md">
-              {busy ? "Setting…" : "Set password"}
+              {busy ? t("Setting…") : t("Set password")}
             </Button>
             <p className="text-xs text-muted-foreground">
               At least {MINIMUM} characters. Nobody else ever sees it — not even the

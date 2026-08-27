@@ -69,17 +69,17 @@ export function Analytics({ token }: { token: string }) {
       <p className="text-xs text-muted-foreground">Last {data.window_days} days</p>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi icon={<MessageSquare className="size-4" />} label="Questions" value={totals.queries} />
-        <Kpi icon={<Users className="size-4" />} label="People asking" value={totals.users} />
+        <Kpi icon={<MessageSquare className="size-4" />} label={t("Questions")} value={totals.queries} />
+        <Kpi icon={<Users className="size-4" />} label={t("People asking")} value={totals.users} />
         <Kpi
           icon={<Timer className="size-4" />}
-          label="Average answer"
+          label={t("Average answer")}
           value={`${((totals.average_retrieval_ms + totals.average_generation_ms) / 1000).toFixed(1)}s`}
-          note={`${totals.average_retrieval_ms} ms retrieval`}
+          note={t("{ms} ms retrieval", { ms: totals.average_retrieval_ms })}
         />
         <Kpi
           icon={<FileText className="size-4" />}
-          label="Found nothing"
+          label={t("Found nothing")}
           value={totals.abstentions}
           // The most actionable number here: questions the corpus could not answer are
           // what is missing from it.
@@ -92,7 +92,7 @@ export function Analytics({ token }: { token: string }) {
         />
       </div>
 
-      <Panel title="Tokens">
+      <Panel title={t("Tokens")}>
         {tokens === 0 && totals.queries_without_usage > 0 ? (
           // Said plainly rather than shown as a zero. "Nothing was spent" and "nobody
           // reported what was spent" are different answers, and only one is ever true.
@@ -100,16 +100,16 @@ export function Analytics({ token }: { token: string }) {
         ) : (
           <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm">
             <span className="text-foreground">
-              <span className="text-lg font-medium">{tokens.toLocaleString()}</span>{t("total")}</span>
+              <span className="text-lg font-medium">{format.number(tokens)}</span>{t("total")}</span>
             <span className="text-muted-foreground">
-              {totals.prompt_tokens.toLocaleString()} prompt ·{" "}
-              {totals.completion_tokens.toLocaleString()} completion
+              {t("{n} prompt", { n: format.number(totals.prompt_tokens) })} ·{" "}
+              {t("{n} completion", { n: format.number(totals.completion_tokens) })}
             </span>
             {totals.queries_without_usage > 0 && (
               <span className="text-zenith-amber">
-                {totals.queries_without_usage} question
-                {totals.queries_without_usage === 1 ? "" : "s"} reported no usage — not
-                counted
+                {t("{count} question reported no usage — not counted", {
+                  count: totals.queries_without_usage,
+                })}
               </span>
             )}
           </div>
@@ -119,12 +119,12 @@ export function Analytics({ token }: { token: string }) {
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel title={t("Most active")}>
           <Rows
-            empty="Nobody has asked anything yet."
+            empty={t("Nobody has asked anything yet.")}
             rows={data.most_active.map((person) => ({
               key: person.user_id ?? person.email ?? "gone",
               // A deleted user's queries survive them — `queries.user_id` is ON DELETE SET
               // NULL, so the activity is real and the person is not there to name.
-              left: person.email ?? "a deleted user",
+              left: person.email ?? t("a deleted user"),
               right: `${person.queries}`,
             }))}
           />
@@ -132,7 +132,7 @@ export function Analytics({ token }: { token: string }) {
 
         <Panel title={t("Most cited documents")}>
           <Rows
-            empty="No answer has cited anything yet."
+            empty={t("No answer has cited anything yet.")}
             rows={data.top_cited.map((document_) => ({
               key: document_.document_id,
               left: document_.filename,
@@ -172,7 +172,7 @@ function Kpi({
       <p
         className={`text-2xl font-medium ${tone === "warn" ? "text-zenith-amber" : "text-foreground"}`}
       >
-        {typeof value === "number" ? value.toLocaleString() : value}
+        {typeof value === "number" ? format.number(value) : value}
       </p>
       {note && <p className="text-xs text-muted-foreground">{note}</p>}
     </div>
@@ -239,7 +239,7 @@ function AuditLog({ token }: { token: string }) {
         setEntries((current) => (from ? [...current, ...page.entries] : page.entries));
         setCursor(page.next_cursor);
       } catch (problem) {
-        setError(problem instanceof Error ? problem.message : "The audit log did not load.");
+        setError(problem instanceof Error ? problem.message : t("The audit log did not load."));
       } finally {
         setLoading(false);
       }
@@ -272,7 +272,7 @@ function AuditLog({ token }: { token: string }) {
               {entries.map((entry) => (
                 <tr key={entry.query_id} className="border-b-2 border-input last:border-0">
                   <td className="p-2 align-top whitespace-nowrap text-xs text-muted-foreground">
-                    {new Date(entry.asked_at).toLocaleString()}
+                    {format.dateTime(entry.asked_at)}
                   </td>
                   <td className="max-w-40 truncate p-2 align-top text-xs text-muted-foreground">
                     {entry.email ?? "—"}
@@ -310,7 +310,7 @@ function AuditLog({ token }: { token: string }) {
           onClick={() => void load(cursor)}
           className="w-full"
         >
-          {loading ? "Cargando…" : "Cargar más"}
+          {loading ? t("Loading…") : t("Load more")}
         </Button>
       )}
     </Panel>

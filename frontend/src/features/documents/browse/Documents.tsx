@@ -118,7 +118,7 @@ export function Documents({
         setItems((current) => (replace ? page.items : [...current, ...page.items]));
         setCursor(page.next_cursor);
       } catch (fetchError) {
-        setError(fetchError instanceof ApiError ? fetchError.message : "Couldn't load documents.");
+        setError(fetchError instanceof ApiError ? fetchError.message : t("Couldn't load documents."));
       } finally {
         setLoading(false);
       }
@@ -143,7 +143,7 @@ export function Documents({
         await deleteDocument(token, id);
         setItems((current) => current.filter((item) => item.id !== id));
       } catch (deleteError) {
-        setError(deleteError instanceof ApiError ? deleteError.message : "Couldn't delete that document.");
+        setError(deleteError instanceof ApiError ? deleteError.message : t("Couldn't delete that document."));
       } finally {
         setDeleting(null);
       }
@@ -158,7 +158,7 @@ export function Documents({
   if (!loading && items.length === 0) {
     return (
       <p className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
-        {filter ? "No documents in this folder." : "No documents yet — Upload is in the nav to get started."}
+        {filter ? t("No documents in this folder.") : t("No documents yet — Upload is in the nav to get started.")}
       </p>
     );
   }
@@ -308,7 +308,7 @@ export function Documents({
 
       {cursor && (
         <Button type="button" variant="outline" disabled={loading} onClick={() => void load(cursor, false)}>
-          {loading ? "Loading…" : "Show more"}
+          {loading ? t("Loading…") : t("Show more")}
         </Button>
       )}
     </section>

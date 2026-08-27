@@ -88,7 +88,7 @@ export function History({
       <SearchField
         value={typed}
         onChange={setTyped}
-        label="Search questions"
+        label={t("Search questions")}
         placeholder={t("Search your questions")}
         // Commits what is typed now rather than waiting out the debounce. Same value, no
         // pause — which is the whole point of pressing it.
@@ -126,7 +126,7 @@ export function History({
         <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
           {/* The two empty states are different questions. "Nothing matched" is answered by
               changing the filter; "you have not asked anything" is answered by asking. */}
-          {filtering ? "No question matches that." : "You have not asked anything yet."}
+          {filtering ? t("No question matches that.") : t("You have not asked anything yet.")}
         </div>
       </div>
     );
@@ -153,7 +153,7 @@ export function History({
                 <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{entry.answer}</p>
               )}
               <p className="mt-2.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground/80">
-                <span>{new Date(entry.created_at).toLocaleString()}</span>
+                <span>{format.dateTime(entry.created_at)}</span>
                 <span>
                   {entry.citations} citation{entry.citations === 1 ? "" : "s"}
                 </span>
@@ -173,7 +173,7 @@ export function History({
           disabled={loading}
           className="border-border text-foreground hover:bg-secondary/50"
         >
-          {loading ? "Loading…" : "Show older"}
+          {loading ? t("Loading…") : t("Show older")}
         </Button>
       )}
     </section>

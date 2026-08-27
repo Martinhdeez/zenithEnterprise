@@ -281,7 +281,7 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
         if (controller.signal.aborted) return;
         dispatch({
           type: "error",
-          message: error instanceof Error ? error.message : "The request failed.",
+          message: error instanceof Error ? error.message : t("The request failed."),
         });
       }
     },
@@ -449,7 +449,7 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
             }}
             onBlur={() => setMention(null)}
             placeholder={t("Ask a question — @ to answer from one document")}
-            aria-label="Question"
+            aria-label={t("Question")}
             maxLength={1000}
             // `dark:bg-transparent` is load-bearing, same as the search bar: the base
             // `Input` carries `dark:bg-input/30`, which outlives a plain `bg-transparent`

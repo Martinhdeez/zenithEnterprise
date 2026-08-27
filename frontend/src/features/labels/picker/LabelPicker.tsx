@@ -321,7 +321,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
 
       {!loading && shown.length === 0 && (
         <p className="py-2 text-center text-xs text-muted-foreground">
-          {trimmed ? `No labels match “${trimmed}”.` : "No labels match those filters."}
+          {trimmed ? `No labels match “${trimmed}”.` : t("No labels match those filters.")}
         </p>
       )}
 

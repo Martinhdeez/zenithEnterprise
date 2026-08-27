@@ -205,7 +205,7 @@ export function Search({
         setState({
           phase: "error",
           query: q,
-          message: error instanceof ApiError ? error.message : "The search failed.",
+          message: error instanceof ApiError ? error.message : t("The search failed."),
         });
       }
     },
@@ -367,7 +367,7 @@ export function Search({
                 aria-pressed={showRanking}
                 className="shrink-0 rounded-full px-2 py-0.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
               >
-                {showRanking ? "Hide ranking detail" : "Why these results?"}
+                {showRanking ? t("Hide ranking detail") : t("Why these results?")}
               </button>
             )}
           </div>

@@ -95,7 +95,7 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
       setGroups((current) => current.map((one) => (one.id === group.id ? updated : one)));
       setDraft(null);
     } catch (problem) {
-      setError(problem instanceof Error ? problem.message : "That change was not saved.");
+      setError(problem instanceof Error ? problem.message : t("That change was not saved."));
     } finally {
       setSaving(false);
     }
@@ -114,7 +114,7 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
       setJustSaved(labelId);
       setTimeout(() => setJustSaved((current) => (current === labelId ? null : current)), 2000);
     } catch (problem) {
-      setError(problem instanceof Error ? problem.message : "That change was not saved.");
+      setError(problem instanceof Error ? problem.message : t("That change was not saved."));
     }
   }
 
@@ -151,7 +151,7 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
           part with long names. */}
       <div
         role="tablist"
-        aria-label="Groups"
+        aria-label={t("Groups")}
         className="flex flex-wrap gap-1.5 rounded-md border border-input bg-input/60 p-1.5"
       >
         {groups.map((one) => (
@@ -187,8 +187,8 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
             <SearchField
               value={search}
               onChange={setSearch}
-              label="Search labels to map"
-              placeholder="Search labels"
+              label={t("Search labels to map")}
+              placeholder={t("Search labels")}
             />
             {/* About the group being edited, which is where it belongs — a segment has
                 room for a name and a count, and "how many people this affects" is a fact
@@ -255,8 +255,8 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
                 <select
                   value={label.priority_level ?? 0}
                   onChange={(event) => void classify(label.id, Number(event.target.value))}
-                  aria-label={`Clearance required by ${label.name}`}
-                  title="Applies to this label everywhere, not just to this group — saved as soon as you change it."
+                  aria-label={t("Clearance required by {label}", { label: label.name })}
+                  title={t("Applies to this label everywhere, not just to this group — saved as soon as you change it.")}
                   className="mr-3 shrink-0 rounded-md border border-input bg-input/60 px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
                 >
                   <option value={0}>{t("no clearance")}</option>
@@ -286,7 +286,7 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
               <div className="flex shrink-0 gap-2">
                 <Button variant="ghost" size="sm" onClick={() => setDraft(null)}>{t("Cancel")}</Button>
                 <Button size="sm" disabled={saving} onClick={() => void save()}>
-                  {saving ? "Saving…" : "Save"}
+                  {saving ? t("Saving…") : t("Save")}
                 </Button>
               </div>
             )}
@@ -314,7 +314,7 @@ export function GroupManager({ token, onChanged }: { token: string; onChanged?: 
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder={t("Finance, Engineering, Project-Alpha…")}
-          aria-label="New group name"
+          aria-label={t("New group name")}
           className="flex-1 rounded-md border border-input bg-input/60 px-3 py-2 text-sm"
         />
         <Button
@@ -328,7 +328,7 @@ export function GroupManager({ token, onChanged }: { token: string; onChanged?: 
               reload();
               onChanged?.();
             } catch (problem) {
-              setError(problem instanceof Error ? problem.message : "That group was not created.");
+              setError(problem instanceof Error ? problem.message : t("That group was not created."));
             }
           }}
         >{t("Add group")}</Button>
@@ -354,7 +354,7 @@ export function GroupManager({ token, onChanged }: { token: string; onChanged?: 
                 // people it affects goes in the confirmation.
                 if (
                   !confirm(
-                    `Delete ${group.name}? Its ${group.members} member(s) lose whatever it opened.`,
+                    t("Delete {group}? Its {count} member(s) lose whatever it opened.", { group: group.name, count: group.members }),
                   )
                 )
                   return;

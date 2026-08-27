@@ -132,7 +132,7 @@ export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair
                 try {
                   onAuthenticated(await login(email, password));
                 } catch (caught) {
-                  setError(caught instanceof ApiError ? caught.message : "Sign in failed.");
+                  setError(caught instanceof ApiError ? caught.message : t("Sign in failed."));
                 } finally {
                   setBusy(false);
                 }
@@ -181,7 +181,7 @@ export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair
                   <button
                     type="button"
                     onClick={() => setVisible((shown) => !shown)}
-                    aria-label={visible ? "Hide password" : "Show password"}
+                    aria-label={visible ? t("Hide password") : t("Show password")}
                     aria-pressed={visible}
                     className="absolute top-1/2 right-2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
                   >

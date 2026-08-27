@@ -17,7 +17,7 @@ import { ShieldCheck } from "lucide-react";
 import { auditEvents, type AuditEvent } from "../api";
 import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
-import { useT } from "@/shared/i18n/useT";
+import { useT, type T } from "@/shared/i18n/useT";
 
 /** The verbs, in the order somebody scanning the list would want to recognise them. */
 const SENTENCES: Record<string, string> = {
@@ -66,8 +66,11 @@ function describe(action: string): string {
  */
 const AUTOMATIC = "classifier@zenith";
 
-function actor(email: string): string {
-  return email === AUTOMATIC ? "Automatic classification" : email;
+// `t` is a parameter, not a hook call. This is a plain function, not a component, and
+// `useT()` inside it breaks the rules of hooks — React renders nothing at all, which is how
+// three audit tests found it.
+function actor(email: string, t: T): string {
+  return email === AUTOMATIC ? t("Automatic classification") : email;
 }
 
 /** The actions that take access away or destroy things, which is what people scan for. */
@@ -136,8 +139,8 @@ export function AuditTrail({ token }: { token: string }) {
       } catch (error) {
         setMessage(
           error instanceof ApiError && error.status === 403
-            ? "You do not have permission to read the access record."
-            : "The record could not be loaded.",
+            ? t("You do not have permission to read the access record.")
+            : t("The record could not be loaded."),
         );
       } finally {
         setBusy(false);
@@ -172,7 +175,7 @@ export function AuditTrail({ token }: { token: string }) {
             />
             <div className="min-w-0 flex-1">
               <p className="text-sm text-foreground">
-                <span className="font-medium">{actor(event.actor_email)}</span>{" "}
+                <span className="font-medium">{actor(event.actor_email, t)}</span>{" "}
                 <span className="text-muted-foreground">{describe(event.action)}</span>
                 {event.target_name && <span className="font-medium"> {event.target_name}</span>}
               </p>
@@ -191,7 +194,7 @@ export function AuditTrail({ token }: { token: string }) {
           disabled={busy}
           className="rounded-md"
         >
-          {busy ? "Loading…" : "Load more"}
+          {busy ? t("Loading…") : t("Load more")}
         </Button>
       )}
     </div>

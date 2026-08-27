@@ -44,7 +44,7 @@ import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useT } from "@/shared/i18n/useT";
+import { useT, type T } from "@/shared/i18n/useT";
 
 interface Props {
   token: string;
@@ -239,7 +239,7 @@ export function Upload({ token, onUploaded }: Props) {
           setQueue((current) =>
             update(current, item.id, {
               phase: "error",
-              message: error instanceof ApiError ? error.message : "The upload failed.",
+              message: error instanceof ApiError ? error.message : t("The upload failed."),
             }),
           );
         }
@@ -354,7 +354,7 @@ export function Upload({ token, onUploaded }: Props) {
             </div>
             <button
               type="button"
-              aria-label="Cancel"
+              aria-label={t("Cancel")}
               onClick={() => setStaged(null)}
               className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-input/60 hover:text-foreground"
             >
@@ -528,6 +528,34 @@ export function Upload({ token, onUploaded }: Props) {
  * Not virtualised — two hundred rows of two spans is nothing, and a windowing library here
  * would be a dependency bought against a cost nobody has measured.
  */
+/**
+ * The ingestion stage, in the reader's language.
+ *
+ * `uploadProgress.ts` keeps the English sentence as its `stage`, and that stays: it is the
+ * key, twenty-two tests assert on it, and a module constant cannot hold a translation anyway
+ * — it is evaluated at import, before anyone has chosen a language.
+ *
+ * Written as a switch of literals rather than `t(item.stage)` so that every key is visible to
+ * anything reading this file, including the test that guarantees each one has a Spanish
+ * sentence. A key reached through a variable is a key nothing can check.
+ */
+function stageLabel(stage: string | undefined, t: T): string {
+  switch (stage) {
+    case "Queued":
+      return t("Queued");
+    case "Reading the document":
+      return t("Reading the document");
+    case "Splitting into passages":
+      return t("Splitting into passages");
+    case "Building the index":
+      return t("Building the index");
+    case "Filing the document":
+      return t("Filing the document");
+    default:
+      return t("Processing");
+  }
+}
+
 function UploadQueue({
   items,
   onCancel,
@@ -603,13 +631,13 @@ function UploadQueue({
               // two hundred is unfindable if it is reported once at the top.
               title={item.message}
             >
-              {item.phase === "queued" && "Queued"}
+              {item.phase === "queued" && t("Queued")}
               {item.phase === "uploading" && <Transferring item={item} />}
-              {item.phase === "processing" && (item.stage ?? "Processing")}
-              {item.phase === "done" && "Done"}
-              {item.phase === "unresolved" && (item.message ?? "Still processing")}
-              {item.phase === "error" && (item.message ?? "Failed")}
-              {item.phase === "cancelled" && "Cancelled"}
+              {item.phase === "processing" && stageLabel(item.stage, t)}
+              {item.phase === "done" && t("Done")}
+              {item.phase === "unresolved" && (item.message ?? t("Still processing"))}
+              {item.phase === "error" && (item.message ?? t("Failed"))}
+              {item.phase === "cancelled" && t("Cancelled")}
             </span>
             {/* Reserved whether or not this row can be stopped, so the percentages beside
                 it stay on one vertical line instead of shifting as rows settle. */}

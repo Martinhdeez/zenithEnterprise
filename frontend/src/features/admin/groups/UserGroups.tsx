@@ -83,7 +83,7 @@ export function UserGroups({ token }: { token: string }) {
       // wrong about who has access.
       load();
     } catch (problem) {
-      setError(problem instanceof Error ? problem.message : "That change was not saved.");
+      setError(problem instanceof Error ? problem.message : t("That change was not saved."));
     } finally {
       setSaving(null);
     }
@@ -96,7 +96,7 @@ export function UserGroups({ token }: { token: string }) {
       setLink(await issueResetLink(token, member.id));
     } catch (failure) {
       setError(
-        failure instanceof ApiError ? failure.message : "That reset link could not be issued.",
+        failure instanceof ApiError ? failure.message : t("That reset link could not be issued."),
       );
     } finally {
       setResetting(null);
@@ -161,7 +161,7 @@ export function UserGroups({ token }: { token: string }) {
                   onClick={() => void reset(member)}
                 >
                   <KeyRound className="mr-1.5 size-3.5" />
-                  {resetting === member.id ? "Issuing…" : "Reset link"}
+                  {resetting === member.id ? t("Issuing…") : t("Reset link")}
                 </Button>
               )}
               {edited(member) && (
@@ -177,7 +177,7 @@ export function UserGroups({ token }: { token: string }) {
                     }
                   >{t("Cancel")}</Button>
                   <Button size="sm" disabled={saving === member.id} onClick={() => void save(member)}>
-                    {saving === member.id ? "Saving…" : "Save"}
+                    {saving === member.id ? t("Saving…") : t("Save")}
                   </Button>
                 </div>
               )}

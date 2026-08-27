@@ -39,7 +39,7 @@ export function RolePanel({ token }: { token: string }) {
     try {
       setRoles(await fetchRoles(token));
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : "Roles could not be loaded.");
+      setError(caught instanceof ApiError ? caught.message : t("Roles could not be loaded."));
     }
   }, [token]);
 
@@ -60,7 +60,7 @@ export function RolePanel({ token }: { token: string }) {
       // Shown verbatim. The server's refusals here are specific and actionable — "this
       // would leave nobody in the tenant holding: roles.manage" tells an administrator
       // exactly what to do first, and a generic message would not.
-      setError(caught instanceof ApiError ? caught.message : "That change was refused.");
+      setError(caught instanceof ApiError ? caught.message : t("That change was refused."));
     } finally {
       setBusy(null);
     }
@@ -78,7 +78,7 @@ export function RolePanel({ token }: { token: string }) {
       await work();
       await load();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : "That change was refused.");
+      setError(caught instanceof ApiError ? caught.message : t("That change was refused."));
     } finally {
       setBusy(null);
     }
@@ -110,7 +110,7 @@ export function RolePanel({ token }: { token: string }) {
         }}
       >
         <Input
-          aria-label="New role name"
+          aria-label={t("New role name")}
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder="editor"
@@ -118,7 +118,7 @@ export function RolePanel({ token }: { token: string }) {
         />
         <Button type="submit" size="sm" disabled={!name.trim() || creating} className="h-9">
           <Plus className="mr-1.5 size-3.5" />
-          {creating ? "Creating…" : "New role"}
+          {creating ? t("Creating…") : t("New role")}
         </Button>
       </form>
 
@@ -139,7 +139,7 @@ export function RolePanel({ token }: { token: string }) {
                     all. 0 is a compartment — no clearance reaches anything through a group,
                     only an outright grant does — which is the default and the safe one. */}
                 <label className="flex items-center gap-1.5">{t("clearance")}<select
-                    aria-label={`Clearance of ${role.name}`}
+                    aria-label={t("Clearance of {role}", { role: role.name })}
                     disabled={role.is_system || busy === role.id}
                     value={role.priority_level}
                     onChange={(event) =>

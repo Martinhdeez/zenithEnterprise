@@ -52,7 +52,7 @@ export function LlmPanel({ token }: { token: string }) {
           setKey("");
           setMessage("Saved.");
         } catch (caught) {
-          setMessage(caught instanceof ApiError ? caught.message : "That could not be saved.");
+          setMessage(caught instanceof ApiError ? caught.message : t("That could not be saved."));
         }
       }}
       className="space-y-4"

@@ -93,8 +93,8 @@ export function PdfViewer({ citation, token }: Props) {
           // viewer that renders nothing and explains nothing.
           setError(
             response.status === 404
-              ? "That document is no longer available."
-              : "The document could not be opened.",
+              ? t("That document is no longer available.")
+              : t("The document could not be opened."),
           );
           return;
         }

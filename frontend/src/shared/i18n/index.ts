@@ -70,6 +70,65 @@ function choose(entry: Entry, language: Language, vars?: Record<string, string |
   return rule === "one" ? entry.one : entry.other;
 }
 
+/**
+ * Dates and numbers follow the chosen language, not the browser's.
+ *
+ * Every call site used `toLocaleDateString()` with no locale, which resolves to
+ * `navigator.language` — the machine's setting, not the application's. So the switch moved
+ * the words and left `8,273` and `27/08/2026` reading in whichever language the laptop
+ * happened to be set to. On a Spanish screen on an English machine that is `8,273` where
+ * `8.273` belongs, in a product whose own evaluation reports are quoted to four figures.
+ *
+ * `en-GB` rather than `en-US`: this is deployed on-premise in Europe over a corpus of
+ * Spanish and EU law, and day-month ordering is what its readers expect on both sides of the
+ * switch. It is one line to change if that ever stops being true.
+ */
+const LOCALE: Record<Language, string> = { en: "en-GB", es: "es-ES" };
+
+/** Grouped thousands: `8.273` in Spanish, `8,273` in English. */
+export function formatNumber(language: Language, value: number): string {
+  return new Intl.NumberFormat(LOCALE[language]).format(value);
+}
+
+/** Day only, for a row that answers "when", not "exactly when". */
+export function formatDate(language: Language, value: string | Date): string {
+  return new Intl.DateTimeFormat(LOCALE[language], {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+/** Day and time, for a log entry where the order of two events matters. */
+export function formatDateTime(language: Language, value: string | Date): string {
+  return new Intl.DateTimeFormat(LOCALE[language], {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+/**
+ * The compact stamp the audit trail, the document panel and the invitation all used:
+ * `27 ago, 14:05`. Kept as one function rather than three copies of the same options object,
+ * which is what they were.
+ */
+export function formatStamp(
+  language: Language,
+  value: string | Date,
+  { year = false }: { year?: boolean } = {},
+): string {
+  return new Intl.DateTimeFormat(LOCALE[language], {
+    day: "2-digit",
+    month: "short",
+    ...(year ? { year: "numeric" as const } : {}),
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
 export function translate(
   language: Language,
   key: string,

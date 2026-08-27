@@ -66,7 +66,7 @@ export function InvitePanel({ token }: { token: string }) {
         } catch (caught) {
           // Shown verbatim: "that address is already a user here" is actionable, and a
           // generic failure is not.
-          setError(caught instanceof ApiError ? caught.message : "The invitation failed.");
+          setError(caught instanceof ApiError ? caught.message : t("The invitation failed."));
         }
       }}
       className="flex flex-wrap items-end gap-3"

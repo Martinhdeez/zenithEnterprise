@@ -44,18 +44,20 @@ export interface PaletteAction {
   ask: (question: string) => void;
 }
 
-const SCREENS: Array<{ id: string; label: string }> = [
-  { id: "search", label: "Search" },
-  { id: "chat", label: "Chat" },
-  { id: "folders", label: "Folders" },
-  { id: "upload", label: "Upload" },
-  { id: "history", label: "History" },
-  { id: "admin", label: "Admin" },
-  { id: "profile", label: "Profile" },
-];
-
 export function CommandPalette({ token, actions }: { token: string; actions: PaletteAction }) {
   const t = useT();
+  // Per render, not a module constant. The palette searches these labels as the reader types,
+  // so they have to be the words on their screen — a constant evaluated at import is frozen
+  // in whatever language the first render happened to want, and then "Subir" finds nothing.
+  const SCREENS: Array<{ id: string; label: string }> = [
+    { id: "search", label: t("Search") },
+    { id: "chat", label: t("Chat") },
+    { id: "folders", label: t("Folders") },
+    { id: "upload", label: t("Upload") },
+    { id: "history", label: t("History") },
+    { id: "admin", label: t("Admin") },
+    { id: "profile", label: t("Profile") },
+  ];
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
@@ -141,7 +143,7 @@ export function CommandPalette({ token, actions }: { token: string; actions: Pal
         <CommandEmpty>Nothing matches that.</CommandEmpty>
 
         {screens.length > 0 && (
-          <CommandGroup heading="Go to">
+          <CommandGroup heading={t("Go to")}>
             {screens.map((screen) => (
               <CommandItem
                 key={screen.id}
@@ -156,7 +158,7 @@ export function CommandPalette({ token, actions }: { token: string; actions: Pal
         )}
 
         {documents.length > 0 && (
-          <CommandGroup heading="Documents">
+          <CommandGroup heading={t("Documents")}>
             {documents.slice(0, 6).map((document) => (
               <CommandItem
                 key={document.id}
@@ -171,7 +173,7 @@ export function CommandPalette({ token, actions }: { token: string; actions: Pal
         )}
 
         {matching.length > 0 && (
-          <CommandGroup heading="Ask again">
+          <CommandGroup heading={t("Ask again")}>
             {matching.map((entry) => (
               <CommandItem
                 key={entry.query_id}

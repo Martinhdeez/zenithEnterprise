@@ -77,7 +77,7 @@ export function Answer({ state, onCitation }: Props) {
         // F9's prompt work fixed different failures in each.
         <ProgressBar
           key={state.question}
-          label={state.phase === "retrieving" ? "Searching your documents" : "Writing the answer"}
+          label={state.phase === "retrieving" ? t("Searching your documents") : t("Writing the answer")}
         />
       )}
 
@@ -206,6 +206,7 @@ function components(result: QueryResult | null, onCitation: (citation: Citation)
  * to tell that is what they got.
  */
 function Actions({ answer, result }: { answer: string; result: QueryResult }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
   return (
@@ -221,7 +222,7 @@ function Actions({ answer, result }: { answer: string; result: QueryResult }) {
       className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-input px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
     >
       {copied ? <Check className="size-3.5 text-zenith-cyan" /> : <Copy className="size-3.5" />}
-      {copied ? "Copied with sources" : "Copy answer"}
+      {copied ? t("Copied with sources") : t("Copy answer")}
     </button>
   );
 }
