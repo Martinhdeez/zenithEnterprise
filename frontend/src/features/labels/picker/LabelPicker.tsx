@@ -205,7 +205,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
             placeholder="Search labels"
             aria-label="Search labels"
             disabled={onlySelected}
-            className="h-9 rounded-md border-input bg-background pl-8 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/40"
+            className="h-9 rounded-full bg-background shadow-[inset_0_1px_3px_rgb(0_0_0/0.45)] border-muted-foreground/35 hover:border-muted-foreground/55 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/40"
           />
         </div>
         <Select
@@ -214,7 +214,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
           disabled={onlySelected}
         >
           <SelectTrigger
-            className="h-9 w-40 rounded-md border-input bg-background"
+            className="h-9 w-40 rounded-full border-input bg-card"
             aria-label="Sort labels"
           >
             <SelectValue />
@@ -337,7 +337,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
           placeholder="Label name"
           aria-label="New label name"
           maxLength={100}
-          className="h-9 max-w-56 rounded-md border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/40"
+          className="h-9 max-w-56 rounded-full bg-background shadow-[inset_0_1px_3px_rgb(0_0_0/0.45)] border-muted-foreground/35 hover:border-muted-foreground/55 px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/40"
         />
         <Button
           type="submit"
@@ -375,12 +375,12 @@ function Toggle({
       className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
         on
           ? "border-primary bg-primary/20 text-primary"
-          : // Recessed to `--background`, below the panel, where the search field and the
-            // name field also sit. A filter is a control and a label is data, and until
-            // now they were the same pill in the same fill directly above one another.
-            // Raised means "pick me up", sunk means "operate me"; the distinction is worth
-            // more than another hue would be.
-            "border-input bg-background text-muted-foreground hover:bg-background/60 hover:text-foreground"
+          : // `--card`, one step under the panel. It was `--background` for a day and that
+            // was wrong for a reason worth keeping written down: the fields sit at
+            // `--background` too, so recessing the filters that far made a control you
+            // press look identical to a box you type in. Four things on this panel, four
+            // levels, and the fields keep the bottom of the ladder to themselves.
+            "border-input bg-card text-muted-foreground hover:bg-card/70 hover:text-foreground"
       }`}
     >
       {children}
