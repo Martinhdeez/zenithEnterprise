@@ -205,7 +205,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
             placeholder="Search labels"
             aria-label="Search labels"
             disabled={onlySelected}
-            className="h-9 rounded-full bg-background shadow-[inset_0_1px_3px_rgb(0_0_0/0.45)] border-muted-foreground/35 hover:border-muted-foreground/55 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/40"
+            className="h-9 rounded-full bg-background dark:bg-background shadow-[inset_0_1px_3px_rgb(0_0_0/0.45)] border-muted-foreground/35 hover:border-muted-foreground/55 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/40"
           />
         </div>
         <Select
@@ -337,7 +337,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
           placeholder="Label name"
           aria-label="New label name"
           maxLength={100}
-          className="h-9 max-w-56 rounded-full bg-background shadow-[inset_0_1px_3px_rgb(0_0_0/0.45)] border-muted-foreground/35 hover:border-muted-foreground/55 px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/40"
+          className="h-9 max-w-56 rounded-full bg-background dark:bg-background shadow-[inset_0_1px_3px_rgb(0_0_0/0.45)] border-muted-foreground/35 hover:border-muted-foreground/55 px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-primary/40"
         />
         <Button
           type="submit"

@@ -252,21 +252,30 @@
      reported as unreadable on Upload and Admin — "alguien que ve mal o que ve de lejos no lo
      va a ver" — and the four-step ladder at 0.068 was the answer to it.
 
-     So: both, each at moderate strength. The fill steps drop to 0.040-0.050, closer to
-     Stellar's flatness, and `--border` rises to 0.340 — above every surface it divides
-     rather than equal to one of them — so a hairline is a line you can actually see doing
-     the separating that the fill no longer does alone.
+     That was first tried at "both, each at moderate strength" — fill steps of 0.040-0.050
+     plus a bright border — and moderate was not enough. It was reported twice from the
+     screen: first that the fields had stopped standing out, then that the label chips had
+     no contrast against the panel behind them. Both complaints were the same arithmetic.
+     A chip at `--input` on a `--secondary` panel was 0.050 apart, and `--input` is the top
+     of the ladder, so there was no room left to raise the chip. The ladder itself was too
+     short.
 
-       0.190  --background   the shell
-       0.230  --card         the working surface
-       0.275  --secondary    a panel or control on it
-       0.325  --input        the well of a field
-       0.340  --border       brighter than all of them, on purpose */
+     Steps of 0.062 now, near enough the 0.068 that was measured to hold up at arm's length
+     and chosen so the top stays dark enough to read as a dark theme:
+
+       0.190  --background   the shell, and the well of a field
+       0.252  --card         a control: a filter, a select
+       0.314  --secondary    a panel on the working surface
+       0.376  --input        data raised on a panel: a label chip
+       0.400  --border       brighter than all of them, on purpose
+
+     The two that were complained about are now 0.062 and 0.124 apart instead of 0.050 and
+     0.000. Text stays comfortable on every one of them: 9.27:1 on the brightest. */
   --background: oklch(0.1900 0.0400 257);
   --foreground: oklch(0.9676 0.0075 243);
-  --card: oklch(0.2300 0.0400 257);
+  --card: oklch(0.2520 0.0400 257);
   --card-foreground: oklch(0.9676 0.0075 243);
-  --popover: oklch(0.2300 0.0400 257);
+  --popover: oklch(0.2520 0.0400 257);
   --popover-foreground: oklch(0.9676 0.0075 243);
   /* 5.53:1 against the dark text it carries. The lighter violets look closer to Stellar's
      glow and fail: at 0.74 the same text is 7.64:1 but white on it is 2.20:1, so any
@@ -274,16 +283,16 @@
      the rest of this theme already uses. */
   --primary: oklch(0.6600 0.1900 295);
   --primary-foreground: oklch(0.1900 0.0400 257);
-  --secondary: oklch(0.2750 0.0400 257);
+  --secondary: oklch(0.3140 0.0400 257);
   --secondary-foreground: oklch(0.9676 0.0075 243);
-  --muted: oklch(0.2750 0.0400 257);
+  --muted: oklch(0.3140 0.0400 257);
   --muted-foreground: oklch(0.7300 0.0200 250);
-  --accent: oklch(0.2750 0.0400 257);
+  --accent: oklch(0.3140 0.0400 257);
   --accent-foreground: oklch(0.9676 0.0075 243);
   --destructive: oklch(0.5800 0.1900 25);
   --destructive-foreground: oklch(0.9676 0.0075 243);
-  --border: oklch(0.3400 0.0380 257);
-  --input: oklch(0.3250 0.0400 257);
+  --border: oklch(0.4000 0.0380 257);
+  --input: oklch(0.3760 0.0400 257);
   --ring: oklch(0.6600 0.1900 295);
   --zenith: oklch(0.6600 0.1900 295);
   --zenith-foreground: oklch(0.1900 0.0400 257);
@@ -302,9 +311,9 @@
   --sidebar-foreground: oklch(0.9676 0.0075 243);
   --sidebar-primary: oklch(0.6600 0.1900 295);
   --sidebar-primary-foreground: oklch(0.1900 0.0400 257);
-  --sidebar-accent: oklch(0.2750 0.0400 257);
+  --sidebar-accent: oklch(0.3140 0.0400 257);
   --sidebar-accent-foreground: oklch(0.9676 0.0075 243);
-  --sidebar-border: oklch(0.3400 0.0380 257);
+  --sidebar-border: oklch(0.4000 0.0380 257);
   --sidebar-ring: oklch(0.6600 0.1900 295);
 }
 
