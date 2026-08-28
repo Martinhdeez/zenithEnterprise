@@ -1,0 +1,544 @@
+{
+  "generated_at": "2026-08-28T15:11:37+00:00",
+  "profile": "cpu",
+  "hnsw_ef_search": 100,
+  "candidates": 50,
+  "iterative_scan": "relaxed_order",
+  "embedding_space": {
+    "model": "BAAI/bge-m3",
+    "version": "1"
+  },
+  "graph_embeddings": 13549,
+  "questions": 42,
+  "repeats": 3,
+  "shipped_sets_iterative_scan": "only when a document scope is passed",
+  "points": [
+    {
+      "axis": "tenant",
+      "scope": "M0 baseline 8bde085b-fd5f-499d-a8ec-46143e43f670 \u2014 every label",
+      "labels": [
+        "d8d60075-3e5d-4cf6-8379-e8e827bb226b",
+        "83e695c8-e181-4897-9abc-b24e93d43224",
+        "bc74bdb3-13b8-4d03-8236-b156b418a5ab",
+        "be098894-86bd-4929-ad43-12055e36dfdd",
+        "49cf6387-de6c-4b23-acec-d0ecfe0c86a0",
+        "2f748796-8be5-4750-98c6-f133ce2e01b4",
+        "b1b96b67-2f4d-4625-b4f4-d8678ff867b7",
+        "086ad660-8d11-4b7d-9523-f12c5193d71f",
+        "7c70d7bb-8905-46a3-ae9e-8476b8885b9c",
+        "6ac8d2dd-489d-41b3-9dd1-347b6fe97626",
+        "8be37902-e26f-4dbd-8c9e-fc804acba871",
+        "392cfc9c-de30-4eb5-b044-1cbf105ad937",
+        "e23f0838-1653-4197-b832-976769dd0778",
+        "507f9993-6b46-4293-a0fd-9fa8d64ff825",
+        "a8da52fe-2bf3-4331-8d2e-17ddfedd3c34",
+        "b74cf708-735b-4c1d-bab9-243f2046b529",
+        "a588b7f8-db38-4e11-a170-4ab7508f2b7e",
+        "0bba9619-e08c-4f42-b92c-fbb4cadf31dd",
+        "2f0e08ed-6f9c-4f51-85fa-1b9f1e64c755"
+      ],
+      "accessible": 8273,
+      "fraction_of_graph": 0.6106,
+      "equivalent_tenants": 1.6,
+      "plan_sample": {
+        "question": "gdpr-breach-deadline",
+        "scan": "hnsw",
+        "hnsw_rows": 50,
+        "rows_removed": 3
+      },
+      "default": {
+        "rows_returned_mean": 43.14,
+        "rows_returned_min": 0,
+        "returned_nothing": [
+          "attention-optimizer",
+          "attention-multihead",
+          "identifier-omb-number",
+          "identifier-oj-page",
+          "identifier-usc-citation"
+        ],
+        "short_of_ceiling": 6,
+        "short_questions": [
+          "attention-optimizer",
+          "attention-multihead",
+          "identifier-catalog-number",
+          "identifier-omb-number",
+          "identifier-oj-page",
+          "identifier-usc-citation"
+        ],
+        "dense_recall": 0.8419,
+        "worst_query": 0.0,
+        "worst_question": "attention-optimizer",
+        "median_ms": 1.18,
+        "p95_ms": 1.52
+      },
+      "iterative": {
+        "rows_returned_mean": 50,
+        "rows_returned_min": 50,
+        "returned_nothing": [],
+        "short_of_ceiling": 0,
+        "short_questions": [],
+        "dense_recall": 0.9643,
+        "worst_query": 0.78,
+        "worst_question": "identifier-usc-citation",
+        "median_ms": 1.23,
+        "p95_ms": 2.05
+      }
+    },
+    {
+      "axis": "tenant",
+      "scope": "Cyber Standards Archive \u2014 every label",
+      "labels": [
+        "d1b730f8-0369-4589-b266-415d076ac575",
+        "d3fc70f1-85a9-4ac7-bb6a-63111e63bb05"
+      ],
+      "accessible": 5276,
+      "fraction_of_graph": 0.3894,
+      "equivalent_tenants": 2.6,
+      "plan_sample": {
+        "question": "gdpr-breach-deadline",
+        "scan": "exact",
+        "hnsw_rows": null,
+        "rows_removed": null
+      },
+      "default": {
+        "rows_returned_mean": 50,
+        "rows_returned_min": 50,
+        "returned_nothing": [],
+        "short_of_ceiling": 0,
+        "short_questions": [],
+        "dense_recall": 1.0,
+        "worst_query": 1.0,
+        "worst_question": "gdpr-breach-deadline",
+        "median_ms": 20.82,
+        "p95_ms": 21.84
+      },
+      "iterative": {
+        "rows_returned_mean": 50,
+        "rows_returned_min": 50,
+        "returned_nothing": [],
+        "short_of_ceiling": 0,
+        "short_questions": [],
+        "dense_recall": 1.0,
+        "worst_query": 1.0,
+        "worst_question": "gdpr-breach-deadline",
+        "median_ms": 21.02,
+        "p95_ms": 22.19
+      }
+    },
+    {
+      "axis": "label",
+      "scope": "label Legal & Regulatory",
+      "labels": [
+        "a8da52fe-2bf3-4331-8d2e-17ddfedd3c34"
+      ],
+      "accessible": 7141,
+      "fraction_of_graph": 0.527,
+      "equivalent_tenants": 1.9,
+      "plan_sample": {
+        "question": "gdpr-breach-deadline",
+        "scan": "hnsw",
+        "hnsw_rows": 50,
+        "rows_removed": 3
+      },
+      "default": {
+        "rows_returned_mean": 29.95,
+        "rows_returned_min": 0,
+        "returned_nothing": [
+          "attention-optimizer",
+          "attention-multihead",
+          "rag-knowledge-source",
+          "rag-retriever",
+          "cross-transformer-lineage",
+          "cross-retrieval-vs-pretraining",
+          "table-boe-cpi",
+          "identifier-omb-number",
+          "identifier-oj-page",
+          "identifier-usc-citation"
+        ],
+        "short_of_ceiling": 20,
+        "short_questions": [
+          "attention-optimizer",
+          "attention-multihead",
+          "bert-pretraining",
+          "rag-knowledge-source",
+          "rag-retriever",
+          "irs-social-security-rate",
+          "boe-bank-rate",
+          "cross-transformer-lineage",
+          "cross-retrieval-vs-pretraining",
+          "cross-payroll-and-return",
+          "table-attention-bleu",
+          "table-attention-training-cost",
+          "table-irs-medicare",
+          "table-boe-cpi",
+          "identifier-catalog-number",
+          "identifier-omb-number",
+          "identifier-oj-page",
+          "identifier-usc-citation",
+          "unanswerable-future-rate",
+          "unanswerable-headcount"
+        ],
+        "dense_recall": 0.5876,
+        "worst_query": 0.0,
+        "worst_question": "attention-optimizer",
+        "median_ms": 1.0,
+        "p95_ms": 1.18
+      },
+      "iterative": {
+        "rows_returned_mean": 50,
+        "rows_returned_min": 50,
+        "returned_nothing": [],
+        "short_of_ceiling": 0,
+        "short_questions": [],
+        "dense_recall": 0.9371,
+        "worst_query": 0.68,
+        "worst_question": "bert-pretraining",
+        "median_ms": 1.25,
+        "p95_ms": 4.86
+      }
+    },
+    {
+      "axis": "label",
+      "scope": "label legal/contracts",
+      "labels": [
+        "e23f0838-1653-4197-b832-976769dd0778"
+      ],
+      "accessible": 1979,
+      "fraction_of_graph": 0.1461,
+      "equivalent_tenants": 6.8,
+      "plan_sample": {
+        "question": "gdpr-breach-deadline",
+        "scan": "exact",
+        "hnsw_rows": null,
+        "rows_removed": null
+      },
+      "default": {
+        "rows_returned_mean": 50,
+        "rows_returned_min": 50,
+        "returned_nothing": [],
+        "short_of_ceiling": 0,
+        "short_questions": [],
+        "dense_recall": 1.0,
+        "worst_query": 1.0,
+        "worst_question": "gdpr-breach-deadline",
+        "median_ms": 11.57,
+        "p95_ms": 12.06
+      },
+      "iterative": {
+        "rows_returned_mean": 50,
+        "rows_returned_min": 50,
+        "returned_nothing": [],
+        "short_of_ceiling": 0,
+        "short_questions": [],
+        "dense_recall": 1.0,
+        "worst_query": 1.0,
+        "worst_question": "gdpr-breach-deadline",
+        "median_ms": 11.49,
+        "p95_ms": 12.0
+      }
+    },
+    {
+      "axis": "label",
+      "scope": "label finance/2026/invoices",
+      "labels": [
+        "7c70d7bb-8905-46a3-ae9e-8476b8885b9c"
+      ],
+      "accessible": 685,
+      "fraction_of_graph": 0.0506,
+      "equivalent_tenants": 19.8,
+      "plan_sample": {
+        "question": "gdpr-breach-deadline",
+        "scan": "exact",
+        "hnsw_rows": null,
+        "rows_removed": null
+      },
+      "default": {
+        "rows_returned_mean": 50,
+        "rows_returned_min": 50,
+        "returned_nothing": [],
+        "short_of_ceiling": 0,
+        "short_questions": [],
+        "dense_recall": 1.0,
+        "worst_query": 1.0,
+        "worst_question": "gdpr-breach-deadline",
+        "median_ms": 5.13,
+        "p95_ms": 5.23
+      },
+      "iterative": {
+        "rows_returned_mean": 50,
+        "rows_returned_min": 50,
+        "returned_nothing": [],
+        "short_of_ceiling": 0,
+        "short_questions": [],
+        "dense_recall": 1.0,
+        "worst_query": 1.0,
+        "worst_question": "gdpr-breach-deadline",
+        "median_ms": 5.07,
+        "p95_ms": 5.15
+      }
+    },
+    {
+      "axis": "label",
+      "scope": "label Economic",
+      "labels": [
+        "2f748796-8be5-4750-98c6-f133ce2e01b4"
+      ],
+      "accessible": 299,
+      "fraction_of_graph": 0.0221,
+      "equivalent_tenants": 45.3,
+      "plan_sample": {
+        "question": "gdpr-breach-deadline",
+        "scan": "exact",
+        "hnsw_rows": null,
+        "rows_removed": null
+      },
+      "default": {
+        "rows_returned_mean": 50,
+        "rows_returned_min": 50,
+        "returned_nothing": [],
+        "short_of_ceiling": 0,
+        "short_questions": [],
+        "dense_recall": 1.0,
+        "worst_query": 1.0,
+        "worst_question": "gdpr-breach-deadline",
+        "median_ms": 4.05,
+        "p95_ms": 4.1
+      },
+      "iterative": {
+        "rows_returned_mean": 50,
+        "rows_returned_min": 50,
+        "returned_nothing": [],
+        "short_of_ceiling": 0,
+        "short_questions": [],
+        "dense_recall": 1.0,
+        "worst_query": 1.0,
+        "worst_question": "gdpr-breach-deadline",
+        "median_ms": 4.09,
+        "p95_ms": 4.2
+      }
+    },
+    {
+      "axis": "label",
+      "scope": "label General",
+      "labels": [
+        "6ac8d2dd-489d-41b3-9dd1-347b6fe97626"
+      ],
+      "accessible": 149,
+      "fraction_of_graph": 0.011,
+      "equivalent_tenants": 90.9,
+      "plan_sample": {
+        "question": "gdpr-breach-deadline",
+        "scan": "exact",
+        "hnsw_rows": null,
+        "rows_removed": null
+      },
+      "default": {
+        "rows_returned_mean": 50,
+        "rows_returned_min": 50,
+        "returned_nothing": [],
+        "short_of_ceiling": 0,
+        "short_questions": [],
+        "dense_recall": 1.0,
+        "worst_query": 1.0,
+        "worst_question": "gdpr-breach-deadline",
+        "median_ms": 3.73,
+        "p95_ms": 3.85
+      },
+      "iterative": {
+        "rows_returned_mean": 50,
+        "rows_returned_min": 50,
+        "returned_nothing": [],
+        "short_of_ceiling": 0,
+        "short_questions": [],
+        "dense_recall": 1.0,
+        "worst_query": 1.0,
+        "worst_question": "gdpr-breach-deadline",
+        "median_ms": 3.63,
+        "p95_ms": 3.72
+      }
+    },
+    {
+      "axis": "label",
+      "scope": "label Digital",
+      "labels": [
+        "49cf6387-de6c-4b23-acec-d0ecfe0c86a0"
+      ],
+      "accessible": 70,
+      "fraction_of_graph": 0.0052,
+      "equivalent_tenants": 193.6,
+      "plan_sample": {
+        "question": "gdpr-breach-deadline",
+        "scan": "exact",
+        "hnsw_rows": null,
+        "rows_removed": null
+      },
+      "default": {
+        "rows_returned_mean": 50,
+        "rows_returned_min": 50,
+        "returned_nothing": [],
+        "short_of_ceiling": 0,
+        "short_questions": [],
+        "dense_recall": 1.0,
+        "worst_query": 1.0,
+        "worst_question": "gdpr-breach-deadline",
+        "median_ms": 3.4,
+        "p95_ms": 3.68
+      },
+      "iterative": {
+        "rows_returned_mean": 50,
+        "rows_returned_min": 50,
+        "returned_nothing": [],
+        "short_of_ceiling": 0,
+        "short_questions": [],
+        "dense_recall": 1.0,
+        "worst_query": 1.0,
+        "worst_question": "gdpr-breach-deadline",
+        "median_ms": 3.41,
+        "p95_ms": 3.47
+      }
+    },
+    {
+      "axis": "label",
+      "scope": "label invoices",
+      "labels": [
+        "392cfc9c-de30-4eb5-b044-1cbf105ad937"
+      ],
+      "accessible": 1,
+      "fraction_of_graph": 0.0001,
+      "equivalent_tenants": 13549.0,
+      "plan_sample": {
+        "question": "gdpr-breach-deadline",
+        "scan": "exact",
+        "hnsw_rows": null,
+        "rows_removed": null
+      },
+      "default": {
+        "rows_returned_mean": 1,
+        "rows_returned_min": 1,
+        "returned_nothing": [],
+        "short_of_ceiling": 0,
+        "short_questions": [],
+        "dense_recall": 1.0,
+        "worst_query": 1.0,
+        "worst_question": "gdpr-breach-deadline",
+        "median_ms": 3.35,
+        "p95_ms": 3.44
+      },
+      "iterative": {
+        "rows_returned_mean": 1,
+        "rows_returned_min": 1,
+        "returned_nothing": [],
+        "short_of_ceiling": 0,
+        "short_questions": [],
+        "dense_recall": 1.0,
+        "worst_query": 1.0,
+        "worst_question": "gdpr-breach-deadline",
+        "median_ms": 3.33,
+        "p95_ms": 3.5
+      }
+    }
+  ],
+  "ef_sweep": {
+    "scope": "M0 baseline 8bde085b-fd5f-499d-a8ec-46143e43f670 \u2014 every label",
+    "by_ef": {
+      "100": {
+        "rows_returned_mean": 43.14,
+        "rows_returned_min": 0,
+        "returned_nothing": [
+          "attention-optimizer",
+          "attention-multihead",
+          "identifier-omb-number",
+          "identifier-oj-page",
+          "identifier-usc-citation"
+        ],
+        "short_of_ceiling": 6,
+        "short_questions": [
+          "attention-optimizer",
+          "attention-multihead",
+          "identifier-catalog-number",
+          "identifier-omb-number",
+          "identifier-oj-page",
+          "identifier-usc-citation"
+        ],
+        "dense_recall": 0.8419,
+        "worst_query": 0.0,
+        "worst_question": "attention-optimizer",
+        "median_ms": 1.14,
+        "p95_ms": 1.35
+      },
+      "200": {
+        "rows_returned_mean": 46.83,
+        "rows_returned_min": 0,
+        "returned_nothing": [
+          "attention-optimizer",
+          "identifier-oj-page"
+        ],
+        "short_of_ceiling": 5,
+        "short_questions": [
+          "attention-optimizer",
+          "identifier-catalog-number",
+          "identifier-omb-number",
+          "identifier-oj-page",
+          "identifier-usc-citation"
+        ],
+        "dense_recall": 0.9157,
+        "worst_query": 0.0,
+        "worst_question": "attention-optimizer",
+        "median_ms": 1.43,
+        "p95_ms": 1.68
+      },
+      "400": {
+        "rows_returned_mean": 50,
+        "rows_returned_min": 50,
+        "returned_nothing": [],
+        "short_of_ceiling": 0,
+        "short_questions": [],
+        "dense_recall": 0.9881,
+        "worst_query": 0.8,
+        "worst_question": "identifier-catalog-number",
+        "median_ms": 2.06,
+        "p95_ms": 2.46
+      },
+      "800": {
+        "rows_returned_mean": 50,
+        "rows_returned_min": 50,
+        "returned_nothing": [],
+        "short_of_ceiling": 0,
+        "short_questions": [],
+        "dense_recall": 0.9962,
+        "worst_query": 0.94,
+        "worst_question": "identifier-omb-number",
+        "median_ms": 3.41,
+        "p95_ms": 4.09
+      },
+      "1000": {
+        "rows_returned_mean": 50,
+        "rows_returned_min": 50,
+        "returned_nothing": [],
+        "short_of_ceiling": 0,
+        "short_questions": [],
+        "dense_recall": 1.0,
+        "worst_query": 1.0,
+        "worst_question": "gdpr-breach-deadline",
+        "median_ms": 50.78,
+        "p95_ms": 56.68
+      }
+    }
+  },
+  "end_to_end": {
+    "scored": 30,
+    "headline_recall_at_8": 0.9,
+    "headline_scored": 20,
+    "recall_at_8_all": 0.9,
+    "recall_at_1_all": 0.6667,
+    "mean_rank": 1.407,
+    "median_ms": 869,
+    "p95_ms": 953,
+    "degraded": 0,
+    "missed": [
+      "boe-bank-rate",
+      "cross-platform-obligations",
+      "table-form-1040-status"
+    ]
+  }
+}

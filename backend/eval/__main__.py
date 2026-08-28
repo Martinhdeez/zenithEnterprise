@@ -171,6 +171,13 @@ def rerank_depth() -> int:
     return run()
 
 
+def tenant_scale() -> int:
+    """What the dense half loses to a shared graph. Read-only, needs no token."""
+    from eval.tenant_scale import run
+
+    return run()
+
+
 def latency(repeats: int | None) -> int:
     """Where the milliseconds of one search go. Read-only, needs no token."""
     from eval.latency import REPEATS, run
@@ -196,6 +203,7 @@ COMMANDS = (
     "rerank-depth",
     "latency",
     "iterative-scan",
+    "tenant-scale",
 )
 
 
@@ -211,9 +219,12 @@ def main() -> int:
             "       python -m eval ef-search\n"
             "       python -m eval rerank-depth\n"
             "       python -m eval latency [--repeats N]\n"
-            "       python -m eval iterative-scan"
+            "       python -m eval iterative-scan\n"
+            "       python -m eval tenant-scale"
         )
         return 2
+    if sys.argv[1] == "tenant-scale":
+        return tenant_scale()
     if sys.argv[1] == "iterative-scan":
         return iterative_scan()
     if sys.argv[1] == "separation":
