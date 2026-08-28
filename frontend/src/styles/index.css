@@ -28,6 +28,26 @@
   );
 }
 
+/* The lit state of the ask control, once the conversation is open.
+   
+   A ring was tried first and read as a darker edge rather than as an active state: a hard
+   two-pixel band in the accent, sitting on a fill of the same accent, is a border — and a
+   border is what everything else on that bar already has. What says "this is on" is light
+   coming off the object, which no border can do.
+   
+   So it is two shadows, not an outline. A tight opaque halo holds the edge, and a wide soft
+   one bleeds past it. Both are mixed from `--primary`, so the glow follows the theme rather
+   than being a colour of its own: on the light shell the accent sits at 0.50 lightness and
+   the bloom reads against a near-white ledge, on the dark shell it sits at 0.66 against a
+   near-black one, and neither needed a separate value.
+   
+   Not animated. A pulsing control on a title bar is an alarm, and this is a state. */
+.glow-accent {
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--primary) 30%, transparent),
+    0 0 14px 2px color-mix(in oklab, var(--primary) 55%, transparent);
+}
+
 /* Scrolls, but never shows the scrollbar itself — the sidebar is short enough that the
    bar flashing in and out on every folder/upload update read as noise, not signal. */
 .scrollbar-none {
