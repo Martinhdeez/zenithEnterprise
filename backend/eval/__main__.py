@@ -171,6 +171,13 @@ def rerank_depth() -> int:
     return run()
 
 
+def iterative_scan() -> int:
+    """What iterative scan costs and buys end to end, unscoped. Read-only, needs no token."""
+    from eval.iterative_scan import run
+
+    return run()
+
+
 COMMANDS = (
     "fetch",
     "layout",
@@ -180,6 +187,7 @@ COMMANDS = (
     "separation",
     "ef-search",
     "rerank-depth",
+    "iterative-scan",
 )
 
 
@@ -193,9 +201,12 @@ def main() -> int:
             "       python -m eval live --token <jwt> [--url http://localhost:8000]\n"
             "       python -m eval separation --token <jwt> [--url http://localhost:8000]\n"
             "       python -m eval ef-search\n"
-            "       python -m eval rerank-depth"
+            "       python -m eval rerank-depth\n"
+            "       python -m eval iterative-scan"
         )
         return 2
+    if sys.argv[1] == "iterative-scan":
+        return iterative_scan()
     if sys.argv[1] == "separation":
         return separation()
     if sys.argv[1] == "rerank-depth":

@@ -244,6 +244,42 @@ async def test_the_dense_half_is_label_filtered_by_its_join(account: Account) ->
     assert found == []
 
 
+async def test_the_unscoped_dense_query_asks_for_an_iterative_scan(account: Account) -> None:
+    """The hot path, where the filter is invisible because nobody wrote it.
+
+    `hnsw.iterative_scan` used to be set only when a document scope was passed, on the
+    reasoning that a query with no scope has no filter and therefore nothing to discard.
+    RLS is a filter, and it is on every query: the HNSW graph is shared by every tenant, so
+    the scan takes its `ef_search` nearest neighbours from all of it and the policies throw
+    rows away afterwards. Measured on the real corpus at the tenant scope, the unscoped
+    dense half returned 43.1 of 50 candidates and *nothing at all* for 5 of 42 questions,
+    with no error anywhere — `eval/tenant-scale.json`, `eval/iterative-scan.json`.
+
+    Asserted on the session setting rather than on a row count, because the failure cannot
+    be reproduced at this corpus's size and that is the whole reason it survived: below
+    roughly 15% of the graph the planner abandons HNSW for an exact scan, the post-filter
+    problem disappears, and a test that seeded three chunks would pass against the broken
+    code. What is checkable everywhere is that the query asked for the scan.
+
+    `documents=None` is the point of the test. Make this conditional again — on a scope, on
+    a profile field, on anything — and it fails here.
+    """
+    from app.features.retrieval.search import ITERATIVE_SCAN, dense
+
+    await seed(account.tenant_id, account.default_label)
+    context = (await profile_for(account)).context
+
+    async with tenant_session(context) as session:
+        await dense(session, [0.0] * DIMENSION, MODEL, VERSION, 50, 100, documents=None)
+        requested = await session.scalar(text("SELECT current_setting('hnsw.iterative_scan')"))
+
+    assert requested == ITERATIVE_SCAN, (
+        f"an unscoped dense query left hnsw.iterative_scan at {requested!r}: the scan stops "
+        f"at ef_search neighbours and RLS discards from there, so the dense half returns "
+        "fewer than the 50 candidates fusion was promised and nothing reports it"
+    )
+
+
 async def test_only_the_active_embedding_space_is_searched(account: Account) -> None:
     """Vectors from two models are not comparable. During a reindex both exist, and a query
     that mixed them would rank across incompatible spaces and return confident nonsense."""

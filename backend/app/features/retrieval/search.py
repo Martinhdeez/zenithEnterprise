@@ -23,14 +23,14 @@ from app.features.retrieval.lexical import CONFIGURATION, engine, to_tsquery
 
 CANDIDATES = 50
 
-# pgvector 0.8's answer to the post-filter problem, and the reason a scoped search is not
-# quietly worse than an unscoped one. An HNSW scan walks the graph for the nearest `ef`
-# vectors and *then* applies `WHERE document_id = ANY(...)`; scoped to two documents out of
-# a thousand, every one of those neighbours can belong to some other document, and the
-# dense half returns nothing while the index is working perfectly. Iterative scan keeps
-# walking until it has enough rows that survive the filter. `relaxed_order` rather than
-# `strict_order` because the results are re-ranked by RRF and the cross-encoder anyway —
-# paying for a total order here would buy something that is immediately thrown away.
+# pgvector 0.8's answer to the post-filter problem. An HNSW scan walks the graph for the
+# nearest `ef` vectors and *then* applies whatever predicate stands over it; every one of
+# those neighbours can be a row the predicate throws away, and the dense half returns fewer
+# candidates than it asked for — or none — while the index is working perfectly. Iterative
+# scan keeps walking until it has enough rows that survive.
+#
+# The predicate that matters is not the document scope. It is RLS, and it is on every query
+# this system makes: see `dense`.
 ITERATIVE_SCAN = "relaxed_order"
 
 # Reciprocal Rank Fusion. `k` damps the influence of the very top positions, so a chunk
@@ -149,11 +149,48 @@ async def dense(
         # caps below what the data supports.
         await session.execute(text(f"SET LOCAL hnsw.ef_search = {int(ef_search)}"))
 
-    if documents:
-        # Only when scoped. Iterative scan costs nothing on a query with no filter — there
-        # is nothing to discard — but it is a behaviour change to the hot path, and the hot
-        # path is not what this is for.
-        await session.execute(text(f"SET LOCAL hnsw.iterative_scan = {ITERATIVE_SCAN}"))
+    # Unconditional, and the condition this used to carry was the bug. It was set only when
+    # a document scope was passed, reasoning that a query with no scope has no filter and so
+    # has nothing to discard. **RLS is a filter.** Every query here runs under
+    # `tenant_id = zenith_current_tenant()` on `chunk_embeddings` and, through the join,
+    # `label_ids && zenith_current_labels()` on `chunks`. The HNSW graph is shared by every
+    # tenant, so the scan takes its `ef_search` nearest neighbours from all of it and the
+    # policies discard afterwards: an unscoped query is not an unfiltered one, and the dense
+    # half hands fusion fewer candidates than it asked for while the index reports success.
+    #
+    # `eval/tenant-scale.json` (2026-08-28, `cpu`, ef_search 100, 13,549 embeddings, 42
+    # questions) measured the stage: tenant-wide, 43.14 of 50 candidates on average and
+    # *nothing at all* for 5 of 42 questions; under one ordinary label, 29.95 of 50 and
+    # nothing for 10 of 42. With iterative scan, 50 of 50 and no empty question in either,
+    # dense recall 0.8419 -> 0.9643. It is worst in the middle of the range: below roughly
+    # 15% of the graph the planner abandons HNSW for an exact scan and the loss disappears
+    # on its own, which is why a small corpus cannot see this and a growing one gets worse.
+    #
+    # `eval/iterative-scan.json` measured what it is worth end to end on the *unscoped*
+    # path, which is what this line changes. The dense stage goes 42.07 -> 50.0 of 50 rows
+    # and four questions stop coming back empty, for a median of 1.45 ms against 1.36 and a
+    # p95 of 2.21 against 1.71. Recall@8 on the page does **not** move — 0.90 either way,
+    # the same three questions missed — because the lexical and exact halves were covering
+    # those four, which is the hybrid architecture doing its job (ADR 0002). What does move
+    # is mean rank, 1.407 -> 1.370, and what stops is the masking being load-bearing: a
+    # question with no lexical signal has no second half to fall back on. End-to-end p95 is
+    # unchanged, 1653 ms against 1626, and cannot say more than that — the same arm varies
+    # by 780 ms between identical passes, which is three hundred times the whole cost here.
+    #
+    # `hnsw.max_scan_tuples` is left alone, and that is a decision rather than an omission.
+    # Iterative scan is not unbounded: pgvector 0.8 stops at `max_scan_tuples`, whose
+    # default `SHOW` reports as 20,000 — above this entire graph, so no value written here
+    # could bind on the corpus available to measure it, and an unmeasured constant is what
+    # ADR 0005 says to refuse. The observed ceiling is nowhere near it anyway: 2.83 ms worst
+    # of any single dense query, against a 10 s `statement_timeout`.
+    #
+    # `relaxed_order` rather than `strict_order`, and this pipeline fuses on positions, so
+    # the concession is real: relaxed order can return rows slightly out of distance order.
+    # It is measured and it is the right way round. `strict_order` returns *fewer* usable
+    # rows — it lost `attention-optimizer` outright and took headline Recall@8 to 0.85 — for
+    # a p95 of 3.20 ms against 2.21. An ordering RRF converts to ranks and a cross-encoder
+    # then rescores is not worth a candidate.
+    await session.execute(text(f"SET LOCAL hnsw.iterative_scan = {ITERATIVE_SCAN}"))
 
     # One embedding space only. `embedding_spaces` exists so several can coexist during a
     # reindex, and vectors from two models rank against each other as confident nonsense.
