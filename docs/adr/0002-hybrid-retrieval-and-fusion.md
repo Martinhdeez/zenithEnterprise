@@ -1,6 +1,7 @@
 # ADR 0002 — Hybrid retrieval, fused by RRF
 
-**Status:** Accepted, amended twice by measurement
+**Status:** Accepted, amended three times by measurement — the third one reversing a
+conclusion this ADR had drawn (see the last section)
 
 ## Context
 
@@ -44,19 +45,17 @@ signal was added: one query ANDing only identifier-shaped lexemes. Context ceili
 
 Every number above is from `eval/`, against 19,533 chunks of real public documents.
 
-## Not taken — BM25 via `pg_search`, and why it cannot be
+## Superseded — BM25 via `pg_search`, and why the objection was too wide
 
-**Attempted and reverted in F18. It is incompatible with ADR 0001.**
+**Status of this section: superseded by migration 0022 (2026-08-26).** It is kept rather than
+deleted, because the reasoning below was right about the mechanism and wrong about its scope,
+and the difference between those two is the useful part.
 
-BM25 does fix the IDF class properly: with a `bm25` index on `chunks`, the identifier that
-`ts_rank_cd` ranked 52nd ranks **1st**, and the U.S.C. citation moves from unfound to
-**40th** — inside the candidate set — with no custom identifier query at all. Measured on
-the real 19,533-chunk corpus.
+### What this section used to conclude
 
-**It cannot supply a score under row-level security.** `paradedb.score(id)` produces a value
-only when ParadeDB's custom scan executes. With the RLS policies on `chunks` in force, the
-planner uses the tenant and label b-tree indexes and applies `@@@` as an ordinary
-**filter**:
+That BM25 was **incompatible with ADR 0001**. Attempted and reverted in F18: with the RLS
+policies on `chunks` in force, the planner used the tenant and label b-tree indexes and
+applied `@@@` as an ordinary filter —
 
 ```
 Bitmap Heap Scan on chunks
@@ -65,20 +64,61 @@ Bitmap Heap Scan on chunks
     Bitmap Index Scan on ix_chunks_label_ids
 ```
 
-The rows come back correctly filtered — isolation is never at risk — but every score is
-`NULL`. Ranking by a NULL score ranks everything equally, which is a *silent* degradation:
-search keeps answering, and answers worse, with nothing to indicate it.
+— so the rows came back correctly filtered, isolation was never at risk, and every
+`paradedb.score(id)` was `NULL`. Ranking by a NULL score ranks everything equally, which is a
+*silent* degradation: search keeps answering, and answers worse, with nothing to indicate it.
+The conclusion drawn was that BM25 "cannot supply a score under row-level security", and that
+revisiting it would need either a `pg_search` version whose custom scan composes with RLS
+quals, or a bypass route ADR 0001 permits only for a security guarantee.
 
-Coaxing the planner (`enable_bitmapscan = off`) is not an answer. Correctness would then
-depend on a plan choice, and the failure mode when the plan changes is the silent one
-above — exactly what this project refuses everywhere else.
+### What was actually true
 
-**Consequence for ADR 0001:** RLS-first is not free, and this is the first place its cost is
-visible. The isolation guarantee is worth more than the ranker; if BM25 is ever revisited it
-needs either a `pg_search` version whose custom scan composes with RLS quals, or a design
-where the lexical index is queried in a context that has no policies to satisfy — and the
-second would mean adding a bypass route, which ADR 0001 permits only for a security
-guarantee and never for ergonomics.
+The observation was correct and the generalisation was not. The score is not lost to *row-level
+security*; it is lost to any predicate left **outside** the Tantivy query. A predicate inside
+the query is part of the search. A predicate outside it is a filter applied to the search's
+output, and applying one destroys the scoring and the plan together.
 
-F15's identifier query stands as the shipped answer. It is narrower, and it works inside the
-architecture rather than against it.
+Migration 0022 moves the isolation predicates inside. `ix_chunks_bm25` indexes `tenant_id`,
+`label_ids` and a materialised `unlabelled` alongside the text, and `zenith_lexical_search`
+builds the tenant and label clauses as part of the query rather than around it — the label
+alternatives as a `should` nested inside a `must`, because a `should` alongside a `must` is
+optional in Tantivy and the flat construction would have ignored labels entirely. The custom
+scan then executes, `TopNScanExecState` resolves the top N inside the index, and the score is
+a real number.
+
+### What it cost, and what it bought
+
+It **did** need the thing this section said it would need. `zenith_lexical_search` is
+`SECURITY DEFINER`, which adds one name to the bypass surface — now five entries, auditable by
+the same grep as before. ADR 0001's rule is that the surface grows for a security guarantee and
+never for ergonomics, and the argument that this qualifies is in the migration: the function
+takes **no tenant and no label argument**, reads `zenith_current_tenant()` and
+`zenith_current_labels()` exactly as the policies do, and therefore has no parameter through
+which another tenant's corpus can be asked for. A session with no context matches nothing, the
+same closed failure as every policy in the schema.
+
+What it bought is the reason the trade was made at all, and it is not about ranking quality.
+`ts_rank_cd` has no early termination: it scores every matching row before `LIMIT` can choose,
+so a term appearing in a third of the corpus means ranking a third of the table. Measured on
+**300,000 passages under the real policy: 5,953 ms** for the lexical half alone, against a
+statement timeout of 10,000 ms. Resolving the top N inside the index is a different algorithm,
+which is why the gap is ~130x rather than the ~4x a faster ranking function would buy, and why
+no hardware closes it.
+
+### Where it stands
+
+**Implemented, migrated, and switched off.** `config.py`'s `lexical_engine` defaults to
+`tsvector`; `bm25` selects the new path. The setting exists rather than the replacement being
+straight, and migration 0022 keeps the GIN index for the same reason: every recall figure in
+`eval/` was measured against `ts_rank_cd`, and reverting a retrieval change on a customer
+installation has to be a restart rather than a redeploy or a reindex.
+
+Flipping it is a real behaviour change and is not a documentation decision. Before anyone
+does: the full RLS isolation matrix against `zenith_lexical_search`; headline Recall@8 not
+below the established baseline and identifier questions still at 100%; and the accent case
+migration 0022 flags, since ParadeDB's `en_stem` tokenizer lowercases and stems but does
+**not** fold accents, so a Spanish corpus changes behaviour in a way no current eval question
+covers.
+
+F15's identifier query stands either way. It is narrower, it works inside the architecture,
+and it is what the `tsvector` path still relies on.
