@@ -143,24 +143,39 @@ async def dispose_engines() -> None:
 
 
 async def set_rls_context(session: AsyncSession, context: "TenantContext") -> None:
-    await session.execute(
-        text("SELECT set_config('zenith.tenant_id', :tenant, true)"),
-        {"tenant": str(context.tenant_id)},
-    )
-    await session.execute(
-        text("SELECT set_config('zenith.label_ids', :labels, true)"),
-        {"labels": ",".join(str(label) for label in context.label_ids)},
-    )
+    """Pin the four policy variables and the timeout, in one round trip.
+
+    `set_config` is a function and returns its value, so the four compose into one target
+    list. They were four statements plus a `SET LOCAL`, and every `tenant_session` paid all
+    five before its first useful query — on a connection out of a pool of ten, held for the
+    whole transaction, so the cost is the scarce resource rather than the milliseconds.
+
+    **Nothing about the context changes.** The same four variables, the same values, the same
+    `is_local = true`, in the same transaction, before any query runs. That last argument is
+    the load-bearing one: `true` scopes the setting to the transaction, so it cannot outlive
+    the session's return to the pool and reach the next request on the same connection. A
+    session-level setting here would be a cross-tenant leak of the first order.
+
+    `statement_timeout` stays a separate statement because `SET LOCAL` is not a function and
+    has no expression form; `set_config('statement_timeout', ...)` would take the value as
+    text and is the same round trip anyway.
+    """
     # Bound even when absent: an empty string becomes NULL in `zenith_current_user_id()`,
     # and `user_id = NULL` is never true. A context that forgets the user reads nothing
     # rather than everything, which is the direction every policy here fails in.
     await session.execute(
-        text("SELECT set_config('zenith.user_id', :user_id, true)"),
-        {"user_id": str(context.user_id) if context.user_id else ""},
-    )
-    await session.execute(
-        text("SELECT set_config('zenith.reads_all_history', :reads_all, true)"),
-        {"reads_all": "true" if context.reads_all_history else "false"},
+        text(
+            "SELECT set_config('zenith.tenant_id', :tenant, true), "
+            "       set_config('zenith.label_ids', :labels, true), "
+            "       set_config('zenith.user_id', :user_id, true), "
+            "       set_config('zenith.reads_all_history', :reads_all, true)"
+        ),
+        {
+            "tenant": str(context.tenant_id),
+            "labels": ",".join(str(label) for label in context.label_ids),
+            "user_id": str(context.user_id) if context.user_id else "",
+            "reads_all": "true" if context.reads_all_history else "false",
+        },
     )
     await session.execute(text(f"SET LOCAL statement_timeout = {settings.statement_timeout_ms}"))
     # Recorded on the session so the base repository can demand a context without
