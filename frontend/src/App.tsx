@@ -921,14 +921,26 @@ export function App() {
                     by a screen reader from a screen it does not belong to, which is what
                     `App.test.tsx` catches by asking for it after the second press. */}
                 {panel === "conversation" && (
+                  // The mark alone, at a size that carries it. A chevron this large in a
+                  // circle of its own is unambiguous without a word beside it, and the words
+                  // were doing the arrow's job twice.
+                  //
+                  // A neutral surface, not the accent. The one accented object on this
+                  // screen is the control that opened the conversation, and a second bright
+                  // shape would put "go back" and "ask" at the same rank. This is
+                  // navigation: it needs to be found instantly and to lose to the thing it
+                  // sits above.
+                  //
+                  // The name lives in `aria-label` and in the tooltip. An icon-only control
+                  // is only silent to people who can see it.
                   <button
                     type="button"
                     onClick={() => setPanel("results")}
                     aria-label={t("Back to the results")}
-                    className="flex items-center gap-1.5 px-6 pt-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                    title={t("Back to the results")}
+                    className="mx-6 mt-4 flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground shadow-sm transition-colors hover:border-primary/40 hover:bg-secondary/70 hover:text-foreground"
                   >
-                    <ChevronLeft className="size-4 shrink-0" />
-                    {t("Back to the results")}
+                    <ChevronLeft className="size-5" />
                   </button>
                 )}
                 <Chat
