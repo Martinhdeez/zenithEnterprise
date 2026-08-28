@@ -566,5 +566,11 @@ def _append(run: dict[str, object]) -> None:
     REPORT.write_text(json.dumps({"runs": runs}, indent=2) + "\n")
 
 
+#: How `python -m eval` finds this sweep. Declared here rather than listed in
+#: `__main__.py`, so adding a measurement is adding a file and nothing else.
+COMMAND = "lexical-engine"
+USAGE = "lexical-engine"
+
+
 def run() -> int:
     return asyncio.run(_run())

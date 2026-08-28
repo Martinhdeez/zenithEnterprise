@@ -683,5 +683,18 @@ async def _run(subsets: tuple[int, ...]) -> int:
     return 0
 
 
+#: How `python -m eval` finds this sweep. Declared here rather than listed in
+#: `__main__.py`, so adding a measurement is adding a file and nothing else.
+COMMAND = "quantisation"
+USAGE = "quantisation [--subsets N,N,...]"
+
+
 def run(subsets: tuple[int, ...] = SUBSETS) -> int:
     return asyncio.run(_run(subsets))
+
+
+def cli(argv: list[str]) -> int:
+    """`--subsets N,N,...`, or the default ladder."""
+    if "--subsets" in argv:
+        return run(tuple(int(n) for n in argv[argv.index("--subsets") + 1].split(",")))
+    return run()

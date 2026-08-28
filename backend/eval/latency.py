@@ -301,5 +301,18 @@ async def _run(repeats: int) -> int:
     return 0
 
 
+#: How `python -m eval` finds this sweep. Declared here rather than listed in
+#: `__main__.py`, so adding a measurement is adding a file and nothing else.
+COMMAND = "latency"
+USAGE = "latency [--repeats N]"
+
+
 def run(repeats: int = REPEATS) -> int:
     return asyncio.run(_run(repeats))
+
+
+def cli(argv: list[str]) -> int:
+    """`--repeats N`, or the default."""
+    if "--repeats" in argv:
+        return run(int(argv[argv.index("--repeats") + 1]))
+    return run()

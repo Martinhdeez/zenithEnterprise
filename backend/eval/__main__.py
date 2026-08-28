@@ -5,7 +5,10 @@ customers; this is laboratory tooling that only ever runs on a developer machine
 mixing them would put an evaluation command in a customer's `--help`.
 """
 
+import ast
 import sys
+from importlib import import_module
+from pathlib import Path
 
 import httpx
 
@@ -157,119 +160,80 @@ def separation() -> int:
     return run(url, token)
 
 
-def ef_search() -> int:
-    """What `hnsw_ef_search` is worth on this machine. Read-only, needs no token."""
-    from eval.ef_search import run
-
-    return run()
-
-
-def rerank_depth() -> int:
-    """How deep the cross-encoder should read on this machine. Read-only, needs no token."""
-    from eval.rerank_depth import run
-
-    return run()
-
-
-def quantisation(subsets: str | None) -> int:
-    """What a smaller vector index costs in recall. Read-only, needs no token."""
-    from eval.quantisation import run
-
-    return run(subsets)
-
-
-def lexical_engine() -> int:
-    """tsvector against BM25 on the same questions. Read-only, needs no token."""
-    from eval.lexical_engine import run
-
-    return run()
-
-
-def tenant_scale() -> int:
-    """What the dense half loses to a shared graph. Read-only, needs no token."""
-    from eval.tenant_scale import run
-
-    return run()
-
-
-def latency(repeats: int | None) -> int:
-    """Where the milliseconds of one search go. Read-only, needs no token."""
-    from eval.latency import REPEATS, run
-
-    return run(repeats if repeats is not None else REPEATS)
-
-
-def iterative_scan() -> int:
-    """What iterative scan costs and buys end to end, unscoped. Read-only, needs no token."""
-    from eval.iterative_scan import run
-
-    return run()
-
-
-COMMANDS = (
-    "fetch",
-    "layout",
-    "grounding",
-    "answers",
-    "live",
-    "separation",
-    "ef-search",
-    "rerank-depth",
-    "latency",
-    "iterative-scan",
-    "tenant-scale",
-    "lexical-engine",
-    "quantisation",
+#: The commands implemented here, in the order the usage prints them. Sweeps are not in
+#: this tuple — see `discover`.
+BUILT_IN: tuple[tuple[str, str], ...] = (
+    ("fetch", "fetch [--record]"),
+    ("layout", "layout [--limit N]"),
+    ("grounding", "grounding"),
+    ("answers", "answers"),
+    ("live", "live --token <jwt> [--url http://localhost:8000]"),
+    ("separation", "separation --token <jwt> [--url http://localhost:8000]"),
 )
 
 
+def discover() -> dict[str, tuple[str, str]]:
+    """Every sweep under `eval/`, read out of the files rather than listed here.
+
+    A measurement used to announce itself in four places in this module: a wrapper, an
+    entry in a tuple, a line of usage text and a branch of the dispatch. Every branch that
+    added one therefore edited the same file in the same four places, and
+    `backend/eval/__main__.py` conflicted in six consecutive merges — always trivially,
+    always by hand. A file that every new feature must edit to exist is a conflict once per
+    branch for ever, and the fix is not discipline.
+
+    So a sweep declares `COMMAND` and `USAGE` beside its own `run`, and this finds it.
+    Adding a measurement is adding a file.
+
+    Parsed rather than imported: `ast` reads the two constants without executing the module,
+    which keeps the laziness the wrappers were written for — `python -m eval fetch` must not
+    pay for importing `torch` by way of a sweep it is not running.
+    """
+    found: dict[str, tuple[str, str]] = {}
+    for path in sorted(Path(__file__).parent.glob("*.py")):
+        if path.name.startswith("__"):
+            continue
+        constants: dict[str, str] = {}
+        for node in ast.parse(path.read_text(), path.name).body:
+            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant):
+                for target in node.targets:
+                    if (
+                        isinstance(target, ast.Name)
+                        and target.id in ("COMMAND", "USAGE")
+                        and isinstance(node.value.value, str)
+                    ):
+                        constants[target.id] = node.value.value
+        if "COMMAND" in constants:
+            found[constants["COMMAND"]] = (path.stem, constants.get("USAGE", constants["COMMAND"]))
+    return found
+
+
 def main() -> int:
-    if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
-        print(
-            "usage: python -m eval fetch [--record]\n"
-            "       python -m eval layout [--limit N]\n"
-            "       python -m eval grounding\n"
-            "       python -m eval answers\n"
-            "       python -m eval live --token <jwt> [--url http://localhost:8000]\n"
-            "       python -m eval separation --token <jwt> [--url http://localhost:8000]\n"
-            "       python -m eval ef-search\n"
-            "       python -m eval rerank-depth\n"
-            "       python -m eval latency [--repeats N]\n"
-            "       python -m eval iterative-scan\n"
-            "       python -m eval tenant-scale\n"
-            "       python -m eval lexical-engine\n"
-            "       python -m eval quantisation [--subsets N,N,...]"
-        )
+    sweeps = discover()
+    known = {name for name, _ in BUILT_IN} | set(sweeps)
+
+    if len(sys.argv) < 2 or sys.argv[1] not in known:
+        lines = [usage for _, usage in BUILT_IN] + [usage for _, usage in sweeps.values()]
+        print("usage: " + "\n       ".join(f"python -m eval {line}" for line in lines))
         return 2
-    if sys.argv[1] == "quantisation":
-        subsets = None
-        if "--subsets" in sys.argv:
-            subsets = sys.argv[sys.argv.index("--subsets") + 1]
-        return quantisation(subsets)
-    if sys.argv[1] == "lexical-engine":
-        return lexical_engine()
-    if sys.argv[1] == "tenant-scale":
-        return tenant_scale()
-    if sys.argv[1] == "iterative-scan":
-        return iterative_scan()
-    if sys.argv[1] == "separation":
+
+    command = sys.argv[1]
+    if command in sweeps:
+        # Imported only now, and only this one. `cli` where the sweep takes arguments,
+        # `run` where it takes none.
+        module = import_module(f"eval.{sweeps[command][0]}")
+        entry = getattr(module, "cli", None)
+        return int(entry(sys.argv[2:])) if entry else int(module.run())
+
+    if command == "separation":
         return separation()
-    if sys.argv[1] == "latency":
-        repeats = None
-        if "--repeats" in sys.argv:
-            repeats = int(sys.argv[sys.argv.index("--repeats") + 1])
-        return latency(repeats)
-    if sys.argv[1] == "rerank-depth":
-        return rerank_depth()
-    if sys.argv[1] == "ef-search":
-        return ef_search()
-    if sys.argv[1] == "live":
+    if command == "live":
         return live()
-    if sys.argv[1] == "grounding":
+    if command == "grounding":
         return grounding()
-    if sys.argv[1] == "answers":
+    if command == "answers":
         return answers()
-    if sys.argv[1] == "layout":
+    if command == "layout":
         limit = None
         if "--limit" in sys.argv:
             limit = int(sys.argv[sys.argv.index("--limit") + 1])

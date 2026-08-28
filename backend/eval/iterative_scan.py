@@ -288,5 +288,11 @@ async def _run() -> int:
     return 0
 
 
+#: How `python -m eval` finds this sweep. Declared here rather than listed in
+#: `__main__.py`, so adding a measurement is adding a file and nothing else.
+COMMAND = "iterative-scan"
+USAGE = "iterative-scan"
+
+
 def run() -> int:
     return asyncio.run(_run())
