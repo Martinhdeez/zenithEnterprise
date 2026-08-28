@@ -997,7 +997,13 @@ export function App() {
                 onClick={() => {
                   setStarted(true);
                   setPanel("conversation");
-                  open("search");
+                  // `setView`, never `open`. `open` closes the preview — correct for the
+                  // nav, where a PDF left beside the admin panel refers to nothing on
+                  // screen, and exactly wrong here: this conversation is *about* the open
+                  // document, and the whole screen is the answer next to its source. Using
+                  // `open` closed the document in the same click that started talking about
+                  // it, which left the panel with nothing to render at all.
+                  setView("search");
                 }}
                 className="text-muted-foreground hover:text-foreground"
               >

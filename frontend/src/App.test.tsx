@@ -40,7 +40,43 @@ vi.mock("@/features/auth", () => ({
 }));
 
 vi.mock("@/features/chat", () => ({ Chat: () => <p>chat</p> }));
-vi.mock("@/features/search", () => ({ Search: () => <p>search</p> }));
+// Mocked like every other view here: this file tests the shell's decisions, and the
+// real one opens a stream whose AbortSignal jsdom refuses — an unhandled rejection that
+// would sit in the run masking a real one.
+vi.mock("@/features/chat/anchored/AnchoredChat", () => ({
+  AnchoredChat: () => <p>anchored chat</p>,
+}));
+// Emits a citation on demand, so the shell's own reaction to one can be tested. The button
+// is inert for every other test in this file, which still only assert that "search" renders.
+vi.mock("@/features/search", () => ({
+  Search: ({ onCitation }: { onCitation: (c: unknown, q: string) => void }) => (
+    <p>
+      search
+      <button
+        type="button"
+        onClick={() =>
+          onCitation(
+            {
+              marker: 1,
+              chunk_id: "c1",
+              document_id: "d1",
+              filename: "constitucion.pdf",
+              media_type: "application/pdf",
+              page_num: 6,
+              char_start: 0,
+              char_end: 0,
+              text: "",
+              bboxes: [],
+            },
+            "plazo máximo",
+          )
+        }
+      >
+        emit citation
+      </button>
+    </p>
+  ),
+}));
 vi.mock("@/features/admin", () => ({ Admin: () => <p>admin</p> }));
 vi.mock("@/features/system", () => ({ System: () => <p>system</p> }));
 vi.mock("@/features/history", () => ({ History: () => <p>history</p> }));
@@ -227,5 +263,33 @@ describe("a session that cannot be renewed", () => {
     expect(window.sessionStorage.getItem(TOKEN_KEY)).toBe("access-2");
     // Rotated, not reused: keeping the old refresh token would defeat rotation entirely.
     expect(window.sessionStorage.getItem(REFRESH_KEY)).toBe("refresh-2");
+  });
+});
+
+describe("asking about the open document", () => {
+  /**
+   * The bug this holds: the button called `open("search")`, and `open` clears the citation
+   * so a PDF is never left beside a screen that no longer refers to it. Correct for the nav
+   * and exactly wrong here — the conversation is *about* the open document, so the click
+   * that started it closed the thing it was about, and the panel rendered nothing.
+   */
+  it("keeps the document open beside the conversation", async () => {
+    signedIn();
+    await act(async () => {
+      render(<App />);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "emit citation" }));
+    });
+
+    // The preview is open, so its header is on screen.
+    expect(screen.getByLabelText("Close document preview")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Ask about this document" }));
+    });
+
+    // Still open. The conversation replaced the results, not the whole screen.
+    expect(screen.getByLabelText("Close document preview")).toBeTruthy();
   });
 });
