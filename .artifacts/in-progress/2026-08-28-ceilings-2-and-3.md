@@ -126,63 +126,43 @@ difference between systematic bias and scatter, and that was a defect in this pl
 | synthetic 50,000 | 0.1132 | ~35M | 0.0000 | 0.1140 | 0.0279 | 0.40 |
 | synthetic 150,000 | 0.0605 | far beyond | **0.0047** | 0.1930 | 0.0767 | **0.10** |
 
-**Binary is rejected**, and not on the mean. At rescore 400 the mean gap is still only 0.077
-— 92% recall@10 — while the *worst single question* returns one of its ten true neighbours.
-At rescore 100 and 200 it returns none. A search product is judged on its worst questions;
-that is the argument F26 was built on and it applies here unchanged.
+**Binary is rejected at rescore 100 and survives at rescore 400 — and the first version of
+this section said it was rejected outright.** That was measured over all 43 questions,
+twelve of which the corpus cannot answer. An unanswerable question's exact top ten is an
+arbitrary set, so a compressed index was being failed for not reproducing noise, and the
+noise dominated the worst-case figure. Over the 31 answerable questions:
 
-**fp16 is adopted and is no longer perfectly free.** 0.0047 at the densest point is the first
-non-zero gap ever measured for it, against 0.0000 everywhere else. Negligible — 99.53%
-recall@10 — but "flat forever" was the previous claim and it is now known to be false, which
-matters more than the size of the number.
+| corpus | d10 | fp16 | binary r100 | binary r400 | worst r100 | worst r400 |
+|---|---|---|---|---|---|---|
+| real 13,549 | 0.2621 | 0.0000 | 0.0484 | 0.0032 | 0.5 | 0.9 |
+| synthetic 3,750 | 0.2147 | 0.0000 | 0.0323 | 0.0000 | 0.7 | 1.0 |
+| synthetic 13,549 | 0.1689 | 0.0000 | 0.0419 | 0.0129 | 0.7 | 0.8 |
+| synthetic 50,000 | 0.1132 | 0.0000 | 0.0645 | 0.0097 | 0.4 | 0.8 |
+| synthetic 150,000 | 0.0605 | 0.0097 | 0.1419 | 0.0258 | 0.3 | 0.5 |
 
-**What this leaves.** fp16 gives 3.00x. At 128 GB usable that is roughly 145,000 documents at
-this corpus's 322.6 passages each, or ~586,000 at a corporate mix of 80. The million-document
-target is not reached and binary was the route that would have reached it.
+The worst question at rescore 400 goes from 0.10 to **0.50** at the densest point and 0.80
+at the one standing in for ~35M passages. Rescore 100 is still finished — 0.1419 mean, 0.3
+worst — but the width is a query-time choice costing four hundred exact distance
+computations, and migration 0025 keeps the fp32 vectors that rescoring needs.
 
-The remaining route is partitioning by tenant, and its value is different in kind: it does
-not shrink the index, it shrinks the **resident** set. An installation with 200 tenants of
-which ten are active holds 5% of its index in memory — the same order of magnitude binary
-would have bought, at no cost in recall, paid for in operational complexity instead. Its one
-blocking unknown is whether Postgres prunes partitions when the key comes from
-`zenith_current_tenant()`, which is confirmed `STABLE` and therefore cannot prune at plan
-time.
+The corroboration is worth as much as the numbers. `quantisation.json` measures through an
+HNSW index over 30 answerable questions and puts the real corpus's r100 gap at 0.0467; this
+file measures by exact scan over 31 and gets **0.0484**. Two harnesses, two methods, one
+answer — which is why the trend they agree on is credible.
 
-## Results — ceiling 2
+**The gate is properly calibrated now.** Worst delta 0.0226 and, more importantly, the
+systematic bias is gone: `mixed` rather than `flatters_binary`. The noise questions were
+producing the bias as well as the inflated worst case.
 
-**`hnsw.max_scan_tuples` stays at its default, and that is now measured rather than
-assumed.** 150,000 vectors, halfvec index, five selectivities against five bounds,
-`scan-bound.json`. All twenty-five arms return 50 of 50, and the plan column is what makes
-that readable:
+**fp16 is adopted and is not perfectly free.** 0.0097 at the densest point against 0.0000
+everywhere else — about one percent of recall@10, in a density regime no planned corpus
+reaches. Negligible, and worth recording because "flat forever" was the previous claim.
 
-| filter admits | rows | plan chosen | candidates | effect of the bound |
-|---|---|---|---|---|
-| 50% | 75,000 | hnsw | 50 / 50 | none |
-| 10% | 15,000 | hnsw | 50 / 50 | none |
-| 2% | 3,000 | bitmap | 50 / 50 | none |
-| 0.5% | 750 | bitmap | 50 / 50 | none |
-| 0.1% | 150 | bitmap | 50 / 50 | none |
-
-There are two regimes and the bound is irrelevant in both, for different reasons.
-
-Above roughly 10% the planner uses HNSW, and iterative scan finds fifty admissible rows
-long before it has walked twenty thousand tuples — at one row in ten it expects to walk
-about five hundred. Below roughly 2% the planner **stops using the vector index at all**:
-it reads the filter's index and sorts the survivors exactly, which is both correct and
-fast (0.58 ms at 150 admitted rows). There is no iterative scan there to bound.
-
-The crossover sits between those two, and the regime the bound was feared for — selective
-enough to starve the walk, but not selective enough for the planner to leave — does not
-exist on this shape of query. Writing a number down would be inventing a constant to
-guard a case that has not been shown to occur, which is what ADR 0005 forbids.
-
-**The limitation, stated rather than buried.** The filter here is one indexed inequality
-on a `double precision`. The real policy is a conjunction — `tenant_id = …` on a btree
-*and* `label_ids && …` on a GIN index — and a conjunction of two indexable predicates can
-put the planner's crossover somewhere else. What this establishes is that the bound does
-not bind on either side of a crossover; where exactly the crossover sits under the real
-policy is a separate question, and `tenant-scale.json` already shows the planner choosing
-HNSW at 61% and 53% label scopes, which is the same side of it.
+**What this leaves.** fp16 gives 3.00x with no practical cost. Binary at rescore 400 gives
+18.84x and is defensible into the tens of millions of passages, degrading past that.
+Neither is a decision this document takes: binary now needs a product change — a two-stage
+retrieval path — which is a separate piece of work with its own risks, and fp16 is already
+shipped.
 
 ## The partitioning blocker is not a blocker — measured
 
