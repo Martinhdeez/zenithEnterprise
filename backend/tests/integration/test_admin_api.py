@@ -118,7 +118,7 @@ class TestTheModelConfiguration:
         and the reason it is encrypted at rest stops meaning anything.
         """
         auth = await headers(client, account.admin_email)
-        await client.put(
+        stored = await client.put(
             "/llm-config",
             json={
                 "endpoint_url": "https://example.invalid/v1",
@@ -127,6 +127,10 @@ class TestTheModelConfiguration:
             },
             headers=auth,
         )
+        # Asserted rather than assumed. Unchecked, a 500 from the write left the read
+        # reporting no key, and the failure read as `assert False is True` — which points
+        # at the wrong half of the test. The write is a precondition here, not the subject.
+        assert stored.status_code == 200, stored.text
 
         body = (await client.get("/llm-config", headers=auth)).json()
 

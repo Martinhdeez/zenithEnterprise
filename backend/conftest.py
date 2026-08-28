@@ -14,6 +14,13 @@ os.environ.setdefault("ZENITH_JWT_SECRET", "test-secret-" + "x" * 32)
 # Ingestion is a background concern with its own tests. An upload test must not need a
 # worker process and a running embedding service to store a file.
 os.environ.setdefault("ZENITH_DISABLE_INGESTION_QUEUE", "1")
+# Storing a provider API key needs this, and without it `PUT /llm-config` answers 500.
+# Absent here, the only machines where the connector tests passed were the ones with a
+# developer's `backend/.env` — which is not in git, so CI had none and the suite was green
+# locally and red on the first push. A real Fernet key rather than a placeholder: the
+# library validates the length and the base64, so a stand-in fails at `Fernet(...)` with a
+# message about the key rather than about the test.
+os.environ.setdefault("ZENITH_ENCRYPTION_KEY", "emVuaXRoLXRlc3QtZW5jcnlwdGlvbi1rZXktMzJieXQ=")
 
 import subprocess  # noqa: E402
 from collections.abc import AsyncIterator, Iterator
