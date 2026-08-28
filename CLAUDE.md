@@ -56,9 +56,18 @@ somewhere else.
 | `platform_session()` | bypassed | `/system` routes and audit writes only |
 
 The names are kept greppable deliberately: **grepping for `owner_session` and
-`platform_session` is a complete audit of the bypass surface.** Do not wrap them, alias them,
+`platform_session` is a complete audit of the factories.** Do not wrap them, alias them,
 or pass a session down through a helper that hides which one it is. `unscoped_session()` is a
 fourth, narrower case — login, before a tenant is known.
+
+**`SECURITY DEFINER` functions are the third class of bypass, and no grep finds them.** They
+execute as the function owner, so no policy applies, and no Python identifier names them.
+This paragraph used to claim the two greps were the whole surface; it was false from
+migration 0003 onwards and nobody noticed, because a stale list is the one the next reviewer
+trusts instead of reading the schema. The list now lives in
+`backend/tests/integration/test_security_definer_audit.py`, which reads them out of `pg_proc`
+and fails until each one is declared there with the migration that created it and the reason
+the bypass is justified.
 
 **3. A tenant admin cannot become a system admin.** `users.is_system_admin` is not in the
 permission catalogue, because tenant admins edit `role_permissions` freely. It is protected

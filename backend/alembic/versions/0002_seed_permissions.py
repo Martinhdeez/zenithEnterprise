@@ -47,10 +47,12 @@ CATALOGUE: list[tuple[str, str]] = [
 # handler, and the owner connection can read every row in the installation.
 #
 # This function is the narrow version of that bypass: it returns four fields for one
-# email and nothing else. It cannot be coaxed into reading documents, and it is the
-# only `SECURITY DEFINER` object in the schema, so auditing the bypass surface is one
-# grep. `search_path` is pinned because a SECURITY DEFINER function without it can be
-# hijacked by a caller-controlled schema.
+# email and nothing else. It cannot be coaxed into reading documents. It was the first
+# `SECURITY DEFINER` object in the schema and, when this was written, the only one —
+# 0003 added three more and the count has grown since, so the audit is not a grep:
+# `tests/integration/test_security_definer_audit.py` reads them out of `pg_proc` and
+# checks them against a declared list. `search_path` is pinned because a SECURITY
+# DEFINER function without it can be hijacked by a caller-controlled schema.
 #
 # It returns every match, not one: emails are unique per tenant, not per installation.
 # Deciding what to do with more than one match is the caller's problem, and
