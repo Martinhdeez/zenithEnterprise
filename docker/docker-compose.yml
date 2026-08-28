@@ -5,6 +5,7 @@ services:
     # ParadeDB ships pgvector and pg_search in one image: both halves of hybrid
     # search without adding another service to the deployment.
     image: paradedb/paradedb:0.15.26-pg17
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-zenith}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zenith}
@@ -31,6 +32,7 @@ services:
 
   tei-embed:
     image: ${TEI_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.8}
+    restart: unless-stopped
     # These two numbers must agree with the ZENITH_HARDWARE profile the application runs
     # with — see `app/core/hardware.py`. They are the difference between an installation
     # that serves and one the kernel kills: with TEI's defaults, M0 watched this container
@@ -73,6 +75,12 @@ services:
 
   tei-rerank:
     image: ${TEI_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.8}
+    # Restarted on its own, because the failure it protects against is silent. This service
+    # was killed for memory on 28 August and nothing said so: search kept answering from the
+    # fused order, about fifteen points of recall worse, marked `degraded` in a field nobody
+    # was reading. `docker-compose.prod.yml` has always had this; the file the demonstration
+    # actually runs did not.
+    restart: unless-stopped
     # These flags were missing until F11 measured what their absence does, and their
     # absence was worse than a wrong value. `TeiReranker.plan_batches` builds batches up to
     # the profile's `max_client_batch_size` — 16 on `cpu`, 32 on `gpu`. TEI's own default
@@ -122,11 +130,17 @@ services:
       - "${TEI_RERANK_PORT:-8082}:80"
     volumes:
       - hf_cache:/data
+    # The embedder got this ceiling and the reranker never did, which cost memory rather
+    # than heat: unbounded, ONNX Runtime opened one arena per core — 44 threads on a
+    # 14-core laptop — and a 120M-parameter cross-encoder held 3.45 GB. That is the
+    # allocation that was killed for memory, and it was never work being done.
+    cpus: ${TEI_RERANK_CPUS:-4.0}
 
   api:
     build:
       context: ..
       dockerfile: docker/Dockerfile.backend
+    restart: unless-stopped
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     env_file: [../.env]
     environment:
@@ -156,6 +170,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.backend
+    restart: unless-stopped
     # One document at a time by default. On `low-spec` that is not a preference: the
     # parser's memory and the embedder's must not overlap on a machine M0 already pushed
     # into an out-of-memory kill.
@@ -190,6 +205,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.frontend
+    restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-5173}:80"
     depends_on:
