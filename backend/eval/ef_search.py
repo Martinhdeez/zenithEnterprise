@@ -34,13 +34,14 @@ import asyncio
 import json
 import statistics
 import time
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 from uuid import UUID
 
 import httpx
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
 
 from app.core.config import settings
 from app.core.hardware import active as active_profile
@@ -60,7 +61,30 @@ END_TO_END = (100, 200, 400)
 #: the question is what the scan costs and not what the container was doing at the time.
 REPEATS = 5
 
+#: The dense half as the product runs it. Since migration 0025 the HNSW index is on
+#: `embedding_half`, so this orders by that column and casts the query vector to
+#: `halfvec(1024)` exactly as `dense()` does. **The cast is what selects the index**: an
+#: operator class covers one type, so ordering by `embedding` — or by `embedding_half` with a
+#: `vector` cast — plans as a sequential scan and this file would report an exact scan's
+#: recall as the index's, at every `ef_search`, with the knob doing nothing and the report
+#: showing it working. That is the failure this harness exists to catch, reproduced inside it.
 NEIGHBOURS = (
+    "SELECT c.id FROM chunk_embeddings e JOIN chunks c ON c.id = e.chunk_id "
+    "WHERE e.embedding_model = :model AND e.embedding_version = :version "
+    "ORDER BY e.embedding_half <=> CAST(:embedding AS halfvec(1024)) LIMIT :limit"
+)
+
+#: Ground truth, and deliberately **not** the query above: it orders by the full-precision
+#: `embedding` column, with every index refused.
+#:
+#: So `index_recall` keeps meaning "of the truly nearest passages, how many did the dense half
+#: return", which is what it meant before migration 0025 and is what makes the figures in this
+#: report comparable across it. Taking the truth from `embedding_half` instead would compare
+#: the fp16 index against fp16 exact — that isolates the `ef_search` knob and silently absorbs
+#: whatever quantisation costs into the baseline, which is the one thing a reader could not
+#: then check. `quantisation.json` measures that cost separately and puts it at zero on this
+#: corpus; this file does not assume the answer.
+TRUTH = (
     "SELECT c.id FROM chunk_embeddings e JOIN chunks c ON c.id = e.chunk_id "
     "WHERE e.embedding_model = :model AND e.embedding_version = :version "
     "ORDER BY e.embedding <=> CAST(:embedding AS vector) LIMIT :limit"
@@ -79,6 +103,23 @@ async def _embed(questions: list[str]) -> list[list[float]]:
     return vectors
 
 
+async def _scan_used(conn: AsyncConnection, params: Mapping[str, Any], vector: list[float]) -> str:
+    """Which relation the planner reached for, recorded beside the numbers it produced.
+
+    A recall figure taken from a sequential scan looks exactly like one taken from the index,
+    and a sequential scan is what a query that no longer matches the operator class silently
+    plans. `ef_search` then does nothing at all, and every row of this report says it works.
+    So the plan is written down rather than assumed — it is one `EXPLAIN` per setting.
+    """
+    rows = await conn.execute(
+        text("EXPLAIN (COSTS OFF) " + NEIGHBOURS), {**params, "embedding": str(vector)}
+    )
+    for line in "\n".join(str(row[0]) for row in rows).splitlines():
+        if "Index Scan using" in line:
+            return line.strip().split("Index Scan using ", 1)[1].split(" ", 1)[0]
+    return "seq scan"
+
+
 async def _index_sweep(
     space: Any,
     tenant: UUID,
@@ -88,38 +129,52 @@ async def _index_sweep(
     """What the index returns at each setting, against the exact neighbours."""
     params = {"model": space.model, "version": space.version, "limit": CANDIDATES}
 
-    owner = create_async_engine(settings.database_owner_url)
-    async with owner.connect() as conn:
+    # The application role, under RLS, with a tenant pinned — the conditions the deployment
+    # runs in. Measured as the owner the numbers would be a different query's numbers.
+    app = create_async_engine(settings.database_url)
+
+    async def _pin(conn: AsyncConnection) -> None:
         await conn.execute(text("SET TRANSACTION READ ONLY"))
-        # Ground truth. The index is refused rather than tuned: an exact scan of 8k rows is
-        # affordable here and is the only honest baseline for "what did the index miss".
+        await conn.execute(
+            text("SELECT set_config('zenith.tenant_id', :t, true)"), {"t": str(tenant)}
+        )
+        await conn.execute(
+            text("SELECT set_config('zenith.label_ids', :l, true)"),
+            {"l": ",".join(str(label) for label in labels)},
+        )
+
+    async with app.connect() as conn:
+        # Ground truth, **under the same policy context as the measurement**. The index is
+        # refused rather than tuned: an exact scan of this corpus is affordable and is the
+        # only honest baseline for "what did the index miss".
+        #
+        # This used to read through the owner connection, which bypasses RLS, and it was
+        # wrong in a way nothing could see while this installation held one tenant. With two,
+        # the truth set contains rows the measured tenant may never read, so `index_recall`
+        # was capped at the fraction of the graph that tenant owns and fell as neighbours
+        # were added — 1.0000 to 0.9073 here, with the index returning *every* row it was
+        # allowed to return. An index reported as losing 9% of the neighbours while behaving
+        # perfectly is the failure this whole file exists to detect, so it is worth being
+        # precise: what the caller should have seen is defined by the policy, never by a role
+        # that ignores it. `tenant_scale.py` had this right and said so; this did not.
+        await _pin(conn)
         await conn.execute(text("SET LOCAL enable_indexscan = off"))
         await conn.execute(text("SET LOCAL enable_bitmapscan = off"))
         truth = []
         for vector in vectors:
-            rows = await conn.execute(text(NEIGHBOURS), {**params, "embedding": str(vector)})
+            rows = await conn.execute(text(TRUTH), {**params, "embedding": str(vector)})
             truth.append({row.id for row in rows})
         await conn.rollback()
-    await owner.dispose()
 
-    # The application role, under RLS, with a tenant pinned — the conditions the deployment
-    # runs in. Measured as the owner the numbers would be a different query's numbers.
-    app = create_async_engine(settings.database_url)
     results: dict[int, dict[str, object]] = {}
     for ef in SWEEP:
         overlaps: list[float] = []
         times: list[float] = []
         returned = 0
         async with app.connect() as conn:
-            await conn.execute(text("SET TRANSACTION READ ONLY"))
-            await conn.execute(
-                text("SELECT set_config('zenith.tenant_id', :t, true)"), {"t": str(tenant)}
-            )
-            await conn.execute(
-                text("SELECT set_config('zenith.label_ids', :l, true)"),
-                {"l": ",".join(str(label) for label in labels)},
-            )
+            await _pin(conn)
             await conn.execute(text(f"SET LOCAL hnsw.ef_search = {int(ef)}"))
+            scan = await _scan_used(conn, params, vectors[0])
             for vector, exact in zip(vectors, truth, strict=True):
                 fastest = None
                 got: set[object] = set()
@@ -136,6 +191,9 @@ async def _index_sweep(
                 overlaps.append(len(got & exact) / len(exact))
             await conn.rollback()
         results[ef] = {
+            # Named, not asserted: if this ever reads "seq scan" the recall below is an exact
+            # scan's and the knob was never consulted.
+            "scan": scan,
             "rows_returned": returned,
             "index_recall": round(statistics.mean(overlaps), 4),
             "worst_query": round(min(overlaps), 4),
@@ -175,6 +233,19 @@ async def _run() -> int:
         "scored": len(where.questions),
         "candidates": CANDIDATES,
         "profile": active_profile().name,
+        "truth": (
+            "Exact neighbours from the fp32 `embedding` column, taken under the same tenant "
+            "and label context as the measurement. Before 2026-08-28 it was taken through "
+            "the owner connection, which bypasses RLS: on a two-tenant installation the "
+            "truth set then held rows the measured tenant may never read, and `index_recall` "
+            "was capped at the fraction of the graph that tenant owns."
+        ),
+        "iterative_scan_during_index_sweep": (
+            "off. This sweep isolates `hnsw.ef_search`, so it measures the scan without the "
+            "iterative refill `search.py` now sets on every dense query. A low `worst_query` "
+            "here is that refill missing, not the index failing — `tenant-scale.json` is the "
+            "report that separates the two, and `end_to_end` below runs the shipped path."
+        ),
         "index": {str(ef): value for ef, value in index.items()},
         "end_to_end": reached,
     }

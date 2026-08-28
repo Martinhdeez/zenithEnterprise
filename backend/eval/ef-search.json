@@ -1,43 +1,50 @@
 {
-  "corpus_chunks": 8273,
+  "corpus_chunks": 13549,
   "scored": 30,
   "candidates": 50,
   "profile": "cpu",
+  "truth": "Exact neighbours from the fp32 `embedding` column, taken under the same tenant and label context as the measurement. Before 2026-08-28 it was taken through the owner connection, which bypasses RLS: on a two-tenant installation the truth set then held rows the measured tenant may never read, and `index_recall` was capped at the fraction of the graph that tenant owns.",
+  "iterative_scan_during_index_sweep": "off. This sweep isolates `hnsw.ef_search`, so it measures the scan without the iterative refill `search.py` now sets on every dense query. A low `worst_query` here is that refill missing, not the index failing \u2014 `tenant-scale.json` is the report that separates the two, and `end_to_end` below runs the shipped path.",
   "index": {
     "40": {
+      "scan": "ix_chunk_embeddings_hnsw_half",
       "rows_returned": 40,
-      "index_recall": 0.7633,
+      "index_recall": 0.6767,
       "worst_query": 0.0,
-      "median_ms": 0.83,
-      "p95_ms": 0.87
+      "median_ms": 0.84,
+      "p95_ms": 0.93
     },
     "100": {
+      "scan": "ix_chunk_embeddings_hnsw_half",
       "rows_returned": 50,
-      "index_recall": 0.9833,
-      "worst_query": 0.8,
-      "median_ms": 1.02,
-      "p95_ms": 1.15
+      "index_recall": 0.904,
+      "worst_query": 0.0,
+      "median_ms": 1.11,
+      "p95_ms": 1.28
     },
     "200": {
+      "scan": "ix_chunk_embeddings_hnsw_half",
       "rows_returned": 50,
-      "index_recall": 0.9927,
-      "worst_query": 0.94,
-      "median_ms": 1.22,
-      "p95_ms": 1.48
+      "index_recall": 0.978,
+      "worst_query": 0.72,
+      "median_ms": 1.37,
+      "p95_ms": 1.59
     },
     "400": {
+      "scan": "ix_chunk_embeddings_hnsw_half",
       "rows_returned": 50,
-      "index_recall": 0.9987,
-      "worst_query": 0.96,
-      "median_ms": 1.67,
-      "p95_ms": 1.99
+      "index_recall": 0.9953,
+      "worst_query": 0.92,
+      "median_ms": 1.85,
+      "p95_ms": 2.17
     },
     "800": {
+      "scan": "ix_chunk_embeddings_hnsw_half",
       "rows_returned": 50,
-      "index_recall": 1.0,
-      "worst_query": 1.0,
-      "median_ms": 48.81,
-      "p95_ms": 50.8
+      "index_recall": 0.9973,
+      "worst_query": 0.94,
+      "median_ms": 2.98,
+      "p95_ms": 3.63
     }
   },
   "end_to_end": {
@@ -47,8 +54,8 @@
       "recall_at_8_all": 0.9,
       "recall_at_1_all": 0.6667,
       "mean_rank": 1.37,
-      "median_ms": 842,
-      "p95_ms": 978,
+      "median_ms": 912,
+      "p95_ms": 1118,
       "degraded": 0,
       "missed": [
         "boe-bank-rate",
@@ -62,8 +69,8 @@
       "recall_at_8_all": 0.9,
       "recall_at_1_all": 0.6667,
       "mean_rank": 1.37,
-      "median_ms": 799,
-      "p95_ms": 878,
+      "median_ms": 960,
+      "p95_ms": 1100,
       "degraded": 0,
       "missed": [
         "boe-bank-rate",
@@ -77,8 +84,8 @@
       "recall_at_8_all": 0.9,
       "recall_at_1_all": 0.6667,
       "mean_rank": 1.37,
-      "median_ms": 807,
-      "p95_ms": 909,
+      "median_ms": 922,
+      "p95_ms": 1018,
       "degraded": 0,
       "missed": [
         "boe-bank-rate",

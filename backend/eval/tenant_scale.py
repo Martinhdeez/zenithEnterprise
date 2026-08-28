@@ -6,7 +6,7 @@
 
 """What the dense half loses when most of the graph belongs to someone else.
 
-`ix_chunk_embeddings_hnsw` is **one graph for every tenant**. The scan walks it for the
+`ix_chunk_embeddings_hnsw_half` is **one graph for every tenant**. The scan walks it for the
 `ef_search` nearest vectors and only then does anything check who may read them: the policy
 on `chunk_embeddings` filters by tenant inside the index-scan node, and the join to `chunks`
 applies the label policy after that. Neither is an index predicate — HNSW has none — so both
@@ -32,9 +32,26 @@ leave each of them roughly `1/n` of the graph, so every point also reports the
 it is not a substitute for measuring a hundred real tenants, and it is labelled so nobody
 reads it as one.
 
-Both scan modes are measured at every point — as shipped, and with `hnsw.iterative_scan`,
-which `search.py` currently sets only for a document scope. That is the candidate fix, so it
-is measured rather than assumed.
+Both scan modes are measured at every point — with `hnsw.iterative_scan` off, and with it set
+to `ITERATIVE_SCAN`. When this run was first written the second was the *candidate fix* and
+`search.py` set it only for a document scope; it is now set unconditionally on the strength of
+what this measured, so `default` is the arm that no longer ships. Both are kept, because the
+gap between them is the finding and deleting the losing arm would delete the evidence.
+
+## What migration 0025 moved, and it is not recall
+
+fp16 made the index three times smaller, and a cheaper index wins the planner's comparison at
+scopes where the fp32 one used to lose to a sequential scan. Two points crossed that line on
+re-measurement: `Cyber Standards Archive` at 38.9% of the graph and `label legal/contracts` at
+14.6%, both `exact` before and `hnsw` after. Their `default` figures fall off a cliff —
+50 rows at recall 1.0000 to 10.23 at 0.1995 and 7.77 at 0.1553 — and none of that is the index
+getting worse. An exact scan cannot lose rows to a post-filter because it has no candidate
+budget to lose them from; those scopes were scoring 1.0000 by not using the index at all.
+
+**The threshold this file describes moves down as the index shrinks**, so a smaller
+representation buys capacity and widens the band of scopes exposed to the post-filter loss at
+the same time. The `iterative` arm still returns 50 of 50 rows at every scope, which is why
+the shipped path is unaffected and the end-to-end score below does not move.
 
 **Read-only.** Every transaction is `READ ONLY` and rolled back; nothing here writes, and no
 row, index or setting outlives the connection. Ground truth is taken under the *same* RLS
@@ -69,7 +86,25 @@ REPORT = Path(__file__).parent / "tenant-scale.json"
 #: `search.py`'s dense query, verbatim apart from the document scope this run never passes.
 #: Copied rather than imported because the point is to watch the plan the shipped SQL gets,
 #: and `dense()` would insist on opening its own session with its own settings.
+#:
+#: Since migration 0025 that means `embedding_half` and a `halfvec(1024)` cast, because the
+#: index is on the fp16 column and an operator class covers one type. Copied SQL that drifts
+#: from the original is the standing hazard of the line above: ordering by `embedding` here
+#: would plan a sequential scan, and this file would then report that a *sequential* scan
+#: loses no rows to the policy — which is true, and the exact opposite of the finding.
 DENSE = (
+    "SELECT c.id, 1 - (e.embedding_half <=> CAST(:embedding AS halfvec(1024))) AS score "
+    "FROM chunk_embeddings e "
+    "JOIN chunks c ON c.id = e.chunk_id "
+    "WHERE e.embedding_model = :model AND e.embedding_version = :version "
+    "ORDER BY e.embedding_half <=> CAST(:embedding AS halfvec(1024)) LIMIT :limit"
+)
+
+#: Ground truth: the full-precision column, with every index refused. Not `DENSE`, for the
+#: same reason `ef_search.py` separates the two — "what the caller should have seen" is the
+#: truly nearest rows the policy entitles them to, so the baseline stays fp32 across migration
+#: 0025 and every figure here remains comparable to the reports taken before it.
+TRUTH = (
     "SELECT c.id, 1 - (e.embedding <=> CAST(:embedding AS vector)) AS score "
     "FROM chunk_embeddings e "
     "JOIN chunks c ON c.id = e.chunk_id "
@@ -321,7 +356,7 @@ async def _point(
         truth = [
             {
                 row.id
-                for row in await conn.execute(text(DENSE), {**params, "embedding": str(vector)})
+                for row in await conn.execute(text(TRUTH), {**params, "embedding": str(vector)})
             }
             for vector in vectors
         ]
@@ -368,7 +403,7 @@ async def _ef_sweep(
         truth = [
             {
                 row.id
-                for row in await conn.execute(text(DENSE), {**params, "embedding": str(vector)})
+                for row in await conn.execute(text(TRUTH), {**params, "embedding": str(vector)})
             }
             for vector in vectors
         ]
@@ -473,7 +508,7 @@ async def _run() -> int:
         "graph_embeddings": graph,
         "questions": len(questions),
         "repeats": REPEATS,
-        "shipped_sets_iterative_scan": "only when a document scope is passed",
+        "shipped_sets_iterative_scan": "unconditionally, on every dense query",
         "points": points,
         "ef_sweep": {"scope": widest[1].name if widest else None, "by_ef": ef_sweep},
         "end_to_end": reached,

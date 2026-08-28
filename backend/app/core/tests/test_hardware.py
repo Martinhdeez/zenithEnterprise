@@ -32,7 +32,7 @@ def test_ef_search_can_fill_the_candidate_set() -> None:
     """A profile below the candidate count truncates the dense half and says nothing.
 
     pgvector returns at most `ef_search` rows from one index scan, so `low-spec` at 40
-    answered a 50-candidate request with forty rows — 76.3% of the true top-50, and on the
+    answered a 50-candidate request with forty rows — 67.7% of the true top-50, and on the
     one profile with no reranker downstream to repair it. Nothing failed, nothing logged;
     fusion simply got a smaller union than it asked for. Swept on the demonstration
     machine, `eval/ef-search.json`.

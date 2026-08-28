@@ -87,7 +87,7 @@ class Profile:
     # preference.** pgvector will not return more rows than `ef_search` from a single index
     # scan, so a profile whose value is under the candidate count silently truncates the
     # dense half: `low-spec` at 40 answered a `LIMIT 50` with forty rows, and the ten it
-    # dropped were not the ten nearest — index recall over the true top-50 was 76.3%, with
+    # dropped were not the ten nearest — index recall over the true top-50 was 67.7%, with
     # one question in the set recovering *nothing*. That profile is also the one that runs
     # without a reranker, so it has nothing downstream to repair the shortfall.
     # `test_ef_search_can_fill_the_candidate_set` is the assertion that keeps it above the
@@ -208,13 +208,32 @@ PROFILES: Final[dict[str, Profile]] = {
     # Swept on the demonstration machine against the live corpus (`eval/ef-search.json`):
     #
     #     ef    index recall@50   worst query   dense scan
-    #     40         76.3%            0%          0.8 ms   <- cannot fill 50; see the field
-    #     100        98.3%           80%          1.0 ms
-    #     200        99.3%           94%          1.2 ms
-    #     400        99.9%           96%          1.7 ms
-    #     800       100.0%          100%         48.8 ms   <- a cliff, 48x for 0.1 points
+    #     40         67.7%            0%          0.8 ms   <- cannot fill 50; see the field
+    #     100        90.4%            0%          1.0 ms
+    #     200        97.8%           72%          1.3 ms
+    #     400        99.5%           92%          2.0 ms
+    #     800        99.7%           94%          2.9 ms
     #
-    # So 400 looks free — 0.7 ms of an 840 ms search to recover the last neighbours. It is
+    # **Re-measured on 2026-08-28 and every figure moved; none of it was the knob.** Three
+    # things changed under this table, and separating them is the whole reason it is quoted
+    # from a file rather than remembered. The corpus grew from 8,273 passages to 13,549 and
+    # gained a second tenant, so the shared graph now spends part of every `ef` budget on
+    # rows the policy discards. `ef_search.py`'s ground truth was corrected: it used to be
+    # read through the owner connection, which bypasses RLS, so the truth set contained rows
+    # the measured tenant may never see and `index_recall` was capped by the fraction of the
+    # graph that tenant owns. And migration 0025 made the index fp16, which `quantisation.json`
+    # measures against exact fp32 at 1.0000 — the representation costs nothing here.
+    #
+    # The one figure fp16 did change is the last column: the cliff at ef 800 is gone, 48.8 ms
+    # to 2.9 ms, because a third of the bytes fits in `shared_buffers`. `rows_returned` — the
+    # number the floor above rests on — is unchanged at every setting.
+    #
+    # `worst_query` at 0% for ef 100 is the shared graph, not the index. This sweep runs
+    # without `hnsw.iterative_scan`, deliberately, so that it measures `ef_search` alone;
+    # `search.py` sets `relaxed_order` on every dense query and `tenant-scale.json` measures
+    # what that recovers — 50 of 50 rows at every scope. Read the two together or neither.
+    #
+    # So 400 looks free — 1 ms of an 860 ms search to recover the last neighbours. It is
     # also **worth nothing**, which is the part that decided this. End to end over the same
     # thirty questions, ef 100, 200 and 400 return byte-identical results: Recall@8 90.0%,
     # Recall@1 66.7%, mean rank 1.37, the same three misses, latency inside noise. The
