@@ -342,3 +342,57 @@ describe("the source opens on its own", () => {
     expect(container.querySelectorAll("button button")).toHaveLength(0);
   });
 });
+
+/**
+ * The feature the whole product turns on: search that can say the corpus has nothing.
+ *
+ * The dense half returns the k nearest neighbours however far away they are, so before this
+ * a question about Messi's goals over a corpus of employment law came back with eight ranked
+ * passages and every appearance of having found something.
+ *
+ * Both states are asserted, and the pair is the point. `weak` must **show** its results —
+ * hiding a passage that was really there leaves the reader concluding the corpus does not
+ * contain it, with no way to find out otherwise, and that is the expensive failure. `none`
+ * must not offer the rewording advice, which is good counsel when the query missed and
+ * useless when the subject is absent.
+ */
+describe("when the corpus has little or nothing to say", () => {
+  const ask = async (result: Partial<Parameters<typeof results.mockResolvedValue>[0]>) => {
+    results.mockResolvedValue({
+      hits: [],
+      degraded: false,
+      reason: null,
+      took_ms: 9,
+      ...result,
+    } as never);
+    render(<Search token="t" onCitation={vi.fn()} searchable />);
+    const box = screen.getByLabelText("Search");
+    fireEvent.change(box, { target: { value: "cuantos goles marco Messi" } });
+    fireEvent.submit(box.closest("form")!);
+  };
+
+  it("says the match is poor and still shows the passages", async () => {
+    await ask({ hits: [hit("one", "handbook.pdf")], relevance: "weak" });
+
+    expect(await screen.findByText(/Nothing here matches closely/)).toBeTruthy();
+    // Still on screen. The notice qualifies them; it does not replace them.
+    expect(screen.getByText(/handbook\.pdf/)).toBeTruthy();
+  });
+
+  it("says the corpus does not cover it, and does not suggest rewording", async () => {
+    await ask({ hits: [], relevance: "none" });
+
+    expect(await screen.findByText(/Nothing in your documents is about/)).toBeTruthy();
+    // The generic empty state's advice is good when the wording missed and useless here:
+    // no phrasing makes an absent subject appear.
+    expect(screen.queryByText(/Try fewer words/)).toBeNull();
+  });
+
+  it("falls back to the ordinary empty state when the server says nothing", async () => {
+    // An older server sends no `relevance`. Silence is read as `confident`, so the screen
+    // behaves exactly as it did before this feature existed.
+    await ask({ hits: [] });
+
+    expect(await screen.findByText(/Nothing matched that query/)).toBeTruthy();
+  });
+});

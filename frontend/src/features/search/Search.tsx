@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { search, type SearchHit } from "./api";
+import { search, type Relevance, type SearchHit } from "./api";
 import { ApiError } from "@/shared/api/http";
 import type { Citation } from "@/features/chat";
 import { Clock, Search as SearchIcon } from "lucide-react";
@@ -69,7 +69,15 @@ interface Props {
 type State =
   | { phase: "idle" }
   | { phase: "loading"; query: string }
-  | { phase: "done"; query: string; hits: SearchHit[]; degraded: boolean; reason: string | null; tookMs: number }
+  | {
+      phase: "done";
+      query: string;
+      hits: SearchHit[];
+      degraded: boolean;
+      reason: string | null;
+      tookMs: number;
+      relevance: Relevance;
+    }
   | { phase: "error"; query: string; message: string };
 
 /** Starting points for a corpus nobody has searched yet — a blank box gives no clue what
@@ -200,6 +208,7 @@ export function Search({
           query: q,
           hits: result.hits,
           degraded: result.degraded,
+          relevance: result.relevance ?? "confident",
           reason: result.reason,
           tookMs: result.took_ms,
         });
@@ -399,9 +408,22 @@ export function Search({
             )}
           </div>
 
-          {state.hits.length === 0 && (
-            <NothingMatched filterName={filterName} onClearFilter={onClearFilter} />
+          {/* Shown above the results, not instead of them. The passages stay legible and
+              keep their normal weight: a notice that made them hard to read would turn a
+              cheap false positive — two paragraphs the reader dismisses — into the
+              expensive false negative this whole feature is shaped to avoid. */}
+          {state.relevance === "weak" && state.hits.length > 0 && (
+            <p className="rounded-lg border border-dashed border-border bg-secondary/40 px-4 py-3 text-sm text-muted-foreground">
+              {t("Nothing here matches closely. These are the nearest passages.")}
+            </p>
           )}
+
+          {state.hits.length === 0 &&
+            (state.relevance === "none" ? (
+              <NotInTheCorpus query={state.query} />
+            ) : (
+              <NothingMatched filterName={filterName} onClearFilter={onClearFilter} />
+            ))}
 
           {/* Separate cards, same as the history and document lists. A hit is a filename,
               two lines of the passage and a row of scores — running text, where a hairline
@@ -536,6 +558,37 @@ function Ranking({ hit }: { hit: SearchHit }) {
  * deliberately about *wording* rather than encouragement — this half of the search matches
  * terms, and "try rephrasing" is advice for the other half.
  */
+/**
+ * The corpus does not cover this, which is a different fact from "your query found nothing".
+ *
+ * `NothingMatched` offers fewer words and a wider folder, and both are good advice when the
+ * wording missed. Here they are useless: no phrasing makes the price of a licence appear in
+ * a corpus of Spanish employment law, and offering it would send somebody rewording a
+ * question that was never going to work.
+ *
+ * **The sentence is careful about what it can claim.** Measured: a question asking for a
+ * Bank Rate set in February 2027 scores 0.9996, because the corpus holds a Bank Rate
+ * document and the cross-encoder judges topical relevance rather than factual presence. So
+ * this mechanism can say "I found nothing about this in your documents". It cannot say
+ * "this is not in your documents", and saying so would be a promise it cannot keep.
+ */
+function NotInTheCorpus({ query }: { query: string }) {
+  const t = useT();
+  return (
+    <div className="space-y-3 rounded-lg border border-dashed border-border p-8 text-center text-sm">
+      <p className="text-foreground">
+        {t("Nothing in your documents is about “{query}”.", { query })}
+      </p>
+      <p className="mx-auto max-w-sm text-xs text-muted-foreground">
+        {/* eslint-disable-next-line -- one line on purpose: the catalogue scanner in
+            `es.test.ts` stops at the first newline inside a `t(` call, so a key wrapped
+            onto its own line is invisible to the guard that has to see it. */}
+        {t("This is not a wording problem — rephrasing will not help. The corpus does not cover this subject.")}
+      </p>
+    </div>
+  );
+}
+
 function NothingMatched({
   filterName,
   onClearFilter,

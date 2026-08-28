@@ -27,11 +27,24 @@ export interface SearchHit {
   rerank_score: number | null;
 }
 
+/**
+ * How much the corpus has to say about the question, decided by the cross-encoder's score
+ * on the best passage.
+ *
+ * A separate field from `degraded`, and the distinction is load-bearing: `degraded` says a
+ * component of ours was missing, this says the corpus was. Rendering them the same way
+ * would tell a customer their installation is broken when their archive simply does not
+ * cover what they asked.
+ */
+export type Relevance = "confident" | "weak" | "none";
+
 export interface SearchResult {
   hits: SearchHit[];
   degraded: boolean;
   reason: string | null;
   took_ms: number;
+  /** Absent on an older server, and `confident` is the safe reading of silence. */
+  relevance?: Relevance;
 }
 
 /**

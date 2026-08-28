@@ -424,6 +424,12 @@ export const es: Catalogue = {
   "Document preview": "Vista del documento",
   "Ask about this document": "Preguntar sobre este documento",
   "Back to the results": "Volver a los resultados",
+  "Nothing here matches closely. These are the nearest passages.":
+    "Nada coincide con claridad. Éstos son los pasajes más cercanos.",
+  "Nothing in your documents is about “{query}”.":
+    "Ninguno de tus documentos trata sobre «{query}».",
+  "This is not a wording problem — rephrasing will not help. The corpus does not cover this subject.":
+    "No es cuestión de cómo lo escribas: reformularlo no va a servir. El corpus no cubre este tema.",
   "Copy the highlighted passage": "Copiar el pasaje resaltado",
   Copied: "Copiado",
   "Open a document from a search to ask about it":
