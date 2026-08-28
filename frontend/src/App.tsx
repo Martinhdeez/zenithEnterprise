@@ -37,7 +37,7 @@ import {
   refreshTokens,
   type UserProfile,
 } from "@/features/auth";
-import { Chat, type Citation } from "@/features/chat";
+import { type Citation } from "@/features/chat";
 import { AnchoredChat } from "@/features/chat/anchored/AnchoredChat";
 import { System } from "@/features/system";
 import { Ingesting, inFlight } from "@/features/documents";
@@ -118,7 +118,6 @@ function capitalise(name: string): string {
 function viewLabel(view: string, t: T): string {
   switch (view) {
     case "search": return t("Search");
-    case "chat": return t("Chat");
     case "folders": return t("Folders");
     case "upload": return t("Upload");
     case "history": return t("History");
@@ -339,7 +338,7 @@ export function App() {
   // Search is the landing screen, not Chat: it is the one screen that shows what the
   // retrieval mechanism actually did, and that is the more useful first thing to see than
   // an empty ask box — Chat is one click away in the same nav, never removed.
-  const [view, setView] = useState<"chat" | "search" | "folders" | "upload" | "history" | "admin" | "system" | "profile">(
+  const [view, setView] = useState<"search" | "folders" | "upload" | "history" | "admin" | "system" | "profile">(
     "search",
   );
   // Owned here, not inside `Folders`, so the breadcrumb in the main header can show *and*
@@ -583,7 +582,6 @@ export function App() {
             {(
               [
                 { name: "search", icon: SearchIcon },
-                { name: "chat", icon: MessageSquare },
                 { name: "folders", icon: FolderIcon },
                 { name: "upload", icon: UploadIcon },
                 { name: "history", icon: HistoryIcon },
@@ -746,7 +744,7 @@ export function App() {
           },
           ask: (question) => {
             setPrefill({ text: question, nonce: Date.now() });
-            open("chat");
+            open("search");
           },
         }}
       />
@@ -824,7 +822,7 @@ export function App() {
             {/* Only Chat and Search actually read `folder` — shown only there, so a filter
                 picked up in Folders doesn't look like it's still following you into Admin
                 or History, where it does nothing. */}
-            {folder && (view === "chat" || view === "search") && (
+            {folder && view === "search" && (
               <button
                 type="button"
                 onClick={() => setFolderSelection(null)}
@@ -840,17 +838,7 @@ export function App() {
               input pinned below it, the way every chat interface this is modelled on does
               — so it gets the bare `overflow-hidden` box that layout requires and none of
               the padding or scrolling every other view here still wants from `main`. */}
-          {view === "chat" ? (
-            <div className="flex-1 overflow-hidden rounded-b-xl bg-card">
-              <Chat
-                token={token}
-                onCitation={setCitation}
-                searchable={status?.searchable ?? true}
-                labels={folder ? [folder] : undefined}
-                prefill={prefill}
-              />
-            </div>
-          ) : (
+          {(
             <main className="flex-1 overflow-auto rounded-b-xl bg-card">
             {/* Every screen is centred and capped here rather than each one setting its own
                 width. They used to carry a `max-w-*` and no `mx-auto`, which pinned them to
@@ -900,6 +888,7 @@ export function App() {
                 // visible, so it gets both the name and the way out.
                 filterName={folderSelection?.name ?? null}
                 onClearFilter={() => setFolderSelection(null)}
+                prefill={prefill}
               />
               </div>
             )}
@@ -948,7 +937,7 @@ export function App() {
                 token={token}
                 onAsk={(question) => {
                   setPrefill({ text: question, nonce: Date.now() });
-                  open("chat");
+                  open("search");
                 }}
               />
             )}
