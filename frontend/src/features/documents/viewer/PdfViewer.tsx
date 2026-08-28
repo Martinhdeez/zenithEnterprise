@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Crosshair } from "lucide-react";
 
 import { boxesOnPage, scrollTargetFor, toRect, type Box } from "./highlight";
 import type { Citation } from "@/features/chat";
@@ -37,6 +38,9 @@ export function PdfViewer({ citation, token }: Props) {
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  // Read from the parsed document and kept, where it used to be read for a `Math.min` and
+  // discarded — which is why "Next" had no ceiling and would walk past the last page.
+  const [pages, setPages] = useState<number | null>(null);
 
   /**
    * The page this citation was found on.
@@ -102,6 +106,7 @@ export function PdfViewer({ citation, token }: Props) {
         const document_ = await pdfjs.getDocument({ data: await response.arrayBuffer() }).promise;
         if (cancelled) return;
 
+        if (!cancelled) setPages(document_.numPages);
         const rendered = await document_.getPage(Math.min(page, document_.numPages));
         const viewport = rendered.getViewport({ scale: 1.4 });
         const target = canvas.current;
@@ -128,23 +133,24 @@ export function PdfViewer({ citation, token }: Props) {
 
   if (!citation) {
     return (
-      <aside className="flex h-full items-center justify-center p-6 text-center text-sm text-slate-500">{t("Click a citation in an answer to open the page it came from.")}</aside>
+      <aside className="flex h-full items-center justify-center p-6 text-center text-sm text-muted-foreground">{t("Click a citation in an answer to open the page it came from.")}</aside>
     );
   }
 
   return (
     <aside className="flex h-full flex-col">
-      <header className="border-b border-slate-200 px-4 py-3">
+      <header className="border-b border-border px-4 py-3">
         <p className="truncate font-mono text-[13px] font-medium">{citation.filename}</p>
-        <p className="text-sm text-slate-500">
-          Page {page}
-          {page !== cited && " (cited page " + cited + ")"}
+        <p className="text-sm text-muted-foreground">
+          {page === cited
+            ? t("Page {page}", { page })
+            : t("Page {page} — cited page {cited}", { page, cited })}
         </p>
       </header>
 
-      <div ref={scroller} className="flex-1 overflow-auto bg-slate-100 p-4">
+      <div ref={scroller} className="flex-1 overflow-auto bg-muted p-4">
         {error ? (
-          <p role="alert" className="text-sm text-red-800">
+          <p role="alert" className="text-sm text-destructive">
             {error}
           </p>
         ) : (
@@ -175,23 +181,62 @@ export function PdfViewer({ citation, token }: Props) {
         )}
       </div>
 
-      <footer className="flex items-center justify-between border-t border-slate-200 px-4 py-2 text-sm">
+      {/* Three plain text buttons in a row, all weighing the same, is what this was — and
+          the middle one is the most valuable control in the product: it returns to the
+          passage an answer was built from, which is the whole argument for showing a
+          document at all. It read as the least important of the three.
+          
+          So the two page steps become quiet icon buttons at the edges, "back to the
+          citation" takes the accent in the middle, and the position is stated between them.
+          "Previous / Next" without saying where you are is navigating a thousand-page file
+          blind, and the count was already on the parsed document — it was being read for a
+          `Math.min` and thrown away.
+          
+          The arrows are icons now rather than `←` and `→` inside the label. They were
+          sitting in the translation catalogue as part of the string, which asked a
+          translator to carry a glyph that does not translate. */}
+      <footer className="flex items-center gap-2 border-t border-border px-3 py-2">
         <button
           type="button"
           onClick={() => setPage((current) => Math.max(1, current - 1))}
           disabled={page <= 1}
-          className="rounded-sm px-2 py-1 disabled:opacity-40"
-        >{t("← Previous")}</button>
+          title={t("Previous page")}
+          aria-label={t("Previous page")}
+          className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:pointer-events-none disabled:opacity-35"
+        >
+          <ChevronLeft className="size-4" />
+        </button>
+
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
+          {/* Tabular so the digits do not shift as the page changes under the cursor. */}
+          <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+            {pages === null ? page : `${page} / ${pages}`}
+          </span>
+          {page !== cited && (
+            // Drawn only when it has somewhere to go. On the cited page it would be a
+            // control that does nothing, which is worse than an absent one.
+            <button
+              type="button"
+              onClick={() => setPage(cited)}
+              title={t("Back to citation")}
+              className="flex min-w-0 items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/18"
+            >
+              <Crosshair className="size-3.5 shrink-0" />
+              <span className="truncate">{t("Back to citation")}</span>
+            </button>
+          )}
+        </div>
+
         <button
           type="button"
-          onClick={() => setPage(cited)}
-          className="rounded-sm px-2 py-1 text-sky-700"
-        >{t("Back to citation")}</button>
-        <button
-          type="button"
-          onClick={() => setPage((current) => current + 1)}
-          className="rounded-sm px-2 py-1"
-        >{t("Next →")}</button>
+          onClick={() => setPage((current) => (pages === null ? current + 1 : Math.min(pages, current + 1)))}
+          disabled={pages !== null && page >= pages}
+          title={t("Next page")}
+          aria-label={t("Next page")}
+          className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:pointer-events-none disabled:opacity-35"
+        >
+          <ChevronRight className="size-4" />
+        </button>
       </footer>
     </aside>
   );
