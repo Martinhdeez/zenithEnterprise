@@ -10,6 +10,7 @@
  * other would lose it, and the half that matters is the one nobody would notice going.
  */
 
+import { copy } from "@/shared/lib/clipboard";
 import { Button } from "@/components/ui/button";
 import { absoluteLink, type Invitation } from "../api";
 import { useFormat, useT } from "@/shared/i18n/useT";
@@ -46,7 +47,7 @@ export function SingleUseLink({
       <div className="flex gap-2">
         <Button
           type="button"
-          onClick={() => void navigator.clipboard?.writeText(link)}
+          onClick={() => void copy(link)}
           className="rounded-md"
         >{t("Copy link")}</Button>
         <Button

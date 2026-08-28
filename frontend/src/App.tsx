@@ -11,6 +11,8 @@ import { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft,
   Building2,
+  Check,
+  Copy,
   Folder as FolderIcon,
   History as HistoryIcon,
   Maximize2,
@@ -56,6 +58,7 @@ import { CommandPalette } from "@/shared/ui/CommandPalette";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { forget, read, write } from "@/shared/lib/storage";
+import { copy } from "@/shared/lib/clipboard";
 
 // Lazily loaded, and for a measured reason: `pdf.js` is roughly 1.4 MB of worker plus its
 // own runtime, and none of it is needed until someone clicks a citation. F11 made
@@ -325,6 +328,9 @@ export function App() {
   // the breadcrumb — and a remounted conversation re-asks, which spends a generation the
   // user did not request and replaces the thread they were reading.
   const [started, setStarted] = useState(false);
+  // Two seconds of "Copied", then back. A copy button with no acknowledgement leaves the
+  // user to test it by pasting somewhere, which defeats the point of the shortcut.
+  const [copied, setCopied] = useState(false);
   const [panel, setPanel] = useState<"results" | "conversation">("results");
   // A plain union rather than a router. Four screens with no deep links and no back-button
   // expectations do not need one, and a router would be the largest dependency in the
@@ -1003,6 +1009,31 @@ export function App() {
                 rid of it — and the document identifies itself. */}
             {t("Document preview")}
             <span className="flex shrink-0 items-center">
+              {/* The passage, not the page. `citation.text` is exactly the span the viewer
+                  highlights, so this is the sentence somebody just read and wants to quote —
+                  and getting it out of a PDF by hand is a selection across a text layer that
+                  fights back. */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                disabled={!citation?.text}
+                aria-label={copied ? t("Copied") : t("Copy the highlighted passage")}
+                title={copied ? t("Copied") : t("Copy the highlighted passage")}
+                onClick={() => {
+                  if (!citation?.text) return;
+                  void copy(citation.text).then((ok) => {
+                    // Only on success. Saying "Copied" when the clipboard refused is the
+                    // failure this button exists to make impossible.
+                    if (!ok) return;
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  });
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+              </Button>
               {/* First, because it is the only control here that belongs to the *document*
                   rather than to the panel — the two beside it resize and close the frame.
                   Disabled rather than hidden when there is no question to ask (a document

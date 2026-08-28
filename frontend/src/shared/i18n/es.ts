@@ -420,6 +420,8 @@ export const es: Catalogue = {
   "Document preview": "Vista del documento",
   "Ask about this document": "Preguntar sobre este documento",
   "Back to the results": "Volver a los resultados",
+  "Copy the highlighted passage": "Copiar el pasaje resaltado",
+  Copied: "Copiado",
   "Open a document from a search to ask about it":
     "Abre un documento desde una búsqueda para poder preguntar sobre él",
   "Answering from {filename} only.": "Respondiendo sólo desde {filename}.",
