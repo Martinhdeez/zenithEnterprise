@@ -34,10 +34,44 @@ import type { FormEvent, KeyboardEvent, ReactNode } from "react";
 
 import { useT } from "@/shared/i18n/useT";
 
-/** One line of `text-sm`/`leading-6` plus the field's own `py-1`. */
-const LINE = 24;
-const SINGLE = LINE + 8;
-const MAX = SINGLE + LINE * 5;
+/**
+ * A textarea that takes the height its content needs.
+ *
+ * Exported because two fields need it at two different sizes: this one, and the working
+ * field on the Search screen, which is larger and carries its own submit button. Extracting
+ * it is what stops the second one being a copy that drifts — and it drifted once already,
+ * when this behaviour was added here and the screen the request was actually about kept its
+ * single-line input.
+ *
+ * Nothing is hardcoded about the size. The single-line height is read from the element's own
+ * computed line-height and padding, so the same hook serves a 13px field and a 16px one
+ * without either knowing about the other.
+ */
+export function useAutoGrow(value: string, maxLines = 6) {
+  const field = useRef<HTMLTextAreaElement>(null);
+  const [grown, setGrown] = useState(false);
+
+  // `useLayoutEffect`, not `useEffect`: this runs before paint, and in an effect the field
+  // visibly snaps to its new height one frame after the character appears.
+  useLayoutEffect(() => {
+    const node = field.current;
+    if (!node) return;
+    const style = getComputedStyle(node);
+    // `lineHeight` is `normal` when nothing set it, which is not a number. 20 is a sane
+    // floor; every caller here sets one anyway.
+    const line = Number.parseFloat(style.lineHeight) || 20;
+    const padding =
+      (Number.parseFloat(style.paddingTop) || 0) + (Number.parseFloat(style.paddingBottom) || 0);
+    node.style.height = "auto";
+    // Measured rather than counted: a line break can come from a newline the user typed or
+    // from the browser wrapping a long word, and only the layout knows which happened.
+    const needed = node.scrollHeight;
+    node.style.height = `${Math.min(needed, line * maxLines + padding)}px`;
+    setGrown(needed > line + padding + 1);
+  }, [value, maxLines]);
+
+  return { field, grown };
+}
 
 interface Props {
   value: string;
@@ -53,21 +87,7 @@ interface Props {
 
 export function SearchField({ value, onChange, label, placeholder, onSubmit, action }: Props) {
   const t = useT();
-  const field = useRef<HTMLTextAreaElement>(null);
-  const [grown, setGrown] = useState(false);
-
-  // Measured rather than counted: a line break can come from a newline the user typed or
-  // from the browser wrapping a long word, and only the layout knows which happened.
-  // `useLayoutEffect` because this runs before paint — in an effect the field visibly
-  // snaps to its new height one frame after the character appears.
-  useLayoutEffect(() => {
-    const node = field.current;
-    if (!node) return;
-    node.style.height = "auto";
-    const needed = node.scrollHeight;
-    node.style.height = `${Math.min(needed, MAX)}px`;
-    setGrown(needed > SINGLE + 1);
-  }, [value]);
+  const { field, grown } = useAutoGrow(value);
 
   return (
     <form

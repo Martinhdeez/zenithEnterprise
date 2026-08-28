@@ -19,7 +19,7 @@ import { Clock, Search as SearchIcon } from "lucide-react";
 import { TagChips, labels as fetchLabels } from "@/features/labels";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useAutoGrow } from "@/shared/ui/SearchField";
 import { ProgressBar } from "@/shared/components/ProgressBar";
 import { forget, read, write } from "@/shared/lib/storage";
 import { useT } from "@/shared/i18n/useT";
@@ -164,6 +164,7 @@ export function Search({
   const [known, setKnown] = useState<Map<string, string>>(new Map());
   const [state, setState] = useState<State>({ phase: "idle" });
   const [query, setQuery] = useState("");
+  const { field, grown } = useAutoGrow(query);
   const [recent, setRecent] = useState<string[]>(readRecent);
   // One switch for the whole list rather than one per result: the card itself is a
   // `<button>`, and an expander inside it would be an interactive element nested in another
@@ -274,19 +275,36 @@ export function Search({
           if (asked) void run(asked);
         }}
       >
-        <div className="flex items-center gap-2 rounded-full border border-input bg-input/30 py-2 pr-2 pl-5 shadow-sm transition-colors focus-within:border-primary/50">
-          <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
-          <Input
+        <div
+          className={`flex gap-2 border border-input bg-input/30 py-2 pr-2 pl-5 shadow-sm transition-[border-radius,border-color] focus-within:border-primary/50 ${
+            grown ? "items-start rounded-3xl" : "items-center rounded-full"
+          }`}
+        >
+          <SearchIcon className={`size-4 shrink-0 text-muted-foreground ${grown ? "mt-1.5" : ""}`} />
+          {/* A textarea, not an input, and this is the field the request was about: a long
+              question used to run off the left edge of one line, so reading back what you
+              had typed meant dragging sideways through it. This product's premise is asking
+              in sentences.
+              
+              The base `Input` is gone rather than restyled — it is an `<input>`, which has
+              no height to give. `dark:bg-transparent` went with it; it was load-bearing only
+              because `Input` carries a `dark:bg-input/30` that outlived a plain
+              `bg-transparent` and painted the field a shade off the pill around it. */}
+          <textarea
+            ref={field}
+            rows={1}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" || event.shiftKey) return;
+              event.preventDefault();
+              const asked = query.trim();
+              if (asked) void run(asked);
+            }}
             placeholder={t("Search passages by keyword and meaning")}
             aria-label={t("Search")}
             maxLength={1000}
-            // `dark:bg-transparent` is load-bearing: the base `Input` carries
-            // `dark:bg-input/30`, which outlives a plain `bg-transparent` in the dark theme
-            // and painted the field a shade off the pill around it — two surfaces where
-            // there should be one.
-            className="h-8 flex-1 border-0 bg-transparent p-0 text-base text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 dark:bg-transparent"
+            className="min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent p-0 text-base leading-7 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:outline-none"
           />
           {busy ? (
             <Button
