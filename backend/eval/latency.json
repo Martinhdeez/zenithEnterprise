@@ -1,0 +1,383 @@
+{
+  "profile": "cpu",
+  "rerank_candidates": 8,
+  "hnsw_ef_search": 100,
+  "candidates": 50,
+  "graph_embeddings": 13549,
+  "questions": 30,
+  "repeats": 3,
+  "passes": 90,
+  "total_median_ms": 873.44,
+  "total_p95_ms": 1064.28,
+  "stages": {
+    "embed": {
+      "median_ms": 78.26,
+      "p95_ms": 129.93,
+      "share": 0.0896
+    },
+    "session": {
+      "median_ms": 1.4,
+      "p95_ms": 2.74,
+      "share": 0.0016
+    },
+    "lexical": {
+      "median_ms": 50.26,
+      "p95_ms": 63.88,
+      "share": 0.0575
+    },
+    "dense": {
+      "median_ms": 2.82,
+      "p95_ms": 10.55,
+      "share": 0.0032
+    },
+    "exact": {
+      "median_ms": 0.3,
+      "p95_ms": 44.77,
+      "share": 0.0003
+    },
+    "hydrate": {
+      "median_ms": 1.05,
+      "p95_ms": 1.57,
+      "share": 0.0012
+    },
+    "rerank": {
+      "median_ms": 742.43,
+      "p95_ms": 902.15,
+      "share": 0.85
+    }
+  },
+  "unaccounted_median_ms": -1.98,
+  "unaccounted_share": -0.0023,
+  "by_question": [
+    {
+      "question": "How quickly must a controller notify a personal data breach to the supervisory authority?",
+      "embed": 100.78,
+      "session": 1.71,
+      "lexical": 56.76,
+      "dense": 2.36,
+      "exact": 0.25,
+      "hydrate": 0.83,
+      "rerank": 576.03,
+      "total": 738.39
+    },
+    {
+      "question": "Which GDPR article establishes the right to be forgotten?",
+      "embed": 64.15,
+      "session": 1.46,
+      "lexical": 48.7,
+      "dense": 2.3,
+      "exact": 0.21,
+      "hydrate": 0.87,
+      "rerank": 754.53,
+      "total": 858.43
+    },
+    {
+      "question": "How does the GDPR define personal data?",
+      "embed": 54.18,
+      "session": 1.22,
+      "lexical": 49.57,
+      "dense": 2.57,
+      "exact": 0.32,
+      "hydrate": 0.98,
+      "rerank": 582.69,
+      "total": 693.42
+    },
+    {
+      "question": "Which GDPR right lets someone receive their data in a machine-readable format?",
+      "embed": 87.77,
+      "session": 1.23,
+      "lexical": 54.83,
+      "dense": 2.64,
+      "exact": 0.22,
+      "hydrate": 0.78,
+      "rerank": 600.01,
+      "total": 726.79
+    },
+    {
+      "question": "What role must certain controllers and processors designate under the GDPR?",
+      "embed": 78.73,
+      "session": 1.26,
+      "lexical": 49.61,
+      "dense": 2.24,
+      "exact": 0.19,
+      "hydrate": 0.78,
+      "rerank": 547.17,
+      "total": 689.01
+    },
+    {
+      "question": "Does the EU AI Act restrict social scoring of individuals?",
+      "embed": 66.76,
+      "session": 1.28,
+      "lexical": 52.89,
+      "dense": 2.38,
+      "exact": 0.23,
+      "hydrate": 0.85,
+      "rerank": 761.97,
+      "total": 877.43
+    },
+    {
+      "question": "Which AI practices does the EU AI Act prohibit outright?",
+      "embed": 87.94,
+      "session": 1.72,
+      "lexical": 50.33,
+      "dense": 2.85,
+      "exact": 0.2,
+      "hydrate": 0.87,
+      "rerank": 725.62,
+      "total": 851.34
+    },
+    {
+      "question": "What status does the Digital Services Act create for entities whose notices get priority?",
+      "embed": 120.24,
+      "session": 1.88,
+      "lexical": 60.39,
+      "dense": 4.48,
+      "exact": 0.38,
+      "hydrate": 1.15,
+      "rerank": 589.65,
+      "total": 739.28
+    },
+    {
+      "question": "Which optimizer was used to train the Transformer, and with what beta values?",
+      "embed": 88.59,
+      "session": 1.6,
+      "lexical": 50.82,
+      "dense": 2.05,
+      "exact": 0.3,
+      "hydrate": 0.93,
+      "rerank": 804.93,
+      "total": 952.78
+    },
+    {
+      "question": "What does the Transformer use in place of a single attention function?",
+      "embed": 77.87,
+      "session": 1.62,
+      "lexical": 51.38,
+      "dense": 2.21,
+      "exact": 0.33,
+      "hydrate": 1.14,
+      "rerank": 732.2,
+      "total": 860.86
+    },
+    {
+      "question": "What pre-training objective lets BERT condition on both left and right context?",
+      "embed": 91.54,
+      "session": 1.4,
+      "lexical": 55.71,
+      "dense": 3.13,
+      "exact": 0.38,
+      "hydrate": 1.12,
+      "rerank": 827.26,
+      "total": 989.64
+    },
+    {
+      "question": "What does the RAG paper use as its non-parametric knowledge source?",
+      "embed": 81.07,
+      "session": 1.34,
+      "lexical": 52.45,
+      "dense": 2.59,
+      "exact": 0.23,
+      "hydrate": 0.76,
+      "rerank": 767.54,
+      "total": 883.1
+    },
+    {
+      "question": "Which dense retriever does the RAG paper build on?",
+      "embed": 76.1,
+      "session": 1.33,
+      "lexical": 45.96,
+      "dense": 2.06,
+      "exact": 0.21,
+      "hydrate": 0.79,
+      "rerank": 816.67,
+      "total": 943.6
+    },
+    {
+      "question": "What is the employee social security tax rate on taxable wages?",
+      "embed": 76.6,
+      "session": 1.33,
+      "lexical": 50.85,
+      "dense": 2.07,
+      "exact": 0.25,
+      "hydrate": 1.05,
+      "rerank": 761.81,
+      "total": 870.7
+    },
+    {
+      "question": "What is Bank Rate?",
+      "embed": 39.11,
+      "session": 1.27,
+      "lexical": 44.59,
+      "dense": 2.32,
+      "exact": 0.19,
+      "hydrate": 0.91,
+      "rerank": 600.58,
+      "total": 691.56
+    },
+    {
+      "question": "Do EU rules in this corpus reach organisations that are not established in the Union?",
+      "embed": 83.86,
+      "session": 1.54,
+      "lexical": 59.14,
+      "dense": 5.35,
+      "exact": 0.33,
+      "hydrate": 1.04,
+      "rerank": 707.83,
+      "total": 834.63
+    },
+    {
+      "question": "Which paper introduced the Transformer, and which built a bidirectional encoder on it?",
+      "embed": 108.34,
+      "session": 1.23,
+      "lexical": 48.97,
+      "dense": 2.67,
+      "exact": 0.31,
+      "hydrate": 1.18,
+      "rerank": 822.06,
+      "total": 951.02
+    },
+    {
+      "question": "Which paper augments generation with a retriever, and which relies on pre-training alone?",
+      "embed": 107.96,
+      "session": 1.31,
+      "lexical": 50.16,
+      "dense": 2.25,
+      "exact": 0.28,
+      "hydrate": 0.97,
+      "rerank": 787.92,
+      "total": 972.2
+    },
+    {
+      "question": "Which EU regulations here impose duties specifically on online platforms?",
+      "embed": 77.35,
+      "session": 1.43,
+      "lexical": 52.0,
+      "dense": 2.82,
+      "exact": 0.3,
+      "hydrate": 1.05,
+      "rerank": 656.54,
+      "total": 771.95
+    },
+    {
+      "question": "Which document states employer withholding rates, and which explains the individual return?",
+      "embed": 92.19,
+      "session": 1.1,
+      "lexical": 56.66,
+      "dense": 3.3,
+      "exact": 0.29,
+      "hydrate": 1.2,
+      "rerank": 762.64,
+      "total": 959.75
+    },
+    {
+      "question": "What BLEU score did the big Transformer reach on English-to-German?",
+      "embed": 91.18,
+      "session": 1.69,
+      "lexical": 48.72,
+      "dense": 2.78,
+      "exact": 0.26,
+      "hydrate": 1.2,
+      "rerank": 818.37,
+      "total": 998.86
+    },
+    {
+      "question": "How does the Transformer's training cost compare with GNMT+RL?",
+      "embed": 89.89,
+      "session": 1.33,
+      "lexical": 48.63,
+      "dense": 3.2,
+      "exact": 0.29,
+      "hydrate": 1.06,
+      "rerank": 811.06,
+      "total": 945.2
+    },
+    {
+      "question": "What is the Medicare tax rate on wages?",
+      "embed": 64.8,
+      "session": 1.43,
+      "lexical": 47.02,
+      "dense": 2.26,
+      "exact": 0.22,
+      "hydrate": 1.06,
+      "rerank": 727.53,
+      "total": 834.25
+    },
+    {
+      "question": "What does the report project for CPI inflation?",
+      "embed": 104.2,
+      "session": 1.47,
+      "lexical": 47.4,
+      "dense": 3.54,
+      "exact": 0.26,
+      "hydrate": 0.91,
+      "rerank": 937.33,
+      "total": 831.21
+    },
+    {
+      "question": "What filing statuses does Form 1040 offer?",
+      "embed": 62.17,
+      "session": 1.46,
+      "lexical": 50.52,
+      "dense": 3.01,
+      "exact": 40.65,
+      "hydrate": 1.34,
+      "rerank": 744.44,
+      "total": 878.84
+    },
+    {
+      "question": "What is Catalog Number 10000W?",
+      "embed": 52.0,
+      "session": 1.62,
+      "lexical": 45.85,
+      "dense": 2.71,
+      "exact": 44.04,
+      "hydrate": 1.57,
+      "rerank": 881.41,
+      "total": 1104.72
+    },
+    {
+      "question": "Which form carries OMB No. 1545-0074?",
+      "embed": 78.0,
+      "session": 1.48,
+      "lexical": 48.24,
+      "dense": 2.15,
+      "exact": 43.84,
+      "hydrate": 1.29,
+      "rerank": 858.58,
+      "total": 1037.83
+    },
+    {
+      "question": "What is Regulation (EU) 2016/679?",
+      "embed": 55.66,
+      "session": 1.34,
+      "lexical": 46.61,
+      "dense": 3.1,
+      "exact": 44.01,
+      "hydrate": 1.14,
+      "rerank": 687.21,
+      "total": 821.49
+    },
+    {
+      "question": "What is Regulation (EU) 2022/2065?",
+      "embed": 64.79,
+      "session": 1.27,
+      "lexical": 46.1,
+      "dense": 3.29,
+      "exact": 44.38,
+      "hydrate": 1.3,
+      "rerank": 707.37,
+      "total": 889.19
+    },
+    {
+      "question": "What is on Official Journal page L 119/33?",
+      "embed": 68.78,
+      "session": 1.42,
+      "lexical": 49.69,
+      "dense": 2.33,
+      "exact": 43.93,
+      "hydrate": 1.46,
+      "rerank": 902.15,
+      "total": 1044.34
+    }
+  ]
+}

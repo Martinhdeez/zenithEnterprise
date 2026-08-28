@@ -171,6 +171,13 @@ def rerank_depth() -> int:
     return run()
 
 
+def latency(repeats: int | None) -> int:
+    """Where the milliseconds of one search go. Read-only, needs no token."""
+    from eval.latency import REPEATS, run
+
+    return run(repeats if repeats is not None else REPEATS)
+
+
 COMMANDS = (
     "fetch",
     "layout",
@@ -180,6 +187,7 @@ COMMANDS = (
     "separation",
     "ef-search",
     "rerank-depth",
+    "latency",
 )
 
 
@@ -193,11 +201,17 @@ def main() -> int:
             "       python -m eval live --token <jwt> [--url http://localhost:8000]\n"
             "       python -m eval separation --token <jwt> [--url http://localhost:8000]\n"
             "       python -m eval ef-search\n"
-            "       python -m eval rerank-depth"
+            "       python -m eval rerank-depth\n"
+            "       python -m eval latency [--repeats N]"
         )
         return 2
     if sys.argv[1] == "separation":
         return separation()
+    if sys.argv[1] == "latency":
+        repeats = None
+        if "--repeats" in sys.argv:
+            repeats = int(sys.argv[sys.argv.index("--repeats") + 1])
+        return latency(repeats)
     if sys.argv[1] == "rerank-depth":
         return rerank_depth()
     if sys.argv[1] == "ef-search":
