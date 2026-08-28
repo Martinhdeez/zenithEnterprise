@@ -148,6 +148,41 @@ blocking unknown is whether Postgres prunes partitions when the key comes from
 `zenith_current_tenant()`, which is confirmed `STABLE` and therefore cannot prune at plan
 time.
 
+## The partitioning blocker is not a blocker — measured
+
+Everything above leaves partitioning by tenant as the only remaining route to the
+million-document target, and partitioning had one unknown that could have killed it outright.
+The partition key would be `tenant_id`, but the tenant does not arrive as a literal: it comes
+from `zenith_current_tenant()`, which reads a GUC and is confirmed `STABLE`, not `IMMUTABLE`.
+Plan-time pruning needs a constant. Without pruning, every query scans every partition and
+the idea is worse than useless.
+
+**Postgres prunes it at execution time.** Measured on the live database, eight list
+partitions over the real 13,549 vectors, `backend/eval/partition-pruning.sql`:
+
+```
+->  Append (actual rows=5 loops=1)
+      Subplans Removed: 7
+      ->  Seq Scan on p2 chunks_1 (actual rows=5 loops=1)
+            Filter: (tenant_id = (NULLIF(current_setting('zenith.tenant_id', true), ''))::uuid)
+```
+
+Seven of eight partitions removed, and in all three shapes that matter: the direct query, a
+`PREPARE`/`EXECUTE` pair — which is what the driver actually sends and where a generic plan
+could have defeated pruning — and the same query with the vector `ORDER BY` on top, which is
+the shape that ships.
+
+So the route is open. What partitioning buys is different in kind from what quantisation
+buys: it does not make the index smaller, it makes the **resident** set smaller. An
+installation holding 200 tenants of which ten are searching keeps a twentieth of its index
+hot — the same order of magnitude binary quantisation would have bought, at no cost in
+recall, paid for in operational complexity instead. That is a much easier price.
+
+It is not free and this document does not pretend otherwise: N tenants means N HNSW indexes
+to build and vacuum, a partition per tenant makes tenant creation a DDL operation, and
+Postgres degrades on partition counts in the thousands. Those are the questions the next
+piece of work has to answer. None of them is the one that could have ended it.
+
 ## Not in scope
 
 Retrieval, fusion, ranking, the reranker, and every production code path. This creates a
