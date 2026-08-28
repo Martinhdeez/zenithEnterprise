@@ -106,8 +106,8 @@ function EmptyState({ token, onAsk }: { token: string; onAsk: (question: string)
       </div>
 
       <div className="space-y-1.5">
-        <h2 className="text-2xl font-normal text-foreground">{t("Ask your documents")}</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="headline text-foreground">{t("Ask your documents")}</h2>
+        <p className="headline-sub text-muted-foreground">
           {t("Answered only from what is in your corpus — never from what the model happens to know.")}
         </p>
       </div>

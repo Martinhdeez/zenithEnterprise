@@ -80,6 +80,43 @@
     letter-spacing: -0.017em;
     text-wrap: balance;
   }
+  /* The two screen headlines, and only those.
+     
+     A class rather than an element selector because what separates them from the eleven
+     other headings is not their level in the document — it is that they are the one line
+     on their screen, with the room to be read as a sentence rather than scanned as a label.
+     Every other `h1`/`h2`/`h3` in this tree is a panel header or a caption at 12-16px.
+     
+     The face is `--font-display`, whose own comment carries why its weight, tracking and
+     size differ from every other heading in this file.
+     
+     `clamp` rather than a fixed size: this sits in a panel that loses a third of its width
+     the moment a document preview opens beside it, and 44px in a 400px column breaks across
+     three lines. */
+  .headline {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(2rem, 3.8vw, 2.75rem);
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  /* The line under the headline. It travels with `.headline` — both empty states set the
+     two together — so it is a class rather than a rule on `p`, and nothing else in the
+     product inherits Montserrat by being a paragraph.
+     
+     Two corrections come with the face, for the same reason the Garamond needed three:
+     Montserrat sets optically larger than the interface sans at the same nominal size, so
+     it drops to 13.5px to sit at the weight of supporting text rather than competing with
+     the headline; and its fit is tight for a geometric face at small sizes, so it opens by
+     0.01em, which is what stops the round bowls from touching at reading size. */
+  .headline-sub {
+    font-family: var(--font-standfirst);
+    font-size: 0.84375rem;
+    line-height: 1.6;
+    letter-spacing: 0.01em;
+    text-wrap: pretty;
+  }
 }
 /*
   ---break---
@@ -94,30 +131,67 @@
      Source Serif 4 was drawn for reading long documents on a screen, which is what this
      product is for, and it carries the diacritics this corpus is full of — 59% of its
      passages are Spanish. Authority without decoration; it is a working face, not a
-     display gesture.
+     display gesture. It keeps `--font-reading`, for document body text, where that reason
+     actually applies. A heading is not long-form reading.
 
-     Geist Mono is the apparatus: filenames, page numbers, character ranges, identifiers,
-     model names, scores. Those are data and were being set as prose. It is the same family
-     as the body face, so the two pair by construction rather than by luck.
+     **Instrument Sans replaces Geist in both interface slots**, and the reason is that Geist
+     was doing no work. It is a well-drawn neutral grotesque, which is exactly the problem:
+     at the two sizes this product actually uses — 93% of the interface is `text-sm` or
+     `text-xs` — a neutral face has no detail left to be recognised by, so the whole screen
+     read as unstyled rather than as quiet. Instrument Sans is the same category of face and
+     the same weights, drawn with narrower proportions and enough character in the letterforms
+     to survive at 12px. Nothing else moves: same scale, same weights, same tracking rule
+     below.
 
-     `font-mono` was already used in ten places and `--font-mono` was never defined, so all
-     ten were falling through to whatever monospace the reader's operating system happens to
-     have. Defining it changes those ten without touching a component. */
-  /* Stellar sets every heading in Inter at weight 800 with -0.017em of tracking, and that
-     weight is most of why it reads the way it does — a heading that is merely larger has no
-     voice, a heading that is heavier and tighter has one.
-
-     Geist rather than Inter, and not to avoid a dependency: they are the same kind of face,
-     Geist is already bundled and already licensed, and `make check` runs a licence gate that
-     a new font package would have to clear for a difference nobody in the room can name.
-
-     This replaces Source Serif 4 in the heading slot. The serif was chosen for a reason that
-     still holds — it was drawn for reading long documents and carries the diacritics this
-     corpus is full of — so it keeps `--font-reading`, for document body text, where that
-     reason actually applies. A heading is not long-form reading. */
-  --font-heading: 'Geist Variable', system-ui, sans-serif;
+     The heading rule that follows — 800 with -0.017em — is unchanged and still the reason
+     headings read as headings: a heading that is merely larger has no voice, a heading that
+     is heavier and tighter has one. */
+  /* The display role: the two screen headlines, and nothing else in the tree.
+     
+     Cormorant Garamond is an old-style serif drawn for display sizes, and it is handled as
+     one rather than dropped into the slot the sans just left. Three things had to move with
+     it, because the settings that make a heavy grotesque read as a headline are the wrong
+     settings for a Garamond:
+     
+     - **Weight 600, not 800.** The axis stops at 700; asking for 800 gets a synthesised
+       bold, which on a high-contrast serif smears the thin strokes rather than thickening
+       the stems. 600 is where it has presence without leaving the drawn range.
+     - **Tracking near zero (-0.01em), not -0.03em.** Tightening is what turns a heavy sans
+       into a set line. An old-style serif is already narrow and its fit is part of the
+       drawing; closing it further collides the serifs.
+     - **Larger.** Cormorant has a small x-height and sets optically smaller than a
+       grotesque at the same nominal size, so the ceiling goes from 34px to 44px to land at
+       the same weight on the page.
+     
+     Latin and Latin Extended both ship, which the corpus needs: 59% of its passages are
+     Spanish and the headline strings carry the accents. */
+  --font-display: 'Cormorant Garamond Variable', Garamond, Georgia, serif;
+  /* The standfirst under the headline, and only there. Montserrat is a geometric sans with
+     a large x-height and wide, round forms — the opposite build to the Garamond above it,
+     which is why the pair reads as two voices rather than as one face failing to be
+     consistent. */
+  --font-standfirst: 'Montserrat Variable', system-ui, sans-serif;
+  --font-heading: 'Instrument Sans Variable', system-ui, sans-serif;
   --font-reading: 'Source Serif 4 Variable', Georgia, serif;
-  --font-sans: 'Geist Variable', sans-serif;
+  --font-sans: 'Instrument Sans Variable', system-ui, sans-serif;
+  /* Defined at last, and this is a bug fix rather than a restyle.
+     
+     The comment that used to sit above this line claimed the token had been named and that
+     doing so fixed every `font-mono` in the tree. The declaration was never written. So
+     `@fontsource-variable/geist-mono` was installed, imported in `main.tsx`, bundled into
+     every build — and reached the screen exactly nowhere, because `font-mono` fell through
+     to Tailwind's default stack the whole time.
+     
+     Twenty elements were affected: filenames, page references, character ranges, retrieval
+     scores, invite links, audit rows. They rendered in Menlo on macOS, Consolas on Windows
+     and Liberation Mono on Linux — three different products depending on who opened it, and
+     none of them the one the comment described.
+     
+     JetBrains Mono rather than Geist Mono now that the body face is no longer Geist: it is
+     drawn for reading dense data at small sizes, which is what all twenty of those places
+     are, and its digits and its `l`/`1`/`I` are separable at 11px, which matters when the
+     string on screen is a page number somebody is about to check. */
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
   --color-zenith: var(--zenith);
   --color-zenith-foreground: var(--zenith-foreground);
   --color-zenith-cyan: var(--zenith-cyan);
