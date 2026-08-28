@@ -64,10 +64,17 @@ fourth, narrower case — login, before a tenant is known.
 execute as the function owner, so no policy applies, and no Python identifier names them.
 This paragraph used to claim the two greps were the whole surface; it was false from
 migration 0003 onwards and nobody noticed, because a stale list is the one the next reviewer
-trusts instead of reading the schema. The list now lives in
-`backend/tests/integration/test_security_definer_audit.py`, which reads them out of `pg_proc`
-and fails until each one is declared there with the migration that created it and the reason
-the bypass is justified.
+trusts instead of reading the schema. The list is now
+`AUTHORISED_SECURITY_DEFINERS` in `backend/app/core/diagnostics.py`, and every entry names the
+migration that created it and why the bypass is justified.
+
+**It is checked in two places, because "declared" and "installed" are different questions** —
+the same split as `make check` versus `demo-check`, below.
+`tests/integration/test_security_definer_audit.py` holds the schema the migrations declare to
+that list; `zenith diagnose` holds the running installation to it, and reports an undeclared
+function with its owner and whether `PUBLIC` may execute it. The second one exists because an
+installation was found carrying two hand-made `SECURITY DEFINER` functions that no migration,
+file or branch declared, and no test built from the migrations could ever have seen them.
 
 **3. A tenant admin cannot become a system admin.** `users.is_system_admin` is not in the
 permission catalogue, because tenant admins edit `role_permissions` freely. It is protected

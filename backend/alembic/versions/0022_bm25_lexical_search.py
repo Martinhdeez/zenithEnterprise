@@ -34,8 +34,15 @@ corpus.** It reads `zenith.tenant_id` and `zenith.label_ids` through the same
 `zenith_current_tenant()` / `zenith_current_labels()` the policies use, so a session with no
 context set matches nothing — the same closed failure every policy in this schema has.
 
-It adds one name to the bypass surface. That surface is auditable by grep and now has five
-entries: `owner_session`, `platform_session`, and three `SECURITY DEFINER` functions.
+It adds one name to the bypass surface. **That surface is not auditable by grep, and this
+paragraph used to say it was.** It counted three `SECURITY DEFINER` functions; there were
+already six before this migration and seven after, and a running installation was later found
+holding nine — two hand-made leftovers of the F18 investigation that no migration, file or
+branch declared. `owner_session` and `platform_session` are greppable because they are Python
+identifiers; a function is a string that ran once, so the only honest audit reads the
+catalogue. `tests/integration/test_security_definer_audit.py` does that against the schema the
+migrations declare, and `diagnostics._security_definer_surface` does it against whatever is
+installed. Both compare against one list, `AUTHORISED_SECURITY_DEFINERS`.
 
 ## `match`, not `parse`
 

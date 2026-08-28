@@ -14,6 +14,7 @@ from sqlalchemy import text
 from typer.testing import CliRunner
 
 from app.cli import app
+from app.core import diagnostics
 from app.core.config import settings
 from app.core.diagnostics import redact, run_diagnostics
 
@@ -87,7 +88,7 @@ async def test_every_check_runs_even_when_the_database_is_unreachable() -> None:
 
     checks = await run_diagnostics()
 
-    assert len(checks) == 14
+    assert len(checks) == 15
     assert any(check.status == "fail" for check in checks)
     # And the failure still says nothing it should not.
     assert "nothing" not in " ".join(check.detail for check in checks)
@@ -353,3 +354,92 @@ async def test_a_pending_document_with_no_job_is_reported(
         assert "cannot tell" in checks["stranded documents"].detail
     else:
         assert checks["stranded documents"].status in {"ok", "warn"}
+
+
+@pytest.mark.asyncio
+async def test_a_clean_installation_reports_its_bypass_surface(configured_engines: None) -> None:
+    """The test database is built from the migrations and nothing else, so it is the case
+    the check has to call clean — anything else is a diagnostic that cries wolf on every
+    installation and gets switched off."""
+    checks = {check.name: check for check in await run_diagnostics()}
+
+    assert checks["bypass surface"].status == "ok", checks["bypass surface"].detail
+
+
+@pytest.mark.asyncio
+async def test_a_security_definer_function_nobody_declared_is_reported(
+    configured_engines: None,
+) -> None:
+    """The finding `test_security_definer_audit.py` structurally cannot make.
+
+    That test audits a container built from the migrations. This audits the installation, and
+    the gap between them is not hypothetical: two `SECURITY DEFINER` functions left over from
+    the F18 BM25 investigation were found on a live database, in no migration, no file and no
+    branch. Their tables had since been dropped so nothing could call them — but nothing in
+    the repository knew they existed, which is the part that had to stop being true.
+
+    Created and dropped here rather than fixtured: the container is shared for the whole
+    session, and a leftover would fail the declared-schema audit in a different file with a
+    finding this test planted.
+    """
+    from app.core.database import owner_session
+
+    async with owner_session() as session:
+        await session.execute(
+            text(
+                "CREATE FUNCTION zenith_left_behind() RETURNS integer "
+                "LANGUAGE sql SECURITY DEFINER SET search_path = public, pg_temp "
+                "AS $$ SELECT 1 $$"
+            )
+        )
+    try:
+        checks = {check.name: check for check in await run_diagnostics()}
+    finally:
+        async with owner_session() as session:
+            await session.execute(text("DROP FUNCTION zenith_left_behind()"))
+
+    surface = checks["bypass surface"]
+    # A failure rather than a warning, because nothing revoked the default `EXECUTE` from
+    # `PUBLIC` — which is exactly how the two real ones were left, and is what decides whether
+    # an undeclared function is reachable by anything holding a credential on the database.
+    assert surface.status == "fail", surface.detail
+    assert "PUBLIC EXECUTE" in surface.detail
+    # The owner, because "who does this run as" is the question that makes it a bypass at all.
+    assert "owner " in surface.detail
+    # `_left_behind()` rather than the whole name, and the reason is the trap `_job_queue`
+    # already documents from the other side: `_scrub` removes every known secret by exact
+    # match, and the default database password in `.env.example` is the word `zenith` — which
+    # is the prefix of every identifier this schema owns. So on an installation that kept the
+    # default, this check reports `***_left_behind()`. The count, the owner and the reach
+    # survive, which is enough to decide whether to act; the name does not. Asserting the full
+    # name here would only be asserting that this test environment has a different password.
+    assert "_left_behind()" in surface.detail
+
+
+@pytest.mark.asyncio
+async def test_a_declared_function_missing_from_the_installation_is_reported(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The other direction, and the one that says somebody has been editing a live schema.
+
+    A list that claims a bypass which is not there is wrong in the way that matters: it is
+    the list the next reviewer trusts instead of reading the database.
+
+    Done by adding a name to the list rather than by dropping a real function. Dropping one
+    would take its trigger with it, and restoring it here would leave the shared container
+    holding this file's idea of the function instead of migration 0003's — the comparison is
+    what is under test, not Postgres's `DROP`.
+    """
+    monkeypatch.setattr(
+        diagnostics,
+        "AUTHORISED_SECURITY_DEFINERS",
+        diagnostics.AUTHORISED_SECURITY_DEFINERS | {"zenith_never_created()"},
+    )
+
+    checks = {check.name: check for check in await run_diagnostics()}
+
+    surface = checks["bypass surface"]
+    assert surface.status == "fail", surface.detail
+    assert "declared but absent" in surface.detail
+    # Truncated for the redaction reason given in the test above.
+    assert "_never_created()" in surface.detail

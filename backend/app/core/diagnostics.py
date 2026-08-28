@@ -22,6 +22,7 @@ from typing import Any, Literal
 
 import httpx
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_owner_session_factory, get_session_factory
@@ -61,6 +62,113 @@ class Check:
             "detail": self.detail,
             "elapsed_ms": round(self.elapsed_ms, 1),
         }
+
+
+# --- The `SECURITY DEFINER` surface ---------------------------------------------------
+#
+# The third class of RLS bypass, and the one no grep finds: such a function executes as its
+# owner, so the policies are not applied to it, and nothing in Python names it. See CLAUDE.md
+# invariant 2.
+#
+# The list lives here rather than in a test because it has two readers.
+# `tests/integration/test_security_definer_audit.py` holds the schema the *migrations
+# declare* to it; `_security_definer_surface` below holds a *running installation* to it.
+# Those are different questions — the same distinction CLAUDE.md draws between `make check`
+# and `demo-check` — and answering them from two copies of the list would be two catalogues
+# of justified bypasses drifting apart. `eval/harness.py` makes that argument about a credit
+# rule, where the cost is an incomparable report; here the cost is a bypass nobody lists.
+
+
+#: Every `SECURITY DEFINER` function the schema is allowed to contain, by identity
+#: signature. An overload is a different function and needs its own entry.
+#:
+#: An entry is added for a security guarantee, never for ergonomics — ADR 0001's rule, and
+#: `.artifacts/todo/2026-08-02-f5-ingestion.md` records a route declined on exactly it.
+AUTHORISED_SECURITY_DEFINERS: frozenset[str] = frozenset(
+    {
+        # 0002, replaced in place by 0010 — login has to find a user before a tenant context
+        # exists, because the context is what the login is establishing. Returns four fields
+        # for one address; the alternative was an owner session in an unauthenticated route.
+        "zenith_authenticate_lookup(p_email text)",
+        # 0003 — maintains `documents.label_ids` from `document_labels`. Bypasses so that an
+        # administrator with `labels.manage` can remove a label they do not personally reach
+        # without the `WITH CHECK` on `documents` rejecting a row they never mentioned.
+        "zenith_sync_document_labels()",
+        # 0003 — propagates that same array down to `chunks`, for the same reason.
+        "zenith_sync_chunk_labels()",
+        # 0003 — gives a chunk its document's labels at insert time; without it a chunk is
+        # born unlabelled, which in this schema means readable by the whole tenant.
+        "zenith_fill_chunk_labels()",
+        # 0016 — an invitation or reset link is consumed by an unauthenticated route, so
+        # there is no tenant for a policy to filter on. Takes a hash, returns one row.
+        "zenith_credential_token_lookup(p_hash text)",
+        # 0016 — spends the link and sets the password in one statement, so there is no
+        # window in which the link is used and no password was set.
+        "zenith_credential_token_consume(p_hash text, p_password_hash text)",
+        # 0022 — BM25 needs the tenant and label clauses *inside* the Tantivy query, which a
+        # policy cannot express. Enforces them imperatively instead; `test_bm25_isolation.py`
+        # is what makes that enforcement worth the same as a policy.
+        "zenith_lexical_search(query_string text, want integer)",
+    }
+)
+
+#: `public` is the only schema this project creates objects in. The ParadeDB image ships
+#: several others — `paradedb`, `topology`, `tiger` — and they are not ours to vet.
+#:
+#: Extension-owned functions inside `public` are deliberately *not* excluded. None of them is
+#: `SECURITY DEFINER` today, and the day an extension is added that ships one, adding that
+#: extension has widened the bypass surface and should be argued for like anything else.
+SECURITY_DEFINER_SCHEMA = "public"
+
+# `grantee = 0` is `PUBLIC` in `pg_proc.proacl`. A NULL acl means nobody has said anything,
+# and for a function the default is `EXECUTE` to `PUBLIC` — which is why the NULL case counts
+# as public rather than as restricted. That default is the whole reason this column is
+# reported: a bypass only `zenith_app` can call and one any role can call are different
+# findings, and 0022 restricting `zenith_lexical_search` is what the difference looks like.
+_SECURITY_DEFINERS = """
+SELECT p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' AS signature,
+       pg_get_userbyid(p.proowner) AS owner,
+       p.proacl IS NULL OR EXISTS (
+           SELECT 1 FROM aclexplode(p.proacl) a
+           WHERE a.grantee = 0 AND a.privilege_type = 'EXECUTE'
+       ) AS public_execute,
+       coalesce(p.proconfig, '{}') AS config
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE p.prosecdef AND n.nspname = :schema
+ORDER BY signature
+"""
+
+
+@dataclass(frozen=True, slots=True)
+class SecurityDefiner:
+    """One `SECURITY DEFINER` function as the database actually holds it."""
+
+    signature: str
+    owner: str
+    public_execute: bool
+    config: tuple[str, ...]
+
+    @property
+    def pins_search_path(self) -> bool:
+        """Without a fixed `search_path`, owner-privileged code resolves names through
+        schemas the *caller* chooses. That is the standard escalation against one of these,
+        and migration 0002 pinned it for that reason before anything else was written."""
+        return any(setting.startswith("search_path=") for setting in self.config)
+
+
+async def security_definers(session: AsyncSession) -> list[SecurityDefiner]:
+    """Read the bypass surface out of the catalogue of whatever database this is.
+
+    Takes a session rather than opening one, because the two callers ask about different
+    databases: the diagnostic asks about the installation, the test asks about a container
+    built from the migrations.
+    """
+    rows = await session.execute(text(_SECURITY_DEFINERS), {"schema": SECURITY_DEFINER_SCHEMA})
+    return [
+        SecurityDefiner(signature, owner, public_execute, tuple(config))
+        for signature, owner, public_execute, config in rows
+    ]
 
 
 def _known_secrets() -> list[str]:
@@ -156,6 +264,63 @@ async def _migration_state() -> tuple[Status, str]:
     return "fail", (
         f"database is at {applied}, code expects {expected}. Run `alembic upgrade head`."
     )
+
+
+def _describe(function: SecurityDefiner) -> str:
+    reach = "PUBLIC EXECUTE" if function.public_execute else "restricted"
+    return f"{function.signature} (owner {function.owner}, {reach})"
+
+
+async def _security_definer_surface() -> tuple[Status, str]:
+    """The bypass surface of *this installation*, against the list of the justified ones.
+
+    `test_security_definer_audit.py` already holds the migrations to that list, and that is
+    the check which catches the next person to add one. It cannot catch this: it audits a
+    container built from the migrations, so a function created by hand on a running database
+    is invisible to it and to every grep and every branch. Two such functions were found on a
+    live installation — leftovers of the F18 BM25 investigation, owned by the schema owner and
+    carrying `PUBLIC EXECUTE`, declared in no migration and no file.
+
+    Which is the same shape as the trap CLAUDE.md records two bullets apart: a green suite
+    does not mean the database is migrated, and a declared schema is not the installed one.
+
+    `PUBLIC EXECUTE` decides the severity — a failure when `PUBLIC` may execute an undeclared
+    function, a warning when it may not — because an owner-privileged function every role can
+    call is reachable by anything holding any credential on the database, and a restricted one
+    is reachable only by whoever was granted it. It is *not* a signal that something is wrong
+    by itself: it is the default for a function, four of the declared seven carry it, and
+    `test_security_definer_audit.py` records which and why. A declared function that is
+    *absent* fails too: at head, that means somebody has been editing the live schema by hand,
+    and the next thing they leave behind may not be a harmless leftover.
+    """
+    async with get_session_factory()() as session:
+        installed = await security_definers(session)
+
+    undeclared = [f for f in installed if f.signature not in AUTHORISED_SECURITY_DEFINERS]
+    absent = sorted(AUTHORISED_SECURITY_DEFINERS - {f.signature for f in installed})
+    unpinned = sorted(f.signature for f in installed if not f.pins_search_path)
+
+    findings: list[str] = []
+    if undeclared:
+        # Two, then a count. `_scrub` truncates a detail at 200 characters, and a finding cut
+        # off mid-name is one nobody can act on.
+        #
+        # Known limitation: `_scrub` removes every known secret by exact match, so an
+        # installation whose database password is the word `zenith` — the default in
+        # `.env.example` — gets these names redacted into `***_lexical`. The count, the owner
+        # and `PUBLIC EXECUTE` still come through, which is what decides whether to act.
+        more = f" and {len(undeclared) - 2} more" if len(undeclared) > 2 else ""
+        findings.append("undeclared: " + "; ".join(map(_describe, undeclared[:2])) + more)
+    if absent:
+        findings.append(f"declared but absent: {', '.join(absent)}")
+    if unpinned:
+        findings.append(f"no pinned search_path: {', '.join(unpinned)}")
+
+    if not findings:
+        return "ok", f"{len(installed)} function(s), every one declared"
+
+    status: Status = "fail" if absent or any(f.public_execute for f in undeclared) else "warn"
+    return status, "  ".join(findings)
 
 
 async def _job_queue() -> tuple[Status, str]:
@@ -449,6 +614,10 @@ async def run_diagnostics() -> list[Check]:
         await _timed("database (application role)", _application_connection),
         await _timed("row-level security", _rls_active),
         await _timed("migrations", _migration_state),
+        # After migrations, because "declared but absent" only means anything once the
+        # database is known to be at head — before that it is the migration state saying the
+        # same thing twice.
+        await _timed("bypass surface", _security_definer_surface),
         # Right after migrations, because it is the half of the install that `alembic upgrade
         # head` does not do and that nothing else would report as missing.
         await _timed("job queue", _job_queue),
