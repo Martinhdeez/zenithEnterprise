@@ -29,6 +29,7 @@ from app.features.embeddings.client import MODEL, VERSION, TeiClient
 from app.features.retrieval.breaker import Breaker
 from app.features.retrieval.degradation import RERANKING_UNAVAILABLE, SEMANTIC_UNAVAILABLE
 from app.features.retrieval.identifiers import exact
+from app.features.retrieval.relevance import Relevance, best_rerank, classify
 from app.features.retrieval.reranker import TeiReranker
 from app.features.retrieval.search import (
     CANDIDATES,
@@ -62,6 +63,11 @@ class SearchResult:
     degraded: bool
     reason: str | None
     took_ms: int
+    #: How much the corpus has to say about this question. Held apart from `degraded` on
+    #: purpose: `degraded` means a component was missing, this means the corpus was.
+    #: Conflating them would tell a customer their installation is broken when their archive
+    #: simply does not cover the question.
+    relevance: Relevance = Relevance.CONFIDENT
 
 
 class SearchService:
@@ -154,6 +160,14 @@ class SearchService:
             hits = hits[:limit]
 
         degraded_reason = degraded_reason or rerank_reason
+        # Read after reranking, from what is actually being returned. The best passage only:
+        # a set whose top hit plainly answers the question is a good set even if the eighth
+        # is noise, and averaging would let seven weak passages outvote the one that is right.
+        relevance = classify(best_rerank([hit.rerank_score for hit in hits]))
+        if relevance is Relevance.NONE:
+            # Withheld rather than ranked. Showing them under a notice saying they do not
+            # match would be asking the reader to disbelieve what is on their own screen.
+            hits = []
         took = int((time.perf_counter() - started) * 1000)
         log.info(
             "search",
@@ -163,10 +177,15 @@ class SearchService:
             scoped=len(documents or []),
             returned=len(hits),
             degraded=bool(degraded_reason),
+            relevance=relevance.value,
             took_ms=took,
         )
         return SearchResult(
-            hits=hits, degraded=bool(degraded_reason), reason=degraded_reason, took_ms=took
+            hits=hits,
+            degraded=bool(degraded_reason),
+            reason=degraded_reason,
+            took_ms=took,
+            relevance=relevance,
         )
 
     async def _rerank(

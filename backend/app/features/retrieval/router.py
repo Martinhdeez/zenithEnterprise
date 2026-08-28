@@ -39,4 +39,5 @@ async def search(
         degraded=result.degraded,
         reason=result.reason,
         took_ms=result.took_ms,
+        relevance=result.relevance.value,
     )

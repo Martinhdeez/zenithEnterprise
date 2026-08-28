@@ -53,3 +53,10 @@ class SearchResponse(BaseModel):
     degraded: bool
     reason: str | None
     took_ms: int
+    #: `confident`, `weak` or `none` — how much the corpus has to say about the question.
+    #:
+    #: A separate field from `degraded`, and the distinction is the point: `degraded` says a
+    #: component was missing, this says the corpus was. A client that conflated them would
+    #: tell a customer their installation is broken when their archive simply does not cover
+    #: what they asked. `none` comes with an empty `hits`.
+    relevance: str = "confident"
