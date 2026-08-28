@@ -423,5 +423,4 @@ export const es: Catalogue = {
     "Abre un documento desde una búsqueda para poder preguntar sobre él",
   "Conversation about {filename}": "Conversación sobre {filename}",
   "Answering from {filename} only.": "Respondiendo sólo desde {filename}.",
-  "Preparing the answer…": "Preparando la respuesta…",
 };

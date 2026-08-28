@@ -315,7 +315,13 @@ export function App() {
   // never said. A document opened from the command palette has no question, which is why
   // this is nullable and why the button that starts a conversation is disabled without it.
   const [askQuestion, setAskQuestion] = useState<string | null>(null);
-  const [anchored, setAnchored] = useState(false);
+  // Two facts, not one. `started` is whether a conversation exists for this document;
+  // `panel` is which of the two the user is looking at. Collapsing them into one boolean
+  // would unmount the conversation every time somebody stepped back to the results through
+  // the breadcrumb — and a remounted conversation re-asks, which spends a generation the
+  // user did not request and replaces the thread they were reading.
+  const [started, setStarted] = useState(false);
+  const [panel, setPanel] = useState<"results" | "conversation">("results");
   // A plain union rather than a router. Four screens with no deep links and no back-button
   // expectations do not need one, and a router would be the largest dependency in the
   // bundle for a product whose first screen must render fast on a busy box.
@@ -774,7 +780,7 @@ export function App() {
               // grammar the folder path above uses — clickable segment, muted separator,
               // current segment in `font-medium` — rather than a second breadcrumb with its
               // own rules sitting on the same bar.
-              anchored && view === "search" ? (
+              started && panel === "conversation" && view === "search" ? (
                 <>
                   {/* The one name this application owns, and the one segment that is never
                       translated. */}
@@ -782,7 +788,7 @@ export function App() {
                   <span className="text-muted-foreground/50">/</span>
                   <button
                     type="button"
-                    onClick={() => setAnchored(false)}
+                    onClick={() => setPanel("results")}
                     className="text-muted-foreground transition-colors hover:text-foreground"
                   >
                     {t("Search")}
@@ -849,7 +855,7 @@ export function App() {
                 would move five pieces of state and their effects into the largest file in
                 the tree. */}
             {view === "search" && (
-              <div className={anchored ? "hidden" : undefined}>
+              <div className={panel === "conversation" ? "hidden" : undefined}>
               <Search
                 token={token}
                 onCitation={(next, question) => {
@@ -858,7 +864,8 @@ export function App() {
                   // A new document ends the previous conversation rather than silently
                   // re-pointing it: the thread that was on screen was about a different
                   // file, and carrying it over would attribute its answers to this one.
-                  setAnchored(false);
+                  setStarted(false);
+                  setPanel("results");
                 }}
                 // Which result the viewer is showing, so the list can mark it. Read from
                 // the citation rather than tracked inside `Search`: closing the viewer sets
@@ -875,15 +882,21 @@ export function App() {
               />
               </div>
             )}
-            {view === "search" && anchored && citation && askQuestion !== null && (
-              <AnchoredChat
-                t={t}
-                anchor={{
-                  documentId: citation.document_id,
-                  filename: citation.filename,
-                  question: askQuestion,
-                }}
-              />
+            {/* Mounted from the moment the conversation is started and hidden — never
+                unmounted — for the same reason `Search` is: it holds the thread, and the
+                breadcrumb is a way to look away from it, not a way to end it. */}
+            {view === "search" && started && citation && askQuestion !== null && (
+              <div className={panel === "conversation" ? undefined : "hidden"}>
+                <AnchoredChat
+                  token={token}
+                  onCitation={(next) => setCitation(next)}
+                  anchor={{
+                    documentId: citation.document_id,
+                    filename: citation.filename,
+                    question: askQuestion,
+                  }}
+                />
+              </div>
             )}
             {view === "folders" && (
               <Folders
@@ -974,7 +987,7 @@ export function App() {
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                disabled={askQuestion === null || anchored}
+                disabled={askQuestion === null || panel === "conversation"}
                 aria-label={t("Ask about this document")}
                 title={
                   askQuestion === null
@@ -982,7 +995,8 @@ export function App() {
                     : t("Ask about this document")
                 }
                 onClick={() => {
-                  setAnchored(true);
+                  setStarted(true);
+                  setPanel("conversation");
                   open("search");
                 }}
                 className="text-muted-foreground hover:text-foreground"
@@ -1009,7 +1023,8 @@ export function App() {
                   setPdfExpanded(false);
                   // The conversation was about the document being closed. Leaving it on
                   // screen would leave answers with no source beside them to check.
-                  setAnchored(false);
+                  setStarted(false);
+                  setPanel("results");
                   setAskQuestion(null);
                 }}
                 className="text-muted-foreground hover:text-foreground"

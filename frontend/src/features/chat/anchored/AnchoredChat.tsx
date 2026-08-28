@@ -7,14 +7,23 @@
  * behind the breadcrumb in the header above, which is what makes leaving cheap enough that
  * anchoring is not a trap.
  *
- * **Stage 1 renders the shell and nothing else.** No request is issued here yet: the
- * automatic first turn arrives in stage 2 and the composer in stage 3. It is on the page
- * this early on purpose — design is blocked until the markup is real, and a shell with the
- * right structure is what unblocks it. The alternative, styling markup that is still
- * moving, is the thing this ordering exists to prevent.
+ * **Everything that renders or validates an answer is borrowed, not rewritten.** `reduce`
+ * and `AnswerState` carry the retrieving/streaming/final progression, and `Answer` renders
+ * it — including the rule that the accumulated tokens are provisional and only
+ * `result.answer` is authoritative. A second implementation of that here would be a second
+ * place for the citation guarantee to drift out of, which is the one thing in this product
+ * that cannot be allowed to have two owners.
+ *
+ * What is genuinely new is the *anchor*: one document id on every request, and a first turn
+ * that is asked on the user's behalf.
  */
 
-import type { T } from "@/shared/i18n/useT";
+import { useEffect, useReducer, useRef } from "react";
+
+import { Answer } from "../answer/Answer";
+import { reduce } from "../answer/answerState";
+import { streamQuery, type Citation } from "../stream/stream";
+import { useT } from "@/shared/i18n/useT";
 
 export interface Anchor {
   /** What the conversation is scoped to. Every turn retrieves inside this and nowhere else. */
@@ -25,7 +34,51 @@ export interface Anchor {
   question: string;
 }
 
-export function AnchoredChat({ anchor, t }: { anchor: Anchor; t: T }) {
+export function AnchoredChat({
+  anchor,
+  token,
+  onCitation,
+}: {
+  anchor: Anchor;
+  token: string;
+  onCitation: (citation: Citation) => void;
+}) {
+  const t = useT();
+  const [state, dispatch] = useReducer(reduce, { phase: "idle" });
+
+  /**
+   * One request per anchor, and the ref is what enforces it.
+   *
+   * `useEffect` runs twice in development under StrictMode, and a second run here is not a
+   * wasted render — it is a second generation, billed, against a provider the customer pays
+   * for. The dependency array alone does not prevent that; remembering what was already
+   * asked does.
+   */
+  const asked = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (asked.current === anchor.documentId) return;
+    asked.current = anchor.documentId;
+
+    const controller = new AbortController();
+    dispatch({ type: "ask", question: anchor.question });
+    void streamQuery(
+      anchor.question,
+      token,
+      {
+        onToken: (text) => dispatch({ type: "token", text }),
+        onResult: (result) => dispatch({ type: "result", result }),
+        onError: (message) => dispatch({ type: "error", message }),
+      },
+      // The anchor, and the whole point of this screen. Enforced in the retrieval SQL
+      // rather than here — the client asking nicely for one document would be a filter a
+      // forgotten parameter could drop.
+      { documents: [anchor.documentId], signal: controller.signal },
+    );
+
+    return () => controller.abort();
+  }, [anchor.documentId, anchor.question, token]);
+
   return (
     <section
       // Named for a screen reader, because the panel changed underneath somebody who
@@ -41,7 +94,7 @@ export function AnchoredChat({ anchor, t }: { anchor: Anchor; t: T }) {
         {t("Answering from {filename} only.", { filename: anchor.filename })}
       </p>
 
-      <p className="text-sm text-muted-foreground">{t("Preparing the answer…")}</p>
+      <Answer state={state} onCitation={onCitation} />
     </section>
   );
 }
