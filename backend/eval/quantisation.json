@@ -1,0 +1,907 @@
+{
+  "corpus": {
+    "documents": 42,
+    "chunks": 13549,
+    "passages_per_document": 322.6,
+    "production_index_bytes": 121118720,
+    "production_bytes_per_vector": 8939.3,
+    "freshly_built_bytes_per_vector": 8188.4,
+    "production_bloat_note": "The live index is larger per vector than a freshly built one of the same parameters. The difference is ingestion churn, not representation, and every ratio below is fresh-against-fresh."
+  },
+  "bytes_per_vector": {
+    "fp32": 8188.4,
+    "fp16": 2729.9,
+    "binary": 434.7
+  },
+  "smaller_than_fp32": {
+    "fp32": 1.0,
+    "fp16": 3.0,
+    "binary": 18.84
+  },
+  "questions": 30,
+  "profile": "cpu",
+  "hnsw": {
+    "m": 16,
+    "ef_construction": 64,
+    "ef_search": 100
+  },
+  "candidates": 50,
+  "repeats": 5,
+  "sizes": [
+    2000,
+    5000,
+    10000,
+    13549
+  ],
+  "by_size": {
+    "2000": {
+      "rows": 2000,
+      "indexes": {
+        "fp32": {
+          "index_bytes": 16392192,
+          "bytes_per_vector": 8196.1,
+          "build_ms": 555,
+          "build_vectors_per_second": 3603.8
+        },
+        "fp16": {
+          "index_bytes": 5472256,
+          "bytes_per_vector": 2736.1,
+          "build_ms": 413,
+          "build_vectors_per_second": 4837.1
+        },
+        "binary": {
+          "index_bytes": 876544,
+          "bytes_per_vector": 438.3,
+          "build_ms": 174,
+          "build_vectors_per_second": 11486.0
+        }
+      },
+      "index": {
+        "fp32": {
+          "rescore_width": null,
+          "index_recall_at_10": 1.0,
+          "index_recall_at_50": 1.0,
+          "worst_query_at_10": 1.0,
+          "worst_query_at_50": 1.0,
+          "index_median_ms": 3.539,
+          "index_p95_ms": 4.193,
+          "rescore_median_ms": 0.0,
+          "rescore_p95_ms": 0.0
+        },
+        "fp16": {
+          "rescore_width": null,
+          "index_recall_at_10": 1.0,
+          "index_recall_at_50": 1.0,
+          "worst_query_at_10": 1.0,
+          "worst_query_at_50": 1.0,
+          "index_median_ms": 2.906,
+          "index_p95_ms": 3.411,
+          "rescore_median_ms": 0.0,
+          "rescore_p95_ms": 0.0
+        },
+        "binary_r20": {
+          "rescore_width": 20,
+          "index_recall_at_10": 0.79,
+          "index_recall_at_50": 0.344,
+          "worst_query_at_10": 0.4,
+          "worst_query_at_50": 0.26,
+          "index_median_ms": 0.553,
+          "index_p95_ms": 0.629,
+          "rescore_median_ms": 0.579,
+          "rescore_p95_ms": 0.676
+        },
+        "binary_r50": {
+          "rescore_width": 50,
+          "index_recall_at_10": 0.95,
+          "index_recall_at_50": 0.6633,
+          "worst_query_at_10": 0.6,
+          "worst_query_at_50": 0.5,
+          "index_median_ms": 0.581,
+          "index_p95_ms": 0.708,
+          "rescore_median_ms": 0.7,
+          "rescore_p95_ms": 0.937
+        },
+        "binary_r100": {
+          "rescore_width": 100,
+          "index_recall_at_10": 0.9833,
+          "index_recall_at_50": 0.86,
+          "worst_query_at_10": 0.9,
+          "worst_query_at_50": 0.68,
+          "index_median_ms": 0.625,
+          "index_p95_ms": 0.64,
+          "rescore_median_ms": 0.838,
+          "rescore_p95_ms": 0.86
+        },
+        "binary_r200": {
+          "rescore_width": 200,
+          "index_recall_at_10": 0.9967,
+          "index_recall_at_50": 0.9493,
+          "worst_query_at_10": 0.9,
+          "worst_query_at_50": 0.78,
+          "index_median_ms": 0.715,
+          "index_p95_ms": 0.78,
+          "rescore_median_ms": 1.155,
+          "rescore_p95_ms": 1.366
+        },
+        "binary_r400": {
+          "rescore_width": 400,
+          "index_recall_at_10": 1.0,
+          "index_recall_at_50": 0.9887,
+          "worst_query_at_10": 1.0,
+          "worst_query_at_50": 0.92,
+          "index_median_ms": 0.874,
+          "index_p95_ms": 0.959,
+          "rescore_median_ms": 1.777,
+          "rescore_p95_ms": 2.179
+        }
+      }
+    },
+    "5000": {
+      "rows": 5000,
+      "indexes": {
+        "fp32": {
+          "index_bytes": 40968192,
+          "bytes_per_vector": 8193.6,
+          "build_ms": 1604,
+          "build_vectors_per_second": 3117.9
+        },
+        "fp16": {
+          "index_bytes": 13664256,
+          "bytes_per_vector": 2732.9,
+          "build_ms": 960,
+          "build_vectors_per_second": 5208.6
+        },
+        "binary": {
+          "index_bytes": 2179072,
+          "bytes_per_vector": 435.8,
+          "build_ms": 472,
+          "build_vectors_per_second": 10596.8
+        }
+      },
+      "index": {
+        "fp32": {
+          "rescore_width": null,
+          "index_recall_at_10": 1.0,
+          "index_recall_at_50": 1.0,
+          "worst_query_at_10": 1.0,
+          "worst_query_at_50": 1.0,
+          "index_median_ms": 10.234,
+          "index_p95_ms": 10.847,
+          "rescore_median_ms": 0.0,
+          "rescore_p95_ms": 0.0
+        },
+        "fp16": {
+          "rescore_width": null,
+          "index_recall_at_10": 1.0,
+          "index_recall_at_50": 0.9993,
+          "worst_query_at_10": 1.0,
+          "worst_query_at_50": 0.98,
+          "index_median_ms": 7.809,
+          "index_p95_ms": 8.591,
+          "rescore_median_ms": 0.0,
+          "rescore_p95_ms": 0.0
+        },
+        "binary_r20": {
+          "rescore_width": 20,
+          "index_recall_at_10": 0.8367,
+          "index_recall_at_50": 0.3327,
+          "worst_query_at_10": 0.3,
+          "worst_query_at_50": 0.18,
+          "index_median_ms": 0.755,
+          "index_p95_ms": 0.773,
+          "rescore_median_ms": 0.711,
+          "rescore_p95_ms": 0.73
+        },
+        "binary_r50": {
+          "rescore_width": 50,
+          "index_recall_at_10": 0.9467,
+          "index_recall_at_50": 0.6273,
+          "worst_query_at_10": 0.6,
+          "worst_query_at_50": 0.4,
+          "index_median_ms": 0.788,
+          "index_p95_ms": 0.812,
+          "rescore_median_ms": 0.841,
+          "rescore_p95_ms": 0.877
+        },
+        "binary_r100": {
+          "rescore_width": 100,
+          "index_recall_at_10": 0.9767,
+          "index_recall_at_50": 0.8227,
+          "worst_query_at_10": 0.7,
+          "worst_query_at_50": 0.62,
+          "index_median_ms": 0.84,
+          "index_p95_ms": 0.887,
+          "rescore_median_ms": 0.999,
+          "rescore_p95_ms": 1.037
+        },
+        "binary_r200": {
+          "rescore_width": 200,
+          "index_recall_at_10": 0.9867,
+          "index_recall_at_50": 0.9387,
+          "worst_query_at_10": 0.9,
+          "worst_query_at_50": 0.78,
+          "index_median_ms": 0.933,
+          "index_p95_ms": 0.951,
+          "rescore_median_ms": 1.325,
+          "rescore_p95_ms": 1.394
+        },
+        "binary_r400": {
+          "rescore_width": 400,
+          "index_recall_at_10": 0.9967,
+          "index_recall_at_50": 0.9767,
+          "worst_query_at_10": 0.9,
+          "worst_query_at_50": 0.88,
+          "index_median_ms": 1.116,
+          "index_p95_ms": 1.938,
+          "rescore_median_ms": 2.001,
+          "rescore_p95_ms": 3.892
+        }
+      }
+    },
+    "10000": {
+      "rows": 10000,
+      "indexes": {
+        "fp32": {
+          "index_bytes": 81903616,
+          "bytes_per_vector": 8190.4,
+          "build_ms": 3781,
+          "build_vectors_per_second": 2645.1
+        },
+        "fp16": {
+          "index_bytes": 27312128,
+          "bytes_per_vector": 2731.2,
+          "build_ms": 2315,
+          "build_vectors_per_second": 4319.7
+        },
+        "binary": {
+          "index_bytes": 4358144,
+          "bytes_per_vector": 435.8,
+          "build_ms": 1048,
+          "build_vectors_per_second": 9538.8
+        }
+      },
+      "index": {
+        "fp32": {
+          "rescore_width": null,
+          "index_recall_at_10": 1.0,
+          "index_recall_at_50": 1.0,
+          "worst_query_at_10": 1.0,
+          "worst_query_at_50": 1.0,
+          "index_median_ms": 19.364,
+          "index_p95_ms": 19.824,
+          "rescore_median_ms": 0.0,
+          "rescore_p95_ms": 0.0
+        },
+        "fp16": {
+          "rescore_width": null,
+          "index_recall_at_10": 1.0,
+          "index_recall_at_50": 0.9993,
+          "worst_query_at_10": 1.0,
+          "worst_query_at_50": 0.98,
+          "index_median_ms": 16.551,
+          "index_p95_ms": 18.256,
+          "rescore_median_ms": 0.0,
+          "rescore_p95_ms": 0.0
+        },
+        "binary_r20": {
+          "rescore_width": 20,
+          "index_recall_at_10": 0.82,
+          "index_recall_at_50": 0.3407,
+          "worst_query_at_10": 0.2,
+          "worst_query_at_50": 0.16,
+          "index_median_ms": 1.084,
+          "index_p95_ms": 1.145,
+          "rescore_median_ms": 0.932,
+          "rescore_p95_ms": 1.04
+        },
+        "binary_r50": {
+          "rescore_width": 50,
+          "index_recall_at_10": 0.9233,
+          "index_recall_at_50": 0.6373,
+          "worst_query_at_10": 0.4,
+          "worst_query_at_50": 0.36,
+          "index_median_ms": 1.131,
+          "index_p95_ms": 1.436,
+          "rescore_median_ms": 1.093,
+          "rescore_p95_ms": 1.417
+        },
+        "binary_r100": {
+          "rescore_width": 100,
+          "index_recall_at_10": 0.9567,
+          "index_recall_at_50": 0.8233,
+          "worst_query_at_10": 0.4,
+          "worst_query_at_50": 0.5,
+          "index_median_ms": 1.185,
+          "index_p95_ms": 1.247,
+          "rescore_median_ms": 1.268,
+          "rescore_p95_ms": 1.369
+        },
+        "binary_r200": {
+          "rescore_width": 200,
+          "index_recall_at_10": 0.9867,
+          "index_recall_at_50": 0.932,
+          "worst_query_at_10": 0.8,
+          "worst_query_at_50": 0.74,
+          "index_median_ms": 1.294,
+          "index_p95_ms": 1.487,
+          "rescore_median_ms": 1.643,
+          "rescore_p95_ms": 2.183
+        },
+        "binary_r400": {
+          "rescore_width": 400,
+          "index_recall_at_10": 0.9967,
+          "index_recall_at_50": 0.9793,
+          "worst_query_at_10": 0.9,
+          "worst_query_at_50": 0.86,
+          "index_median_ms": 1.457,
+          "index_p95_ms": 1.526,
+          "rescore_median_ms": 2.305,
+          "rescore_p95_ms": 2.534
+        }
+      }
+    },
+    "13549": {
+      "rows": 13549,
+      "indexes": {
+        "fp32": {
+          "index_bytes": 110944256,
+          "bytes_per_vector": 8188.4,
+          "build_ms": 5360,
+          "build_vectors_per_second": 2527.6
+        },
+        "fp16": {
+          "index_bytes": 36986880,
+          "bytes_per_vector": 2729.9,
+          "build_ms": 3008,
+          "build_vectors_per_second": 4503.6
+        },
+        "binary": {
+          "index_bytes": 5890048,
+          "bytes_per_vector": 434.7,
+          "build_ms": 1287,
+          "build_vectors_per_second": 10525.0
+        }
+      },
+      "index": {
+        "fp32": {
+          "rescore_width": null,
+          "index_recall_at_10": 1.0,
+          "index_recall_at_50": 1.0,
+          "worst_query_at_10": 1.0,
+          "worst_query_at_50": 1.0,
+          "index_median_ms": 22.638,
+          "index_p95_ms": 24.275,
+          "rescore_median_ms": 0.0,
+          "rescore_p95_ms": 0.0
+        },
+        "fp16": {
+          "rescore_width": null,
+          "index_recall_at_10": 1.0,
+          "index_recall_at_50": 1.0,
+          "worst_query_at_10": 1.0,
+          "worst_query_at_50": 1.0,
+          "index_median_ms": 20.086,
+          "index_p95_ms": 23.754,
+          "rescore_median_ms": 0.0,
+          "rescore_p95_ms": 0.0
+        },
+        "binary_r20": {
+          "rescore_width": 20,
+          "index_recall_at_10": 0.8133,
+          "index_recall_at_50": 0.3453,
+          "worst_query_at_10": 0.2,
+          "worst_query_at_50": 0.12,
+          "index_median_ms": 1.238,
+          "index_p95_ms": 1.27,
+          "rescore_median_ms": 1.033,
+          "rescore_p95_ms": 1.047
+        },
+        "binary_r50": {
+          "rescore_width": 50,
+          "index_recall_at_10": 0.94,
+          "index_recall_at_50": 0.628,
+          "worst_query_at_10": 0.4,
+          "worst_query_at_50": 0.3,
+          "index_median_ms": 1.271,
+          "index_p95_ms": 1.288,
+          "rescore_median_ms": 1.164,
+          "rescore_p95_ms": 1.21
+        },
+        "binary_r100": {
+          "rescore_width": 100,
+          "index_recall_at_10": 0.9533,
+          "index_recall_at_50": 0.8153,
+          "worst_query_at_10": 0.5,
+          "worst_query_at_50": 0.44,
+          "index_median_ms": 1.32,
+          "index_p95_ms": 1.336,
+          "rescore_median_ms": 1.322,
+          "rescore_p95_ms": 1.372
+        },
+        "binary_r200": {
+          "rescore_width": 200,
+          "index_recall_at_10": 0.9833,
+          "index_recall_at_50": 0.9287,
+          "worst_query_at_10": 0.8,
+          "worst_query_at_50": 0.62,
+          "index_median_ms": 1.424,
+          "index_p95_ms": 1.466,
+          "rescore_median_ms": 1.639,
+          "rescore_p95_ms": 1.731
+        },
+        "binary_r400": {
+          "rescore_width": 400,
+          "index_recall_at_10": 0.9967,
+          "index_recall_at_50": 0.98,
+          "worst_query_at_10": 0.9,
+          "worst_query_at_50": 0.84,
+          "index_median_ms": 1.619,
+          "index_p95_ms": 1.664,
+          "rescore_median_ms": 2.254,
+          "rescore_p95_ms": 2.487
+        }
+      }
+    }
+  },
+  "end_to_end": {
+    "measured_at_vectors": 13549,
+    "note": "End to end runs at the full corpus only. A subset that excludes the passage a question is credited for would score a missing document as a quantisation failure, which is a different measurement.",
+    "resolution_note": "The headline is scored over a small number of questions, so it cannot resolve a difference finer than one question. Read 'no change' as 'no change larger than one question in headline_scored', not as proof of equality.",
+    "dense_timing_note": "One pass per question, in variant order, so these dense figures carry the cache state the previous variant left. The comparable dense latencies are the fastest-of-N figures under by_size.",
+    "variants": {
+      "fp32": {
+        "headline_recall_at_8": 0.9,
+        "headline_scored": 20,
+        "recall_at_8_all": 0.9,
+        "recall_at_1_all": 0.6667,
+        "dense_median_ms": 5.054,
+        "dense_p95_ms": 10.528,
+        "search_median_ms": 833,
+        "search_p95_ms": 980
+      },
+      "fp16": {
+        "headline_recall_at_8": 0.9,
+        "headline_scored": 20,
+        "recall_at_8_all": 0.9,
+        "recall_at_1_all": 0.6667,
+        "dense_median_ms": 37.473,
+        "dense_p95_ms": 73.273,
+        "search_median_ms": 864,
+        "search_p95_ms": 1025
+      },
+      "binary_r20": {
+        "headline_recall_at_8": 0.9,
+        "headline_scored": 20,
+        "recall_at_8_all": 0.9,
+        "recall_at_1_all": 0.6333,
+        "dense_median_ms": 3.878,
+        "dense_p95_ms": 6.184,
+        "search_median_ms": 853,
+        "search_p95_ms": 933
+      },
+      "binary_r50": {
+        "headline_recall_at_8": 0.9,
+        "headline_scored": 20,
+        "recall_at_8_all": 0.9,
+        "recall_at_1_all": 0.6667,
+        "dense_median_ms": 4.292,
+        "dense_p95_ms": 8.273,
+        "search_median_ms": 833,
+        "search_p95_ms": 960
+      },
+      "binary_r100": {
+        "headline_recall_at_8": 0.9,
+        "headline_scored": 20,
+        "recall_at_8_all": 0.9,
+        "recall_at_1_all": 0.6667,
+        "dense_median_ms": 6.109,
+        "dense_p95_ms": 8.41,
+        "search_median_ms": 847,
+        "search_p95_ms": 945
+      },
+      "binary_r200": {
+        "headline_recall_at_8": 0.9,
+        "headline_scored": 20,
+        "recall_at_8_all": 0.9,
+        "recall_at_1_all": 0.6667,
+        "dense_median_ms": 6.415,
+        "dense_p95_ms": 13.707,
+        "search_median_ms": 872,
+        "search_p95_ms": 1031
+      },
+      "binary_r400": {
+        "headline_recall_at_8": 0.9,
+        "headline_scored": 20,
+        "recall_at_8_all": 0.9,
+        "recall_at_1_all": 0.6667,
+        "dense_median_ms": 5.636,
+        "dense_p95_ms": 11.477,
+        "search_median_ms": 872,
+        "search_p95_ms": 980
+      }
+    }
+  },
+  "caveats": [
+    "Latencies are measured against scratch copies that hold no RLS policy and no join to chunks, and are taken while the scratch schema is competing for 128 MB of shared_buffers with the production corpus. They are comparable to each other and not to ef-search.json or latency.json.",
+    "pgvector raises the effective ef_search to the query's LIMIT, so a rescore width above hnsw_ef_search widens the graph walk as well as the shortlist. Part of the cost of a wide rescore is that, not the rescore alone.",
+    "Binary quantisation shrinks the index, not the table. Rescoring reads the fp32 vectors from the heap, so the storage saving is in what has to stay resident, which is the constraint this measurement is about.",
+    "Nothing here tests a corpus in a different language mix, and nothing tests index build time at the scale that decides the question."
+  ],
+  "trend": {
+    "fp32": {
+      "rescore_width": null,
+      "at_10": {
+        "gap_by_size": {
+          "2000": 0.0,
+          "5000": 0.0,
+          "10000": 0.0,
+          "13549": 0.0
+        },
+        "gap_per_decade": 0.0,
+        "widening": false,
+        "width_capped": false,
+        "extrapolated_gap": {
+          "1000000": 0.0,
+          "10000000": 0.0,
+          "50000000": 0.0,
+          "100000000": 0.0,
+          "300000000": 0.0
+        }
+      },
+      "at_50": {
+        "gap_by_size": {
+          "2000": 0.0,
+          "5000": 0.0,
+          "10000": 0.0,
+          "13549": 0.0
+        },
+        "gap_per_decade": 0.0,
+        "widening": false,
+        "width_capped": false,
+        "extrapolated_gap": {
+          "1000000": 0.0,
+          "10000000": 0.0,
+          "50000000": 0.0,
+          "100000000": 0.0,
+          "300000000": 0.0
+        }
+      }
+    },
+    "fp16": {
+      "rescore_width": null,
+      "at_10": {
+        "gap_by_size": {
+          "2000": 0.0,
+          "5000": 0.0,
+          "10000": 0.0,
+          "13549": 0.0
+        },
+        "gap_per_decade": 0.0,
+        "widening": false,
+        "width_capped": false,
+        "extrapolated_gap": {
+          "1000000": 0.0,
+          "10000000": 0.0,
+          "50000000": 0.0,
+          "100000000": 0.0,
+          "300000000": 0.0
+        }
+      },
+      "at_50": {
+        "gap_by_size": {
+          "2000": 0.0,
+          "5000": 0.0007,
+          "10000": 0.0007,
+          "13549": 0.0
+        },
+        "gap_per_decade": 0.0002,
+        "widening": false,
+        "width_capped": false,
+        "extrapolated_gap": {
+          "1000000": 0.0004,
+          "10000000": 0.0007,
+          "50000000": 0.0008,
+          "100000000": 0.0009,
+          "300000000": 0.001
+        }
+      }
+    },
+    "binary_r20": {
+      "rescore_width": 20,
+      "at_10": {
+        "gap_by_size": {
+          "2000": 0.21,
+          "5000": 0.1633,
+          "10000": 0.18,
+          "13549": 0.1867
+        },
+        "gap_per_decade": -0.0263,
+        "widening": false,
+        "width_capped": false,
+        "extrapolated_gap": {
+          "1000000": 0.1376,
+          "10000000": 0.1114,
+          "50000000": 0.093,
+          "100000000": 0.0851,
+          "300000000": 0.0726
+        }
+      },
+      "at_50": {
+        "gap_by_size": {
+          "2000": 0.656,
+          "5000": 0.6673,
+          "10000": 0.6593,
+          "13549": 0.6547
+        },
+        "gap_per_decade": -0.0017,
+        "widening": false,
+        "width_capped": true,
+        "extrapolated_gap": {
+          "1000000": 0.6516,
+          "10000000": 0.6499,
+          "50000000": 0.6487,
+          "100000000": 0.6482,
+          "300000000": 0.6474
+        }
+      }
+    },
+    "binary_r50": {
+      "rescore_width": 50,
+      "at_10": {
+        "gap_by_size": {
+          "2000": 0.05,
+          "5000": 0.0533,
+          "10000": 0.0767,
+          "13549": 0.06
+        },
+        "gap_per_decade": 0.0221,
+        "widening": true,
+        "width_capped": false,
+        "extrapolated_gap": {
+          "1000000": 0.1012,
+          "10000000": 0.1233,
+          "50000000": 0.1387,
+          "100000000": 0.1454,
+          "300000000": 0.1559
+        }
+      },
+      "at_50": {
+        "gap_by_size": {
+          "2000": 0.3367,
+          "5000": 0.3727,
+          "10000": 0.3627,
+          "13549": 0.372
+        },
+        "gap_per_decade": 0.0366,
+        "widening": true,
+        "width_capped": false,
+        "extrapolated_gap": {
+          "1000000": 0.4404,
+          "10000000": 0.4769,
+          "50000000": 0.5025,
+          "100000000": 0.5135,
+          "300000000": 0.531
+        }
+      }
+    },
+    "binary_r100": {
+      "rescore_width": 100,
+      "at_10": {
+        "gap_by_size": {
+          "2000": 0.0167,
+          "5000": 0.0233,
+          "10000": 0.0433,
+          "13549": 0.0467
+        },
+        "gap_per_decade": 0.0384,
+        "widening": true,
+        "width_capped": false,
+        "extrapolated_gap": {
+          "1000000": 0.1185,
+          "10000000": 0.1569,
+          "50000000": 0.1838,
+          "100000000": 0.1953,
+          "300000000": 0.2137
+        }
+      },
+      "at_50": {
+        "gap_by_size": {
+          "2000": 0.14,
+          "5000": 0.1773,
+          "10000": 0.1767,
+          "13549": 0.1847
+        },
+        "gap_per_decade": 0.05,
+        "widening": true,
+        "width_capped": false,
+        "extrapolated_gap": {
+          "1000000": 0.2782,
+          "10000000": 0.3282,
+          "50000000": 0.3632,
+          "100000000": 0.3783,
+          "300000000": 0.4022
+        }
+      }
+    },
+    "binary_r200": {
+      "rescore_width": 200,
+      "at_10": {
+        "gap_by_size": {
+          "2000": 0.0033,
+          "5000": 0.0133,
+          "10000": 0.0133,
+          "13549": 0.0167
+        },
+        "gap_per_decade": 0.0147,
+        "widening": true,
+        "width_capped": false,
+        "extrapolated_gap": {
+          "1000000": 0.0442,
+          "10000000": 0.0589,
+          "50000000": 0.0692,
+          "100000000": 0.0736,
+          "300000000": 0.0806
+        }
+      },
+      "at_50": {
+        "gap_by_size": {
+          "2000": 0.0507,
+          "5000": 0.0613,
+          "10000": 0.068,
+          "13549": 0.0713
+        },
+        "gap_per_decade": 0.0246,
+        "widening": true,
+        "width_capped": false,
+        "extrapolated_gap": {
+          "1000000": 0.1173,
+          "10000000": 0.1419,
+          "50000000": 0.1591,
+          "100000000": 0.1666,
+          "300000000": 0.1783
+        }
+      }
+    },
+    "binary_r400": {
+      "rescore_width": 400,
+      "at_10": {
+        "gap_by_size": {
+          "2000": 0.0,
+          "5000": 0.0033,
+          "10000": 0.0033,
+          "13549": 0.0033
+        },
+        "gap_per_decade": 0.0039,
+        "widening": false,
+        "width_capped": false,
+        "extrapolated_gap": {
+          "1000000": 0.0106,
+          "10000000": 0.0145,
+          "50000000": 0.0172,
+          "100000000": 0.0184,
+          "300000000": 0.0202
+        }
+      },
+      "at_50": {
+        "gap_by_size": {
+          "2000": 0.0113,
+          "5000": 0.0233,
+          "10000": 0.0207,
+          "13549": 0.02
+        },
+        "gap_per_decade": 0.01,
+        "widening": true,
+        "width_capped": false,
+        "extrapolated_gap": {
+          "1000000": 0.0386,
+          "10000000": 0.0486,
+          "50000000": 0.0555,
+          "100000000": 0.0585,
+          "300000000": 0.0633
+        }
+      }
+    }
+  },
+  "projection": {
+    "this_corpus": {
+      "passages_per_document": 322.6,
+      "documents_at_each_size": {
+        "1000000": 3100,
+        "10000000": 30998,
+        "50000000": 154991,
+        "100000000": 309981,
+        "300000000": 929944
+      },
+      "index_gib_by_passages": {
+        "fp32": {
+          "1000000": 7.6,
+          "10000000": 76.3,
+          "50000000": 381.3,
+          "100000000": 762.6,
+          "300000000": 2287.8
+        },
+        "fp16": {
+          "1000000": 2.5,
+          "10000000": 25.4,
+          "50000000": 127.1,
+          "100000000": 254.2,
+          "300000000": 762.7
+        },
+        "binary": {
+          "1000000": 0.4,
+          "10000000": 4.0,
+          "50000000": 20.2,
+          "100000000": 40.5,
+          "300000000": 121.5
+        }
+      },
+      "index_gib_by_documents": {
+        "fp32": {
+          "100000": 246.0,
+          "1000000": 2460.2,
+          "10000000": 24601.6
+        },
+        "fp16": {
+          "100000": 82.0,
+          "1000000": 820.2,
+          "10000000": 8201.8
+        },
+        "binary": {
+          "100000": 13.1,
+          "1000000": 130.6,
+          "10000000": 1306.0
+        }
+      }
+    },
+    "corporate_mix": {
+      "passages_per_document": 80.0,
+      "documents_at_each_size": {
+        "1000000": 12500,
+        "10000000": 125000,
+        "50000000": 625000,
+        "100000000": 1250000,
+        "300000000": 3750000
+      },
+      "index_gib_by_passages": {
+        "fp32": {
+          "1000000": 7.6,
+          "10000000": 76.3,
+          "50000000": 381.3,
+          "100000000": 762.6,
+          "300000000": 2287.8
+        },
+        "fp16": {
+          "1000000": 2.5,
+          "10000000": 25.4,
+          "50000000": 127.1,
+          "100000000": 254.2,
+          "300000000": 762.7
+        },
+        "binary": {
+          "1000000": 0.4,
+          "10000000": 4.0,
+          "50000000": 20.2,
+          "100000000": 40.5,
+          "300000000": 121.5
+        }
+      },
+      "index_gib_by_documents": {
+        "fp32": {
+          "100000": 61.0,
+          "1000000": 610.1,
+          "10000000": 6100.8
+        },
+        "fp16": {
+          "100000": 20.3,
+          "1000000": 203.4,
+          "10000000": 2033.9
+        },
+        "binary": {
+          "100000": 3.2,
+          "1000000": 32.4,
+          "10000000": 323.9
+        }
+      }
+    }
+  }
+}
