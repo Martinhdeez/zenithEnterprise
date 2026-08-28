@@ -40,12 +40,7 @@ vi.mock("@/features/auth", () => ({
 }));
 
 vi.mock("@/features/chat", () => ({ Chat: () => <p>chat</p> }));
-// Mocked like every other view here: this file tests the shell's decisions, and the
-// real one opens a stream whose AbortSignal jsdom refuses — an unhandled rejection that
-// would sit in the run masking a real one.
-vi.mock("@/features/chat/anchored/AnchoredChat", () => ({
-  AnchoredChat: () => <p>anchored chat</p>,
-}));
+
 // Emits a citation on demand, so the shell's own reaction to one can be tested. The button
 // is inert for every other test in this file, which still only assert that "search" renders.
 vi.mock("@/features/search", () => ({

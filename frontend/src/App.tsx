@@ -37,8 +37,7 @@ import {
   refreshTokens,
   type UserProfile,
 } from "@/features/auth";
-import { type Citation } from "@/features/chat";
-import { AnchoredChat } from "@/features/chat/anchored/AnchoredChat";
+import { Chat, type Citation } from "@/features/chat";
 import { System } from "@/features/system";
 import { Ingesting, inFlight } from "@/features/documents";
 import { History } from "@/features/history";
@@ -895,11 +894,15 @@ export function App() {
             {/* Mounted from the moment the conversation is started and hidden — never
                 unmounted — for the same reason `Search` is: it holds the thread, and the
                 breadcrumb is a way to look away from it, not a way to end it. */}
+            {/* The same `Chat` the product has always had — composer, stop control, thread,
+                empty states — given a document to be about. A second chat interface built
+                beside it would drift from this one on the first change to either. */}
             {view === "search" && started && citation && askQuestion !== null && (
               <div className={panel === "conversation" ? undefined : "hidden"}>
-                <AnchoredChat
+                <Chat
                   token={token}
-                  onCitation={(next) => setCitation(next)}
+                  onCitation={setCitation}
+                  searchable={status?.searchable ?? true}
                   anchor={{
                     documentId: citation.document_id,
                     filename: citation.filename,
