@@ -187,6 +187,38 @@ async def _build(conn: AsyncConnection) -> tuple[int, int]:
     return rows, size
 
 
+async def _plan(conn: AsyncConnection, vector: list[float], fraction: float) -> str:
+    """Which strategy the planner actually chose.
+
+    Without this the report cannot tell its two possible null results apart, and they mean
+    opposite things. Either the bound never binds because iterative scan comfortably fills
+    the candidate set — in which case the default is right — or the planner stopped using
+    the vector index at all and the arm measured something else entirely, in which case the
+    experiment never reached the regime it was built for and proves nothing.
+
+    Latency falling as the filter tightens is the tell for the second, and it is what the
+    first run of this file showed. So the plan is now recorded rather than inferred.
+    """
+    rows = await conn.execute(
+        text(
+            f"EXPLAIN (COSTS OFF) SELECT id FROM {SCHEMA}.vecs WHERE bucket < :f "
+            "ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"
+        ),
+        {"f": fraction, "q": str(vector), "k": WANTED},
+    )
+    lines = [str(row[0]).strip() for row in rows]
+    for line in lines:
+        if "Index Scan using" in line and "embedding" in line:
+            return "hnsw"
+        if line.startswith("->  Seq Scan") or line.startswith("Seq Scan"):
+            return "seq"
+        if "Bitmap Heap Scan" in line or "Bitmap Index Scan" in line:
+            return "bitmap"
+        if "Index Scan using" in line:
+            return "btree_on_filter"
+    return "|".join(lines[:2])
+
+
 async def _arm(
     conn: AsyncConnection,
     queries: list[list[float]],
@@ -197,6 +229,7 @@ async def _arm(
     """One selectivity at one bound, over every question."""
     returned: list[int] = []
     times: list[float] = []
+    plan = await _plan(conn, queries[0], fraction)
 
     for vector in queries:
         await conn.execute(text(f"SET LOCAL hnsw.ef_search = {int(ef_search)}"))
@@ -217,6 +250,7 @@ async def _arm(
 
     ordered = sorted(times)
     return {
+        "plan": plan,
         "returned_mean": round(statistics.fmean(returned), 2),
         "returned_min": min(returned),
         "filled": sum(1 for r in returned if r >= WANTED),
@@ -254,9 +288,10 @@ async def _run() -> int:
                         {"selectivity": fraction, "admitted": admitted, "bound": bound, **measured}
                     )
                     print(
-                        f"    {label:<16} returned {measured['returned_mean']:>5} "
+                        f"    {label:<16} {str(measured['plan']):<16} "
+                        f"returned {measured['returned_mean']:>5} "
                         f"(min {measured['returned_min']:>2}, short {measured['short']:>2})"
-                        f"   median {measured['median_ms']:>8} ms   max {measured['max_ms']:>9} ms",
+                        f"   median {measured['median_ms']:>8} ms",
                         flush=True,
                     )
     finally:
