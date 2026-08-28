@@ -7,120 +7,119 @@
  * is not to undermine it by displaying something it fetched from somewhere else.
  */
 
+import type { ReactNode } from "react";
+
 import { IN_FLIGHT, type TenantStatus } from "@/shared/api/tenant";
 import { useFormat, useT } from "@/shared/i18n/useT";
 
-export function StatusBadge({ status }: { status: TenantStatus | null }) {
+/**
+ * `children` is the ingestion indicator, drawn inside this box rather than beside it.
+ *
+ * They were two sidebar sections, each with its own uppercase label and its own rule — two
+ * headings and two dividers to introduce one card and one line of text. They answer the
+ * same question ("what is behind this product right now"), so they are one panel now and
+ * the labels are gone: a card whose two largest numbers are captioned "documentos listos"
+ * and "pasajes" does not need a heading above it saying "Estado".
+ */
+export function StatusBadge({
+  status,
+  children,
+}: {
+  status: TenantStatus | null;
+  children?: ReactNode;
+}) {
   const t = useT();
   const format = useFormat();
   if (!status) return <p className="text-sm text-muted-foreground">{t("Loading…")}</p>;
 
   const ready = status.documents.ready ?? 0;
   const failed = status.documents.failed ?? 0;
-  // Summed from the statuses the schema actually defines. The first version of this
-  // component added `processing`, which has never been one of them — it was always zero,
-  // silently, and the ingestion indicator never appeared. F16 found the same invented
-  // status in a backend folder count on the same day.
   const processing = IN_FLIGHT.reduce((total, state) => total + (status.documents[state] ?? 0), 0);
+  const total = ready + processing + failed;
+  const share = (part: number) => (total === 0 ? 0 : (part / total) * 100);
 
   return (
-    <div
-      className="space-y-2.5 rounded-lg border border-border p-3 text-sm"
-      style={{
-        // A flat `bg-secondary` read as just another box in a sidebar full of them — this
-        // is the one panel that says "the product is alive right now", so it gets the one
-        // bit of color in the nav. Cyan because that's already `--zenith-cyan`'s job on the
-        // ready-dot above; the gradient just lets it bleed into its own container instead
-        // of stopping at a single pixel.
-        backgroundImage:
-          "linear-gradient(135deg, color-mix(in oklab, var(--zenith-cyan) 12%, transparent), color-mix(in oklab, var(--zenith-cyan) 2%, transparent) 60%)",
-      }}
-    >
-      {/* The two numbers that say there is something behind this product, at the size that
-          says it.
+    // The corpus as a bar, rather than a box with numbers printed in it.
+    //
+    // The four facts here were four different kinds of thing set as one list: a quantity
+    // that matters, an internal unit nobody outside this product thinks in, a deployment
+    // detail that never changes, and a live state. Printed as four rows they read as equal,
+    // and the panel needed three rules to keep them apart.
+    //
+    // The bar carries the three that are one fact — how much of this corpus is searchable
+    // right now — as proportions instead of prose. Ready, processing and failed are
+    // segments of the same length, so ingestion and failure are visible *in* the object
+    // rather than announced beside it, and a full cyan bar is a state anyone can read
+    // without counting: everything in here can be found.
+    //
+    // It is drawn at every count, including zero-processing, which is the same reason the
+    // ingestion line used to state "nothing being ingested" rather than disappear: an
+    // indicator you cannot see is one you cannot tell apart from an indicator that broke.
+    //
+    // No frame and no tint. This sits inside a bordered sidebar above a filled footer; a
+    // third boundary around it was a box drawn inside a box.
+    <div className="flex flex-col gap-2.5">
+      <p className="flex items-baseline gap-2">
+        <span className="text-[30px] leading-none font-semibold tracking-[-0.02em] tabular-nums text-foreground">
+          {format.number(ready)}
+        </span>
+        <span className="min-w-0 text-xs leading-tight text-muted-foreground">
+          {t(ready === 1 ? "document ready" : "documents ready")}
+        </span>
+      </p>
 
-          They were a 14px count on one line and a 12px `dl` row three lines down — the most
-          interesting thing on the screen set as the quietest. A corpus size is the first
-          question anybody asks of an archive, and answering it in the same weight as
-          "Hardware: cpu" buried the answer.
-
-          Sans with tabular figures, not the apparatus face. A monospace comma takes a full
-          character cell, so "8,273" sets as "8 , 273" at this size and reads as two numbers.
-          The distinction that survives is by job rather than by type: a filename or a page
-          reference is a string somebody copies and stays mono; a headline quantity is a
-          number somebody reads. Tabular so the digits do not shift as ingestion counts up. */}
-      <div className="flex items-start gap-5">
-        <div className="min-w-0">
-          <p className="flex items-baseline gap-1.5">
-            <span className="size-1.5 shrink-0 self-center rounded-full bg-zenith-cyan shadow-[0_0_6px_rgba(0,229,229,0.9)]" />
-            <span className="text-2xl leading-none font-semibold tracking-tight tabular-nums text-foreground">
-              {format.number(ready)}
-            </span>
-          </p>
-          <p className="mt-1.5 text-xs tracking-wide text-muted-foreground/70 uppercase">
-            {/* Two keys rather than one with `{count}` in it. English has no catalogue —
-                it falls through to the key itself — so a key containing `{count}` renders
-                the number a second time under one that is already on screen. */}
-            {t(ready === 1 ? "document ready" : "documents ready")}
-          </p>
-        </div>
-
-        <div className="min-w-0">
-          <p className="text-2xl leading-none font-semibold tracking-tight tabular-nums text-foreground">
-            {format.number(status.chunks)}
-          </p>
-          <p className="mt-1.5 text-xs tracking-wide text-muted-foreground/70 uppercase">{t("passages")}</p>
-        </div>
+      {/* `aria-hidden` on purpose: every quantity this encodes is already written in the
+          text above and below it, and a screen reader announcing the same three numbers a
+          second time as an image would be noise, not access. */}
+      <div aria-hidden className="flex h-1.5 gap-px overflow-hidden rounded-full bg-secondary">
+        <div className="bg-zenith-cyan transition-[width] duration-500" style={{ width: `${share(ready)}%` }} />
+        {processing > 0 && (
+          <div
+            className="animate-pulse bg-zenith-amber transition-[width] duration-500"
+            style={{ width: `${share(processing)}%` }}
+          />
+        )}
+        {failed > 0 && (
+          <div className="bg-destructive transition-[width] duration-500" style={{ width: `${share(failed)}%` }} />
+        )}
       </div>
 
-      {processing > 0 && (
-        // A pill rather than a plain line: while this is non-zero, every search on the box
-        // is slower, and it earns a bit more visual weight than the passive metrics below —
-        // without being alarming, which is what the amber text alone read as.
-        <p
-          className="inline-flex items-center gap-1.5 rounded-full bg-zenith-amber/10 px-2 py-0.5 text-xs font-medium text-zenith-amber"
-          title={t("Searches run more slowly while a document is being processed.")}
-        >
-          <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-zenith-amber" />
-          {processing} processing
-        </p>
-      )}
-
-      {failed > 0 && (
-        // The most useful thing on this component. A failed document is invisible in
-        // search — that is what failing means — so if the status does not surface it, the
-        // only symptom is an answer that should have existed and did not.
-        <p className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
-          {failed} failed to process
-        </p>
-      )}
-
-      {!status.searchable && (
-        <p className="text-muted-foreground">{t("Nothing to search yet.")}</p>
-      )}
-
-      <dl className="border-t border-border pt-2 text-xs text-muted-foreground">
-        <div className="flex justify-between">
-          <dt>{t("Hardware")}</dt>
-          <dd>{status.hardware}</dd>
-        </div>
+      {/* One line for everything that is a condition rather than a quantity. The labels
+          survive as tooltips: "cpu" alone is cryptic, and "Hardware: cpu" spelled out was
+          a whole row for a value that changes once, at install. */}
+      <p className="flex flex-wrap items-baseline gap-x-1.5 text-[11px] text-muted-foreground/80">
+        <span className="tabular-nums">{format.number(status.chunks)}</span>
+        <span>{t("passages")}</span>
+        <span aria-hidden className="text-muted-foreground/40">&middot;</span>
+        <span className="font-mono" title={t("Hardware")}>
+          {status.hardware}
+        </span>
         {!status.components.reranker && (
-          // Stated plainly rather than hidden. On `low-spec` this is the configured
-          // product, and F11 proved by measurement that it is the correct configuration
-          // for that hardware — the cross-encoder cannot rerank ten passages inside the
-          // interactive timeout on four cores.
-          <div className="flex justify-between">
-            <dt>{t("Reranking")}</dt>
-            <dd>{t("off for this hardware")}</dd>
-          </div>
+          <>
+            <span aria-hidden className="text-muted-foreground/40">&middot;</span>
+            <span title={t("Reranking")}>{t("off for this hardware")}</span>
+          </>
         )}
         {!status.components.generation && (
-          <div className="flex justify-between">
-            <dt>{t("Answers")}</dt>
-            <dd>{t("no model configured")}</dd>
-          </div>
+          <>
+            <span aria-hidden className="text-muted-foreground/40">&middot;</span>
+            <span title={t("Answers")}>{t("no model configured")}</span>
+          </>
         )}
-      </dl>
+      </p>
+
+      {failed > 0 && (
+        // Kept as its own line rather than left to the red segment. A failed document is
+        // invisible in search — that is what failing means — and a three-pixel stripe is
+        // not a thing anybody is owed as the only notice of it.
+        <p className="inline-flex items-center gap-1.5 self-start rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+          {t("{count} failed to process", { count: failed })}
+        </p>
+      )}
+
+      {!status.searchable && <p className="text-sm text-muted-foreground">{t("Nothing to search yet.")}</p>}
+
+      {children}
     </div>
   );
 }

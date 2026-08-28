@@ -19,8 +19,6 @@ export const es: Catalogue = {
   "Ask your documents": "Pregunta a tus documentos",
   Search: "Buscar",
   Recent: "Recientes",
-  Ingestion: "Procesamiento",
-  Status: "Estado",
   "document ready": "documento listo",
   "documents ready": "documentos listos",
   Chat: "Chat",
@@ -409,6 +407,8 @@ export const es: Catalogue = {
   "This link is no longer valid. Ask your administrator for a new one.":
     "Este enlace ya no es válido. Pide otro a tu administrador.",
   "Ingesting {count} documents": { one: "Procesando {count} documento", other: "Procesando {count} documentos" },
+  "Ingesting {count} of {total}": { one: "Procesando {count} de {total}", other: "Procesando {count} de {total}" },
+  "{count} failed to process": { one: "{count} ha fallado", other: "{count} han fallado" },
   "Sign out on this device. Your other sessions are untouched.":
     "Cierra la sesión en este dispositivo. Las demás no se tocan.",
   "Sign out":

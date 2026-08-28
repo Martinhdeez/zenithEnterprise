@@ -52,7 +52,6 @@ import {
 import { Search } from "@/features/search";
 import { tenantStatus, type TenantStatus } from "@/shared/api/tenant";
 import { CommandPalette } from "@/shared/ui/CommandPalette";
-import { Section } from "@/shared/components/Section";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { forget, read, write } from "@/shared/lib/storage";
@@ -636,12 +635,16 @@ export function App() {
               <Ingesting status={status} collapsed />
             ) : (
               <>
-                <Section label={t("Ingestion")}>
-                  <Ingesting status={status} collapsed={false} />
-                </Section>
-                <Section label={t("Status")}>
-                  <StatusBadge status={status} />
-                </Section>
+                {/* The ingestion detail only while there is ingestion. The bar inside
+                    `StatusBadge` is drawn at every count and already says "nothing is
+                    moving" by being wholly one colour, so the prose version below it is
+                    the progress figure and the warning about slower searches — both of
+                    which have nothing to report when the queue is empty. */}
+                <div className="px-4 py-3">
+                  <StatusBadge status={status}>
+                    {inFlight(status) > 0 ? <Ingesting status={status} collapsed={false} /> : null}
+                  </StatusBadge>
+                </div>
               </>
             )}
           </div>
