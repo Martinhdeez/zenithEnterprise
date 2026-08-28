@@ -109,6 +109,45 @@ not a cheap fallback. The cheap fallback, if binary fails, is partitioning by te
 not shrink the index but it shrinks the *resident* set, which is the quantity that actually
 has to fit.
 
+## Results — ceiling 3
+
+**The gate passed on magnitude and failed on sign, and the sign was the finding.** Worst
+delta 0.0348 against a 0.05 tolerance, but all five deltas negative: the synthetic corpus
+produces a *smaller* binary gap than the real one at a density that is higher. Density is not
+the whole mechanism. It does not void the run — a corpus that flatters binary and still shows
+it failing bounds the real degradation from below — but a magnitude test could not see the
+difference between systematic bias and scatter, and that was a defect in this plan.
+
+| corpus | d10 | ≈ real N | fp16 | binary r100 | binary r400 | worst question, r400 |
+|---|---|---|---|---|---|---|
+| real 13,549 | 0.2621 | — | 0.0000 | 0.0767 | 0.0140 | 0.60 |
+| synthetic 3,750 | 0.2147 | ~89k | 0.0000 | 0.0419 | 0.0047 | 0.80 |
+| synthetic 13,549 | 0.1689 | ~840k | 0.0000 | 0.0163 | 0.0163 | 0.80 |
+| synthetic 50,000 | 0.1132 | ~35M | 0.0000 | 0.1140 | 0.0279 | 0.40 |
+| synthetic 150,000 | 0.0605 | far beyond | **0.0047** | 0.1930 | 0.0767 | **0.10** |
+
+**Binary is rejected**, and not on the mean. At rescore 400 the mean gap is still only 0.077
+— 92% recall@10 — while the *worst single question* returns one of its ten true neighbours.
+At rescore 100 and 200 it returns none. A search product is judged on its worst questions;
+that is the argument F26 was built on and it applies here unchanged.
+
+**fp16 is adopted and is no longer perfectly free.** 0.0047 at the densest point is the first
+non-zero gap ever measured for it, against 0.0000 everywhere else. Negligible — 99.53%
+recall@10 — but "flat forever" was the previous claim and it is now known to be false, which
+matters more than the size of the number.
+
+**What this leaves.** fp16 gives 3.00x. At 128 GB usable that is roughly 145,000 documents at
+this corpus's 322.6 passages each, or ~586,000 at a corporate mix of 80. The million-document
+target is not reached and binary was the route that would have reached it.
+
+The remaining route is partitioning by tenant, and its value is different in kind: it does
+not shrink the index, it shrinks the **resident** set. An installation with 200 tenants of
+which ten are active holds 5% of its index in memory — the same order of magnitude binary
+would have bought, at no cost in recall, paid for in operational complexity instead. Its one
+blocking unknown is whether Postgres prunes partitions when the key comes from
+`zenith_current_tenant()`, which is confirmed `STABLE` and therefore cannot prune at plan
+time.
+
 ## Not in scope
 
 Retrieval, fusion, ranking, the reranker, and every production code path. This creates a
