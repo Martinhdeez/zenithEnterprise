@@ -411,26 +411,41 @@ export function Search({
             {state.hits.map((hit, index) => {
               const open = hit.chunk_id === openChunkId;
               return (
-              <li key={hit.chunk_id}>
+              // The card is the `li`; the button inside it covers only the text you click
+              // to open the passage.
+              //
+              // It used to be one button wrapping the whole card, chips included — and a
+              // `TagChip` with a filter attached renders a button of its own, so the tree
+              // had a control inside a control. React says so on every search, but the
+              // warning is the least of it: a screen reader cannot announce a button nested
+              // in a button, and the two do different things — this one opens the document,
+              // that one narrows the corpus to a label. `stopPropagation` on the chip kept
+              // the click from doing both, which fixed the behaviour and left the semantics
+              // saying something untrue.
+              //
+              // It also shrinks the hit area to the part that means "open this", which is
+              // the honest shape: pressing the row of labels used to open the document, and
+              // nobody expects that.
+              <li
+                key={hit.chunk_id}
+                className={`overflow-hidden rounded-lg border transition-colors ${
+                  open
+                    ? "border-primary bg-primary/25 shadow-[inset_4px_0_0_0_var(--color-primary)]"
+                    : "border-border bg-secondary hover:bg-secondary/70"
+                }`}
+              >
                 <button
                   type="button"
                   onClick={() => onCitation(citationOf(hit, index), state.query)}
                   // Announced, not just drawn. Colour alone would leave somebody on a
                   // screen reader — or anybody who cannot separate these two greys — with
                   // no way to tell which result is open.
+                  //
+                  // Stays on the button rather than moving to the card with the fill:
+                  // `aria-current` describes the thing you can act on, and a plain `li` is
+                  // not one.
                   aria-current={open ? "true" : undefined}
-                  // Brighter *and* bluer, which the first attempt at this got wrong. An
-                  // unselected row is `--secondary` (#182238); indigo at 10% over the panel
-                  // lands near #171b34 — the same lightness, a different hue, and on a dark
-                  // screen that is no difference at all. At 25% the row genuinely lifts off
-                  // the page, and the full-strength border and the 4px bar down the left
-                  // edge give the eye two more things to catch. The bar is what survives a
-                  // glance: it breaks the straight edge every other row shares.
-                  className={`w-full rounded-lg border px-4 py-3.5 text-left transition-colors ${
-                    open
-                      ? "border-primary bg-primary/25 shadow-[inset_4px_0_0_0_var(--color-primary)]"
-                      : "border-border bg-secondary hover:bg-secondary/70"
-                  }`}
+                  className="block w-full px-4 pt-3.5 pb-2 text-left"
                 >
                   <div className="flex items-baseline justify-between gap-4">
                     {/* A filename and a page are a reference, not a sentence. In the body
@@ -442,7 +457,10 @@ export function Search({
                       {/* Only where there is a page. A document with none says nothing
                           rather than "page null" or an invented "page 1". */}
                       {hit.page_num !== null && (
-                        <span className="text-muted-foreground"> · page {hit.page_num}</span>
+                        <span className="text-muted-foreground">
+                          {" · "}
+                          {t("page {page}", { page: hit.page_num })}
+                        </span>
                       )}
                     </p>
                     <span className="shrink-0 font-mono text-xs text-muted-foreground">
@@ -450,13 +468,18 @@ export function Search({
                     </span>
                   </div>
                   <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{hit.text}</p>
-                  {/* What this passage is filed under, on the result itself — otherwise
-                      the only way to know is to open the document and look. */}
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    <TagChips names={namesFor(hit)} onSelect={onSelectTag} short />
-                  </div>
-                  {showRanking && <Ranking hit={hit} />}
                 </button>
+                {/* What this passage is filed under, on the result itself — otherwise the
+                    only way to know is to open the document and look. Outside the button,
+                    because each of these is a control in its own right. */}
+                <div className="flex flex-wrap gap-1.5 px-4 pb-3.5">
+                  <TagChips names={namesFor(hit)} onSelect={onSelectTag} short />
+                </div>
+                {showRanking && (
+                  <div className="px-4 pb-3.5">
+                    <Ranking hit={hit} />
+                  </div>
+                )}
               </li>
               );
             })}

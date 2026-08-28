@@ -176,6 +176,7 @@ export const es: Catalogue = {
   "Previous page": "Página anterior",
   "Next page": "Página siguiente",
   "Page {page}": "Página {page}",
+  "page {page}": "página {page}",
   "Page {page} — cited page {cited}": "Página {page} — la cita está en la {cited}",
   "Back to citation": "Volver a la cita",
   "Clear {name}": "Limpiar {name}",
