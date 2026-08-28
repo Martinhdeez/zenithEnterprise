@@ -1,0 +1,531 @@
+{
+  "answerable_questions": 30,
+  "unanswerable_questions": 10,
+  "degraded_runs": 0,
+  "signals": {
+    "rerank": {
+      "answerable": {
+        "low": 0.0272,
+        "median": 0.9455,
+        "high": 1.0
+      },
+      "unanswerable": {
+        "low": 0.0003,
+        "median": 0.0463,
+        "high": 0.9996
+      },
+      "separates": false,
+      "gap": -0.9724
+    },
+    "dense": {
+      "answerable": {
+        "low": 0.4663,
+        "median": 0.6249,
+        "high": 0.7598
+      },
+      "unanswerable": {
+        "low": 0.4279,
+        "median": 0.528,
+        "high": 0.662
+      },
+      "separates": false,
+      "gap": -0.1957
+    },
+    "spread": {
+      "answerable": {
+        "low": 0.7054,
+        "median": 1.0516,
+        "high": 1.9702
+      },
+      "unanswerable": {
+        "low": 0.9683,
+        "median": 1.0164,
+        "high": 1.3775
+      },
+      "separates": false,
+      "gap": -0.6721
+    }
+  },
+  "measurements": [
+    {
+      "id": "gdpr-breach-deadline",
+      "kind": "answerable",
+      "question": "How quickly must a controller notify a personal data breach to the supervisory authority?",
+      "hits": 8,
+      "rerank": 0.99997735,
+      "dense": 0.7598494970663963,
+      "lexical_hits": 8,
+      "spread": 1.3320901407405348,
+      "took_ms": 1178,
+      "degraded": false
+    },
+    {
+      "id": "gdpr-right-to-erasure",
+      "kind": "answerable",
+      "question": "Which GDPR article establishes the right to be forgotten?",
+      "hits": 8,
+      "rerank": 0.52103055,
+      "dense": 0.5893485615239898,
+      "lexical_hits": 6,
+      "spread": 0.7054377880184332,
+      "took_ms": 894,
+      "degraded": false
+    },
+    {
+      "id": "gdpr-personal-data-definition",
+      "kind": "answerable",
+      "question": "How does the GDPR define personal data?",
+      "hits": 8,
+      "rerank": 0.6555288,
+      "dense": 0.658310671398362,
+      "lexical_hits": 7,
+      "spread": 0.9036087369420702,
+      "took_ms": 748,
+      "degraded": false
+    },
+    {
+      "id": "gdpr-data-portability",
+      "kind": "answerable",
+      "question": "Which GDPR right lets someone receive their data in a machine-readable format?",
+      "hits": 8,
+      "rerank": 0.9856031,
+      "dense": 0.6241850666944798,
+      "lexical_hits": 8,
+      "spread": 1.1681175805539854,
+      "took_ms": 796,
+      "degraded": false
+    },
+    {
+      "id": "gdpr-dpo",
+      "kind": "answerable",
+      "question": "What role must certain controllers and processors designate under the GDPR?",
+      "hits": 8,
+      "rerank": 0.6072367,
+      "dense": 0.678544204148306,
+      "lexical_hits": 8,
+      "spread": 0.9694663698306685,
+      "took_ms": 708,
+      "degraded": false
+    },
+    {
+      "id": "aiact-social-scoring",
+      "kind": "answerable",
+      "question": "Does the EU AI Act restrict social scoring of individuals?",
+      "hits": 8,
+      "rerank": 0.9015465,
+      "dense": 0.6890266597640523,
+      "lexical_hits": 5,
+      "spread": 1.0161290322580645,
+      "took_ms": 877,
+      "degraded": false
+    },
+    {
+      "id": "aiact-prohibited-practices",
+      "kind": "answerable",
+      "question": "Which AI practices does the EU AI Act prohibit outright?",
+      "hits": 8,
+      "rerank": 0.95123637,
+      "dense": 0.6249005049585739,
+      "lexical_hits": 8,
+      "spread": 1.970239596469105,
+      "took_ms": 827,
+      "degraded": false
+    },
+    {
+      "id": "dsa-trusted-flaggers",
+      "kind": "answerable",
+      "question": "What status does the Digital Services Act create for entities whose notices get priority?",
+      "hits": 8,
+      "rerank": 0.9805155,
+      "dense": 0.6000957906217661,
+      "lexical_hits": 8,
+      "spread": 1.098116991020356,
+      "took_ms": 777,
+      "degraded": false
+    },
+    {
+      "id": "attention-optimizer",
+      "kind": "answerable",
+      "question": "Which optimizer was used to train the Transformer, and with what beta values?",
+      "hits": 8,
+      "rerank": 0.16144021,
+      "dense": null,
+      "lexical_hits": 8,
+      "spread": 1.0303030303030303,
+      "took_ms": 985,
+      "degraded": false
+    },
+    {
+      "id": "attention-multihead",
+      "kind": "answerable",
+      "question": "What does the Transformer use in place of a single attention function?",
+      "hits": 8,
+      "rerank": 0.9926362,
+      "dense": null,
+      "lexical_hits": 8,
+      "spread": 1.0634920634920635,
+      "took_ms": 874,
+      "degraded": false
+    },
+    {
+      "id": "bert-pretraining",
+      "kind": "answerable",
+      "question": "What pre-training objective lets BERT condition on both left and right context?",
+      "hits": 8,
+      "rerank": 0.99988973,
+      "dense": 0.6414835070679493,
+      "lexical_hits": 8,
+      "spread": 1.0409700408687135,
+      "took_ms": 996,
+      "degraded": false
+    },
+    {
+      "id": "rag-knowledge-source",
+      "kind": "answerable",
+      "question": "What does the RAG paper use as its non-parametric knowledge source?",
+      "hits": 8,
+      "rerank": 0.99746335,
+      "dense": 0.628481388092041,
+      "lexical_hits": 8,
+      "spread": 0.972414057214343,
+      "took_ms": 923,
+      "degraded": false
+    },
+    {
+      "id": "rag-retriever",
+      "kind": "answerable",
+      "question": "Which dense retriever does the RAG paper build on?",
+      "hits": 8,
+      "rerank": 0.9846165,
+      "dense": 0.5165632540826899,
+      "lexical_hits": 8,
+      "spread": 1.1022055697278912,
+      "took_ms": 919,
+      "degraded": false
+    },
+    {
+      "id": "irs-social-security-rate",
+      "kind": "answerable",
+      "question": "What is the employee social security tax rate on taxable wages?",
+      "hits": 8,
+      "rerank": 0.9298242,
+      "dense": 0.7156526063577121,
+      "lexical_hits": 8,
+      "spread": 1.054039482415395,
+      "took_ms": 891,
+      "degraded": false
+    },
+    {
+      "id": "boe-bank-rate",
+      "kind": "answerable",
+      "question": "What is Bank Rate?",
+      "hits": 8,
+      "rerank": 0.17909826,
+      "dense": 0.6139318482794591,
+      "lexical_hits": 8,
+      "spread": 1.0604361957699375,
+      "took_ms": 697,
+      "degraded": false
+    },
+    {
+      "id": "cross-eu-extraterritorial",
+      "kind": "answerable",
+      "question": "Do EU rules in this corpus reach organisations that are not established in the Union?",
+      "hits": 8,
+      "rerank": 0.18646805,
+      "dense": 0.6262814366473077,
+      "lexical_hits": 7,
+      "spread": 0.9301998985286657,
+      "took_ms": 768,
+      "degraded": false
+    },
+    {
+      "id": "cross-transformer-lineage",
+      "kind": "answerable",
+      "question": "Which paper introduced the Transformer, and which built a bidirectional encoder on it?",
+      "hits": 8,
+      "rerank": 0.9501403,
+      "dense": 0.512213933035658,
+      "lexical_hits": 8,
+      "spread": 1.0227324913892077,
+      "took_ms": 921,
+      "degraded": false
+    },
+    {
+      "id": "cross-retrieval-vs-pretraining",
+      "kind": "answerable",
+      "question": "Which paper augments generation with a retriever, and which relies on pre-training alone?",
+      "hits": 8,
+      "rerank": 0.5044424,
+      "dense": 0.49809777759340434,
+      "lexical_hits": 8,
+      "spread": 1.1404454022988506,
+      "took_ms": 903,
+      "degraded": false
+    },
+    {
+      "id": "cross-platform-obligations",
+      "kind": "answerable",
+      "question": "Which EU regulations here impose duties specifically on online platforms?",
+      "hits": 8,
+      "rerank": 0.9693838,
+      "dense": 0.6583223735286232,
+      "lexical_hits": 8,
+      "spread": 1.0961622365418178,
+      "took_ms": 746,
+      "degraded": false
+    },
+    {
+      "id": "cross-payroll-and-return",
+      "kind": "answerable",
+      "question": "Which document states employer withholding rates, and which explains the individual return?",
+      "hits": 8,
+      "rerank": 0.02724595,
+      "dense": 0.6158068180084229,
+      "lexical_hits": 8,
+      "spread": 0.9471944052348569,
+      "took_ms": 942,
+      "degraded": false
+    },
+    {
+      "id": "table-attention-bleu",
+      "kind": "answerable",
+      "question": "What BLEU score did the big Transformer reach on English-to-German?",
+      "hits": 8,
+      "rerank": 0.9998253,
+      "dense": 0.6076217165444279,
+      "lexical_hits": 8,
+      "spread": 1.1674882494554626,
+      "took_ms": 945,
+      "degraded": false
+    },
+    {
+      "id": "table-attention-training-cost",
+      "kind": "answerable",
+      "question": "How does the Transformer's training cost compare with GNMT+RL?",
+      "hits": 8,
+      "rerank": 0.98423463,
+      "dense": 0.6248575001785159,
+      "lexical_hits": 8,
+      "spread": 1.1536317322230583,
+      "took_ms": 886,
+      "degraded": false
+    },
+    {
+      "id": "table-irs-medicare",
+      "kind": "answerable",
+      "question": "What is the Medicare tax rate on wages?",
+      "hits": 8,
+      "rerank": 0.84698045,
+      "dense": 0.7412227613098256,
+      "lexical_hits": 8,
+      "spread": 1.07519954004329,
+      "took_ms": 829,
+      "degraded": false
+    },
+    {
+      "id": "table-boe-cpi",
+      "kind": "answerable",
+      "question": "What does the report project for CPI inflation?",
+      "hits": 8,
+      "rerank": 0.9401961,
+      "dense": 0.6906789086630563,
+      "lexical_hits": 8,
+      "spread": 1.0040364963008674,
+      "took_ms": 805,
+      "degraded": false
+    },
+    {
+      "id": "table-form-1040-status",
+      "kind": "answerable",
+      "question": "What filing statuses does Form 1040 offer?",
+      "hits": 8,
+      "rerank": 0.9409027,
+      "dense": 0.5742565304927234,
+      "lexical_hits": 7,
+      "spread": 1.0332709523937287,
+      "took_ms": 886,
+      "degraded": false
+    },
+    {
+      "id": "identifier-catalog-number",
+      "kind": "answerable",
+      "question": "What is Catalog Number 10000W?",
+      "hits": 8,
+      "rerank": 0.4466083,
+      "dense": 0.46628322996397276,
+      "lexical_hits": 5,
+      "spread": 1.7439024390243902,
+      "took_ms": 967,
+      "degraded": false
+    },
+    {
+      "id": "identifier-omb-number",
+      "kind": "answerable",
+      "question": "Which form carries OMB No. 1545-0074?",
+      "hits": 8,
+      "rerank": 0.90000296,
+      "dense": null,
+      "lexical_hits": 7,
+      "spread": 1.0491803278688525,
+      "took_ms": 1006,
+      "degraded": false
+    },
+    {
+      "id": "identifier-regulation-2016-679",
+      "kind": "answerable",
+      "question": "What is Regulation (EU) 2016/679?",
+      "hits": 8,
+      "rerank": 0.99496424,
+      "dense": 0.6382296655979457,
+      "lexical_hits": 3,
+      "spread": 1.0,
+      "took_ms": 785,
+      "degraded": false
+    },
+    {
+      "id": "identifier-regulation-2022-2065",
+      "kind": "answerable",
+      "question": "What is Regulation (EU) 2022/2065?",
+      "hits": 8,
+      "rerank": 0.99987054,
+      "dense": 0.6014471887679594,
+      "lexical_hits": 6,
+      "spread": 1.0256912160508933,
+      "took_ms": 862,
+      "degraded": false
+    },
+    {
+      "id": "identifier-oj-page",
+      "kind": "answerable",
+      "question": "What is on Official Journal page L 119/33?",
+      "hits": 8,
+      "rerank": 0.9944759,
+      "dense": null,
+      "lexical_hits": 8,
+      "spread": 1.6703296703296702,
+      "took_ms": 946,
+      "degraded": false
+    },
+    {
+      "id": "unanswerable-messi",
+      "kind": "unanswerable",
+      "question": "How many goals did Messi score in the 2012 calendar year?",
+      "hits": 8,
+      "rerank": 0.12772977,
+      "dense": 0.42789652943611456,
+      "lexical_hits": 4,
+      "spread": 1.0161290322580645,
+      "took_ms": 1161,
+      "degraded": false
+    },
+    {
+      "id": "unanswerable-recipe",
+      "kind": "unanswerable",
+      "question": "What temperature should the oven be for a Spanish tortilla?",
+      "hits": 8,
+      "rerank": 0.000327201,
+      "dense": 0.4496491163341618,
+      "lexical_hits": 8,
+      "spread": 1.0838709677419356,
+      "took_ms": 710,
+      "degraded": false
+    },
+    {
+      "id": "unanswerable-paternity-days",
+      "kind": "unanswerable",
+      "question": "¿Cuántos días de permiso por paternidad reconoce el convenio colectivo de banca?",
+      "hits": 8,
+      "rerank": 0.054511007,
+      "dense": 0.5830409526824951,
+      "lexical_hits": 6,
+      "spread": 1.0161290322580645,
+      "took_ms": 901,
+      "degraded": false
+    },
+    {
+      "id": "unanswerable-gdpr-fine-amount",
+      "kind": "unanswerable",
+      "question": "What fine did the Spanish supervisory authority impose on Vodafone under the GDPR?",
+      "hits": 8,
+      "rerank": 0.13212454,
+      "dense": 0.5350402316475062,
+      "lexical_hits": 5,
+      "spread": 1.3775401069518718,
+      "took_ms": 825,
+      "degraded": false
+    },
+    {
+      "id": "unanswerable-reform-2027",
+      "kind": "unanswerable",
+      "question": "¿Qué cambió la reforma del Estatuto de los Trabajadores de 2027 sobre la jornada?",
+      "hits": 8,
+      "rerank": 0.072825514,
+      "dense": 0.5340515534297154,
+      "lexical_hits": 5,
+      "spread": 1.0163934426229508,
+      "took_ms": 1196,
+      "degraded": false
+    },
+    {
+      "id": "unanswerable-pricing",
+      "kind": "unanswerable",
+      "question": "How much does a Zenith Enterprise licence cost per seat?",
+      "hits": 8,
+      "rerank": 0.014107624,
+      "dense": 0.4435585073898475,
+      "lexical_hits": 5,
+      "spread": 1.0163934426229508,
+      "took_ms": 905,
+      "degraded": false
+    },
+    {
+      "id": "unanswerable-future-rate",
+      "kind": "unanswerable",
+      "question": "What Bank Rate did the Monetary Policy Committee set in February 2027?",
+      "hits": 8,
+      "rerank": 0.9996146,
+      "dense": 0.6619744498126118,
+      "lexical_hits": 7,
+      "spread": 1.1206454918032789,
+      "took_ms": 912,
+      "degraded": false
+    },
+    {
+      "id": "unanswerable-quantum",
+      "kind": "unanswerable",
+      "question": "Which GDPR article governs quantum computing?",
+      "hits": 8,
+      "rerank": 0.038016394,
+      "dense": 0.5521571307088743,
+      "lexical_hits": 4,
+      "spread": 1.0163934426229508,
+      "took_ms": 708,
+      "degraded": false
+    },
+    {
+      "id": "unanswerable-tungsten",
+      "kind": "unanswerable",
+      "question": "What is the melting point of tungsten in degrees Celsius?",
+      "hits": 8,
+      "rerank": 0.0015236485,
+      "dense": 0.46053200254416593,
+      "lexical_hits": 4,
+      "spread": 0.9682539682539681,
+      "took_ms": 712,
+      "degraded": false
+    },
+    {
+      "id": "unanswerable-headcount",
+      "kind": "unanswerable",
+      "question": "How many people does the company that published the RAG paper employ today?",
+      "hits": 8,
+      "rerank": 0.0024600928,
+      "dense": 0.5219947255252222,
+      "lexical_hits": 8,
+      "spread": 1.0280231954647077,
+      "took_ms": 981,
+      "degraded": false
+    }
+  ]
+}
