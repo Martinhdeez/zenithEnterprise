@@ -7,10 +7,15 @@
 """What the vector index costs per passage, and what shrinking it costs in recall.
 
 The HNSW index is the structural ceiling on how much corpus one installation can hold.
-Measured here rather than assumed: `ix_chunk_embeddings_hnsw` is ~8,940 bytes per vector for
+Measured here rather than assumed: the production index was ~8,940 bytes per vector for
 `vector(1024)` at `m=16, ef_construction=64`, and HNSW wants to be resident. At this corpus's
 measured passages-per-document that is thousands of gigabytes at a million documents, which
 is the number that decides whether the product runs on an enterprise server or does not.
+
+**This sweep is what migration 0025 was decided on, and it still runs after it.** The
+installation's index is now `halfvec_cosine_ops` on `embedding_half`, so the `fp16` row below
+is the deployed representation and `fp32` is the baseline it replaced. The fp32 and binary
+arms are still built here, on scratch copies, because the comparison is the report.
 
 pgvector 0.8 offers two smaller representations, and this sweeps both against the fp32 index
 they would replace:
@@ -560,9 +565,20 @@ async def _run(subsets: tuple[int, ...]) -> int:
                 await conn.execute(text("SELECT count(DISTINCT document_id), count(*) FROM chunks"))
             ).one()
             documents, chunks = int(counted[0]), int(counted[1])
+            # `to_regclass` rather than a bare name: the production index is
+            # `ix_chunk_embeddings_hnsw_half` from migration 0025 and was
+            # `ix_chunk_embeddings_hnsw` before it, and this sweep has to run either side of
+            # that migration — it is what decides whether to apply it. A hard-coded name
+            # would make the report fail on exactly the installation it is measuring.
             production_index_bytes = int(
                 (
-                    await conn.execute(text("SELECT pg_relation_size('ix_chunk_embeddings_hnsw')"))
+                    await conn.execute(
+                        text(
+                            "SELECT coalesce(pg_relation_size(to_regclass("
+                            "'ix_chunk_embeddings_hnsw_half')), "
+                            "pg_relation_size(to_regclass('ix_chunk_embeddings_hnsw')), 0)"
+                        )
+                    )
                 ).scalar_one()
             )
 
@@ -597,10 +613,13 @@ async def _run(subsets: tuple[int, ...]) -> int:
                 "production_index_bytes": production_index_bytes,
                 "production_bytes_per_vector": round(production_index_bytes / chunks, 1),
                 "freshly_built_bytes_per_vector": baseline,
-                "production_bloat_note": (
-                    "The live index is larger per vector than a freshly built one of the "
-                    "same parameters. The difference is ingestion churn, not representation, "
-                    "and every ratio below is fresh-against-fresh."
+                "production_note": (
+                    "`production_bytes_per_vector` is the live index, which is fp16 since "
+                    "migration 0025 and therefore comparable to the `fp16` arm below rather "
+                    "than to `freshly_built_bytes_per_vector` — that is the fp32 baseline "
+                    "every ratio here is taken against. A live index carrying ingestion "
+                    "churn reads larger per vector than a freshly built one of the same "
+                    "representation, which is why every ratio below is fresh-against-fresh."
                 ),
             },
             "bytes_per_vector": bytes_per_vector,

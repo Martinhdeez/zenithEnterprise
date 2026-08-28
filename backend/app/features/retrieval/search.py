@@ -142,6 +142,18 @@ async def dense(
     Restricted to one embedding space. `embedding_spaces` exists so several can coexist
     during a reindex (RNF-08), and vectors from two models are not comparable — a query that
     forgot this filter would rank across incompatible spaces and return confident nonsense.
+
+    **The query vector is cast to `halfvec(1024)`, and that cast is load-bearing.** Since
+    migration 0025 the HNSW index is on `embedding_half`, the fp16 representation — three
+    times smaller per vector at index recall 1.0000 against exact, measured in
+    `eval/quantisation.json`. An operator class covers one type: cast the query to `vector`
+    and the distance expression no longer matches the index, so the planner falls back to a
+    sequential scan over the whole corpus and everything above still returns the right rows,
+    slower and more slowly the bigger the corpus gets. Nothing degrades, nothing is marked
+    `degraded`, and no test can see it — a seeded corpus is far too small for the planner to
+    prefer an index either way. The only check that means anything is `EXPLAIN` against a real
+    installation, which is where this was verified:
+    `Index Scan using ix_chunk_embeddings_hnsw_half on chunk_embeddings e`.
     """
     if ef_search:
         # A per-session knob, and a speed/recall trade, which is why the value comes from
@@ -200,13 +212,18 @@ async def dense(
         text(
             # Reported as *similarity* rather than distance, so both score columns in
             # `query_citations` read the same way round: bigger is better.
-            "SELECT c.id, 1 - (e.embedding <=> CAST(:embedding AS vector)) AS score "
+            #
+            # Scored from the same expression it is ordered by, rather than from the fp32
+            # column beside it. Two expressions would mean `score_vector` disagreeing with
+            # the order the row came back in — and reading `embedding` per row would detoast
+            # 4 KB the query has no other use for.
+            "SELECT c.id, 1 - (e.embedding_half <=> CAST(:embedding AS halfvec(1024))) AS score "
             "FROM chunk_embeddings e "
             # Not decoration: `chunk_embeddings` is filtered by tenant only, so this join is
             # where label isolation is enforced for the dense half.
             "JOIN chunks c ON c.id = e.chunk_id "
             f"{scoped(space, documents)} "
-            "ORDER BY e.embedding <=> CAST(:embedding AS vector) LIMIT :limit"
+            "ORDER BY e.embedding_half <=> CAST(:embedding AS halfvec(1024)) LIMIT :limit"
         ),
         {
             "model": model,
