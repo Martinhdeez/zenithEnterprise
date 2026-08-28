@@ -112,7 +112,12 @@ describe("marking the open result", () => {
 
     fireEvent.click(cards()[1]!);
 
-    expect(onCitation).toHaveBeenCalledWith(expect.objectContaining({ chunk_id: "two" }));
+    // The question travels with the citation, so the panel it opens can start a
+    // conversation without asking the reader to type what they just searched for.
+    expect(onCitation).toHaveBeenCalledWith(
+      expect.objectContaining({ chunk_id: "two" }),
+      "severance",
+    );
   });
 });
 
@@ -265,7 +270,10 @@ describe("the source opens on its own", () => {
   it("opens the best passage without waiting to be clicked", async () => {
     const { onCitation } = await run(null);
 
-    expect(onCitation).toHaveBeenCalledWith(expect.objectContaining({ chunk_id: "one" }));
+    expect(onCitation).toHaveBeenCalledWith(
+      expect.objectContaining({ chunk_id: "one" }),
+      "severance",
+    );
   });
 
   it("opens the top result and nothing else", async () => {

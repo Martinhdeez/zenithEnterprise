@@ -16,6 +16,7 @@
  * `- fact [2]` — composes correctly instead of the two systems fighting over the same text.
  */
 
+import { copy } from "@/shared/lib/clipboard";
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
@@ -213,7 +214,9 @@ function Actions({ answer, result }: { answer: string; result: QueryResult }) {
     <button
       type="button"
       onClick={() => {
-        void navigator.clipboard.writeText(transcript(answer, result));
+        // Guarded, because this installation is often plain HTTP and `navigator.clipboard`
+        // does not exist there — this line used to throw.
+        void copy(transcript(answer, result));
         setCopied(true);
         // Long enough to be read, short enough that the button is ready again before
         // somebody wants it twice.

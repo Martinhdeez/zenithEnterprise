@@ -9,7 +9,10 @@
 
 import { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import {
+  ArrowLeft,
   Building2,
+  Check,
+  Copy,
   Folder as FolderIcon,
   History as HistoryIcon,
   Maximize2,
@@ -55,6 +58,7 @@ import { CommandPalette } from "@/shared/ui/CommandPalette";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { forget, read, write } from "@/shared/lib/storage";
+import { copy } from "@/shared/lib/clipboard";
 
 // Lazily loaded, and for a measured reason: `pdf.js` is roughly 1.4 MB of worker plus its
 // own runtime, and none of it is needed until someone clicks a citation. F11 made
@@ -117,7 +121,6 @@ function capitalise(name: string): string {
 function viewLabel(view: string, t: T): string {
   switch (view) {
     case "search": return t("Search");
-    case "chat": return t("Chat");
     case "folders": return t("Folders");
     case "upload": return t("Upload");
     case "history": return t("History");
@@ -312,6 +315,23 @@ export function App() {
   const [status, setStatus] = useState<TenantStatus | null>(null);
   const [me, setMe] = useState<UserProfile | null>(null);
   const [citation, setCitation] = useState<Citation | null>(null);
+  // The question that opened the citation, and whether its conversation is showing.
+  //
+  // Held beside the citation rather than inside it: `Citation` is the shape the server
+  // sends for a passage, and the question is something this client knows and the server
+  // never said. A document opened from the command palette has no question, which is why
+  // this is nullable and why the button that starts a conversation is disabled without it.
+  const [askQuestion, setAskQuestion] = useState<string | null>(null);
+  // Two facts, not one. `started` is whether a conversation exists for this document;
+  // `panel` is which of the two the user is looking at. Collapsing them into one boolean
+  // would unmount the conversation every time somebody stepped back to the results through
+  // the breadcrumb — and a remounted conversation re-asks, which spends a generation the
+  // user did not request and replaces the thread they were reading.
+  const [started, setStarted] = useState(false);
+  // Two seconds of "Copied", then back. A copy button with no acknowledgement leaves the
+  // user to test it by pasting somewhere, which defeats the point of the shortcut.
+  const [copied, setCopied] = useState(false);
+  const [panel, setPanel] = useState<"results" | "conversation">("results");
   // A plain union rather than a router. Four screens with no deep links and no back-button
   // expectations do not need one, and a router would be the largest dependency in the
   // bundle for a product whose first screen must render fast on a busy box.
@@ -324,7 +344,7 @@ export function App() {
   // Search is the landing screen, not Chat: it is the one screen that shows what the
   // retrieval mechanism actually did, and that is the more useful first thing to see than
   // an empty ask box — Chat is one click away in the same nav, never removed.
-  const [view, setView] = useState<"chat" | "search" | "folders" | "upload" | "history" | "admin" | "system" | "profile">(
+  const [view, setView] = useState<"search" | "folders" | "upload" | "history" | "admin" | "system" | "profile">(
     "search",
   );
   // Owned here, not inside `Folders`, so the breadcrumb in the main header can show *and*
@@ -568,7 +588,6 @@ export function App() {
             {(
               [
                 { name: "search", icon: SearchIcon },
-                { name: "chat", icon: MessageSquare },
                 { name: "folders", icon: FolderIcon },
                 { name: "upload", icon: UploadIcon },
                 { name: "history", icon: HistoryIcon },
@@ -731,7 +750,7 @@ export function App() {
           },
           ask: (question) => {
             setPrefill({ text: question, nonce: Date.now() });
-            open("chat");
+            open("search");
           },
         }}
       />
@@ -762,7 +781,7 @@ export function App() {
                       : "font-medium text-foreground"
                   }
                 >
-                  Folders
+                  {t("Folders")}
                 </button>
                 {folderSelection && (
                   <>
@@ -782,12 +801,46 @@ export function App() {
               // The page's actual title, so it is the page's `h1`. It was a `span`, and the
               // whole application had zero `h1` elements — no outline for a screen reader,
               // and nowhere for a typographic hierarchy to attach. One cause, one fix.
-              <h1 className="text-[15px] font-medium text-foreground">{viewLabel(view, t)}</h1>
+              // Three segments while a conversation is open, one otherwise. The same
+              // grammar the folder path above uses — clickable segment, muted separator,
+              // current segment in `font-medium` — rather than a second breadcrumb with its
+              // own rules sitting on the same bar.
+              started && panel === "conversation" && view === "search" ? (
+                <>
+                  {/* An arrow as well as the breadcrumb, and not a duplicate of it. The path
+                      says where you are; this says how to leave, which is the thing somebody
+                      reaches for without reading. */}
+                  <button
+                    type="button"
+                    onClick={() => setPanel("results")}
+                    aria-label={t("Back to the results")}
+                    title={t("Back to the results")}
+                    className="-ml-1 mr-1 rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground"
+                  >
+                    <ArrowLeft className="size-4" />
+                  </button>
+                  {/* The one name this application owns, and the one segment that is never
+                      translated. */}
+                  <span className="text-muted-foreground">Zenith</span>
+                  <span className="text-muted-foreground/50">/</span>
+                  <button
+                    type="button"
+                    onClick={() => setPanel("results")}
+                    className="text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    {t("Search")}
+                  </button>
+                  <span className="text-muted-foreground/50">/</span>
+                  <h1 className="text-[15px] font-medium text-foreground">{t("Chat")}</h1>
+                </>
+              ) : (
+                <h1 className="text-[15px] font-medium text-foreground">{viewLabel(view, t)}</h1>
+              )
             )}
             {/* Only Chat and Search actually read `folder` — shown only there, so a filter
                 picked up in Folders doesn't look like it's still following you into Admin
                 or History, where it does nothing. */}
-            {folder && (view === "chat" || view === "search") && (
+            {folder && view === "search" && (
               <button
                 type="button"
                 onClick={() => setFolderSelection(null)}
@@ -803,17 +856,7 @@ export function App() {
               input pinned below it, the way every chat interface this is modelled on does
               — so it gets the bare `overflow-hidden` box that layout requires and none of
               the padding or scrolling every other view here still wants from `main`. */}
-          {view === "chat" ? (
-            <div className="flex-1 overflow-hidden rounded-b-xl bg-card">
-              <Chat
-                token={token}
-                onCitation={setCitation}
-                searchable={status?.searchable ?? true}
-                labels={folder ? [folder] : undefined}
-                prefill={prefill}
-              />
-            </div>
-          ) : (
+          {(
             <main className="flex-1 overflow-auto rounded-b-xl bg-card">
             {/* Every screen is centred and capped here rather than each one setting its own
                 width. They used to carry a `max-w-*` and no `mx-auto`, which pinned them to
@@ -829,10 +872,28 @@ export function App() {
                 it can have, and cramming one into a reading measure is what produces the
                 columns nobody can read. */}
             <div className={`mx-auto w-full p-6 ${measure(view)}`}>
+            {/* Kept mounted, not unmounted, while its conversation is showing.
+                `Search` owns its results, its query and its resolved filenames in its own
+                state, so `{view === "search" && <Search/>}` destroyed all of it the moment
+                the panel switched — and the breadcrumb above promises the opposite: that
+                going back lands on the results you had, ready to pick a different passage.
+                Hiding costs a subtree that stays rendered; for fifty passages that is not a
+                cost worth designing around. Lifting the state into this component instead
+                would move five pieces of state and their effects into the largest file in
+                the tree. */}
             {view === "search" && (
+              <div className={panel === "conversation" ? "hidden" : undefined}>
               <Search
                 token={token}
-                onCitation={setCitation}
+                onCitation={(next, question) => {
+                  setCitation(next);
+                  setAskQuestion(question);
+                  // A new document ends the previous conversation rather than silently
+                  // re-pointing it: the thread that was on screen was about a different
+                  // file, and carrying it over would attribute its answers to this one.
+                  setStarted(false);
+                  setPanel("results");
+                }}
                 // Which result the viewer is showing, so the list can mark it. Read from
                 // the citation rather than tracked inside `Search`: closing the viewer sets
                 // this to null, and a copy kept in the list would stay lit over a panel
@@ -845,7 +906,29 @@ export function App() {
                 // visible, so it gets both the name and the way out.
                 filterName={folderSelection?.name ?? null}
                 onClearFilter={() => setFolderSelection(null)}
+                prefill={prefill}
               />
+              </div>
+            )}
+            {/* Mounted from the moment the conversation is started and hidden — never
+                unmounted — for the same reason `Search` is: it holds the thread, and the
+                breadcrumb is a way to look away from it, not a way to end it. */}
+            {/* The same `Chat` the product has always had — composer, stop control, thread,
+                empty states — given a document to be about. A second chat interface built
+                beside it would drift from this one on the first change to either. */}
+            {view === "search" && started && citation && askQuestion !== null && (
+              <div className={panel === "conversation" ? undefined : "hidden"}>
+                <Chat
+                  token={token}
+                  onCitation={setCitation}
+                  searchable={status?.searchable ?? true}
+                  anchor={{
+                    documentId: citation.document_id,
+                    filename: citation.filename,
+                    question: askQuestion,
+                  }}
+                />
+              </div>
             )}
             {view === "folders" && (
               <Folders
@@ -876,7 +959,7 @@ export function App() {
                 token={token}
                 onAsk={(question) => {
                   setPrefill({ text: question, nonce: Date.now() });
-                  open("chat");
+                  open("search");
                 }}
               />
             )}
@@ -924,8 +1007,72 @@ export function App() {
                 name and page directly below this one, and putting it here too showed it
                 twice, stacked. This bar is the panel's chrome — what it is and how to get
                 rid of it — and the document identifies itself. */}
-            Document preview
+            {t("Document preview")}
             <span className="flex shrink-0 items-center">
+              {/* The passage, not the page. `citation.text` is exactly the span the viewer
+                  highlights, so this is the sentence somebody just read and wants to quote —
+                  and getting it out of a PDF by hand is a selection across a text layer that
+                  fights back. */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                disabled={!citation?.text}
+                aria-label={copied ? t("Copied") : t("Copy the highlighted passage")}
+                title={copied ? t("Copied") : t("Copy the highlighted passage")}
+                onClick={() => {
+                  if (!citation?.text) return;
+                  void copy(citation.text).then((ok) => {
+                    // Only on success. Saying "Copied" when the clipboard refused is the
+                    // failure this button exists to make impossible.
+                    if (!ok) return;
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  });
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+              </Button>
+              {/* First, because it is the only control here that belongs to the *document*
+                  rather than to the panel — the two beside it resize and close the frame.
+                  Disabled rather than hidden when there is no question to ask (a document
+                  opened from the palette or the library): a control that appears and
+                  disappears is harder to learn than one that is visibly unavailable, and the
+                  reason travels in its title. */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                disabled={askQuestion === null}
+                aria-label={t("Ask about this document")}
+                title={
+                  askQuestion === null
+                    ? t("Open a document from a search to ask about it")
+                    : t("Ask about this document")
+                }
+                onClick={() => {
+                  // A toggle, not a one-way door. Pressing it again is the shortest way back
+                  // to the results, and a control that only ever does half a thing is one the
+                  // reader has to remember the other half of.
+                  if (panel === "conversation") {
+                    setPanel("results");
+                    return;
+                  }
+                  setStarted(true);
+                  setPanel("conversation");
+                  // `setView`, never `open`. `open` closes the preview — correct for the
+                  // nav, where a PDF left beside the admin panel refers to nothing on
+                  // screen, and exactly wrong here: this conversation is *about* the open
+                  // document, and the whole screen is the answer next to its source. Using
+                  // `open` closed the document in the same click that started talking about
+                  // it, which left the panel with nothing to render at all.
+                  setView("search");
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <MessageSquare className="size-4" />
+              </Button>
               <Button
                 type="button"
                 variant="ghost"
@@ -944,6 +1091,11 @@ export function App() {
                 onClick={() => {
                   setCitation(null);
                   setPdfExpanded(false);
+                  // The conversation was about the document being closed. Leaving it on
+                  // screen would leave answers with no source beside them to check.
+                  setStarted(false);
+                  setPanel("results");
+                  setAskQuestion(null);
                 }}
                 className="text-muted-foreground hover:text-foreground"
               >

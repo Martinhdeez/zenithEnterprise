@@ -179,9 +179,22 @@ interface Props {
    * a repeated question, so this effect fires again instead of seeing an unchanged prop.
    */
   prefill?: { text: string; nonce: number } | null;
+  /**
+   * The document this conversation is about, when it was opened from one.
+   *
+   * Anchored means anchored: the scope stops being read from `@` mentions and becomes this
+   * one file, for the first turn and every follow-up. A thread that quietly widened to the
+   * corpus while the line above it still named one document would be wrong in the one way
+   * nothing else here could catch — retrieval would return good passages from elsewhere and
+   * their citations would validate.
+   *
+   * `question` is what the user searched for. It is asked on their behalf so they do not
+   * retype what they just typed.
+   */
+  anchor?: { documentId: string; filename: string; question: string } | null;
 }
 
-export function Chat({ token, onCitation, searchable, labels, prefill }: Props) {
+export function Chat({ token, onCitation, searchable, labels, prefill, anchor }: Props) {
   const t = useT();
   const [state, dispatch] = useReducer(reduce, INITIAL);
   // Every turn before the live one — pushed the moment a *new* question starts, not when
@@ -226,6 +239,9 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
   // Deleting `@handbook.pdf` from the box has to un-scope the question, and a separate list
   // of chips would have to be kept in step with the words by hand — which is the bug where
   // an answer is quietly restricted to a document the user cannot see mentioned anywhere.
+  // The anchor wins over the mentions. When a conversation is about one document, the `@`
+  // gesture has nothing left to choose between — and letting a mention widen it would be
+  // the silent widening this whole screen exists to prevent.
   const scope = mentioned(question, known);
 
   const pick = useCallback(
@@ -273,7 +289,7 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
             labels,
             signal: controller.signal,
             history: asThread(thread),
-            documents: scope.map((document) => document.id),
+            documents: anchor ? [anchor.documentId] : scope.map((document) => document.id),
           },
         );
       } catch (error) {
@@ -320,6 +336,17 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefill?.nonce]);
 
+  // The first turn of an anchored conversation, asked once per document. Keyed on the id
+  // rather than a nonce because there is nothing to repeat: opening the same document again
+  // is the same conversation, and re-asking would spend a generation nobody requested.
+  const opened = useRef<string | null>(null);
+  useEffect(() => {
+    if (!anchor || opened.current === anchor.documentId) return;
+    opened.current = anchor.documentId;
+    void ask(anchor.question);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anchor?.documentId]);
+
   // Follows the bottom of the thread as it grows — a new question, a streaming token, a
   // finished turn — the way every chat interface this is modelled on does. Not smooth: a
   // token arriving every few dozen milliseconds would fight a CSS transition for the same
@@ -343,6 +370,14 @@ export function Chat({ token, onCitation, searchable, labels, prefill }: Props) 
 
   return (
     <div className="flex h-full flex-col">
+      {/* Said once, and only when the thread is bounded. Without it an abstention reads as
+          "the corpus does not know" when what it means is "this document does not say" —
+          two different facts, and the reader cannot tell them apart from the answer alone. */}
+      {anchor && (
+        <p className="shrink-0 px-4 pt-3 text-xs text-muted-foreground">
+          {t("Answering from {filename} only.", { filename: anchor.filename })}
+        </p>
+      )}
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-3xl space-y-6 px-6 py-6 2xl:max-w-4xl">
         {empty && <EmptyState token={token} onAsk={(asked) => void ask(asked)} />}

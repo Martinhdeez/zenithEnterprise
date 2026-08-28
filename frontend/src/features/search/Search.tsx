@@ -26,7 +26,23 @@ import { useT } from "@/shared/i18n/useT";
 
 interface Props {
   token: string;
-  onCitation: (citation: Citation) => void;
+  /**
+   * A question sent here from somewhere else — the command palette, or "ask again" in
+   * History. Both used to open Chat; with that destination gone they run a search instead,
+   * which is the honest translation: the question is the query.
+   *
+   * `nonce` is the trigger rather than `text`, so clicking the same past question twice
+   * runs it twice. Identity-equal text would not.
+   */
+  prefill?: { text: string; nonce: number } | null;
+  /**
+   * Opening a result, and the question that found it.
+   *
+   * The question travels with the citation because the panel it opens can start a
+   * conversation about that document, and re-typing what you just searched for is the
+   * seam this feature exists to remove.
+   */
+  onCitation: (citation: Citation, question: string) => void;
   /**
    * The chunk the PDF panel is currently showing, or null when it is closed.
    *
@@ -132,6 +148,7 @@ export function Search({
   onSelectTag,
   filterName,
   onClearFilter,
+  prefill,
 }: Props) {
   const t = useT();
   // Resolved from what this caller reaches; an unknown id belongs to a label they see the
@@ -197,7 +214,7 @@ export function Search({
         //
         // The top hit only. Opening anything else would be choosing for the reader.
         const best = result.hits[0];
-        if (best) onCitation(citationOf(best, 0));
+        if (best) onCitation(citationOf(best, 0), q);
       } catch (error) {
         // An abort is the user cancelling, not a failure — `cancel` below already put the
         // state back to idle, and overwriting that with an error would fight it.
@@ -222,6 +239,16 @@ export function Search({
       <p className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">{t("There are no documents to search yet. Upload one to get started.")}</p>
     );
   }
+
+  // A question routed here from the palette or from History. Mirrors what `Chat` did with
+  // the same value, for the same reason: the nonce is the trigger, so asking the same past
+  // question twice runs it twice.
+  useEffect(() => {
+    if (!prefill) return;
+    setQuery(prefill.text);
+    void run(prefill.text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill?.nonce]);
 
   const busy = state.phase === "loading";
 
@@ -387,7 +414,7 @@ export function Search({
               <li key={hit.chunk_id}>
                 <button
                   type="button"
-                  onClick={() => onCitation(citationOf(hit, index))}
+                  onClick={() => onCitation(citationOf(hit, index), state.query)}
                   // Announced, not just drawn. Colour alone would leave somebody on a
                   // screen reader — or anybody who cannot separate these two greys — with
                   // no way to tell which result is open.
