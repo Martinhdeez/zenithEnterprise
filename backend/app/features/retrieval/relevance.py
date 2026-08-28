@@ -89,7 +89,35 @@ FLOOR = 0.02
 WEAK_CEILING = 0.15
 
 
-def classify(top_rerank: float | None) -> Relevance:
+#: The share of returned passages the lexical half had to match for the corpus to be credited
+#: with having *anything* on the subject.
+#:
+#: The second signal, and it earns its place where the reranker fails. A cross-encoder is
+#: trained on question-passage pairs, so a bare keyword query is outside what it can judge:
+#: `Messi` scores 0.1841 and `What is Bank Rate` — a question this corpus answers — scores
+#: 0.2335. **The nonsense outranks the real question.** No threshold on that signal alone can
+#: separate them, which is why there are two.
+#:
+#: Lexical coverage does separate them. Measured over 41 questions: the answerable ones match
+#: on no fewer than **0.375** of what they return, the negatives no more than **0.25**.
+#: `Messi` matches nothing at all.
+#:
+#: The reasoning is not statistical. If no passage in the archive contains the words, the
+#: archive is not about them — a fact about the corpus rather than a judgement about
+#: relevance, which is exactly what the reranker cannot supply.
+#:
+#: **A share rather than a count**, and that is not a detail: an absolute floor of three
+#: assumes eight results came back. A narrow search, a small corpus or a document-scoped
+#: question legitimately returns two, and judging those by the same number rejects them for
+#: being short.
+MIN_LEXICAL_SHARE = 1 / 3
+
+
+def classify(
+    top_rerank: float | None,
+    lexical_hits: int | None = None,
+    returned: int | None = None,
+) -> Relevance:
     """What the best passage's cross-encoder score says about the whole result set.
 
     The best one only. A set where the top passage plainly answers the question is a good
@@ -103,6 +131,12 @@ def classify(top_rerank: float | None) -> Relevance:
     outcome — and a screen that says "nothing matches" on one machine and returns eight
     passages on another is that rule broken.
     """
+    # Checked before the reranker, and independently of it. The two say different things: a
+    # low score is "no passage looks like an answer", an empty lexical half is "no passage
+    # contains the words". The second holds even where the first is unusable, which is the
+    # keyword query — and it holds when there is no reranker at all.
+    if lexical_hits is not None and returned and lexical_hits / returned < MIN_LEXICAL_SHARE:
+        return Relevance.NONE
     if top_rerank is None:
         return Relevance.CONFIDENT
     if top_rerank < FLOOR:

@@ -79,3 +79,46 @@ class TestReadingTheSet:
         # what ranking is for.
         assert best_rerank([0.99, 0.01, None, 0.02]) == 0.99
         assert classify(best_rerank([0.99, 0.01, None, 0.02])) is Relevance.CONFIDENT
+
+
+class TestTheLexicalRule:
+    """The second signal, and the one that catches what the reranker cannot.
+
+    A cross-encoder is trained on question-passage pairs, so a bare keyword query is outside
+    what it can judge: `Messi` scores 0.1841 while `What is Bank Rate` — a question this
+    corpus answers — scores 0.2335. The nonsense outranks the real question. No threshold on
+    that signal alone separates them, and this is why there are two.
+    """
+
+    def test_a_corpus_with_none_of_the_words_is_not_about_them(self) -> None:
+        # `Messi`: 0 lexically-matched passages, and a rerank score high enough to have
+        # passed as confident on its own.
+        assert classify(0.1841, lexical_hits=0, returned=8) is Relevance.NONE
+
+    def test_two_matches_out_of_eight_is_still_nothing(self) -> None:
+        # `cuantos goles marco Messi en 2012`, the form a person actually types: 0.3096 and
+        # two matches. The year finds tax tables; nothing finds Messi.
+        assert classify(0.3096, lexical_hits=2, returned=8) is Relevance.NONE
+
+    def test_a_real_question_the_reranker_scored_low_survives(self) -> None:
+        # `What is Bank Rate`, 0.2335 with all eight passages matching lexically. Scored
+        # *below* the Messi query by the cross-encoder and rescued by the corpus containing
+        # the words — which is the whole point of reading both.
+        assert classify(0.2335, lexical_hits=8, returned=8) is Relevance.CONFIDENT
+
+    def test_the_lowest_coverage_among_real_questions_is_kept(self) -> None:
+        # The thinnest answerable question matches 3 of 8 — 0.375, above the third. The
+        # margin to the negatives at 0.25 is real but narrow, and this is what holds it.
+        assert classify(0.9, lexical_hits=3, returned=8) is not Relevance.NONE
+
+    def test_a_short_result_set_is_not_rejected_for_being_short(self) -> None:
+        # A share rather than a count, and this is why: a narrow search or a
+        # document-scoped question legitimately returns two passages. Both matching is full
+        # coverage, and an absolute floor of three would have thrown it away.
+        assert classify(0.9, lexical_hits=2, returned=2) is Relevance.CONFIDENT
+
+    def test_it_holds_without_a_reranker(self) -> None:
+        # `low-spec` runs none. "No passage contains the words" is a fact about the corpus,
+        # not a judgement about relevance, so it is still true when the judge is absent.
+        assert classify(None, lexical_hits=0, returned=8) is Relevance.NONE
+        assert classify(None, lexical_hits=8, returned=8) is Relevance.CONFIDENT

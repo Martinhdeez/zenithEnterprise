@@ -1,6 +1,6 @@
 {
   "answerable_questions": 30,
-  "unanswerable_questions": 11,
+  "unanswerable_questions": 12,
   "degraded_runs": 0,
   "signals": {
     "rerank": {
@@ -11,7 +11,7 @@
       },
       "unanswerable": {
         "low": 0.038,
-        "median": 0.1277,
+        "median": 0.1003,
         "high": 0.9996
       },
       "separates": false,
@@ -24,8 +24,8 @@
         "high": 0.7598
       },
       "unanswerable": {
-        "low": 0.3904,
-        "median": 0.535,
+        "low": 0.4279,
+        "median": 0.5436,
         "high": 0.662
       },
       "separates": false,
@@ -38,7 +38,7 @@
         "high": 1.9702
       },
       "unanswerable": {
-        "low": 0.9683,
+        "low": 1.0161,
         "median": 1.0164,
         "high": 1.3775
       },
@@ -56,7 +56,7 @@
       "dense": 0.7598494970663963,
       "lexical_hits": 8,
       "spread": 1.3320901407405348,
-      "took_ms": 756,
+      "took_ms": 942,
       "degraded": false
     },
     {
@@ -68,7 +68,7 @@
       "dense": 0.5893485615239898,
       "lexical_hits": 6,
       "spread": 0.7054377880184332,
-      "took_ms": 854,
+      "took_ms": 846,
       "degraded": false
     },
     {
@@ -80,7 +80,7 @@
       "dense": 0.658310671398362,
       "lexical_hits": 7,
       "spread": 0.9036087369420702,
-      "took_ms": 659,
+      "took_ms": 686,
       "degraded": false
     },
     {
@@ -92,7 +92,7 @@
       "dense": 0.6241850666944798,
       "lexical_hits": 8,
       "spread": 1.1681175805539854,
-      "took_ms": 728,
+      "took_ms": 733,
       "degraded": false
     },
     {
@@ -104,7 +104,7 @@
       "dense": 0.678544204148306,
       "lexical_hits": 8,
       "spread": 0.9694663698306685,
-      "took_ms": 689,
+      "took_ms": 695,
       "degraded": false
     },
     {
@@ -116,7 +116,7 @@
       "dense": 0.6890266597640523,
       "lexical_hits": 5,
       "spread": 1.0161290322580645,
-      "took_ms": 848,
+      "took_ms": 828,
       "degraded": false
     },
     {
@@ -128,7 +128,7 @@
       "dense": 0.6249005049585739,
       "lexical_hits": 8,
       "spread": 1.970239596469105,
-      "took_ms": 827,
+      "took_ms": 856,
       "degraded": false
     },
     {
@@ -140,7 +140,7 @@
       "dense": 0.6000957906217661,
       "lexical_hits": 8,
       "spread": 1.098116991020356,
-      "took_ms": 690,
+      "took_ms": 691,
       "degraded": false
     },
     {
@@ -152,7 +152,7 @@
       "dense": null,
       "lexical_hits": 8,
       "spread": 1.0303030303030303,
-      "took_ms": 852,
+      "took_ms": 843,
       "degraded": false
     },
     {
@@ -164,7 +164,7 @@
       "dense": null,
       "lexical_hits": 8,
       "spread": 1.0634920634920635,
-      "took_ms": 802,
+      "took_ms": 817,
       "degraded": false
     },
     {
@@ -176,7 +176,7 @@
       "dense": 0.6414835070679493,
       "lexical_hits": 8,
       "spread": 1.0409700408687135,
-      "took_ms": 928,
+      "took_ms": 941,
       "degraded": false
     },
     {
@@ -188,7 +188,7 @@
       "dense": 0.628481388092041,
       "lexical_hits": 8,
       "spread": 0.972414057214343,
-      "took_ms": 840,
+      "took_ms": 870,
       "degraded": false
     },
     {
@@ -200,7 +200,7 @@
       "dense": 0.5165632540826899,
       "lexical_hits": 8,
       "spread": 1.1022055697278912,
-      "took_ms": 919,
+      "took_ms": 905,
       "degraded": false
     },
     {
@@ -212,7 +212,7 @@
       "dense": 0.7156526063577121,
       "lexical_hits": 8,
       "spread": 1.054039482415395,
-      "took_ms": 863,
+      "took_ms": 841,
       "degraded": false
     },
     {
@@ -224,7 +224,7 @@
       "dense": 0.6139318482794591,
       "lexical_hits": 8,
       "spread": 1.0604361957699375,
-      "took_ms": 655,
+      "took_ms": 678,
       "degraded": false
     },
     {
@@ -236,7 +236,7 @@
       "dense": 0.6262814366473077,
       "lexical_hits": 7,
       "spread": 0.9301998985286657,
-      "took_ms": 804,
+      "took_ms": 813,
       "degraded": false
     },
     {
@@ -248,7 +248,7 @@
       "dense": 0.512213933035658,
       "lexical_hits": 8,
       "spread": 1.0227324913892077,
-      "took_ms": 912,
+      "took_ms": 940,
       "degraded": false
     },
     {
@@ -260,7 +260,7 @@
       "dense": 0.49809777759340434,
       "lexical_hits": 8,
       "spread": 1.1404454022988506,
-      "took_ms": 853,
+      "took_ms": 989,
       "degraded": false
     },
     {
@@ -272,7 +272,7 @@
       "dense": 0.6583223735286232,
       "lexical_hits": 8,
       "spread": 1.0961622365418178,
-      "took_ms": 720,
+      "took_ms": 809,
       "degraded": false
     },
     {
@@ -284,7 +284,7 @@
       "dense": 0.6158068180084229,
       "lexical_hits": 8,
       "spread": 0.9471944052348569,
-      "took_ms": 863,
+      "took_ms": 870,
       "degraded": false
     },
     {
@@ -296,7 +296,7 @@
       "dense": 0.6076217165444279,
       "lexical_hits": 8,
       "spread": 1.1674882494554626,
-      "took_ms": 902,
+      "took_ms": 911,
       "degraded": false
     },
     {
@@ -308,7 +308,7 @@
       "dense": 0.6248575001785159,
       "lexical_hits": 8,
       "spread": 1.1536317322230583,
-      "took_ms": 869,
+      "took_ms": 922,
       "degraded": false
     },
     {
@@ -320,7 +320,7 @@
       "dense": 0.7412227613098256,
       "lexical_hits": 8,
       "spread": 1.07519954004329,
-      "took_ms": 781,
+      "took_ms": 872,
       "degraded": false
     },
     {
@@ -332,7 +332,7 @@
       "dense": 0.6906789086630563,
       "lexical_hits": 8,
       "spread": 1.0040364963008674,
-      "took_ms": 781,
+      "took_ms": 746,
       "degraded": false
     },
     {
@@ -344,7 +344,7 @@
       "dense": 0.5742565304927234,
       "lexical_hits": 7,
       "spread": 1.0332709523937287,
-      "took_ms": 861,
+      "took_ms": 844,
       "degraded": false
     },
     {
@@ -356,7 +356,7 @@
       "dense": 0.46628322996397276,
       "lexical_hits": 5,
       "spread": 1.7439024390243902,
-      "took_ms": 1071,
+      "took_ms": 1057,
       "degraded": false
     },
     {
@@ -368,7 +368,7 @@
       "dense": null,
       "lexical_hits": 7,
       "spread": 1.0491803278688525,
-      "took_ms": 938,
+      "took_ms": 991,
       "degraded": false
     },
     {
@@ -380,7 +380,7 @@
       "dense": 0.6382296655979457,
       "lexical_hits": 3,
       "spread": 1.0,
-      "took_ms": 735,
+      "took_ms": 876,
       "degraded": false
     },
     {
@@ -392,7 +392,7 @@
       "dense": 0.6014471887679594,
       "lexical_hits": 6,
       "spread": 1.0256912160508933,
-      "took_ms": 809,
+      "took_ms": 857,
       "degraded": false
     },
     {
@@ -404,7 +404,7 @@
       "dense": null,
       "lexical_hits": 8,
       "spread": 1.6703296703296702,
-      "took_ms": 968,
+      "took_ms": 921,
       "degraded": false
     },
     {
@@ -416,19 +416,31 @@
       "dense": 0.42789652943611456,
       "lexical_hits": 4,
       "spread": 1.0161290322580645,
-      "took_ms": 1128,
+      "took_ms": 1046,
       "degraded": false
     },
     {
       "id": "unanswerable-messi-year",
       "kind": "unanswerable",
       "question": "cuantos goles marco Messi en 2012",
-      "hits": 8,
-      "rerank": 0.30960056,
-      "dense": 0.3904364472367503,
-      "lexical_hits": 2,
-      "spread": 0.9682539682539681,
-      "took_ms": 1261,
+      "hits": 0,
+      "rerank": null,
+      "dense": null,
+      "lexical_hits": 0,
+      "spread": null,
+      "took_ms": 1303,
+      "degraded": false
+    },
+    {
+      "id": "unanswerable-messi-bare",
+      "kind": "unanswerable",
+      "question": "Messi",
+      "hits": 0,
+      "rerank": null,
+      "dense": null,
+      "lexical_hits": 0,
+      "spread": null,
+      "took_ms": 1402,
       "degraded": false
     },
     {
@@ -440,7 +452,7 @@
       "dense": null,
       "lexical_hits": 0,
       "spread": null,
-      "took_ms": 660,
+      "took_ms": 777,
       "degraded": false
     },
     {
@@ -452,7 +464,7 @@
       "dense": 0.5830409526824951,
       "lexical_hits": 6,
       "spread": 1.0161290322580645,
-      "took_ms": 861,
+      "took_ms": 908,
       "degraded": false
     },
     {
@@ -464,7 +476,7 @@
       "dense": 0.5350402316475062,
       "lexical_hits": 5,
       "spread": 1.3775401069518718,
-      "took_ms": 720,
+      "took_ms": 746,
       "degraded": false
     },
     {
@@ -476,7 +488,7 @@
       "dense": 0.5340515534297154,
       "lexical_hits": 5,
       "spread": 1.0163934426229508,
-      "took_ms": 944,
+      "took_ms": 1023,
       "degraded": false
     },
     {
@@ -488,7 +500,7 @@
       "dense": null,
       "lexical_hits": 0,
       "spread": null,
-      "took_ms": 949,
+      "took_ms": 892,
       "degraded": false
     },
     {
@@ -500,7 +512,7 @@
       "dense": 0.6619744498126118,
       "lexical_hits": 7,
       "spread": 1.1206454918032789,
-      "took_ms": 846,
+      "took_ms": 847,
       "degraded": false
     },
     {
@@ -512,7 +524,7 @@
       "dense": 0.5521571307088743,
       "lexical_hits": 4,
       "spread": 1.0163934426229508,
-      "took_ms": 697,
+      "took_ms": 694,
       "degraded": false
     },
     {
@@ -524,7 +536,7 @@
       "dense": null,
       "lexical_hits": 0,
       "spread": null,
-      "took_ms": 690,
+      "took_ms": 702,
       "degraded": false
     },
     {
@@ -536,7 +548,7 @@
       "dense": null,
       "lexical_hits": 0,
       "spread": null,
-      "took_ms": 941,
+      "took_ms": 945,
       "degraded": false
     }
   ]

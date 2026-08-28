@@ -43,7 +43,7 @@ def test_the_question_count_is_pinned() -> None:
     answerable = [q for q in questions if q.sources]
     negatives = [q for q in questions if not q.sources]
     assert len(answerable) == 31
-    assert len(negatives) == 11
+    assert len(negatives) == 12
 
 
 def test_ids_are_unique() -> None:

@@ -390,6 +390,16 @@ documents = []
 miss = "far"
 
 [[question]]
+id = "unanswerable-messi-bare"
+type = "unanswerable"
+# A single word, which is how people search when they are not writing a sentence. It is the
+# case that broke the reranker: 0.1841, *above* `What is Bank Rate` at 0.2335 — a question
+# this corpus answers. No score threshold separates those two. Zero lexical matches does.
+question = "Messi"
+documents = []
+miss = "far"
+
+[[question]]
 id = "unanswerable-recipe"
 type = "unanswerable"
 question = "What temperature should the oven be for a Spanish tortilla?"

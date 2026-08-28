@@ -163,7 +163,11 @@ class SearchService:
         # Read after reranking, from what is actually being returned. The best passage only:
         # a set whose top hit plainly answers the question is a good set even if the eighth
         # is noise, and averaging would let seven weak passages outvote the one that is right.
-        relevance = classify(best_rerank([hit.rerank_score for hit in hits]))
+        relevance = classify(
+            best_rerank([hit.rerank_score for hit in hits]),
+            sum(1 for hit in hits if hit.lexical_rank is not None),
+            len(hits),
+        )
         if relevance is Relevance.NONE:
             # Withheld rather than ranked. Showing them under a notice saying they do not
             # match would be asking the reader to disbelieve what is on their own screen.
