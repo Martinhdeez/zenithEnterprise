@@ -287,4 +287,27 @@ describe("asking about the open document", () => {
     // Still open. The conversation replaced the results, not the whole screen.
     expect(screen.getByLabelText("Close document preview")).toBeTruthy();
   });
+
+  it("closes the conversation when the same control is pressed again", async () => {
+    signedIn();
+    await act(async () => {
+      render(<App />);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "emit citation" }));
+    });
+    const ask = () => screen.getByRole("button", { name: "Ask about this document" });
+
+    await act(async () => {
+      fireEvent.click(ask());
+    });
+    expect(screen.getByRole("button", { name: "Back to the results" })).toBeTruthy();
+
+    // Same control, second press. A one-way door would leave the reader hunting for the way
+    // back, which is the thing the breadcrumb and the arrow both exist to avoid.
+    await act(async () => {
+      fireEvent.click(ask());
+    });
+    expect(screen.queryByRole("button", { name: "Back to the results" })).toBeNull();
+  });
 });

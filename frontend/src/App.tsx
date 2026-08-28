@@ -9,6 +9,7 @@
 
 import { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import {
+  ArrowLeft,
   Building2,
   Folder as FolderIcon,
   History as HistoryIcon,
@@ -800,6 +801,18 @@ export function App() {
               // own rules sitting on the same bar.
               started && panel === "conversation" && view === "search" ? (
                 <>
+                  {/* An arrow as well as the breadcrumb, and not a duplicate of it. The path
+                      says where you are; this says how to leave, which is the thing somebody
+                      reaches for without reading. */}
+                  <button
+                    type="button"
+                    onClick={() => setPanel("results")}
+                    aria-label={t("Back to the results")}
+                    title={t("Back to the results")}
+                    className="-ml-1 mr-1 rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground"
+                  >
+                    <ArrowLeft className="size-4" />
+                  </button>
                   {/* The one name this application owns, and the one segment that is never
                       translated. */}
                   <span className="text-muted-foreground">Zenith</span>
@@ -1000,7 +1013,7 @@ export function App() {
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                disabled={askQuestion === null || panel === "conversation"}
+                disabled={askQuestion === null}
                 aria-label={t("Ask about this document")}
                 title={
                   askQuestion === null
@@ -1008,6 +1021,13 @@ export function App() {
                     : t("Ask about this document")
                 }
                 onClick={() => {
+                  // A toggle, not a one-way door. Pressing it again is the shortest way back
+                  // to the results, and a control that only ever does half a thing is one the
+                  // reader has to remember the other half of.
+                  if (panel === "conversation") {
+                    setPanel("results");
+                    return;
+                  }
                   setStarted(true);
                   setPanel("conversation");
                   // `setView`, never `open`. `open` closes the preview — correct for the
