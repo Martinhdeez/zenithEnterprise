@@ -51,7 +51,9 @@ export function CommandPalette({ token, actions }: { token: string; actions: Pal
   // in whatever language the first render happened to want, and then "Subir" finds nothing.
   const SCREENS: Array<{ id: string; label: string }> = [
     { id: "search", label: t("Search") },
-    { id: "chat", label: t("Chat") },
+    // No `chat`. Stage 4 took Chat out of the view union, so this row was casting a value
+    // the shell cannot render — choosing it set `view` to something no branch matches and
+    // left the main panel blank.
     { id: "folders", label: t("Folders") },
     { id: "upload", label: t("Upload") },
     { id: "history", label: t("History") },

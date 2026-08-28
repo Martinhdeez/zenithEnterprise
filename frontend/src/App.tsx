@@ -386,6 +386,20 @@ export function App() {
     setView(next);
     setCitation(null);
     setPdfExpanded(false);
+    // The anchored conversation ends with the document it was about.
+    //
+    // This cleared the citation and left `panel`, `started` and `askQuestion` behind, which
+    // put the shell in a state neither half could render: `Search` is hidden while
+    // `panel === "conversation"`, and the thread needs the citation that had just been
+    // dropped. Both branches false, and the main panel came up blank — reproducibly, by
+    // being in a conversation and then pressing Search.
+    //
+    // Reset rather than preserved, and that is the behaviour rather than an implementation
+    // detail: pressing Search is asking for the search screen, not for whatever was on it
+    // last time. A thread about a document that is no longer open has nothing to be about.
+    setPanel("results");
+    setStarted(false);
+    setAskQuestion(null);
   }, []);
 
   const signOut = useCallback(() => {
@@ -625,16 +639,25 @@ export function App() {
                   // Selection is a state, not an emphasis: the row you are on should be the
                   // most *legible*, and the colour is better spent on one small thing than
                   // spread across the whole item.
+                  // Search is not one of six equal destinations. It is the way into the
+                  // product's main use case, and every other row here is somewhere you go
+                  // once you already know what you want. Unselected, it keeps a full-
+                  // contrast label, a faint accent wash and its accent icon, so it is the
+                  // brightest thing in the column before anything is clicked; selected, it
+                  // takes the same treatment every other row does, because at that point it
+                  // is a state and no longer an invitation.
                   view === name
                     ? "bg-secondary font-medium text-foreground"
-                    : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
+                    : name === "search"
+                      ? "bg-primary/[0.07] font-medium text-foreground hover:bg-primary/[0.12]"
+                      : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
                 }`}
               >
                 {/* Larger when collapsed: at this size the icon is the only thing carrying
                     the meaning, so it gets the room the label gave up. */}
                 <Icon
                   className={`shrink-0 ${collapsed ? "size-6" : "size-[18px]"} ${
-                    view === name ? "text-primary" : ""
+                    view === name || name === "search" ? "text-primary" : ""
                   }`}
                 />
                 {!collapsed && viewLabel(name, t)}
