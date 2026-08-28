@@ -140,6 +140,23 @@ def live() -> int:
     return run(url, token)
 
 
+def separation() -> int:
+    """Whether retrieval can tell an answerable question from one the corpus cannot answer.
+
+    Read-only and product-neutral: it runs searches and compares two score distributions.
+    Needs a token, because it goes over HTTP against the real corpus — synthetic data would
+    measure the wrong thing entirely.
+    """
+    from eval.separation import run
+
+    if "--token" not in sys.argv:
+        print("usage: python -m eval separation --token <jwt> [--url http://localhost:8000]")
+        return 2
+    token = sys.argv[sys.argv.index("--token") + 1]
+    url = sys.argv[sys.argv.index("--url") + 1] if "--url" in sys.argv else "http://localhost:8000"
+    return run(url, token)
+
+
 def ef_search() -> int:
     """What `hnsw_ef_search` is worth on this machine. Read-only, needs no token."""
     from eval.ef_search import run
@@ -154,7 +171,16 @@ def rerank_depth() -> int:
     return run()
 
 
-COMMANDS = ("fetch", "layout", "grounding", "answers", "live", "ef-search", "rerank-depth")
+COMMANDS = (
+    "fetch",
+    "layout",
+    "grounding",
+    "answers",
+    "live",
+    "separation",
+    "ef-search",
+    "rerank-depth",
+)
 
 
 def main() -> int:
@@ -165,10 +191,13 @@ def main() -> int:
             "       python -m eval grounding\n"
             "       python -m eval answers\n"
             "       python -m eval live --token <jwt> [--url http://localhost:8000]\n"
+            "       python -m eval separation --token <jwt> [--url http://localhost:8000]\n"
             "       python -m eval ef-search\n"
             "       python -m eval rerank-depth"
         )
         return 2
+    if sys.argv[1] == "separation":
+        return separation()
     if sys.argv[1] == "rerank-depth":
         return rerank_depth()
     if sys.argv[1] == "ef-search":
