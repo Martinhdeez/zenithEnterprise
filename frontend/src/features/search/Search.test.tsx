@@ -39,6 +39,17 @@ const hit = (id: string, filename: string): SearchHit => ({
 const results = vi.fn();
 vi.mock("./api", () => ({ search: (...args: unknown[]) => results(...args) }));
 
+// The label catalogue is fetched over the network by the real module. Stubbed so a hit can
+// carry a name and its chip renders as the *button* it becomes when a filter is offered —
+// which is the whole point of the nesting guard at the bottom of this file.
+vi.mock("@/features/labels", async () => {
+  const actual = await vi.importActual<typeof import("@/features/labels")>("@/features/labels");
+  return {
+    ...actual,
+    labels: vi.fn().mockResolvedValue([{ id: "l1", name: "legal/contracts" }]),
+  };
+});
+
 const run = async (openChunkId: string | null = null) => {
   const onCitation = vi.fn();
   results.mockResolvedValue({
@@ -297,5 +308,37 @@ describe("the source opens on its own", () => {
     await screen.findByText(/nothing matched/i);
 
     expect(onCitation).not.toHaveBeenCalled();
+  });
+
+  it("puts no control inside another control", async () => {
+    // The guard, not the symptom. A result card used to be one button wrapping the whole
+    // row, and a `TagChip` carrying a filter renders a button of its own — so the tree had
+    // a control nested in a control. React warns about it, but only in development, and a
+    // warning in a console nobody has open is not a guard: this is the one that fails in
+    // CI if the card is ever wrapped in a button again.
+    //
+    // Asserted on the rendered DOM rather than on the markup, because the nesting is what
+    // a screen reader chokes on and only the output shows it. `button button` matches at
+    // any depth, which is the point — a wrapper two levels up breaks it just the same.
+    results.mockResolvedValue({
+      hits: [{ ...hit("one", "handbook.pdf"), label_ids: ["l1"] }],
+      degraded: false,
+      reason: null,
+      took_ms: 12,
+    });
+
+    // `onSelectTag` is what turns a chip from a span into a button, so it has to be here or
+    // the assertion passes without ever rendering the thing it guards against.
+    const { container } = render(
+      <Search token="t" onCitation={vi.fn()} openChunkId={null} searchable onSelectTag={vi.fn()} />,
+    );
+    const box = screen.getByLabelText("Search");
+    fireEvent.change(box, { target: { value: "severance" } });
+    fireEvent.submit(box.closest("form")!);
+    await screen.findByText(/1 passage/);
+
+    // The chip really is a button — proving the guard below has something to catch.
+    expect(screen.getByRole("button", { name: /contracts/i })).toBeTruthy();
+    expect(container.querySelectorAll("button button")).toHaveLength(0);
   });
 });
