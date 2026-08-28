@@ -38,6 +38,7 @@ import {
   type UserProfile,
 } from "@/features/auth";
 import { Chat, type Citation } from "@/features/chat";
+import { AnchoredChat } from "@/features/chat/anchored/AnchoredChat";
 import { System } from "@/features/system";
 import { Ingesting, inFlight } from "@/features/documents";
 import { History } from "@/features/history";
@@ -307,6 +308,14 @@ export function App() {
   const [status, setStatus] = useState<TenantStatus | null>(null);
   const [me, setMe] = useState<UserProfile | null>(null);
   const [citation, setCitation] = useState<Citation | null>(null);
+  // The question that opened the citation, and whether its conversation is showing.
+  //
+  // Held beside the citation rather than inside it: `Citation` is the shape the server
+  // sends for a passage, and the question is something this client knows and the server
+  // never said. A document opened from the command palette has no question, which is why
+  // this is nullable and why the button that starts a conversation is disabled without it.
+  const [askQuestion, setAskQuestion] = useState<string | null>(null);
+  const [anchored, setAnchored] = useState(false);
   // A plain union rather than a router. Four screens with no deep links and no back-button
   // expectations do not need one, and a router would be the largest dependency in the
   // bundle for a product whose first screen must render fast on a busy box.
@@ -741,7 +750,7 @@ export function App() {
                       : "font-medium text-foreground"
                   }
                 >
-                  Folders
+                  {t("Folders")}
                 </button>
                 {folderSelection && (
                   <>
@@ -761,7 +770,29 @@ export function App() {
               // The page's actual title, so it is the page's `h1`. It was a `span`, and the
               // whole application had zero `h1` elements — no outline for a screen reader,
               // and nowhere for a typographic hierarchy to attach. One cause, one fix.
-              <h1 className="text-[15px] font-medium text-foreground">{viewLabel(view, t)}</h1>
+              // Three segments while a conversation is open, one otherwise. The same
+              // grammar the folder path above uses — clickable segment, muted separator,
+              // current segment in `font-medium` — rather than a second breadcrumb with its
+              // own rules sitting on the same bar.
+              anchored && view === "search" ? (
+                <>
+                  {/* The one name this application owns, and the one segment that is never
+                      translated. */}
+                  <span className="text-muted-foreground">Zenith</span>
+                  <span className="text-muted-foreground/50">/</span>
+                  <button
+                    type="button"
+                    onClick={() => setAnchored(false)}
+                    className="text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    {t("Search")}
+                  </button>
+                  <span className="text-muted-foreground/50">/</span>
+                  <h1 className="text-[15px] font-medium text-foreground">{t("Chat")}</h1>
+                </>
+              ) : (
+                <h1 className="text-[15px] font-medium text-foreground">{viewLabel(view, t)}</h1>
+              )
             )}
             {/* Only Chat and Search actually read `folder` — shown only there, so a filter
                 picked up in Folders doesn't look like it's still following you into Admin
@@ -808,10 +839,27 @@ export function App() {
                 it can have, and cramming one into a reading measure is what produces the
                 columns nobody can read. */}
             <div className={`mx-auto w-full p-6 ${measure(view)}`}>
+            {/* Kept mounted, not unmounted, while its conversation is showing.
+                `Search` owns its results, its query and its resolved filenames in its own
+                state, so `{view === "search" && <Search/>}` destroyed all of it the moment
+                the panel switched — and the breadcrumb above promises the opposite: that
+                going back lands on the results you had, ready to pick a different passage.
+                Hiding costs a subtree that stays rendered; for fifty passages that is not a
+                cost worth designing around. Lifting the state into this component instead
+                would move five pieces of state and their effects into the largest file in
+                the tree. */}
             {view === "search" && (
+              <div className={anchored ? "hidden" : undefined}>
               <Search
                 token={token}
-                onCitation={setCitation}
+                onCitation={(next, question) => {
+                  setCitation(next);
+                  setAskQuestion(question);
+                  // A new document ends the previous conversation rather than silently
+                  // re-pointing it: the thread that was on screen was about a different
+                  // file, and carrying it over would attribute its answers to this one.
+                  setAnchored(false);
+                }}
                 // Which result the viewer is showing, so the list can mark it. Read from
                 // the citation rather than tracked inside `Search`: closing the viewer sets
                 // this to null, and a copy kept in the list would stay lit over a panel
@@ -824,6 +872,17 @@ export function App() {
                 // visible, so it gets both the name and the way out.
                 filterName={folderSelection?.name ?? null}
                 onClearFilter={() => setFolderSelection(null)}
+              />
+              </div>
+            )}
+            {view === "search" && anchored && citation && askQuestion !== null && (
+              <AnchoredChat
+                t={t}
+                anchor={{
+                  documentId: citation.document_id,
+                  filename: citation.filename,
+                  question: askQuestion,
+                }}
               />
             )}
             {view === "folders" && (
@@ -903,8 +962,33 @@ export function App() {
                 name and page directly below this one, and putting it here too showed it
                 twice, stacked. This bar is the panel's chrome — what it is and how to get
                 rid of it — and the document identifies itself. */}
-            Document preview
+            {t("Document preview")}
             <span className="flex shrink-0 items-center">
+              {/* First, because it is the only control here that belongs to the *document*
+                  rather than to the panel — the two beside it resize and close the frame.
+                  Disabled rather than hidden when there is no question to ask (a document
+                  opened from the palette or the library): a control that appears and
+                  disappears is harder to learn than one that is visibly unavailable, and the
+                  reason travels in its title. */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                disabled={askQuestion === null || anchored}
+                aria-label={t("Ask about this document")}
+                title={
+                  askQuestion === null
+                    ? t("Open a document from a search to ask about it")
+                    : t("Ask about this document")
+                }
+                onClick={() => {
+                  setAnchored(true);
+                  open("search");
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <MessageSquare className="size-4" />
+              </Button>
               <Button
                 type="button"
                 variant="ghost"
@@ -923,6 +1007,10 @@ export function App() {
                 onClick={() => {
                   setCitation(null);
                   setPdfExpanded(false);
+                  // The conversation was about the document being closed. Leaving it on
+                  // screen would leave answers with no source beside them to check.
+                  setAnchored(false);
+                  setAskQuestion(null);
                 }}
                 className="text-muted-foreground hover:text-foreground"
               >

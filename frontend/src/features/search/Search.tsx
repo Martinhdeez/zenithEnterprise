@@ -26,7 +26,14 @@ import { useT } from "@/shared/i18n/useT";
 
 interface Props {
   token: string;
-  onCitation: (citation: Citation) => void;
+  /**
+   * Opening a result, and the question that found it.
+   *
+   * The question travels with the citation because the panel it opens can start a
+   * conversation about that document, and re-typing what you just searched for is the
+   * seam this feature exists to remove.
+   */
+  onCitation: (citation: Citation, question: string) => void;
   /**
    * The chunk the PDF panel is currently showing, or null when it is closed.
    *
@@ -197,7 +204,7 @@ export function Search({
         //
         // The top hit only. Opening anything else would be choosing for the reader.
         const best = result.hits[0];
-        if (best) onCitation(citationOf(best, 0));
+        if (best) onCitation(citationOf(best, 0), q);
       } catch (error) {
         // An abort is the user cancelling, not a failure — `cancel` below already put the
         // state back to idle, and overwriting that with an error would fight it.
@@ -387,7 +394,7 @@ export function Search({
               <li key={hit.chunk_id}>
                 <button
                   type="button"
-                  onClick={() => onCitation(citationOf(hit, index))}
+                  onClick={() => onCitation(citationOf(hit, index), state.query)}
                   // Announced, not just drawn. Colour alone would leave somebody on a
                   // screen reader — or anybody who cannot separate these two greys — with
                   // no way to tell which result is open.

@@ -415,4 +415,13 @@ export const es: Catalogue = {
     "Cerrar sesión",
   "Purge permanently":
     "Purgar permanentemente",
+
+  // --- the anchored conversation (F25) --------------------------------------------------
+  "Document preview": "Vista del documento",
+  "Ask about this document": "Preguntar sobre este documento",
+  "Open a document from a search to ask about it":
+    "Abre un documento desde una búsqueda para poder preguntar sobre él",
+  "Conversation about {filename}": "Conversación sobre {filename}",
+  "Answering from {filename} only.": "Respondiendo sólo desde {filename}.",
+  "Preparing the answer…": "Preparando la respuesta…",
 };
