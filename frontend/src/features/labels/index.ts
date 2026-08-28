@@ -1,6 +1,6 @@
 /** Choosing labels for a document, and administering the set itself. */
 export { LabelPicker } from "./picker/LabelPicker";
-export { TagChip, TagChips } from "./tags/TagChip";
+export { TagChip, TagChips, labelTone, type LabelTone } from "./tags/TagChip";
 export {
   SEPARATOR,
   descendants,
