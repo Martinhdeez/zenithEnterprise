@@ -640,16 +640,33 @@ export function App() {
                   // most *legible*, and the colour is better spent on one small thing than
                   // spread across the whole item.
                   // Search is not one of six equal destinations. It is the way into the
-                  // product's main use case, and every other row here is somewhere you go
-                  // once you already know what you want. Unselected, it keeps a full-
-                  // contrast label, a faint accent wash and its accent icon, so it is the
-                  // brightest thing in the column before anything is clicked; selected, it
-                  // takes the same treatment every other row does, because at that point it
-                  // is a state and no longer an invitation.
-                  view === name
-                    ? "bg-secondary font-medium text-foreground"
-                    : name === "search"
-                      ? "bg-primary/[0.07] font-medium text-foreground hover:bg-primary/[0.12]"
+                  // product's main use case; the other rows are places you go once you
+                  // already know what you want.
+                  //
+                  // **Filled and reversed, not tinted.** A faint accent wash was tried and
+                  // had to go: every other row in this column answers a hover with a wash of
+                  // its own, so a permanently washed row reads as one the cursor is sitting
+                  // on. Anything built out of the same material as a hover state will be
+                  // read as one. The way out is a different material — this row is solid
+                  // accent with its label reversed out of it, which is a thing no hover here
+                  // does and therefore cannot be mistaken for one.
+                  //
+                  // The contrast is not a guess: `--primary-foreground` on `--primary` is
+                  // 6.11:1 in light and 5.61:1 in dark, both recorded in `index.css` where
+                  // the two lightnesses were chosen.
+                  //
+                  // **Selected, it glows rather than going quiet.** The obvious move was to
+                  // hand it the same `bg-secondary` every other selected row gets, which
+                  // would make clicking the brightest thing in the column dim it — and would
+                  // drop the one signal a sidebar owes the reader, which is where they are.
+                  // It keeps the fill and gains the halo the ask control already uses for
+                  // exactly this: on is louder than off.
+                  name === "search"
+                    ? `bg-primary font-medium text-primary-foreground shadow-sm hover:brightness-110 ${
+                        view === name ? "glow-accent" : ""
+                      }`
+                    : view === name
+                      ? "bg-secondary font-medium text-foreground"
                       : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
                 }`}
               >
@@ -657,7 +674,7 @@ export function App() {
                     the meaning, so it gets the room the label gave up. */}
                 <Icon
                   className={`shrink-0 ${collapsed ? "size-6" : "size-[18px]"} ${
-                    view === name || name === "search" ? "text-primary" : ""
+                    name === "search" ? "" : view === name ? "text-primary" : ""
                   }`}
                 />
                 {!collapsed && viewLabel(name, t)}
