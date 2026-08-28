@@ -151,7 +151,7 @@ async def _build(conn: AsyncConnection) -> tuple[int, int]:
             "    WHEN 3 THEN va.embedding + vb.embedding + vb.embedding "
             "    WHEN 4 THEN va.embedding + va.embedding + va.embedding + vb.embedding "
             "    ELSE        va.embedding + vb.embedding + vb.embedding + vb.embedding "
-            "  END)::vector(1024) AS embedding "
+            "  END)::halfvec(1024) AS embedding "
             f"  FROM {SCHEMA}.pairs p "
             f"  JOIN {SCHEMA}.seed va ON va.id = p.a "
             f"  JOIN {SCHEMA}.seed vb ON vb.id = p.b "
@@ -173,7 +173,10 @@ async def _build(conn: AsyncConnection) -> tuple[int, int]:
     await conn.execute(text("SET LOCAL maintenance_work_mem = '400MB'"))
     await conn.execute(
         text(
-            f"CREATE INDEX ON {SCHEMA}.vecs USING hnsw (embedding vector_cosine_ops) "
+            # `halfvec`, because migration 0025 made that the index the product has. An
+            # fp32 index here would be measuring a shape nothing runs, and would take three
+            # times the space to do it.
+            f"CREATE INDEX ON {SCHEMA}.vecs USING hnsw (embedding halfvec_cosine_ops) "
             "WITH (m = 16, ef_construction = 64)"
         )
     )
@@ -217,7 +220,7 @@ async def _plan(
     rows = await conn.execute(
         text(
             f"EXPLAIN (COSTS OFF) SELECT id FROM {SCHEMA}.vecs WHERE bucket < :f "
-            "ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"
+            "ORDER BY embedding <=> CAST(:q AS halfvec(1024)) LIMIT :k"
         ),
         {"f": fraction, "q": str(vector), "k": WANTED},
     )
@@ -258,7 +261,7 @@ async def _arm(
         rows = await conn.execute(
             text(
                 f"SELECT id FROM {SCHEMA}.vecs WHERE bucket < :f "
-                "ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"
+                "ORDER BY embedding <=> CAST(:q AS halfvec(1024)) LIMIT :k"
             ),
             {"f": fraction, "q": str(vector), "k": WANTED},
         )
