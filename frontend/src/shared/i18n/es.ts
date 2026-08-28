@@ -351,7 +351,7 @@ export const es: Catalogue = {
 
   // --- access and roles -----------------------------------------------------------------
   "Search labels to map": "Buscar etiquetas que asignar",
-  "Clearance required by {label}": "Nivel de acceso que exige {label}",
+  "Clearance required by {label}": "Habilitación que exige {label}",
   "Applies to this label everywhere, not just to this group — saved as soon as you change it.":
     "Se aplica a esta etiqueta en todas partes, no sólo en este grupo; se guarda en cuanto lo cambias.",
   "New group name": "Nombre del nuevo grupo",
@@ -360,8 +360,8 @@ export const es: Catalogue = {
     other: "¿Eliminar {group}? Sus {count} miembros perderán lo que les abría.",
   },
   "New role name": "Nombre del nuevo rol",
-  "Clearance of {role}": "Nivel de acceso de {role}",
-  "needs clearance {level}": "requiere nivel {level}",
+  "Clearance of {role}": "Habilitación de {role}",
+  "needs clearance {level}": "requiere habilitación {level}",
   "Delete label {label}": "Eliminar la etiqueta {label}",
   "No labels match “{term}”.": "Ninguna etiqueta coincide con «{term}».",
   "Filter by {name}": "Filtrar por {name}",
