@@ -925,9 +925,9 @@ export function App() {
                     type="button"
                     onClick={() => setPanel("results")}
                     aria-label={t("Back to the results")}
-                    className="flex items-center gap-1 px-6 pt-4 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                    className="flex items-center gap-1.5 px-6 pt-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
                   >
-                    <ChevronLeft className="size-3.5 shrink-0" />
+                    <ChevronLeft className="size-4 shrink-0" />
                     {t("Back to the results")}
                   </button>
                 )}
@@ -1092,7 +1092,7 @@ export function App() {
                     // fill and gains a halo — the same object, turned up — and the mark
                     // becomes the way back, because nothing else on screen says the return
                     // is this button pressed a second time.
-                    ? "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/45 hover:brightness-110"
+                    ? "glow-accent bg-primary text-primary-foreground hover:brightness-110"
                     : "bg-primary text-primary-foreground shadow-sm hover:brightness-110"
               }`}
             >
