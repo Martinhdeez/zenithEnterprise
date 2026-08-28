@@ -53,7 +53,6 @@ import {
 import { Search } from "@/features/search";
 import { tenantStatus, type TenantStatus } from "@/shared/api/tenant";
 import { CommandPalette } from "@/shared/ui/CommandPalette";
-import { Section } from "@/shared/components/Section";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { forget, read, write } from "@/shared/lib/storage";
@@ -184,6 +183,11 @@ function LanguageControl({ collapsed }: { collapsed: boolean }) {
     );
   }
 
+  // Codes rather than names, and the same two characters the collapsed rail already shows.
+  // "English"/"Español" spelled out needed a row of its own, which is what made the foot of
+  // this bar three stacked bands; at two letters the control fits beside the profile and
+  // the row disappears. The full name stays in the tooltip and in the accessible name, so
+  // nothing is lost to anyone who needs it spelled out.
   return (
     <div role="group" aria-label={t("Language")} className="flex gap-0.5 rounded-full bg-background p-0.5">
       {(["en", "es"] as const).map((value) => (
@@ -193,13 +197,14 @@ function LanguageControl({ collapsed }: { collapsed: boolean }) {
           onClick={() => setLanguage(value)}
           aria-pressed={language === value}
           title={NAME[value]}
-          className={`flex flex-1 items-center justify-center rounded-full py-1 text-xs transition-colors ${
+          aria-label={NAME[value]}
+          className={`flex items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase transition-colors ${
             language === value
               ? "bg-primary/15 text-primary"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          {NAME[value]}
+          {value}
         </button>
       ))}
     </div>
@@ -645,12 +650,16 @@ export function App() {
               <Ingesting status={status} collapsed />
             ) : (
               <>
-                <Section label={t("Ingestion")}>
-                  <Ingesting status={status} collapsed={false} />
-                </Section>
-                <Section label={t("Status")}>
-                  <StatusBadge status={status} />
-                </Section>
+                {/* The ingestion detail only while there is ingestion. The bar inside
+                    `StatusBadge` is drawn at every count and already says "nothing is
+                    moving" by being wholly one colour, so the prose version below it is
+                    the progress figure and the warning about slower searches — both of
+                    which have nothing to report when the queue is empty. */}
+                <div className="px-4 py-3">
+                  <StatusBadge status={status}>
+                    {inFlight(status) > 0 ? <Ingesting status={status} collapsed={false} /> : null}
+                  </StatusBadge>
+                </div>
               </>
             )}
           </div>
@@ -670,15 +679,21 @@ export function App() {
             collapsed ? "items-center px-2" : "px-2"
           }`}
         >
-          <LanguageControl collapsed={collapsed} />
+          {collapsed && <LanguageControl collapsed />}
           <ThemeControl collapsed={collapsed} />
+          {/* Two rows where there were three. The theme keeps a row to itself because it
+              keeps its three words: "Auto" and "Claro" say what they do and an icon does
+              not, and a three-way choice is the one control here that is not obvious from
+              its shape. The language pair is two characters wide, so it rides on the
+              profile row instead of claiming a band of its own. */}
+          <div className={collapsed ? "contents" : "flex items-center gap-2"}>
           <button
             type="button"
             onClick={() => open("profile")}
             title={collapsed ? t("Profile") : undefined}
             aria-label={collapsed ? t("Profile") : undefined}
             className={`flex items-center rounded-lg transition-colors ${
-              collapsed ? "justify-center p-1.5" : "w-full gap-2.5 px-2 py-1.5"
+              collapsed ? "justify-center p-1.5" : "min-w-0 gap-2.5 px-2 py-1.5"
             } ${
               view === "profile"
                 ? "bg-primary/10 text-primary"
@@ -690,6 +705,12 @@ export function App() {
             </span>
             {!collapsed && <span className="truncate text-sm">{t("Profile")}</span>}
           </button>
+          {!collapsed && (
+            <div className="ml-auto">
+              <LanguageControl collapsed={false} />
+            </div>
+          )}
+          </div>
         </div>
       </nav>
 

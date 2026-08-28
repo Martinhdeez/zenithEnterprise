@@ -286,8 +286,8 @@ export function Search({
             <SearchIcon className="size-5 text-primary" />
           </div>
           <div className="space-y-1.5">
-            <h2 className="text-2xl font-normal text-foreground">{t("Search your corpus")}</h2>
-            <p className="mx-auto max-w-md text-sm text-muted-foreground">
+            <h2 className="headline text-foreground">{t("Search your corpus")}</h2>
+            <p className="headline-sub mx-auto max-w-md text-muted-foreground">
               {t("Keyword and meaning at once — passages come back ranked, with the page they came from. Nothing is generated here; use Chat for a written answer.")}
             </p>
           </div>

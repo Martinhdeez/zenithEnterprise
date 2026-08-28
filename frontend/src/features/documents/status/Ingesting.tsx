@@ -81,7 +81,7 @@ export function Ingesting({
     <div className="space-y-1.5">
       <p className="flex items-center gap-1.5 text-xs font-medium text-zenith-amber">
         <Loader2 className="size-3.5 shrink-0 animate-spin" />
-        Ingesting {processing} of {total}
+        {t("Ingesting {count} of {total}", { count: processing, total })}
       </p>
       {/* Against the searchable corpus rather than against the batch: the browser does not
           know how many documents the *server* has queued — another tab, another person, a

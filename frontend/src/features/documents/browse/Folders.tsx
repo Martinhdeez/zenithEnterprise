@@ -26,7 +26,7 @@
 import { useEffect, useState } from "react";
 import { FileStack, Folder as FolderIcon } from "lucide-react";
 
-import { leaf, parentPath } from "@/features/labels";
+import { labelTone, leaf, parentPath } from "@/features/labels";
 
 import { folders, type FolderTree } from "../api";
 import type { Citation } from "@/features/chat";
@@ -112,14 +112,26 @@ export function Folders({
           </div>
         </button>
 
-        {grouped.map(({ node, folder }) => (
+        {/* A folder *is* a label, so the tile wears the label's own colour — the same hue
+            the chips inside it will be, because both come from `labelTone` rather than from
+            two lists that agree until one is edited.
+            
+            Only the icon and the edge, and the edge only faintly. The fill stays
+            `bg-secondary` for every tile: ten tinted rectangles in a grid is a colour chart,
+            and what is wanted here is to tell one folder from another at a glance, not to
+            make the grid the loudest thing on the screen. Hovering deepens the same hue
+            instead of switching to the accent, so the colour a folder has is the colour it
+            keeps. */}
+        {grouped.map(({ node, folder }) => {
+          const tone = labelTone(folder.label_id === null ? null : folder.name);
+          return (
           <button
             key={folder.label_id ?? "unlabelled"}
             type="button"
             onClick={() => onSelect({ name: folder.name, filter: { labelId: folder.label_id } })}
-            className="flex flex-col items-start gap-3 rounded-xl border border-border bg-secondary p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-secondary/70"
+            className={`flex flex-col items-start gap-3 rounded-xl border bg-secondary p-4 text-left shadow-sm transition-colors hover:bg-secondary/70 ${tone.edge}`}
           >
-            <FolderIcon className="size-5 text-muted-foreground" />
+            <FolderIcon className={`size-5 ${tone.icon}`} />
             <div className="w-full">
               {/* The namespace above the leaf, so `legal/contracts` reads as "contracts,
                   under legal" rather than as one long name that truncates to nothing. The
@@ -148,7 +160,8 @@ export function Folders({
               </p>
             </div>
           </button>
-        ))}
+          );
+        })}
       </div>
 
       {tree.folders.length === 0 && (

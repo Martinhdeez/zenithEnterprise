@@ -29,33 +29,108 @@
 import { useT } from "@/shared/i18n/useT";
 import { leaf } from "../namespace";
 
+/**
+ * One entry per colour, three whole class strings each, because three different surfaces
+ * need the same hue at three different strengths.
+ *
+ * `chip` is the pill, on a card, beside the sentence it labels. `icon` and `edge` are the
+ * folder tile on the Folders grid: a folder *is* a label, so the tile that opens it and the
+ * chip that names it inside are the same colour by construction — not by two lists agreeing.
+ *
+ * The strings are written out rather than built from a colour name, and that is a hard
+ * requirement rather than a style: Tailwind scans this file as text, so `text-${colour}-500`
+ * produces a class that exists in the markup and in no stylesheet.
+ *
+ * `icon` and `edge` carry a `dark:` half where `chip` does not. The chip sits on a tinted
+ * fill of its own hue, which lifts it on either theme; the folder icon sits directly on the
+ * panel, where a shade tuned for dark goes pale on white. 500 in light, 400 in dark.
+ */
 const PALETTE = [
-  "border-sky-400/40 bg-sky-400/18 text-sky-300",
-  "border-violet-400/40 bg-violet-400/18 text-violet-300",
-  "border-emerald-400/40 bg-emerald-400/18 text-emerald-300",
-  "border-amber-400/40 bg-amber-400/18 text-amber-300",
-  "border-rose-400/40 bg-rose-400/18 text-rose-300",
-  "border-cyan-400/40 bg-cyan-400/18 text-cyan-300",
-  "border-fuchsia-400/40 bg-fuchsia-400/18 text-fuchsia-300",
-  "border-lime-400/40 bg-lime-400/18 text-lime-300",
-  "border-orange-400/40 bg-orange-400/18 text-orange-300",
-  "border-teal-400/40 bg-teal-400/18 text-teal-300",
-];
+  {
+    chip: "border-sky-400/40 bg-sky-400/18 text-sky-300",
+    icon: "text-sky-500 dark:text-sky-400",
+    edge: "border-sky-500/25 hover:border-sky-500/60 dark:border-sky-400/30 dark:hover:border-sky-400/60",
+  },
+  {
+    chip: "border-violet-400/40 bg-violet-400/18 text-violet-300",
+    icon: "text-violet-500 dark:text-violet-400",
+    edge: "border-violet-500/25 hover:border-violet-500/60 dark:border-violet-400/30 dark:hover:border-violet-400/60",
+  },
+  {
+    chip: "border-emerald-400/40 bg-emerald-400/18 text-emerald-300",
+    icon: "text-emerald-500 dark:text-emerald-400",
+    edge: "border-emerald-500/25 hover:border-emerald-500/60 dark:border-emerald-400/30 dark:hover:border-emerald-400/60",
+  },
+  {
+    chip: "border-amber-400/40 bg-amber-400/18 text-amber-300",
+    icon: "text-amber-500 dark:text-amber-400",
+    edge: "border-amber-500/25 hover:border-amber-500/60 dark:border-amber-400/30 dark:hover:border-amber-400/60",
+  },
+  {
+    chip: "border-rose-400/40 bg-rose-400/18 text-rose-300",
+    icon: "text-rose-500 dark:text-rose-400",
+    edge: "border-rose-500/25 hover:border-rose-500/60 dark:border-rose-400/30 dark:hover:border-rose-400/60",
+  },
+  {
+    chip: "border-cyan-400/40 bg-cyan-400/18 text-cyan-300",
+    icon: "text-cyan-500 dark:text-cyan-400",
+    edge: "border-cyan-500/25 hover:border-cyan-500/60 dark:border-cyan-400/30 dark:hover:border-cyan-400/60",
+  },
+  {
+    chip: "border-fuchsia-400/40 bg-fuchsia-400/18 text-fuchsia-300",
+    icon: "text-fuchsia-500 dark:text-fuchsia-400",
+    edge: "border-fuchsia-500/25 hover:border-fuchsia-500/60 dark:border-fuchsia-400/30 dark:hover:border-fuchsia-400/60",
+  },
+  {
+    chip: "border-lime-400/40 bg-lime-400/18 text-lime-300",
+    icon: "text-lime-500 dark:text-lime-400",
+    edge: "border-lime-500/25 hover:border-lime-500/60 dark:border-lime-400/30 dark:hover:border-lime-400/60",
+  },
+  {
+    chip: "border-orange-400/40 bg-orange-400/18 text-orange-300",
+    icon: "text-orange-500 dark:text-orange-400",
+    edge: "border-orange-500/25 hover:border-orange-500/60 dark:border-orange-400/30 dark:hover:border-orange-400/60",
+  },
+  {
+    chip: "border-teal-400/40 bg-teal-400/18 text-teal-300",
+    icon: "text-teal-500 dark:text-teal-400",
+    edge: "border-teal-500/25 hover:border-teal-500/60 dark:border-teal-400/30 dark:hover:border-teal-400/60",
+  },
+] as const;
 
 /** Rendered for a document carrying no labels at all. Frontend-only and deliberately so:
     the empty array already means "uncategorised, visible tenant-wide" everywhere in the
     schema, and creating a real label for it would change that document's visibility from
     unconditional to whoever-holds-the-label. */
-const UNCATEGORISED = "border-border bg-secondary text-muted-foreground/70";
+const UNCATEGORISED = {
+  chip: "border-border bg-secondary text-muted-foreground/70",
+  icon: "text-muted-foreground",
+  edge: "border-border hover:border-primary/40",
+} as const;
+
+/** The tone shared by every surface that stands for one label. */
+export type LabelTone = (typeof PALETTE)[number] | typeof UNCATEGORISED;
 
 /** Stable across sessions and users: the same name is always the same colour. djb2, which
     is small, has no dependency, and spreads short strings well enough for ten buckets. */
-function hue(name: string): string {
+function hue(name: string): LabelTone {
   let hash = 5381;
   for (let index = 0; index < name.length; index += 1) {
     hash = ((hash << 5) + hash + name.charCodeAt(index)) | 0;
   }
   return PALETTE[Math.abs(hash) % PALETTE.length] ?? PALETTE[0]!;
+}
+
+/**
+ * The colour for a label, for anything that is not the chip.
+ *
+ * Exported so the Folders grid can tint a tile with the same hue the chip inside it will
+ * use. `null` is the unlabelled folder, which takes the neutral tone for the same reason
+ * `TagChips` gives an unlabelled document the `Uncategorized` pill: an empty label set is
+ * a real state, not a missing colour.
+ */
+export function labelTone(name: string | null): LabelTone {
+  return name === null ? UNCATEGORISED : hue(name);
 }
 
 interface Props {
@@ -74,7 +149,7 @@ export function TagChip({ name, onClick, short = false, uncategorised = false }:
   const t = useT();
   const label = short ? leaf(name) : name;
   const tone = uncategorised ? UNCATEGORISED : hue(name);
-  const shared = `inline-flex max-w-48 items-center rounded-full border px-2 py-0.5 text-xs ${tone}`;
+  const shared = `inline-flex max-w-48 items-center rounded-full border px-2 py-0.5 text-xs ${tone.chip}`;
 
   if (!onClick) {
     return (
