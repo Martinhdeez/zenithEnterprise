@@ -142,6 +142,7 @@ export function formatStamp(
  * from the noun instead.
  */
 const EN_PLURALS: Record<string, { one: string; other: string }> = {
+  "{count} passage": { one: "{count} passage", other: "{count} passages" },
   "{count} answer": { one: "{count} answer", other: "{count} answers" },
   "{count} question reported no usage — not counted": {
     one: "{count} question reported no usage — not counted",

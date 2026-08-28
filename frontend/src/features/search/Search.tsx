@@ -382,7 +382,7 @@ export function Search({
         <div className="space-y-3">
           <div className="flex items-baseline justify-between gap-4 text-xs">
             <p className="text-muted-foreground">
-              {state.hits.length} passage{state.hits.length === 1 ? "" : "s"} · {state.tookMs} ms
+              {t("{count} passage", { count: state.hits.length })} · {state.tookMs} ms
               {state.degraded && (
                 // No "Degraded:" prefix any more. The sentence from `degradation.py` is
                 // already a complete statement written for a reader, and a label in front of

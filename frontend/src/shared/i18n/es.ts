@@ -424,6 +424,7 @@ export const es: Catalogue = {
   "Document preview": "Vista del documento",
   "Ask about this document": "Preguntar sobre este documento",
   "Back to the results": "Volver a los resultados",
+  "{count} passage": { one: "{count} pasaje", other: "{count} pasajes" },
   "Nothing here matches closely. These are the nearest passages.":
     "Nada coincide con claridad. Éstos son los pasajes más cercanos.",
   "Nothing in your documents is about “{query}”.":
