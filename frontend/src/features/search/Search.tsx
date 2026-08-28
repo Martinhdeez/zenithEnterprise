@@ -410,8 +410,22 @@ export function Search({
           <ul className="space-y-2">
             {state.hits.map((hit, index) => {
               const open = hit.chunk_id === openChunkId;
+              // The card is the `li`, and the button inside it covers only the passage.
+              // They used to be the same element, which put the label chips — themselves
+              // buttons — inside a button. Invalid HTML, and a real problem rather than a
+              // lint: a screen reader cannot announce a control nested in another control,
+              // so "filter by this label" was unreachable except to sighted mouse users. It
+              // also meant clicking the row of chips opened the document, which nobody
+              // expects of the gap between two chips.
               return (
-              <li key={hit.chunk_id}>
+              <li
+                key={hit.chunk_id}
+                className={`overflow-hidden rounded-lg border transition-colors ${
+                  open
+                    ? "border-primary bg-primary/25 shadow-[inset_4px_0_0_0_var(--color-primary)]"
+                    : "border-border bg-secondary hover:bg-secondary/70"
+                }`}
+              >
                 <button
                   type="button"
                   onClick={() => onCitation(citationOf(hit, index), state.query)}
@@ -426,11 +440,7 @@ export function Search({
                   // the page, and the full-strength border and the 4px bar down the left
                   // edge give the eye two more things to catch. The bar is what survives a
                   // glance: it breaks the straight edge every other row shares.
-                  className={`w-full rounded-lg border px-4 py-3.5 text-left transition-colors ${
-                    open
-                      ? "border-primary bg-primary/25 shadow-[inset_4px_0_0_0_var(--color-primary)]"
-                      : "border-border bg-secondary hover:bg-secondary/70"
-                  }`}
+                  className="w-full px-4 pt-3.5 pb-2 text-left"
                 >
                   <div className="flex items-baseline justify-between gap-4">
                     {/* A filename and a page are a reference, not a sentence. In the body
@@ -450,13 +460,16 @@ export function Search({
                     </span>
                   </div>
                   <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{hit.text}</p>
-                  {/* What this passage is filed under, on the result itself — otherwise
-                      the only way to know is to open the document and look. */}
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                </button>
+                {/* Outside the button, not inside it. What this passage is filed under, on
+                    the result itself — otherwise the only way to know is to open the
+                    document and look. */}
+                <div className="px-4 pb-3.5">
+                  <div className="flex flex-wrap gap-1.5">
                     <TagChips names={namesFor(hit)} onSelect={onSelectTag} short />
                   </div>
                   {showRanking && <Ranking hit={hit} />}
-                </button>
+                </div>
               </li>
               );
             })}

@@ -299,3 +299,19 @@ describe("the source opens on its own", () => {
     expect(onCitation).not.toHaveBeenCalled();
   });
 });
+
+describe("the shape of a result", () => {
+  it("puts no control inside another control", async () => {
+    const { view } = await run(null);
+
+    // React only warns about this in development, and a warning in a console nobody has
+    // open is not a guard. The real cost is not the invalid HTML: a screen reader cannot
+    // announce a control nested inside another, so "filter by this label" was reachable
+    // only by sighted mouse users.
+    const nested = view.container.querySelectorAll("button button");
+    expect(
+      Array.from(nested).map((node: Element) => node.textContent),
+      "a button inside a button",
+    ).toEqual([]);
+  });
+});
