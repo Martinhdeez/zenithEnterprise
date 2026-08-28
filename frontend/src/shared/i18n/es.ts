@@ -421,6 +421,7 @@ export const es: Catalogue = {
 
   // --- the anchored conversation (F25) --------------------------------------------------
   "Document preview": "Vista del documento",
+  "Ask": "Preguntar",
   "Ask about this document": "Preguntar sobre este documento",
   "Back to the results": "Volver a los resultados",
   "Copy the highlighted passage": "Copiar el pasaje resaltado",

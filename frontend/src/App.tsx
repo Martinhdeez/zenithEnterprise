@@ -1034,17 +1034,43 @@ export function App() {
               >
                 {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
               </Button>
-              {/* First, because it is the only control here that belongs to the *document*
-                  rather than to the panel — the two beside it resize and close the frame.
+              {/* **The one control on this bar that is not chrome, and it is drawn like it.**
+                  
+                  The header is `panel-accent` — the darker ledge, deliberately recessive,
+                  because a title bar that competes with the document under it is a title bar
+                  in the way. So the demand that this button stand out and the surface it
+                  sits on are in genuine tension, and there were three ways out: lift this
+                  button off the ledge, lift the whole ledge, or take the prominence from
+                  shape instead of contrast.
+                  
+                  This is the third, and it is the only one that does not spend the ledge's
+                  recessiveness to buy the button's prominence. A solid accent pill with a
+                  word in it is the most prominent thing that can sit on a quiet bar, and it
+                  gets there by being a different *kind* of object from its neighbours rather
+                  than a louder version of the same one. Four identical ghost icons had no
+                  hierarchy at all; one filled control among three quiet ones needs no extra
+                  contrast to be found.
+                  
+                  It also states the grouping the bar already had and never showed: copy and
+                  ask act on the *document*, fullscreen and close act on the *panel*. The
+                  rule after this button is that seam. Once the left half stops looking like
+                  the right half, the entry point to the product's main use case stops
+                  competing with two window controls.
+                  
+                  A word, not only a mark. "Ask" is the least discoverable action here and
+                  the most valuable; an icon alone asks the reader to guess it, and the
+                  owner's own mark is still to come, so the label is what carries it until
+                  then — and will keep carrying it after.
+                  
                   Disabled rather than hidden when there is no question to ask (a document
                   opened from the palette or the library): a control that appears and
                   disappears is harder to learn than one that is visibly unavailable, and the
-                  reason travels in its title. */}
-              <Button
+                  reason travels in its title. Disabled it drops to the panel's own fill, so
+                  it stays the same shape and stops being an invitation. */}
+              <button
                 type="button"
-                variant="ghost"
-                size="icon-sm"
                 disabled={askQuestion === null}
+                aria-pressed={panel === "conversation"}
                 aria-label={t("Ask about this document")}
                 title={
                   askQuestion === null
@@ -1069,10 +1095,23 @@ export function App() {
                   // it, which left the panel with nothing to render at all.
                   setView("search");
                 }}
-                className="text-muted-foreground hover:text-foreground"
+                className={`flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors ${
+                  askQuestion === null
+                    ? "cursor-not-allowed bg-secondary text-muted-foreground/70"
+                    : panel === "conversation"
+                      // Pressed. The fill inverts to a tint of itself with the accent kept
+                      // on the label, so "on" is a different state of one control rather
+                      // than a second control that appeared.
+                      ? "bg-primary/15 text-primary ring-1 ring-primary/40 ring-inset"
+                      : "bg-primary text-primary-foreground shadow-sm hover:brightness-110"
+                }`}
               >
-                <MessageSquare className="size-4" />
-              </Button>
+                <MessageSquare className="size-3.5 shrink-0" />
+                {t("Ask")}
+              </button>
+
+              {/* The seam between the two document actions and the two panel controls. */}
+              <span aria-hidden className="mx-0.5 h-4 w-px shrink-0 bg-border" />
               <Button
                 type="button"
                 variant="ghost"
