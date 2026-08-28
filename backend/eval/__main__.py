@@ -171,6 +171,13 @@ def rerank_depth() -> int:
     return run()
 
 
+def lexical_engine() -> int:
+    """`tsvector` against `bm25` on this corpus, accented and not. Read-only, needs no token."""
+    from eval.lexical_engine import run
+
+    return run()
+
+
 COMMANDS = (
     "fetch",
     "layout",
@@ -180,6 +187,7 @@ COMMANDS = (
     "separation",
     "ef-search",
     "rerank-depth",
+    "lexical-engine",
 )
 
 
@@ -193,9 +201,12 @@ def main() -> int:
             "       python -m eval live --token <jwt> [--url http://localhost:8000]\n"
             "       python -m eval separation --token <jwt> [--url http://localhost:8000]\n"
             "       python -m eval ef-search\n"
-            "       python -m eval rerank-depth"
+            "       python -m eval rerank-depth\n"
+            "       python -m eval lexical-engine"
         )
         return 2
+    if sys.argv[1] == "lexical-engine":
+        return lexical_engine()
     if sys.argv[1] == "separation":
         return separation()
     if sys.argv[1] == "rerank-depth":
