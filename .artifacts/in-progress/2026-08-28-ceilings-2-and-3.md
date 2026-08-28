@@ -95,6 +95,20 @@ No fp32 HNSW index is built above 13,549. Ground truth is an exact scan, which n
 vectors and not an index, and an 8 GB fp32 index would cost build time for a baseline already
 known to be 1.0000.
 
+## The contingency, checked before it was needed
+
+If binary fails, the alternative usually reached for is `pgvectorscale` — StreamingDiskANN
+with statistical binary quantisation, built for exactly this and better than a hand-rolled
+two-stage. **It is not available.** `pg_available_extensions` on the running ParadeDB image
+(PostgreSQL 17.5) lists `vector 0.8.0` and `pg_search 0.15.26` and nothing else in this
+family.
+
+That makes it a change of base image, not a change of configuration, on a product that ships
+on-premise and whose deployment story is `docker compose`. It stays on the table and it is
+not a cheap fallback. The cheap fallback, if binary fails, is partitioning by tenant: it does
+not shrink the index but it shrinks the *resident* set, which is the quantity that actually
+has to fit.
+
 ## Not in scope
 
 Retrieval, fusion, ranking, the reranker, and every production code path. This creates a
