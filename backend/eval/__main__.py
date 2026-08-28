@@ -171,6 +171,13 @@ def rerank_depth() -> int:
     return run()
 
 
+def lexical_engine() -> int:
+    """tsvector against BM25 on the same questions. Read-only, needs no token."""
+    from eval.lexical_engine import run
+
+    return run()
+
+
 def tenant_scale() -> int:
     """What the dense half loses to a shared graph. Read-only, needs no token."""
     from eval.tenant_scale import run
@@ -204,6 +211,7 @@ COMMANDS = (
     "latency",
     "iterative-scan",
     "tenant-scale",
+    "lexical-engine",
 )
 
 
@@ -220,9 +228,12 @@ def main() -> int:
             "       python -m eval rerank-depth\n"
             "       python -m eval latency [--repeats N]\n"
             "       python -m eval iterative-scan\n"
-            "       python -m eval tenant-scale"
+            "       python -m eval tenant-scale\n"
+            "       python -m eval lexical-engine"
         )
         return 2
+    if sys.argv[1] == "lexical-engine":
+        return lexical_engine()
     if sys.argv[1] == "tenant-scale":
         return tenant_scale()
     if sys.argv[1] == "iterative-scan":

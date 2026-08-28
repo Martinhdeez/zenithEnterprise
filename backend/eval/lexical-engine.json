@@ -1,0 +1,361 @@
+{
+  "runs": [
+    {
+      "at": "2026-08-28T16:11:48+00:00",
+      "embeddings": 13549,
+      "english_questions": 30,
+      "spanish_questions": 10,
+      "bm25_index": "CREATE INDEX ix_chunks_bm25 ON public.chunks USING bm25 (id, text, tenant_id, label_ids, unlabelled) WITH (key_field=id, text_fields='{\"text\": {\"tokenizer\": {\"type\": \"en_stem\", \"lowercase\": true}}}')",
+      "tokeniser_folding": {
+        "accented_types": 2756,
+        "en_stem_folds": 0,
+        "en_stem_fold_rate": 0.0,
+        "spanish_stem_folds": 1895,
+        "spanish_stem_fold_rate": 0.6876,
+        "english_types": 10791,
+        "english_types_diverging": 5706,
+        "english_divergence_rate": 0.5288
+      },
+      "by_engine": {
+        "tsvector": {
+          "english": {
+            "headline_recall_at_8": 0.9,
+            "headline_scored": 20,
+            "recall_at_8_all": 0.9,
+            "recall_at_1_all": 0.6667,
+            "mean_rank": 1.37,
+            "median_ms": 929,
+            "p95_ms": 1063,
+            "degraded": 0,
+            "missed": [
+              "boe-bank-rate",
+              "cross-platform-obligations",
+              "table-form-1040-status"
+            ],
+            "lexical_median_ms": 53.46,
+            "lexical_p95_ms": 69.2,
+            "lexical_mean_ms": 56.73
+          },
+          "spanish-accented": {
+            "headline_recall_at_8": 1.0,
+            "headline_scored": 10,
+            "recall_at_8_all": 1.0,
+            "recall_at_1_all": 0.9,
+            "mean_rank": 1.1,
+            "median_ms": 1008,
+            "p95_ms": 1081,
+            "degraded": 0,
+            "missed": [],
+            "lexical_median_ms": 98.28,
+            "lexical_p95_ms": 140.97,
+            "lexical_mean_ms": 107.88
+          },
+          "spanish-unaccented": {
+            "headline_recall_at_8": 0.9,
+            "headline_scored": 10,
+            "recall_at_8_all": 0.9,
+            "recall_at_1_all": 0.8,
+            "mean_rank": 1.111,
+            "median_ms": 1118,
+            "p95_ms": 1765,
+            "degraded": 0,
+            "missed": [
+              "es-constitucion-detencion"
+            ],
+            "lexical_median_ms": 101.28,
+            "lexical_p95_ms": 186.73,
+            "lexical_mean_ms": 117.17
+          }
+        },
+        "bm25": {
+          "english": {
+            "headline_recall_at_8": 0.9,
+            "headline_scored": 20,
+            "recall_at_8_all": 0.9,
+            "recall_at_1_all": 0.4667,
+            "mean_rank": 1.815,
+            "median_ms": 1444,
+            "p95_ms": 1670,
+            "degraded": 0,
+            "missed": [
+              "boe-bank-rate",
+              "cross-platform-obligations",
+              "table-form-1040-status"
+            ],
+            "lexical_median_ms": 30.87,
+            "lexical_p95_ms": 43.7,
+            "lexical_mean_ms": 28.4
+          },
+          "spanish-accented": {
+            "headline_recall_at_8": 1.0,
+            "headline_scored": 10,
+            "recall_at_8_all": 1.0,
+            "recall_at_1_all": 0.9,
+            "mean_rank": 1.1,
+            "median_ms": 1379,
+            "p95_ms": 1489,
+            "degraded": 0,
+            "missed": [],
+            "lexical_median_ms": 35.48,
+            "lexical_p95_ms": 46.44,
+            "lexical_mean_ms": 37.96
+          },
+          "spanish-unaccented": {
+            "headline_recall_at_8": 0.9,
+            "headline_scored": 10,
+            "recall_at_8_all": 0.9,
+            "recall_at_1_all": 0.7,
+            "mean_rank": 1.222,
+            "median_ms": 1454,
+            "p95_ms": 1508,
+            "degraded": 0,
+            "missed": [
+              "es-constitucion-detencion"
+            ],
+            "lexical_median_ms": 34.69,
+            "lexical_p95_ms": 47.89,
+            "lexical_mean_ms": 38.23
+          }
+        }
+      }
+    },
+    {
+      "at": "2026-08-28T16:14:22+00:00",
+      "embeddings": 13549,
+      "english_questions": 30,
+      "spanish_questions": 10,
+      "bm25_index": "CREATE INDEX ix_chunks_bm25 ON public.chunks USING bm25 (id, text, tenant_id, label_ids, unlabelled) WITH (key_field=id, text_fields='{\"text\": {\"tokenizer\": {\"type\": \"stem\", \"language\": \"Spanish\", \"lowercase\": true}}}')",
+      "tokeniser_folding": {
+        "accented_types": 2756,
+        "en_stem_folds": 0,
+        "en_stem_fold_rate": 0.0,
+        "spanish_stem_folds": 1895,
+        "spanish_stem_fold_rate": 0.6876,
+        "english_types": 10791,
+        "english_types_diverging": 5706,
+        "english_divergence_rate": 0.5288
+      },
+      "by_engine": {
+        "tsvector": {
+          "english": {
+            "headline_recall_at_8": 0.9,
+            "headline_scored": 20,
+            "recall_at_8_all": 0.9,
+            "recall_at_1_all": 0.6667,
+            "mean_rank": 1.407,
+            "median_ms": 1473,
+            "p95_ms": 1753,
+            "degraded": 0,
+            "missed": [
+              "boe-bank-rate",
+              "cross-platform-obligations",
+              "table-form-1040-status"
+            ],
+            "lexical_median_ms": 50.86,
+            "lexical_p95_ms": 56.48,
+            "lexical_mean_ms": 51.48
+          },
+          "spanish-accented": {
+            "headline_recall_at_8": 1.0,
+            "headline_scored": 10,
+            "recall_at_8_all": 1.0,
+            "recall_at_1_all": 0.9,
+            "mean_rank": 1.1,
+            "median_ms": 1431,
+            "p95_ms": 1488,
+            "degraded": 0,
+            "missed": [],
+            "lexical_median_ms": 88.82,
+            "lexical_p95_ms": 108.04,
+            "lexical_mean_ms": 90.34
+          },
+          "spanish-unaccented": {
+            "headline_recall_at_8": 0.9,
+            "headline_scored": 10,
+            "recall_at_8_all": 0.9,
+            "recall_at_1_all": 0.8,
+            "mean_rank": 1.111,
+            "median_ms": 1407,
+            "p95_ms": 1529,
+            "degraded": 0,
+            "missed": [
+              "es-constitucion-detencion"
+            ],
+            "lexical_median_ms": 89.72,
+            "lexical_p95_ms": 110.24,
+            "lexical_mean_ms": 90.42
+          }
+        },
+        "bm25": {
+          "english": {
+            "headline_recall_at_8": 0.8,
+            "headline_scored": 20,
+            "recall_at_8_all": 0.8333,
+            "recall_at_1_all": 0.5333,
+            "mean_rank": 1.48,
+            "median_ms": 1412,
+            "p95_ms": 1613,
+            "degraded": 0,
+            "missed": [
+              "attention-optimizer",
+              "boe-bank-rate",
+              "cross-platform-obligations",
+              "cross-payroll-and-return",
+              "table-form-1040-status"
+            ],
+            "lexical_median_ms": 29.88,
+            "lexical_p95_ms": 37.85,
+            "lexical_mean_ms": 25.82
+          },
+          "spanish-accented": {
+            "headline_recall_at_8": 1.0,
+            "headline_scored": 10,
+            "recall_at_8_all": 1.0,
+            "recall_at_1_all": 0.9,
+            "mean_rank": 1.1,
+            "median_ms": 1318,
+            "p95_ms": 1435,
+            "degraded": 0,
+            "missed": [],
+            "lexical_median_ms": 30.77,
+            "lexical_p95_ms": 40.51,
+            "lexical_mean_ms": 33.48
+          },
+          "spanish-unaccented": {
+            "headline_recall_at_8": 1.0,
+            "headline_scored": 10,
+            "recall_at_8_all": 1.0,
+            "recall_at_1_all": 0.8,
+            "mean_rank": 1.2,
+            "median_ms": 1398,
+            "p95_ms": 1559,
+            "degraded": 0,
+            "missed": [],
+            "lexical_median_ms": 31.88,
+            "lexical_p95_ms": 38.88,
+            "lexical_mean_ms": 33.27
+          }
+        }
+      }
+    },
+    {
+      "at": "2026-08-28T16:21:51+00:00",
+      "embeddings": 13549,
+      "english_questions": 30,
+      "spanish_questions": 10,
+      "bm25_index": "CREATE INDEX ix_chunks_bm25 ON public.chunks USING bm25 (id, text, tenant_id, label_ids, unlabelled) WITH (key_field=id, text_fields='{\"text\": {\"tokenizer\": {\"type\": \"stem\", \"language\": \"Spanish\", \"lowercase\": true}}}')",
+      "tokeniser_folding": {
+        "accented_types": 2756,
+        "en_stem_folds": 0,
+        "en_stem_fold_rate": 0.0,
+        "spanish_stem_folds": 1895,
+        "spanish_stem_fold_rate": 0.6876,
+        "english_types": 10791,
+        "english_types_diverging": 5706,
+        "english_divergence_rate": 0.5288
+      },
+      "by_engine": {
+        "tsvector": {
+          "english": {
+            "headline_recall_at_8": 0.9,
+            "headline_scored": 20,
+            "recall_at_8_all": 0.9,
+            "recall_at_1_all": 0.6667,
+            "mean_rank": 1.407,
+            "median_ms": 860,
+            "p95_ms": 969,
+            "degraded": 0,
+            "missed": [
+              "boe-bank-rate",
+              "cross-platform-obligations",
+              "table-form-1040-status"
+            ],
+            "lexical_median_ms": 48.48,
+            "lexical_p95_ms": 56.79,
+            "lexical_mean_ms": 50.04
+          },
+          "spanish-accented": {
+            "headline_recall_at_8": 1.0,
+            "headline_scored": 10,
+            "recall_at_8_all": 1.0,
+            "recall_at_1_all": 0.9,
+            "mean_rank": 1.1,
+            "median_ms": 818,
+            "p95_ms": 836,
+            "degraded": 0,
+            "missed": [],
+            "lexical_median_ms": 80.55,
+            "lexical_p95_ms": 105.86,
+            "lexical_mean_ms": 85.64
+          },
+          "spanish-unaccented": {
+            "headline_recall_at_8": 0.9,
+            "headline_scored": 10,
+            "recall_at_8_all": 0.9,
+            "recall_at_1_all": 0.8,
+            "mean_rank": 1.111,
+            "median_ms": 830,
+            "p95_ms": 885,
+            "degraded": 0,
+            "missed": [
+              "es-constitucion-detencion"
+            ],
+            "lexical_median_ms": 90.21,
+            "lexical_p95_ms": 103.93,
+            "lexical_mean_ms": 89.42
+          }
+        },
+        "bm25": {
+          "english": {
+            "headline_recall_at_8": 0.8,
+            "headline_scored": 20,
+            "recall_at_8_all": 0.8333,
+            "recall_at_1_all": 0.5333,
+            "mean_rank": 1.48,
+            "median_ms": 807,
+            "p95_ms": 1089,
+            "degraded": 0,
+            "missed": [
+              "attention-optimizer",
+              "boe-bank-rate",
+              "cross-platform-obligations",
+              "cross-payroll-and-return",
+              "table-form-1040-status"
+            ],
+            "lexical_median_ms": 30.54,
+            "lexical_p95_ms": 41.49,
+            "lexical_mean_ms": 27.76
+          },
+          "spanish-accented": {
+            "headline_recall_at_8": 1.0,
+            "headline_scored": 10,
+            "recall_at_8_all": 1.0,
+            "recall_at_1_all": 0.9,
+            "mean_rank": 1.1,
+            "median_ms": 738,
+            "p95_ms": 813,
+            "degraded": 0,
+            "missed": [],
+            "lexical_median_ms": 31.16,
+            "lexical_p95_ms": 37.83,
+            "lexical_mean_ms": 32.68
+          },
+          "spanish-unaccented": {
+            "headline_recall_at_8": 1.0,
+            "headline_scored": 10,
+            "recall_at_8_all": 1.0,
+            "recall_at_1_all": 0.8,
+            "mean_rank": 1.2,
+            "median_ms": 758,
+            "p95_ms": 920,
+            "degraded": 0,
+            "missed": [],
+            "lexical_median_ms": 31.17,
+            "lexical_p95_ms": 50.7,
+            "lexical_mean_ms": 35.78
+          }
+        }
+      }
+    }
+  ]
+}
