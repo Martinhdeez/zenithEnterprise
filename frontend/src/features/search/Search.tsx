@@ -400,6 +400,12 @@ export function Search({
         <div className="space-y-3">
           <div className="flex items-baseline justify-between gap-4 text-xs">
             <p className="text-muted-foreground">
+{/* The plural is a key, not an inline `s` in the markup: a bare number beside a
+                  bare noun with the plural spelled out is neither an attribute nor a `t(…)`
+                  call, so no guard in this repository can see it — which is how this once
+                  read "8 passages" on a Spanish screen. The key is the *singular* form,
+                  because that is what `EN_PLURALS` registers; English needs its own entry
+                  because a key alone cannot inflect. */}
               {t("{count} passage", { count: state.hits.length })} · {state.tookMs} ms
               {state.degraded && (
                 // No "Degraded:" prefix any more. The sentence from `degradation.py` is

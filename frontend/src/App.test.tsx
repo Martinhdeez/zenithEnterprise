@@ -198,7 +198,10 @@ describe("the system panel in the sidebar", () => {
     signedIn({ is_system_admin: false });
 
     render(<App />);
-    await screen.findByRole("button", { name: /^search$/i });
+    // Waits for the sidebar to exist, nothing more. It used to wait on the Search row;
+    // Search is a field above the list now, so the wait moved to the first row that is
+    // still a row. The assertion below is unchanged.
+    await screen.findByRole("button", { name: /^folders$/i });
 
     expect(screen.queryByRole("button", { name: /^system$/i })).toBeNull();
   });
@@ -220,7 +223,10 @@ describe("the system panel in the sidebar", () => {
     fetchMyProfile.mockRejectedValue(new Error("offline"));
 
     render(<App />);
-    await screen.findByRole("button", { name: /^search$/i });
+    // Waits for the sidebar to exist, nothing more. It used to wait on the Search row;
+    // Search is a field above the list now, so the wait moved to the first row that is
+    // still a row. The assertion below is unchanged.
+    await screen.findByRole("button", { name: /^folders$/i });
 
     expect(screen.queryByRole("button", { name: /^system$/i })).toBeNull();
   });

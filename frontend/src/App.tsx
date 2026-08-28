@@ -55,6 +55,7 @@ import {
 import { Search } from "@/features/search";
 import { tenantStatus, type TenantStatus } from "@/shared/api/tenant";
 import { CommandPalette } from "@/shared/ui/CommandPalette";
+import { SearchField } from "@/shared/ui/SearchField";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { forget, read, write } from "@/shared/lib/storage";
@@ -362,6 +363,9 @@ export function App() {
   // identical text) so asking the same question twice in a row still re-triggers Chat's
   // effect rather than being a no-op React sees as "the same prop".
   const [prefill, setPrefill] = useState<{ text: string; nonce: number } | null>(null);
+  // The sidebar's own box. Local rather than lifted: it is a way *in*, and what it holds
+  // between one search and the next is nobody else's business.
+  const [entry, setEntry] = useState("");
   const [pdfExpanded, setPdfExpanded] = useState(false);
   // Remembered across reloads: someone who collapsed the bar to get room back does not
   // want it handed to them again on every refresh. `localStorage` rather than session,
@@ -597,11 +601,66 @@ export function App() {
           )}
         </div>
 
+        {/* **Search is not one of six destinations, so it stopped being drawn as one.**
+            
+            It was a row in the list and then it was shouted at — first a tinted wash, then a
+            solid fill — and neither read as elegant, because the problem was never the
+            colour. In a list of identical rows, the emphasised row is read as a *state* of
+            the others: hovered, selected, erroring. Paint cannot fix a filing mistake.
+            
+            So the entry to the product's main use case is a field, above the list. A field
+            is a different kind of object from a row, which is what lets it be the first
+            thing the eye lands on without any emphasis at all — and it is the literal answer
+            to "the box they see first". The five rows below go back to uniform and quiet.
+            
+            Typing here runs the search on the Search screen rather than filtering anything
+            locally, which is why it clears itself afterwards: it is a door, not a filter,
+            and a door that keeps what you last pushed through it is a filter nobody asked
+            for.
+            
+            Collapsed, it is the icon alone in the same slot — a 64px rail has no room for a
+            field, and leaving nothing there would make Search the one screen with no way to
+            reach it. */}
+        {collapsed ? (
+          <div className="flex justify-center px-2 pt-3">
+            <button
+              type="button"
+              onClick={() => open("search")}
+              title={viewLabel("search", t)}
+              aria-label={viewLabel("search", t)}
+              className={`flex size-10 items-center justify-center rounded-lg transition-colors ${
+                view === "search"
+                  ? "bg-secondary text-primary"
+                  : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
+              }`}
+            >
+              <SearchIcon className="size-6" />
+            </button>
+          </div>
+        ) : (
+          <div className="px-3 pt-3">
+            <SearchField
+              value={entry}
+              onChange={setEntry}
+              // Its own accessible name: the Search screen's working field is also called
+              // "Search", and two boxes on one screen must not answer to the same name.
+              label={t("Search your corpus")}
+              placeholder={t("Search your corpus")}
+              onSubmit={() => {
+                const asked = entry.trim();
+                if (!asked) return;
+                setEntry("");
+                setPrefill({ text: asked, nonce: Date.now() });
+                open("search");
+              }}
+            />
+          </div>
+        )}
+
         <div className="scrollbar-none flex flex-1 flex-col overflow-y-auto">
           <div className="flex flex-col gap-0.5 px-2 py-3">
             {(
               [
-                { name: "search", icon: SearchIcon },
                 { name: "folders", icon: FolderIcon },
                 { name: "upload", icon: UploadIcon },
                 { name: "history", icon: HistoryIcon },
@@ -639,42 +698,16 @@ export function App() {
                   // Selection is a state, not an emphasis: the row you are on should be the
                   // most *legible*, and the colour is better spent on one small thing than
                   // spread across the whole item.
-                  // Search is not one of six equal destinations. It is the way into the
-                  // product's main use case; the other rows are places you go once you
-                  // already know what you want.
-                  //
-                  // **Filled and reversed, not tinted.** A faint accent wash was tried and
-                  // had to go: every other row in this column answers a hover with a wash of
-                  // its own, so a permanently washed row reads as one the cursor is sitting
-                  // on. Anything built out of the same material as a hover state will be
-                  // read as one. The way out is a different material — this row is solid
-                  // accent with its label reversed out of it, which is a thing no hover here
-                  // does and therefore cannot be mistaken for one.
-                  //
-                  // The contrast is not a guess: `--primary-foreground` on `--primary` is
-                  // 6.11:1 in light and 5.61:1 in dark, both recorded in `index.css` where
-                  // the two lightnesses were chosen.
-                  //
-                  // **Selected, it glows rather than going quiet.** The obvious move was to
-                  // hand it the same `bg-secondary` every other selected row gets, which
-                  // would make clicking the brightest thing in the column dim it — and would
-                  // drop the one signal a sidebar owes the reader, which is where they are.
-                  // It keeps the fill and gains the halo the ask control already uses for
-                  // exactly this: on is louder than off.
-                  name === "search"
-                    ? `bg-primary font-medium text-primary-foreground shadow-sm hover:brightness-110 ${
-                        view === name ? "glow-accent" : ""
-                      }`
-                    : view === name
-                      ? "bg-secondary font-medium text-foreground"
-                      : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
+                  view === name
+                    ? "bg-secondary font-medium text-foreground"
+                    : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
                 }`}
               >
                 {/* Larger when collapsed: at this size the icon is the only thing carrying
                     the meaning, so it gets the room the label gave up. */}
                 <Icon
                   className={`shrink-0 ${collapsed ? "size-6" : "size-[18px]"} ${
-                    name === "search" ? "" : view === name ? "text-primary" : ""
+                    view === name ? "text-primary" : ""
                   }`}
                 />
                 {!collapsed && viewLabel(name, t)}
