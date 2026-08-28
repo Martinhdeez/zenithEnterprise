@@ -104,6 +104,13 @@ async def _build(conn: AsyncConnection) -> tuple[int, int]:
     thing, because the walk would find a run of admissible rows at once. Scattering them is
     the pessimistic assignment and the honest one.
     """
+    # A parallel plan on the interpolation step asks for a shared memory segment far larger
+    # than the 64 MB Docker gives a container by default, and fails with `DiskFull` — which
+    # names the wrong resource and sends you to check the disk, where there is 389 GB free.
+    # Serial here rather than raising `shm_size` in the compose file: this is laboratory
+    # tooling and it should not require a change to how the product is deployed to run.
+    await conn.execute(text("SET LOCAL max_parallel_workers_per_gather = 0"))
+    await conn.execute(text("SET LOCAL max_parallel_maintenance_workers = 0"))
     await conn.execute(text(f"DROP SCHEMA IF EXISTS {SCHEMA} CASCADE"))
     await conn.execute(text(f"CREATE SCHEMA {SCHEMA}"))
     await conn.execute(

@@ -53,10 +53,11 @@ instead.
 
 ## The translation, and the gate that licenses it
 
-The real corpus's own density law is measured here too, by subsetting it: `d10 ∝ N^−0.135`,
-an intrinsic dimensionality of about 7.4. That law converts any measured density into the
-real row count that would produce it, which is how a synthetic subset gets an
-`equivalent_real_n`.
+The real corpus's own density law is measured here too, by subsetting it: least squares over
+its own subsets gives `d10 ∝ N^−0.107`, an intrinsic dimensionality of about 9.4. That law
+converts any measured density into the real row count that would produce it, which is how a
+synthetic subset gets an `equivalent_real_n` — a translation that is an ordering rather than a
+quantity once it is extrapolated far past the decade it was fitted over.
 
 The whole construction rests on one claim — that **matched density implies matched
 quantisation error** — and that claim is testable without believing it first. There is a
@@ -91,7 +92,7 @@ import json
 import math
 import statistics
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -134,9 +135,21 @@ RESCORE = (20, 50, 100, 200, 400)
 #: only has to be large enough to place the corpus on a curve.
 DENSITY_PROBES = 60
 
-#: The real corpus's own law, fitted from its subsets in `_real_density_law`. Recorded as a
-#: default only so the translation is inspectable; the run fits it again and reports both.
-FITTED_EXPONENT = -0.135
+#: What the fit came back with on 2026-08-28, recorded so a future run that disagrees is
+#: visible rather than silent. Nothing reads it: `_real_density_law` refits every time, because
+#: a corpus that grows changes this and a hard-coded exponent would quietly mistranslate every
+#: density in the report.
+FITTED_EXPONENT_2026_08_28 = -0.1068
+
+
+@dataclass(frozen=True, slots=True)
+class Gaps:
+    """One corpus, one set of questions. Gap is `1 - recall@10` against exact fp32."""
+
+    questions: int
+    fp16: float
+    binary: dict[int, float]
+    binary_worst: dict[int, float]
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,9 +157,27 @@ class Measured:
     size: int
     density: float
     equivalent_real_n: float
-    fp16_gap: float
-    binary_gap: dict[int, float]
-    worst_binary: dict[int, float]
+    answerable: Gaps
+    unanswerable: Gaps
+    combined: Gaps
+
+
+def _gaps(fp16: list[int], binary: dict[int, list[int]], keep: list[int]) -> Gaps:
+    """Reduce per-query hits to gaps, over the subset of questions `keep` selects.
+
+    Split because the two kinds measure different things. An unanswerable question has no
+    meaningful exact top ten — the nearest passages to "how many goals did Messi score" over
+    employment law are an arbitrary set — so asking a compressed index to reproduce it is
+    measuring the faithful reproduction of noise. Included anyway, and reported separately,
+    because a real installation is asked those questions and F26 exists for them.
+    """
+    total = len(keep) * DEPTH
+    return Gaps(
+        questions=len(keep),
+        fp16=round(1 - sum(fp16[i] for i in keep) / total, 4),
+        binary={w: round(1 - sum(binary[w][i] for i in keep) / total, 4) for w in RESCORE},
+        binary_worst={w: round(min(binary[w][i] for i in keep) / DEPTH, 4) for w in RESCORE},
+    )
 
 
 def _fit(points: list[tuple[float, float]]) -> tuple[float, float]:
@@ -282,14 +313,27 @@ async def _real_density_law(conn: AsyncConnection) -> dict[str, object]:
     }
 
 
+#: The range the real corpus's density law was actually fitted over. Beyond it the law is
+#: being extrapolated, and `equivalent_real_n` stops being a number and becomes an ordering.
+FITTED_OVER = (3_000, 13_549)
+
+
 def _equivalent(density: float, exponent: float, intercept: float) -> float:
-    """The real row count whose local density is this one. The whole translation."""
+    """The real row count whose local density is this one. The whole translation.
+
+    **Read the largest of these as a direction, not a quantity.** The law is fitted over
+    3,000 to 13,549 real vectors, a little under one decade. Asking it for the row count
+    behind a density three decades below anything it saw returns a number with a great many
+    digits and roughly one of them meaningful. What survives the extrapolation is the
+    ordering — this corpus is denser than that one, and denser than any real corpus of a size
+    worth planning for — and the ordering is all the conclusion needs.
+    """
     return 10 ** ((math.log10(density) - intercept) / exponent)
 
 
 async def _truth_and_gaps(
     conn: AsyncConnection, table: str, limit: int, queries: list[list[float]]
-) -> tuple[float, dict[int, float], dict[int, float]]:
+) -> tuple[list[int], dict[int, list[int]]]:
     """Exact fp32 neighbours, then the same question asked of each compressed form.
 
     Every index is refused throughout. What is being measured is what the *compression* loses,
@@ -300,9 +344,10 @@ async def _truth_and_gaps(
     await conn.execute(text("SET LOCAL enable_indexscan = off"))
     await conn.execute(text("SET LOCAL enable_bitmapscan = off"))
 
-    fp16_hits = 0
-    binary_hits: dict[int, int] = {width: 0 for width in RESCORE}
-    binary_worst: dict[int, float] = {width: 1.0 for width in RESCORE}
+    # Per query rather than summed, so the caller can split answerable from unanswerable
+    # without paying for a second pass over the table.
+    fp16_hits: list[int] = []
+    binary_hits: dict[int, list[int]] = {width: [] for width in RESCORE}
 
     for vector in queries:
         params: dict[str, Any] = {"q": str(vector), "k": DEPTH, "n": limit}
@@ -327,7 +372,7 @@ async def _truth_and_gaps(
                 params,
             )
         }
-        fp16_hits += len(truth & fp16)
+        fp16_hits.append(len(truth & fp16))
 
         for width in RESCORE:
             rows = await conn.execute(
@@ -339,16 +384,9 @@ async def _truth_and_gaps(
                 ),
                 {**params, "w": width},
             )
-            hit = len(truth & {row.id for row in rows})
-            binary_hits[width] += hit
-            binary_worst[width] = min(binary_worst[width], hit / DEPTH)
+            binary_hits[width].append(len(truth & {row.id for row in rows}))
 
-    total = len(queries) * DEPTH
-    return (
-        1 - fp16_hits / total,
-        {w: round(1 - binary_hits[w] / total, 4) for w in RESCORE},
-        {w: round(binary_worst[w], 4) for w in RESCORE},
-    )
+    return fp16_hits, binary_hits
 
 
 async def _hygiene(conn: AsyncConnection) -> dict[str, int]:
@@ -376,10 +414,13 @@ async def _run(sizes: tuple[int, ...]) -> int:
     engine = create_async_engine(settings.database_owner_url)
     started = time.perf_counter()
 
-    questions = [q.question for q in load_questions()]
+    loaded = load_questions()
     embedder = TeiClient(profile=active_profile())
-    queries = await embedder.embed(questions)
-    print(f"{len(queries)} questions embedded\n")
+    queries = await embedder.embed([q.question for q in loaded])
+    answerable = [i for i, q in enumerate(loaded) if q.sources]
+    unanswerable = [i for i, q in enumerate(loaded) if not q.sources]
+    everything = list(range(len(loaded)))
+    print(f"{len(answerable)} answerable + {len(unanswerable)} unanswerable questions\n")
 
     try:
         async with engine.begin() as conn:
@@ -398,22 +439,36 @@ async def _run(sizes: tuple[int, ...]) -> int:
 
             # The real corpus, measured by this file's own rule, so the gate compares like
             # with like rather than against a number another harness computed differently.
-            real_fp16, real_binary, real_worst = await _truth_and_gaps(
-                conn, f"{SCHEMA}.seed", 13_549, queries
+            fp16_hits, binary_hits = await _truth_and_gaps(conn, f"{SCHEMA}.seed", 13_549, queries)
+            real = _gaps(fp16_hits, binary_hits, answerable)
+            real_all = _gaps(fp16_hits, binary_hits, everything)
+            print(
+                f"REAL 13,549   d10 {real_density:.4f}   binary r100 "
+                f"{real.binary[100]:.4f} answerable / {real_all.binary[100]:.4f} all\n"
             )
-            print(f"REAL 13,549   d10 {real_density:.4f}   binary gap {real_binary}\n")
 
             measured: list[Measured] = []
             for size in sizes:
                 density = await _density(conn, f"{SCHEMA}.vecs", size, f"{SCHEMA}.vecs")
-                fp16_gap, binary_gap, worst = await _truth_and_gaps(
+                fp16_hits, binary_hits = await _truth_and_gaps(
                     conn, f"{SCHEMA}.vecs", size, queries
                 )
                 equivalent = _equivalent(density, exponent, intercept)
-                measured.append(Measured(size, density, equivalent, fp16_gap, binary_gap, worst))
+                measured.append(
+                    Measured(
+                        size,
+                        density,
+                        equivalent,
+                        _gaps(fp16_hits, binary_hits, answerable),
+                        _gaps(fp16_hits, binary_hits, unanswerable),
+                        _gaps(fp16_hits, binary_hits, everything),
+                    )
+                )
+                latest = measured[-1].answerable
                 print(
                     f"  {size:>9,}  d10 {density:.4f}  = real {equivalent:>15,.0f}"
-                    f"   fp16 gap {fp16_gap:.4f}   binary r100 {binary_gap[100]:.4f}",
+                    f"   fp16 {latest.fp16:.4f}   binary r100 {latest.binary[100]:.4f}"
+                    f"   r400 {latest.binary[400]:.4f}",
                     flush=True,
                 )
     finally:
@@ -427,25 +482,41 @@ async def _run(sizes: tuple[int, ...]) -> int:
     # reproduce the real corpus's binary gap; if it does not, matched density does not imply
     # matched error and none of the rows above mean anything.
     nearest = min(measured, key=lambda m: abs(m.density - real_density))
-    deltas = {w: round(nearest.binary_gap[w] - real_binary[w], 4) for w in RESCORE}
+    deltas = {w: round(nearest.answerable.binary[w] - real.binary[w], 4) for w in RESCORE}
     worst_delta = max(abs(d) for d in deltas.values())
     calibrated = worst_delta <= 0.05
+    # Magnitude was the whole test in the first version of this file, and the sign turned out
+    # to carry more than the magnitude did: every delta came back negative, meaning the
+    # synthetic corpus is *kinder* to binary quantisation than the real one at a density that
+    # is if anything higher. Density is therefore not the whole mechanism.
+    #
+    # It does not invalidate the run, and the direction is why. A synthetic corpus that
+    # flatters binary and still shows it failing bounds the real degradation from below: the
+    # real thing is at least this bad. A bias towards the conclusion would have been fatal;
+    # a bias away from it is a floor.
+    bias = (
+        "flatters_binary"
+        if all(d < 0 for d in deltas.values())
+        else ("penalises_binary" if all(d > 0 for d in deltas.values()) else "mixed")
+    )
 
     REPORT.write_text(
         json.dumps(
             {
                 "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
                 "took_s": round(time.perf_counter() - started, 1),
-                "questions": len(queries),
+                "questions": {
+                    "answerable": len(answerable),
+                    "unanswerable": len(unanswerable),
+                },
                 "depth": DEPTH,
                 "corpus": built,
                 "real_density_law": law,
                 "real": {
                     "n": 13_549,
                     "d10": round(real_density, 4),
-                    "fp16_gap": round(real_fp16, 4),
-                    "binary_gap": real_binary,
-                    "binary_worst_question": real_worst,
+                    "answerable": asdict(real),
+                    "all_questions": asdict(real_all),
                 },
                 "gate": {
                     "compared_size": nearest.size,
@@ -455,15 +526,23 @@ async def _run(sizes: tuple[int, ...]) -> int:
                     "worst_delta": round(worst_delta, 4),
                     "tolerance": 0.05,
                     "calibrated": calibrated,
+                    "systematic_bias": bias,
+                    "bias_means": {
+                        "flatters_binary": "synthetic understates the gap; real degradation "
+                        "is at least what is reported here",
+                        "penalises_binary": "synthetic overstates the gap; the report is an "
+                        "upper bound and binary may survive",
+                        "mixed": "no systematic direction",
+                    }[bias],
                 },
                 "synthetic": [
                     {
                         "size": m.size,
                         "d10": round(m.density, 4),
                         "equivalent_real_n": round(m.equivalent_real_n),
-                        "fp16_gap": round(m.fp16_gap, 4),
-                        "binary_gap": m.binary_gap,
-                        "binary_worst_question": m.worst_binary,
+                        "answerable": asdict(m.answerable),
+                        "unanswerable": asdict(m.unanswerable),
+                        "all_questions": asdict(m.combined),
                     }
                     for m in measured
                 ],
