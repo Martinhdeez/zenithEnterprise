@@ -39,6 +39,16 @@ def test_ef_search_can_fill_the_candidate_set() -> None:
 
     Only the floor is asserted. Above it the value stopped changing any result we could
     measure, so this pins the property that matters and leaves the tuning alone.
+
+    **This assertion is necessary and it is not sufficient, and the gap is a bug that
+    lived in it.** It reasons about an unfiltered scan: `ef_search` neighbours asked for,
+    `ef_search` neighbours returned. Nothing here is unfiltered — RLS stands over every
+    query, the HNSW graph is shared by every tenant, and the policies discard from the
+    scan's output. So a profile can satisfy this test with room to spare and still hand
+    fusion 43 candidates out of 50, which is what `eval/tenant-scale.json` measured. The
+    ceiling being high enough says nothing about how many rows survive underneath it.
+    `test_the_unscoped_dense_query_asks_for_an_iterative_scan`, in the retrieval tests, is
+    the half this one cannot see.
     """
     from app.features.retrieval.search import CANDIDATES
 

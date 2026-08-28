@@ -178,6 +178,13 @@ def latency(repeats: int | None) -> int:
     return run(repeats if repeats is not None else REPEATS)
 
 
+def iterative_scan() -> int:
+    """What iterative scan costs and buys end to end, unscoped. Read-only, needs no token."""
+    from eval.iterative_scan import run
+
+    return run()
+
+
 COMMANDS = (
     "fetch",
     "layout",
@@ -188,6 +195,7 @@ COMMANDS = (
     "ef-search",
     "rerank-depth",
     "latency",
+    "iterative-scan",
 )
 
 
@@ -202,9 +210,12 @@ def main() -> int:
             "       python -m eval separation --token <jwt> [--url http://localhost:8000]\n"
             "       python -m eval ef-search\n"
             "       python -m eval rerank-depth\n"
-            "       python -m eval latency [--repeats N]"
+            "       python -m eval latency [--repeats N]\n"
+            "       python -m eval iterative-scan"
         )
         return 2
+    if sys.argv[1] == "iterative-scan":
+        return iterative_scan()
     if sys.argv[1] == "separation":
         return separation()
     if sys.argv[1] == "latency":
