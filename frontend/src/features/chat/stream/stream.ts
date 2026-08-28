@@ -135,6 +135,34 @@ export async function streamQuery(
   }
 
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+
+  // `finally`, and it is not tidiness. Breaking out of the loop left the stream open with
+  // its lock held: the connection was torn down when the response was collected instead of
+  // when we were done with it, and Chrome logged one `net::ERR_ABORTED` per answer — on a
+  // request that had completed and rendered in full.
+  //
+  // That is an error in the console of a product whose pitch is that you can check what it
+  // tells you, and it survived a hunt through `StrictMode`, the Vite proxy and a patched
+  // `AbortController` because nothing was calling `abort`. Nothing had to: an uncancelled
+  // reader is aborted by the browser on our behalf.
+  //
+  // `cancel` rather than `releaseLock` because the stream may still hold buffered data on
+  // an early return — a thrown handler, a caller that stops reading — and cancelling
+  // discards it and closes the connection rather than leaving it half-consumed.
+  try {
+    await pump(reader, handlers);
+  } finally {
+    await reader.cancel().catch(() => {
+      // Already errored or already closed. There is nothing left to release and nothing
+      // useful to say about it.
+    });
+  }
+}
+
+async function pump(
+  reader: ReadableStreamDefaultReader<string>,
+  handlers: StreamHandlers,
+): Promise<void> {
   let buffer = "";
 
   for (;;) {
