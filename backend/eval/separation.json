@@ -1,6 +1,6 @@
 {
   "answerable_questions": 30,
-  "unanswerable_questions": 10,
+  "unanswerable_questions": 11,
   "degraded_runs": 0,
   "signals": {
     "rerank": {
@@ -10,8 +10,8 @@
         "high": 1.0
       },
       "unanswerable": {
-        "low": 0.0003,
-        "median": 0.0463,
+        "low": 0.038,
+        "median": 0.1277,
         "high": 0.9996
       },
       "separates": false,
@@ -24,8 +24,8 @@
         "high": 0.7598
       },
       "unanswerable": {
-        "low": 0.4279,
-        "median": 0.528,
+        "low": 0.3904,
+        "median": 0.535,
         "high": 0.662
       },
       "separates": false,
@@ -56,7 +56,7 @@
       "dense": 0.7598494970663963,
       "lexical_hits": 8,
       "spread": 1.3320901407405348,
-      "took_ms": 1178,
+      "took_ms": 756,
       "degraded": false
     },
     {
@@ -68,7 +68,7 @@
       "dense": 0.5893485615239898,
       "lexical_hits": 6,
       "spread": 0.7054377880184332,
-      "took_ms": 894,
+      "took_ms": 854,
       "degraded": false
     },
     {
@@ -80,7 +80,7 @@
       "dense": 0.658310671398362,
       "lexical_hits": 7,
       "spread": 0.9036087369420702,
-      "took_ms": 748,
+      "took_ms": 659,
       "degraded": false
     },
     {
@@ -92,7 +92,7 @@
       "dense": 0.6241850666944798,
       "lexical_hits": 8,
       "spread": 1.1681175805539854,
-      "took_ms": 796,
+      "took_ms": 728,
       "degraded": false
     },
     {
@@ -104,7 +104,7 @@
       "dense": 0.678544204148306,
       "lexical_hits": 8,
       "spread": 0.9694663698306685,
-      "took_ms": 708,
+      "took_ms": 689,
       "degraded": false
     },
     {
@@ -116,7 +116,7 @@
       "dense": 0.6890266597640523,
       "lexical_hits": 5,
       "spread": 1.0161290322580645,
-      "took_ms": 877,
+      "took_ms": 848,
       "degraded": false
     },
     {
@@ -140,7 +140,7 @@
       "dense": 0.6000957906217661,
       "lexical_hits": 8,
       "spread": 1.098116991020356,
-      "took_ms": 777,
+      "took_ms": 690,
       "degraded": false
     },
     {
@@ -152,7 +152,7 @@
       "dense": null,
       "lexical_hits": 8,
       "spread": 1.0303030303030303,
-      "took_ms": 985,
+      "took_ms": 852,
       "degraded": false
     },
     {
@@ -164,7 +164,7 @@
       "dense": null,
       "lexical_hits": 8,
       "spread": 1.0634920634920635,
-      "took_ms": 874,
+      "took_ms": 802,
       "degraded": false
     },
     {
@@ -176,7 +176,7 @@
       "dense": 0.6414835070679493,
       "lexical_hits": 8,
       "spread": 1.0409700408687135,
-      "took_ms": 996,
+      "took_ms": 928,
       "degraded": false
     },
     {
@@ -188,7 +188,7 @@
       "dense": 0.628481388092041,
       "lexical_hits": 8,
       "spread": 0.972414057214343,
-      "took_ms": 923,
+      "took_ms": 840,
       "degraded": false
     },
     {
@@ -212,7 +212,7 @@
       "dense": 0.7156526063577121,
       "lexical_hits": 8,
       "spread": 1.054039482415395,
-      "took_ms": 891,
+      "took_ms": 863,
       "degraded": false
     },
     {
@@ -224,7 +224,7 @@
       "dense": 0.6139318482794591,
       "lexical_hits": 8,
       "spread": 1.0604361957699375,
-      "took_ms": 697,
+      "took_ms": 655,
       "degraded": false
     },
     {
@@ -236,7 +236,7 @@
       "dense": 0.6262814366473077,
       "lexical_hits": 7,
       "spread": 0.9301998985286657,
-      "took_ms": 768,
+      "took_ms": 804,
       "degraded": false
     },
     {
@@ -248,7 +248,7 @@
       "dense": 0.512213933035658,
       "lexical_hits": 8,
       "spread": 1.0227324913892077,
-      "took_ms": 921,
+      "took_ms": 912,
       "degraded": false
     },
     {
@@ -260,7 +260,7 @@
       "dense": 0.49809777759340434,
       "lexical_hits": 8,
       "spread": 1.1404454022988506,
-      "took_ms": 903,
+      "took_ms": 853,
       "degraded": false
     },
     {
@@ -272,7 +272,7 @@
       "dense": 0.6583223735286232,
       "lexical_hits": 8,
       "spread": 1.0961622365418178,
-      "took_ms": 746,
+      "took_ms": 720,
       "degraded": false
     },
     {
@@ -284,7 +284,7 @@
       "dense": 0.6158068180084229,
       "lexical_hits": 8,
       "spread": 0.9471944052348569,
-      "took_ms": 942,
+      "took_ms": 863,
       "degraded": false
     },
     {
@@ -296,7 +296,7 @@
       "dense": 0.6076217165444279,
       "lexical_hits": 8,
       "spread": 1.1674882494554626,
-      "took_ms": 945,
+      "took_ms": 902,
       "degraded": false
     },
     {
@@ -308,7 +308,7 @@
       "dense": 0.6248575001785159,
       "lexical_hits": 8,
       "spread": 1.1536317322230583,
-      "took_ms": 886,
+      "took_ms": 869,
       "degraded": false
     },
     {
@@ -320,7 +320,7 @@
       "dense": 0.7412227613098256,
       "lexical_hits": 8,
       "spread": 1.07519954004329,
-      "took_ms": 829,
+      "took_ms": 781,
       "degraded": false
     },
     {
@@ -332,7 +332,7 @@
       "dense": 0.6906789086630563,
       "lexical_hits": 8,
       "spread": 1.0040364963008674,
-      "took_ms": 805,
+      "took_ms": 781,
       "degraded": false
     },
     {
@@ -344,7 +344,7 @@
       "dense": 0.5742565304927234,
       "lexical_hits": 7,
       "spread": 1.0332709523937287,
-      "took_ms": 886,
+      "took_ms": 861,
       "degraded": false
     },
     {
@@ -356,7 +356,7 @@
       "dense": 0.46628322996397276,
       "lexical_hits": 5,
       "spread": 1.7439024390243902,
-      "took_ms": 967,
+      "took_ms": 1071,
       "degraded": false
     },
     {
@@ -368,7 +368,7 @@
       "dense": null,
       "lexical_hits": 7,
       "spread": 1.0491803278688525,
-      "took_ms": 1006,
+      "took_ms": 938,
       "degraded": false
     },
     {
@@ -380,7 +380,7 @@
       "dense": 0.6382296655979457,
       "lexical_hits": 3,
       "spread": 1.0,
-      "took_ms": 785,
+      "took_ms": 735,
       "degraded": false
     },
     {
@@ -392,7 +392,7 @@
       "dense": 0.6014471887679594,
       "lexical_hits": 6,
       "spread": 1.0256912160508933,
-      "took_ms": 862,
+      "took_ms": 809,
       "degraded": false
     },
     {
@@ -404,7 +404,7 @@
       "dense": null,
       "lexical_hits": 8,
       "spread": 1.6703296703296702,
-      "took_ms": 946,
+      "took_ms": 968,
       "degraded": false
     },
     {
@@ -416,19 +416,31 @@
       "dense": 0.42789652943611456,
       "lexical_hits": 4,
       "spread": 1.0161290322580645,
-      "took_ms": 1161,
+      "took_ms": 1128,
+      "degraded": false
+    },
+    {
+      "id": "unanswerable-messi-year",
+      "kind": "unanswerable",
+      "question": "cuantos goles marco Messi en 2012",
+      "hits": 8,
+      "rerank": 0.30960056,
+      "dense": 0.3904364472367503,
+      "lexical_hits": 2,
+      "spread": 0.9682539682539681,
+      "took_ms": 1261,
       "degraded": false
     },
     {
       "id": "unanswerable-recipe",
       "kind": "unanswerable",
       "question": "What temperature should the oven be for a Spanish tortilla?",
-      "hits": 8,
-      "rerank": 0.000327201,
-      "dense": 0.4496491163341618,
-      "lexical_hits": 8,
-      "spread": 1.0838709677419356,
-      "took_ms": 710,
+      "hits": 0,
+      "rerank": null,
+      "dense": null,
+      "lexical_hits": 0,
+      "spread": null,
+      "took_ms": 660,
       "degraded": false
     },
     {
@@ -440,7 +452,7 @@
       "dense": 0.5830409526824951,
       "lexical_hits": 6,
       "spread": 1.0161290322580645,
-      "took_ms": 901,
+      "took_ms": 861,
       "degraded": false
     },
     {
@@ -452,7 +464,7 @@
       "dense": 0.5350402316475062,
       "lexical_hits": 5,
       "spread": 1.3775401069518718,
-      "took_ms": 825,
+      "took_ms": 720,
       "degraded": false
     },
     {
@@ -464,19 +476,19 @@
       "dense": 0.5340515534297154,
       "lexical_hits": 5,
       "spread": 1.0163934426229508,
-      "took_ms": 1196,
+      "took_ms": 944,
       "degraded": false
     },
     {
       "id": "unanswerable-pricing",
       "kind": "unanswerable",
       "question": "How much does a Zenith Enterprise licence cost per seat?",
-      "hits": 8,
-      "rerank": 0.014107624,
-      "dense": 0.4435585073898475,
-      "lexical_hits": 5,
-      "spread": 1.0163934426229508,
-      "took_ms": 905,
+      "hits": 0,
+      "rerank": null,
+      "dense": null,
+      "lexical_hits": 0,
+      "spread": null,
+      "took_ms": 949,
       "degraded": false
     },
     {
@@ -488,7 +500,7 @@
       "dense": 0.6619744498126118,
       "lexical_hits": 7,
       "spread": 1.1206454918032789,
-      "took_ms": 912,
+      "took_ms": 846,
       "degraded": false
     },
     {
@@ -500,31 +512,31 @@
       "dense": 0.5521571307088743,
       "lexical_hits": 4,
       "spread": 1.0163934426229508,
-      "took_ms": 708,
+      "took_ms": 697,
       "degraded": false
     },
     {
       "id": "unanswerable-tungsten",
       "kind": "unanswerable",
       "question": "What is the melting point of tungsten in degrees Celsius?",
-      "hits": 8,
-      "rerank": 0.0015236485,
-      "dense": 0.46053200254416593,
-      "lexical_hits": 4,
-      "spread": 0.9682539682539681,
-      "took_ms": 712,
+      "hits": 0,
+      "rerank": null,
+      "dense": null,
+      "lexical_hits": 0,
+      "spread": null,
+      "took_ms": 690,
       "degraded": false
     },
     {
       "id": "unanswerable-headcount",
       "kind": "unanswerable",
       "question": "How many people does the company that published the RAG paper employ today?",
-      "hits": 8,
-      "rerank": 0.0024600928,
-      "dense": 0.5219947255252222,
-      "lexical_hits": 8,
-      "spread": 1.0280231954647077,
-      "took_ms": 981,
+      "hits": 0,
+      "rerank": null,
+      "dense": null,
+      "lexical_hits": 0,
+      "spread": null,
+      "took_ms": 941,
       "degraded": false
     }
   ]

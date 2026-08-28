@@ -365,6 +365,31 @@ documents = []
 miss = "far"
 
 [[question]]
+id = "unanswerable-messi-year"
+type = "unanswerable"
+# Written the way people type, and that is the point rather than an accident.
+#
+# The corpus holds US tax forms whose tables are nothing but numbers and years, so "2012"
+# matches them. But the year is not what moves the score — the punctuation is. Measured, the
+# same question three ways:
+#
+#   "¿Cuántos goles marcó Messi en 2012?"   0.0775   weak
+#   "Cuantos goles marco Messi en 2012?"    0.0678   weak
+#   "cuantos goles marco Messi en 2012"     0.3096   CONFIDENT
+#
+# A cross-encoder is trained on question-passage pairs. Strip the question mark and the input
+# reads as a keyword string, for which a table of numbers is a plausible match; put it back
+# and the model judges it as a question again, which a table does not answer. Accents make no
+# difference — `unaccent` is in front of the lexical index and the reranker reads the raw text.
+#
+# This is the realistic case: the demo runbook makes a point of typing without accents,
+# because that is how people search. Kept in that form so the harness measures the query
+# users actually send rather than the tidy one.
+question = "cuantos goles marco Messi en 2012"
+documents = []
+miss = "far"
+
+[[question]]
 id = "unanswerable-recipe"
 type = "unanswerable"
 question = "What temperature should the oven be for a Spanish tortilla?"

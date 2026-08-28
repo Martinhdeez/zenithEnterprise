@@ -22,6 +22,30 @@ paragraphs and deciding for themselves — which is what they came to do.
 So `NONE` hides, and it is set where the measurement says it hides nothing real. `WEAK`
 hides nothing at all; it only says the match is poor, which the client renders as a line
 above the results.
+
+## What the cross-encoder is sensitive to, and it is not what you would guess.
+
+Measured on the same question written three ways:
+
+    "¿Cuántos goles marcó Messi en 2012?"   0.0775   weak
+    "Cuantos goles marco Messi en 2012?"    0.0678   weak
+    "cuantos goles marco Messi en 2012"     0.3096   confident
+
+The accents make no difference; the **question mark** does. A cross-encoder is trained on
+question-passage pairs, so without one the input reads as a keyword string — and a page of
+tax tables is a plausible match for a bag of numbers. Put it back and it is judged as a
+question again, which a table does not answer.
+
+That matters because the runbook makes a point of typing without accents, and people
+search in keywords. **The failure is in the cheap direction** — a keyword query about
+nothing comes back `confident` instead of `weak`, which shows results that were going to
+be shown anyway, without the notice. Nothing is hidden by it.
+
+`WEAK_CEILING` was deliberately not raised to 0.32 to catch this one case: doing so marks
+`attention-optimizer`, `boe-bank-rate` and `cross-eu-extraterritorial` weak, which is
+three correct answers wearing a notice that says nothing matches. Seven scored negatives
+is a small sample and moving a measured constant to chase the newest failure in it is how
+a threshold becomes overfitted to its own test set.
 """
 
 from __future__ import annotations
@@ -54,9 +78,14 @@ FLOOR = 0.02
 #: `cross-eu-extraterritorial` — so 0.20 would call three good answers weak. Below 0.16 the
 #: band catches five more negatives at no cost to any of them.
 #:
-#: The distribution is strongly bimodal — 21 of 40 observations above 0.9, 13 below 0.2, and
-#: **nothing at all between 0.2 and 0.4** — so this line sits in an empty valley rather than
-#: through a crowd. That is what makes it robust to a corpus that grows.
+#: The distribution is strongly bimodal — most observations above 0.9 or below 0.2 — and the
+#: first run of 40 questions had **nothing at all between 0.2 and 0.4**, which was written
+#: down here as an empty valley the line could sit in safely.
+#:
+#: **That claim did not survive the 41st question.** `cuantos goles marco Messi en 2012`
+#: scores 0.3096, in the middle of it. The valley was an artefact of the sample size, and a
+#: constant defended by "there is nothing near it" is only ever as true as the last thing
+#: measured. The line stays where the trade-off puts it, not where the gap looked widest.
 WEAK_CEILING = 0.15
 
 
