@@ -26,8 +26,24 @@ needs_corpus = pytest.mark.skipif(
 
 def test_the_question_count_is_pinned() -> None:
     """Verified beats numerous. The count is pinned because the temptation under time
-    pressure is to add unverified questions."""
-    assert len(load_questions()) == 36
+    pressure is to add unverified questions.
+
+    Pinned in two halves, because the two are verified differently and only one of them is
+    expensive. An **answerable** question is verified by a human reading the cited page and
+    confirming the answer is on it — that is the cost this guard protects, and 31 is where
+    it stands.
+
+    A **negative** carries no page to check. Its claim is that the corpus does not contain
+    the answer, and the thing that verifies it is `python -m eval separation`: a question
+    listed here that comes back with a strong match was never a negative. Cheaper to add,
+    and worth adding — a boundary cannot be calibrated on five examples — but not free, and
+    still pinned so the growth is deliberate.
+    """
+    questions = load_questions()
+    answerable = [q for q in questions if q.sources]
+    negatives = [q for q in questions if not q.sources]
+    assert len(answerable) == 31
+    assert len(negatives) == 10
 
 
 def test_ids_are_unique() -> None:
