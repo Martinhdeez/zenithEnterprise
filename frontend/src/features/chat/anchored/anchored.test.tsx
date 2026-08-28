@@ -14,7 +14,7 @@
  * reading would be replaced by a fresh one they did not ask for.
  */
 
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../stream/stream", async (importOriginal) => ({
@@ -82,5 +82,43 @@ describe("the anchored conversation", () => {
 
     expect(screen.getByText(/Respondiendo sólo desde constitucion\.pdf/)).toBeTruthy();
     setLanguage("en");
+  });
+
+  it("carries the thread and the same anchor into a follow-up", async () => {
+    // The first turn has to settle, or there is no thread to carry.
+    vi.mocked(streamQuery).mockImplementationOnce((async (
+      _question: string,
+      _token: string,
+      handlers: Parameters<typeof streamQuery>[2],
+    ) => {
+      handlers.onResult({
+        answer: "Cuarenta horas semanales.",
+        citations: [],
+        consulted: [],
+        abstained: false,
+      } as never);
+    }) as never);
+
+    await act(async () => {
+      render(<AnchoredChat anchor={anchor} token="t" onCitation={vi.fn()} />);
+    });
+
+    const box = screen.getByPlaceholderText(/Ask something else/);
+    await act(async () => {
+      fireEvent.change(box, { target: { value: "¿y en cómputo anual?" } });
+      fireEvent.submit(box.closest("form")!);
+    });
+
+    expect(streamQuery).toHaveBeenCalledTimes(2);
+    const [question, , , options] = vi.mocked(streamQuery).mock.calls[1]!;
+    expect(question).toBe("¿y en cómputo anual?");
+    // Still one document. A follow-up that dropped the anchor would widen to the corpus
+    // while the line above still promised one file — the failure this whole screen is
+    // built to make impossible.
+    expect(options?.documents).toEqual(["doc-1"]);
+    // And the first exchange travels, or "and what about..." resolves against nothing.
+    expect(options?.history).toEqual([
+      { question: "plazo máximo", answer: "Cuarenta horas semanales." },
+    ]);
   });
 });

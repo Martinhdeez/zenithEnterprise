@@ -7,22 +7,31 @@
  * behind the breadcrumb in the header above, which is what makes leaving cheap enough that
  * anchoring is not a trap.
  *
- * **Everything that renders or validates an answer is borrowed, not rewritten.** `reduce`
- * and `AnswerState` carry the retrieving/streaming/final progression, and `Answer` renders
- * it — including the rule that the accumulated tokens are provisional and only
- * `result.answer` is authoritative. A second implementation of that here would be a second
- * place for the citation guarantee to drift out of, which is the one thing in this product
- * that cannot be allowed to have two owners.
+ * **Everything that renders or validates an answer is borrowed, not rewritten.** `reduce`,
+ * `AnswerState` and `Answer` already carry the retrieving/streaming/final progression and
+ * the rule that accumulated tokens are provisional while only `result.answer` is
+ * authoritative. A second implementation here would give the citation guarantee a second
+ * owner, which is the one thing in this product that must have exactly one.
  *
- * What is genuinely new is the *anchor*: one document id on every request, and a first turn
- * that is asked on the user's behalf.
+ * What is genuinely new is the *anchor*: one document id on every request, first turn and
+ * follow-ups alike, and a first turn asked on the user's behalf.
+ *
+ * **On the transcript container.** The specification called for shadcn's `MessageScroller`,
+ * and it is not here. Installing it pulls `@shadcn/react` and rewrites `components/ui/button.tsx`
+ * — a file this codebase has customised, `size="icon-sm"` among other things, and which is
+ * used by every screen. Trading a scroll behaviour for an unreviewed rewrite of the most
+ * shared component in the tree is not a trade worth making silently, so the thread scrolls
+ * the way `Chat` already scrolls and `MessageScroller` stays on the table as its own change,
+ * where its diff can be read.
  */
 
-import { useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
+import { CornerDownLeft } from "lucide-react";
 
 import { Answer } from "../answer/Answer";
-import { reduce } from "../answer/answerState";
+import { asThread, reduce, type AnswerState } from "../answer/answerState";
 import { streamQuery, type Citation } from "../stream/stream";
+import { Button } from "@/components/ui/button";
 import { useT } from "@/shared/i18n/useT";
 
 export interface Anchor {
@@ -44,7 +53,10 @@ export function AnchoredChat({
   onCitation: (citation: Citation) => void;
 }) {
   const t = useT();
-  const [state, dispatch] = useReducer(reduce, { phase: "idle" });
+  const [settled, setSettled] = useState<AnswerState[]>([]);
+  const [current, dispatch] = useReducer(reduce, { phase: "idle" } as AnswerState);
+  const [draft, setDraft] = useState("");
+  const scroller = useRef<HTMLDivElement | null>(null);
 
   /**
    * One request per anchor, and the ref is what enforces it.
@@ -56,28 +68,60 @@ export function AnchoredChat({
    */
   const asked = useRef<string | null>(null);
 
+  const ask = useCallback(
+    (question: string, history: { question: string; answer: string }[]) => {
+      const controller = new AbortController();
+      dispatch({ type: "ask", question });
+      void streamQuery(
+        question,
+        token,
+        {
+          onToken: (text) => dispatch({ type: "token", text }),
+          onResult: (result) => dispatch({ type: "result", result }),
+          onError: (message) => dispatch({ type: "error", message }),
+        },
+        {
+          // The anchor, on every turn and not only the first. A follow-up that dropped it
+          // would widen to the whole corpus while the line above still promised one file.
+          documents: [anchor.documentId],
+          // Bounded by `conversation.py` on the server — six turns, answers truncated,
+          // questions not. Sent whole; the server decides what fits.
+          history,
+          signal: controller.signal,
+        },
+      );
+      return () => controller.abort();
+    },
+    [anchor.documentId, token],
+  );
+
   useEffect(() => {
     if (asked.current === anchor.documentId) return;
     asked.current = anchor.documentId;
+    return ask(anchor.question, []);
+  }, [anchor.documentId, anchor.question, ask]);
 
-    const controller = new AbortController();
-    dispatch({ type: "ask", question: anchor.question });
-    void streamQuery(
-      anchor.question,
-      token,
-      {
-        onToken: (text) => dispatch({ type: "token", text }),
-        onResult: (result) => dispatch({ type: "result", result }),
-        onError: (message) => dispatch({ type: "error", message }),
-      },
-      // The anchor, and the whole point of this screen. Enforced in the retrieval SQL
-      // rather than here — the client asking nicely for one document would be a filter a
-      // forgotten parameter could drop.
-      { documents: [anchor.documentId], signal: controller.signal },
-    );
+  // Set directly rather than `scrollIntoView`, for the reason `Chat` records: a token
+  // arriving every few dozen milliseconds would fight a CSS transition for the same
+  // `scrollTop` and produce jitter instead of a scroll. Following the newest turn is only
+  // right while it is the one at the bottom, which it always is here — this thread has no
+  // history to load above it.
+  useLayoutEffect(() => {
+    const node = scroller.current;
+    if (node) node.scrollTop = node.scrollHeight;
+  }, [settled, current]);
 
-    return () => controller.abort();
-  }, [anchor.documentId, anchor.question, token]);
+  const send = () => {
+    const question = draft.trim();
+    if (!question || current.phase === "retrieving" || current.phase === "streaming") return;
+    // The finished turn joins the transcript before the new one starts, so the thread the
+    // server is sent matches the thread on screen.
+    setSettled((previous) => (current.phase === "idle" ? previous : [...previous, current]));
+    setDraft("");
+    ask(question, asThread(current.phase === "idle" ? settled : [...settled, current]));
+  };
+
+  const busy = current.phase === "retrieving" || current.phase === "streaming";
 
   return (
     <section
@@ -94,7 +138,32 @@ export function AnchoredChat({
         {t("Answering from {filename} only.", { filename: anchor.filename })}
       </p>
 
-      <Answer state={state} onCitation={onCitation} />
+      <div ref={scroller} className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto">
+        {settled.map((turn, index) => (
+          <Answer key={index} state={turn} onCitation={onCitation} />
+        ))}
+        <Answer state={current} onCitation={onCitation} />
+      </div>
+
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          send();
+        }}
+        className="flex items-end gap-2"
+      >
+        <input
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          aria-label={t("Ask about this document")}
+          placeholder={t("Ask something else about this document")}
+          className="flex-1 rounded-md border border-input bg-input/60 px-3 py-2 text-sm outline-none focus:border-primary"
+        />
+        <Button type="submit" size="icon-sm" disabled={busy || draft.trim() === ""}>
+          <CornerDownLeft className="size-4" />
+          <span className="sr-only">{t("Send")}</span>
+        </Button>
+      </form>
     </section>
   );
 }
