@@ -171,6 +171,20 @@ def rerank_depth() -> int:
     return run()
 
 
+def quantisation() -> int:
+    """What a smaller vector index costs in recall. Read-only, needs no token.
+
+    Builds its scratch copies inside one schema and drops it again; nothing it creates
+    outlives the run, and it never writes to `chunk_embeddings`.
+    """
+    from eval.quantisation import SUBSETS, run
+
+    subsets = SUBSETS
+    if "--subsets" in sys.argv:
+        subsets = tuple(int(n) for n in sys.argv[sys.argv.index("--subsets") + 1].split(","))
+    return run(subsets)
+
+
 COMMANDS = (
     "fetch",
     "layout",
@@ -180,6 +194,7 @@ COMMANDS = (
     "separation",
     "ef-search",
     "rerank-depth",
+    "quantisation",
 )
 
 
@@ -193,9 +208,12 @@ def main() -> int:
             "       python -m eval live --token <jwt> [--url http://localhost:8000]\n"
             "       python -m eval separation --token <jwt> [--url http://localhost:8000]\n"
             "       python -m eval ef-search\n"
-            "       python -m eval rerank-depth"
+            "       python -m eval rerank-depth\n"
+            "       python -m eval quantisation [--subsets 2000,5000,10000]"
         )
         return 2
+    if sys.argv[1] == "quantisation":
+        return quantisation()
     if sys.argv[1] == "separation":
         return separation()
     if sys.argv[1] == "rerank-depth":
