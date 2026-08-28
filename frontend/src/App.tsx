@@ -9,7 +9,7 @@
 
 import { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import {
-  ArrowLeft,
+  ChevronLeft,
   Building2,
   Check,
   Copy,
@@ -807,22 +807,10 @@ export function App() {
               // own rules sitting on the same bar.
               started && panel === "conversation" && view === "search" ? (
                 <>
-                  {/* An arrow as well as the breadcrumb, and not a duplicate of it. The path
-                      says where you are; this says how to leave, which is the thing somebody
-                      reaches for without reading. */}
-                  <button
-                    type="button"
-                    onClick={() => setPanel("results")}
-                    aria-label={t("Back to the results")}
-                    title={t("Back to the results")}
-                    className="-ml-1 mr-1 rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground"
-                  >
-                    <ArrowLeft className="size-4" />
-                  </button>
-                  {/* The one name this application owns, and the one segment that is never
-                      translated. */}
-                  <span className="text-muted-foreground">Zenith</span>
-                  <span className="text-muted-foreground/50">/</span>
+                  {/* `Zenith /` is already rendered above, unconditionally, for every view.
+                      This branch used to print it a second time, so the path read
+                      `Zenith / Zenith / Search / Chat`. It contributes only the segments
+                      this view adds. */}
                   <button
                     type="button"
                     onClick={() => setPanel("results")}
@@ -918,6 +906,31 @@ export function App() {
                 beside it would drift from this one on the first change to either. */}
             {view === "search" && started && citation && askQuestion !== null && (
               <div className={panel === "conversation" ? undefined : "hidden"}>
+                {/* Below the bar, not on it. The breadcrumb above says *where you are*; this
+                    says *how to leave*, and they are different jobs — one is read, the other
+                    is reached for without reading. Sitting them side by side on the same
+                    line made two controls that looked like one navigational gesture split in
+                    half. Here it sits at the head of the thread it closes, which is where a
+                    hand already is.
+                    
+                    A chevron, not an arrow. `<` is the mark for "back one step" and it does
+                    not promise the longer journey an arrow does. */}
+                {/* Rendered conditionally although its parent is only *hidden*. The thread
+                    stays mounted so looking away does not end it, but this control is chrome
+                    rather than state: left in the tree it stayed reachable by keyboard and
+                    by a screen reader from a screen it does not belong to, which is what
+                    `App.test.tsx` catches by asking for it after the second press. */}
+                {panel === "conversation" && (
+                  <button
+                    type="button"
+                    onClick={() => setPanel("results")}
+                    aria-label={t("Back to the results")}
+                    className="flex items-center gap-1 px-6 pt-4 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <ChevronLeft className="size-3.5 shrink-0" />
+                    {t("Back to the results")}
+                  </button>
+                )}
                 <Chat
                   token={token}
                   onCitation={setCitation}
@@ -1007,7 +1020,86 @@ export function App() {
                 name and page directly below this one, and putting it here too showed it
                 twice, stacked. This bar is the panel's chrome — what it is and how to get
                 rid of it — and the document identifies itself. */}
-            {t("Document preview")}
+            <span className="flex min-w-0 items-center gap-2.5">
+            {/* **The one control on this bar that is not chrome, and it is not filed with
+                the chrome either.**
+
+                The header is `panel-accent` — the darker ledge, deliberately recessive,
+                because a title bar that competes with the document under it is a title bar
+                in the way. The demand that this stand out and the surface it sits on are in
+                real tension, and there were three ways out: lift this button off the ledge,
+                lift the whole ledge, or take the prominence from shape and position instead
+                of contrast.
+
+                This is the third. It is a solid accent disc, and it sits at the *left* of
+                the bar, beside the panel's name — with the whole width of the header between
+                it and the three quiet controls at the other end. Prominence here is not a
+                louder version of a ghost icon; it is being a different kind of object, in a
+                different place. Filed among the other three it read as a fourth window
+                control no matter what colour it was.
+
+                The position also states the grouping the bar always had: this acts on the
+                *document*, the three on the right act on the *panel*. Separation across the
+                bar says that more plainly than a rule between them did.
+
+                No word. The disc, the accent and the isolation carry it, and the owner's own
+                mark is still to come — a label would have to be unlearned when it lands. The
+                name travels in `aria-label` and in the tooltip, where a screen reader and a
+                hesitating cursor both find it.
+
+                Disabled rather than hidden when there is no question to ask (a document
+                opened from the palette or the library): a control that appears and
+                disappears is harder to learn than one that is visibly unavailable, and the
+                reason travels in its title. Disabled it drops to the panel's own fill —
+                same shape, no longer an invitation. */}
+            <button
+              type="button"
+              disabled={askQuestion === null}
+              aria-pressed={panel === "conversation"}
+              aria-label={t("Ask about this document")}
+              title={
+                askQuestion === null
+                  ? t("Open a document from a search to ask about it")
+                  : t("Ask about this document")
+              }
+              onClick={() => {
+                // A toggle, not a one-way door. Pressing it again is the shortest way back
+                // to the results, and a control that only ever does half a thing is one the
+                // reader has to remember the other half of.
+                if (panel === "conversation") {
+                  setPanel("results");
+                  return;
+                }
+                setStarted(true);
+                setPanel("conversation");
+                // `setView`, never `open`. `open` closes the preview — correct for the nav,
+                // where a PDF left beside the admin panel refers to nothing on screen, and
+                // exactly wrong here: this conversation is *about* the open document, and
+                // the whole screen is the answer next to its source. Using `open` closed the
+                // document in the same click that started talking about it, which left the
+                // panel with nothing to render at all.
+                setView("search");
+              }}
+              className={`flex size-7 shrink-0 items-center justify-center rounded-full transition-all ${
+                askQuestion === null
+                  ? "cursor-not-allowed bg-secondary text-muted-foreground/70"
+                  : panel === "conversation"
+                    // **On is louder than off, not quieter.** The first version of this
+                    // inverted the fill to a tint on activation, which is the usual way to
+                    // draw a pressed toggle and exactly wrong for this one: the moment the
+                    // conversation is open is the moment the control matters most, and it
+                    // was receding just as the reader needed to find it again. It keeps the
+                    // fill and gains a halo — the same object, turned up — and the mark
+                    // becomes the way back, because nothing else on screen says the return
+                    // is this button pressed a second time.
+                    ? "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/45 hover:brightness-110"
+                    : "bg-primary text-primary-foreground shadow-sm hover:brightness-110"
+              }`}
+            >
+              <MessageSquare className="size-4" />
+            </button>
+              <span className="truncate">{t("Document preview")}</span>
+            </span>
             <span className="flex shrink-0 items-center">
               {/* The passage, not the page. `citation.text` is exactly the span the viewer
                   highlights, so this is the sentence somebody just read and wants to quote —
@@ -1034,84 +1126,7 @@ export function App() {
               >
                 {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
               </Button>
-              {/* **The one control on this bar that is not chrome, and it is drawn like it.**
-                  
-                  The header is `panel-accent` — the darker ledge, deliberately recessive,
-                  because a title bar that competes with the document under it is a title bar
-                  in the way. So the demand that this button stand out and the surface it
-                  sits on are in genuine tension, and there were three ways out: lift this
-                  button off the ledge, lift the whole ledge, or take the prominence from
-                  shape instead of contrast.
-                  
-                  This is the third, and it is the only one that does not spend the ledge's
-                  recessiveness to buy the button's prominence. A solid accent pill with a
-                  word in it is the most prominent thing that can sit on a quiet bar, and it
-                  gets there by being a different *kind* of object from its neighbours rather
-                  than a louder version of the same one. Four identical ghost icons had no
-                  hierarchy at all; one filled control among three quiet ones needs no extra
-                  contrast to be found.
-                  
-                  It also states the grouping the bar already had and never showed: copy and
-                  ask act on the *document*, fullscreen and close act on the *panel*. The
-                  rule after this button is that seam. Once the left half stops looking like
-                  the right half, the entry point to the product's main use case stops
-                  competing with two window controls.
-                  
-                  A word, not only a mark. "Ask" is the least discoverable action here and
-                  the most valuable; an icon alone asks the reader to guess it, and the
-                  owner's own mark is still to come, so the label is what carries it until
-                  then — and will keep carrying it after.
-                  
-                  Disabled rather than hidden when there is no question to ask (a document
-                  opened from the palette or the library): a control that appears and
-                  disappears is harder to learn than one that is visibly unavailable, and the
-                  reason travels in its title. Disabled it drops to the panel's own fill, so
-                  it stays the same shape and stops being an invitation. */}
-              <button
-                type="button"
-                disabled={askQuestion === null}
-                aria-pressed={panel === "conversation"}
-                aria-label={t("Ask about this document")}
-                title={
-                  askQuestion === null
-                    ? t("Open a document from a search to ask about it")
-                    : t("Ask about this document")
-                }
-                onClick={() => {
-                  // A toggle, not a one-way door. Pressing it again is the shortest way back
-                  // to the results, and a control that only ever does half a thing is one the
-                  // reader has to remember the other half of.
-                  if (panel === "conversation") {
-                    setPanel("results");
-                    return;
-                  }
-                  setStarted(true);
-                  setPanel("conversation");
-                  // `setView`, never `open`. `open` closes the preview — correct for the
-                  // nav, where a PDF left beside the admin panel refers to nothing on
-                  // screen, and exactly wrong here: this conversation is *about* the open
-                  // document, and the whole screen is the answer next to its source. Using
-                  // `open` closed the document in the same click that started talking about
-                  // it, which left the panel with nothing to render at all.
-                  setView("search");
-                }}
-                className={`flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors ${
-                  askQuestion === null
-                    ? "cursor-not-allowed bg-secondary text-muted-foreground/70"
-                    : panel === "conversation"
-                      // Pressed. The fill inverts to a tint of itself with the accent kept
-                      // on the label, so "on" is a different state of one control rather
-                      // than a second control that appeared.
-                      ? "bg-primary/15 text-primary ring-1 ring-primary/40 ring-inset"
-                      : "bg-primary text-primary-foreground shadow-sm hover:brightness-110"
-                }`}
-              >
-                <MessageSquare className="size-3.5 shrink-0" />
-                {t("Ask")}
-              </button>
 
-              {/* The seam between the two document actions and the two panel controls. */}
-              <span aria-hidden className="mx-0.5 h-4 w-px shrink-0 bg-border" />
               <Button
                 type="button"
                 variant="ghost"
