@@ -148,6 +148,42 @@ blocking unknown is whether Postgres prunes partitions when the key comes from
 `zenith_current_tenant()`, which is confirmed `STABLE` and therefore cannot prune at plan
 time.
 
+## Results — ceiling 2
+
+**`hnsw.max_scan_tuples` stays at its default, and that is now measured rather than
+assumed.** 150,000 vectors, halfvec index, five selectivities against five bounds,
+`scan-bound.json`. All twenty-five arms return 50 of 50, and the plan column is what makes
+that readable:
+
+| filter admits | rows | plan chosen | candidates | effect of the bound |
+|---|---|---|---|---|
+| 50% | 75,000 | hnsw | 50 / 50 | none |
+| 10% | 15,000 | hnsw | 50 / 50 | none |
+| 2% | 3,000 | bitmap | 50 / 50 | none |
+| 0.5% | 750 | bitmap | 50 / 50 | none |
+| 0.1% | 150 | bitmap | 50 / 50 | none |
+
+There are two regimes and the bound is irrelevant in both, for different reasons.
+
+Above roughly 10% the planner uses HNSW, and iterative scan finds fifty admissible rows
+long before it has walked twenty thousand tuples — at one row in ten it expects to walk
+about five hundred. Below roughly 2% the planner **stops using the vector index at all**:
+it reads the filter's index and sorts the survivors exactly, which is both correct and
+fast (0.58 ms at 150 admitted rows). There is no iterative scan there to bound.
+
+The crossover sits between those two, and the regime the bound was feared for — selective
+enough to starve the walk, but not selective enough for the planner to leave — does not
+exist on this shape of query. Writing a number down would be inventing a constant to
+guard a case that has not been shown to occur, which is what ADR 0005 forbids.
+
+**The limitation, stated rather than buried.** The filter here is one indexed inequality
+on a `double precision`. The real policy is a conjunction — `tenant_id = …` on a btree
+*and* `label_ids && …` on a GIN index — and a conjunction of two indexable predicates can
+put the planner's crossover somewhere else. What this establishes is that the bound does
+not bind on either side of a crossover; where exactly the crossover sits under the real
+policy is a separate question, and `tenant-scale.json` already shows the planner choosing
+HNSW at 61% and 53% label scopes, which is the same side of it.
+
 ## The partitioning blocker is not a blocker — measured
 
 Everything above leaves partitioning by tenant as the only remaining route to the

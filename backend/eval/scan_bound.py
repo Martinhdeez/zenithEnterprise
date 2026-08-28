@@ -151,7 +151,7 @@ async def _build(conn: AsyncConnection) -> tuple[int, int]:
             "    WHEN 3 THEN va.embedding + vb.embedding + vb.embedding "
             "    WHEN 4 THEN va.embedding + va.embedding + va.embedding + vb.embedding "
             "    ELSE        va.embedding + vb.embedding + vb.embedding + vb.embedding "
-            "  END)::vector(1024) AS embedding "
+            "  END)::halfvec(1024) AS embedding "
             f"  FROM {SCHEMA}.pairs p "
             f"  JOIN {SCHEMA}.seed va ON va.id = p.a "
             f"  JOIN {SCHEMA}.seed vb ON vb.id = p.b "
@@ -173,7 +173,10 @@ async def _build(conn: AsyncConnection) -> tuple[int, int]:
     await conn.execute(text("SET LOCAL maintenance_work_mem = '400MB'"))
     await conn.execute(
         text(
-            f"CREATE INDEX ON {SCHEMA}.vecs USING hnsw (embedding vector_cosine_ops) "
+            # `halfvec`, because migration 0025 made that the index the product has. An
+            # fp32 index here would be measuring a shape nothing runs, and would take three
+            # times the space to do it.
+            f"CREATE INDEX ON {SCHEMA}.vecs USING hnsw (embedding halfvec_cosine_ops) "
             "WITH (m = 16, ef_construction = 64)"
         )
     )
@@ -187,7 +190,13 @@ async def _build(conn: AsyncConnection) -> tuple[int, int]:
     return rows, size
 
 
-async def _plan(conn: AsyncConnection, vector: list[float], fraction: float) -> str:
+async def _plan(
+    conn: AsyncConnection,
+    vector: list[float],
+    fraction: float,
+    bound: int | None,
+    ef_search: int,
+) -> str:
     """Which strategy the planner actually chose.
 
     Without this the report cannot tell its two possible null results apart, and they mean
@@ -199,24 +208,36 @@ async def _plan(conn: AsyncConnection, vector: list[float], fraction: float) -> 
     Latency falling as the filter tightens is the tell for the second, and it is what the
     first run of this file showed. So the plan is now recorded rather than inferred.
     """
+    # The same session settings the timed query runs under. Explaining a differently
+    # configured query and labelling the timing with it was the first version of this
+    # function, and it reported `Gather Merge` for an arm whose measured query used the
+    # index — a plan for a query nobody ran.
+    await conn.execute(text(f"SET LOCAL hnsw.ef_search = {int(ef_search)}"))
+    await conn.execute(text("SET LOCAL hnsw.iterative_scan = relaxed_order"))
+    if bound is not None:
+        await conn.execute(text(f"SET LOCAL hnsw.max_scan_tuples = {int(bound)}"))
+
     rows = await conn.execute(
         text(
             f"EXPLAIN (COSTS OFF) SELECT id FROM {SCHEMA}.vecs WHERE bucket < :f "
-            "ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"
+            "ORDER BY embedding <=> CAST(:q AS halfvec(1024)) LIMIT :k"
         ),
         {"f": fraction, "q": str(vector), "k": WANTED},
     )
-    lines = [str(row[0]).strip() for row in rows]
+    # `Parallel` prefixes every node type, so matching on the node name has to allow it.
+    # Missing that was how a parallel sequential scan came back as an unclassified fallback
+    # string rather than as the seq scan it was.
+    lines = [str(row[0]).strip().removeprefix("->  ").removeprefix("Parallel ") for row in rows]
     for line in lines:
-        if "Index Scan using" in line and "embedding" in line:
+        if line.startswith("Index Scan using") and "embedding" in line:
             return "hnsw"
-        if line.startswith("->  Seq Scan") or line.startswith("Seq Scan"):
+        if line.startswith("Seq Scan"):
             return "seq"
-        if "Bitmap Heap Scan" in line or "Bitmap Index Scan" in line:
+        if line.startswith(("Bitmap Heap Scan", "Bitmap Index Scan")):
             return "bitmap"
-        if "Index Scan using" in line:
+        if line.startswith("Index Scan using") or line.startswith("Index Only Scan using"):
             return "btree_on_filter"
-    return "|".join(lines[:2])
+    return "unclassified:" + "|".join(lines[:3])
 
 
 async def _arm(
@@ -229,7 +250,7 @@ async def _arm(
     """One selectivity at one bound, over every question."""
     returned: list[int] = []
     times: list[float] = []
-    plan = await _plan(conn, queries[0], fraction)
+    plan = await _plan(conn, queries[0], fraction, bound, ef_search)
 
     for vector in queries:
         await conn.execute(text(f"SET LOCAL hnsw.ef_search = {int(ef_search)}"))
@@ -240,7 +261,7 @@ async def _arm(
         rows = await conn.execute(
             text(
                 f"SELECT id FROM {SCHEMA}.vecs WHERE bucket < :f "
-                "ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"
+                "ORDER BY embedding <=> CAST(:q AS halfvec(1024)) LIMIT :k"
             ),
             {"f": fraction, "q": str(vector), "k": WANTED},
         )
