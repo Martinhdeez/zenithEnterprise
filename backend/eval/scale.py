@@ -199,6 +199,20 @@ async def _build(conn: AsyncConnection) -> dict[str, object]:
         {"model": MODEL, "version": VERSION},
     )
     await conn.execute(text(f"ALTER TABLE {SCHEMA}.seed ALTER COLUMN embedding TYPE vector(1024)"))
+    # The seed table is measured too — it is the real corpus, and the gate compares against
+    # it — so it carries the same three representations the synthetic one does.
+    await conn.execute(
+        text(
+            f"ALTER TABLE {SCHEMA}.seed "
+            "ADD COLUMN embedding_half halfvec(1024), ADD COLUMN embedding_bit bit(1024)"
+        )
+    )
+    await conn.execute(
+        text(
+            f"UPDATE {SCHEMA}.seed SET embedding_half = embedding::halfvec(1024), "
+            "embedding_bit = binary_quantize(embedding)::bit(1024)"
+        )
+    )
     await conn.execute(text(f"ALTER TABLE {SCHEMA}.seed ADD PRIMARY KEY (id)"))
     seeds = int((await conn.execute(text(f"SELECT count(*) FROM {SCHEMA}.seed"))).scalar_one())
 
