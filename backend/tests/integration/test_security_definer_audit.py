@@ -77,21 +77,19 @@ async def test_every_security_definer_function_pins_a_search_path(
 #:
 #: - the three 0003 entries return `trigger`, which Postgres will not let anyone `SELECT`
 #:   directly, so the grant buys a caller nothing;
-#: - `zenith_lexical_search` is an ordinary callable function returning chunk ids, and it is
-#:   here because **0022 omitted the `REVOKE`** that 0002 and 0016 both perform. Its own
-#:   tenant guard is what actually contains it, not the grant. Not corrected here: a shipped
-#:   migration's `upgrade()` is immutable, so the fix is a new migration and a decision
-#:   somebody takes deliberately rather than a side effect of writing this test.
+#: - `zenith_lexical_search` **was** here, because 0022 omitted the `REVOKE` that 0002 and
+#:   0016 both perform, and unlike the triggers it is an ordinary callable returning chunk
+#:   ids. Migration **0023** issues that `REVOKE`, so it is no longer in this set. The entry
+#:   was written down as a pending omission and removed when the omission was fixed, which
+#:   is the whole use of recording one.
 #:
-#: The set is asserted so that neither state changes without somebody noticing. It is the
-#: repository's record of an omission, which is the only reason to write a test that agrees
-#: with a thing it does not endorse.
+#: The set is asserted in both directions so that neither state changes without somebody
+#: noticing — a function becoming reachable by PUBLIC, and one silently ceasing to be.
 PUBLIC_EXECUTE_TODAY: frozenset[str] = frozenset(
     {
         "zenith_sync_document_labels()",
         "zenith_sync_chunk_labels()",
         "zenith_fill_chunk_labels()",
-        "zenith_lexical_search(query_string text, want integer)",
     }
 )
 
