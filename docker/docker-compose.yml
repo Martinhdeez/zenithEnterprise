@@ -13,6 +13,16 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    # Docker gives a container 64 MB of /dev/shm, and Postgres allocates a parallel
+    # query's shared workspace there. A parallel scan over a large table asks for more
+    # than that and dies with `DiskFull: could not resize shared memory segment`, which
+    # names the wrong resource entirely — measured here on a 150,000-row table with
+    # 389 GB free on the volume, while somebody read the message and went to check disk.
+    #
+    # It cannot happen on the demonstration corpus, which is why it has not: 13,549
+    # passages never reach a parallel plan. It becomes reachable at the corpus sizes this
+    # product is being aimed at, and it arrives as a 500 on an ordinary search.
+    shm_size: 1gb
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zenith}"]
       interval: 5s

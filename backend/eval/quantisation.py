@@ -174,6 +174,14 @@ def _table(size: int) -> str:
     return f"{SCHEMA}.subset_{size}"
 
 
+#: The measurement primitives below take the table they read and the suffix that keeps index
+#: names unique, rather than deriving both from a subset size. `eval/scale.py` measures the
+#: same variants over a synthetic corpus that has no subset size, and a second copy of the
+#: recall rule is the thing `eval/harness.py` argues against by name: two reports computed by
+#: two implementations of one rule cannot be read beside each other, which is the only use
+#: either of them has.
+
+
 def _percentile(values: list[float], fraction: float) -> float:
     ordered = sorted(values)
     return ordered[min(len(ordered) - 1, int(len(ordered) * fraction))]
@@ -186,9 +194,10 @@ async def _build_subset(conn: AsyncConnection, size: int, space: Any) -> dict[st
     runs and nested within each other: the trend across sizes is then the same vectors plus
     more, rather than four unrelated samples.
     """
+    table = _table(size)
     await conn.execute(
         text(
-            f"CREATE TABLE {_table(size)} AS "
+            f"CREATE TABLE {table} AS "
             "SELECT chunk_id, embedding, "
             "embedding::halfvec(1024) AS embedding_half, "
             "binary_quantize(embedding)::bit(1024) AS embedding_bit "
@@ -198,15 +207,15 @@ async def _build_subset(conn: AsyncConnection, size: int, space: Any) -> dict[st
         ),
         {"model": space.model, "version": space.version, "n": size},
     )
-    await conn.execute(text(f"ANALYZE {_table(size)}"))
-    rows = (await conn.execute(text(f"SELECT count(*) FROM {_table(size)}"))).scalar_one()
+    await conn.execute(text(f"ANALYZE {table}"))
+    rows = (await conn.execute(text(f"SELECT count(*) FROM {table}"))).scalar_one()
 
     built: dict[str, object] = {}
     for variant in INDEXES:
         started = time.perf_counter()
         await conn.execute(
             text(
-                f"CREATE INDEX {variant.index}_{size} ON {_table(size)} "
+                f"CREATE INDEX {variant.index}_{size} ON {table} "
                 f"USING hnsw ({variant.column} {variant.opclass}) "
                 f"WITH (m = {M}, ef_construction = {EF_CONSTRUCTION})"
             )
@@ -232,7 +241,7 @@ async def _build_subset(conn: AsyncConnection, size: int, space: Any) -> dict[st
     return {"rows": int(rows), "indexes": built}
 
 
-async def _truth(conn: AsyncConnection, size: int, vectors: list[list[float]]) -> list[list[UUID]]:
+async def _truth(conn: AsyncConnection, table: str, vectors: list[list[float]]) -> list[list[UUID]]:
     """Exact nearest neighbours, with every index refused.
 
     `enable_indexscan = off` is not belt and braces: the only honest ground truth for "what
@@ -245,8 +254,7 @@ async def _truth(conn: AsyncConnection, size: int, vectors: list[list[float]]) -
     for vector in vectors:
         rows = await conn.execute(
             text(
-                f"SELECT chunk_id FROM {_table(size)} "
-                "ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"
+                f"SELECT chunk_id FROM {table} ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"
             ),
             {"q": str(vector), "k": max(DEPTHS)},
         )
@@ -256,7 +264,7 @@ async def _truth(conn: AsyncConnection, size: int, vectors: list[list[float]]) -
 
 async def _probe(
     conn: AsyncConnection,
-    size: int,
+    table: str,
     variant: Variant,
     vector: list[float],
     limit: int,
@@ -273,7 +281,7 @@ async def _probe(
         started = time.perf_counter()
         rows = await conn.execute(
             text(
-                f"SELECT chunk_id FROM {_table(size)} "
+                f"SELECT chunk_id FROM {table} "
                 f"ORDER BY {variant.column} <=> CAST(:q AS {cast}) LIMIT :k"
             ),
             {"q": str(vector), "k": limit},
@@ -284,7 +292,7 @@ async def _probe(
     started = time.perf_counter()
     rows = await conn.execute(
         text(
-            f"SELECT chunk_id FROM {_table(size)} "
+            f"SELECT chunk_id FROM {table} "
             "ORDER BY embedding_bit <~> binary_quantize(CAST(:q AS vector))::bit(1024) "
             "LIMIT :w"
         ),
@@ -296,7 +304,7 @@ async def _probe(
     started = time.perf_counter()
     rows = await conn.execute(
         text(
-            f"SELECT chunk_id FROM {_table(size)} WHERE chunk_id = ANY(:ids) "
+            f"SELECT chunk_id FROM {table} WHERE chunk_id = ANY(:ids) "
             "ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"
         ),
         {"ids": [str(chunk_id) for chunk_id in shortlist], "q": str(vector), "k": limit},
@@ -307,7 +315,7 @@ async def _probe(
 
 async def _index_recall(
     conn: AsyncConnection,
-    size: int,
+    table: str,
     vectors: list[list[float]],
     truth: list[list[UUID]],
     ef_search: int,
@@ -326,7 +334,7 @@ async def _index_recall(
             fastest_index: float | None = None
             fastest_rescore: float | None = None
             for _ in range(REPEATS):
-                got, index_ms, rescore_ms = await _probe(conn, size, variant, vector, max(DEPTHS))
+                got, index_ms, rescore_ms = await _probe(conn, table, variant, vector, max(DEPTHS))
                 fastest_index = index_ms if fastest_index is None else min(fastest_index, index_ms)
                 fastest_rescore = (
                     rescore_ms if fastest_rescore is None else min(fastest_rescore, rescore_ms)
@@ -397,7 +405,9 @@ async def _end_to_end(
 
                 embedding = await embedder.embed_query(question.question)
                 dense_started = time.perf_counter()
-                dense_ids, _, _ = await _probe(scratch, size, variant, embedding, CANDIDATES)
+                dense_ids, _, _ = await _probe(
+                    scratch, _table(size), variant, embedding, CANDIDATES
+                )
                 dense_times.append((time.perf_counter() - dense_started) * 1000)
 
                 async with tenant_session(where.profile.context) as session:
@@ -585,8 +595,8 @@ async def _run(subsets: tuple[int, ...]) -> int:
             for size in sizes:
                 print(f"  {size} vectors:")
                 built = await _build_subset(conn, size, where.space)
-                truth = await _truth(conn, size, vectors)
-                recall = await _index_recall(conn, size, vectors, truth, ef_search)
+                truth = await _truth(conn, _table(size), vectors)
+                recall = await _index_recall(conn, _table(size), vectors, truth, ef_search)
                 by_size[size] = {**built, "index": recall}
 
         full = sizes[-1]
