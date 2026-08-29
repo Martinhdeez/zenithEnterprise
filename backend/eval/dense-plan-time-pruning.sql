@@ -81,6 +81,90 @@
 -- inside `zenith_denseplan_iso`, dropped at the end.
 --
 --   docker exec -i zenith-db-1 psql -U zenith -d zenith -f dense-plan-time-pruning.sql
+--
+-- ## Section 5f — the gap, measured
+--
+-- `search.dense()` takes an optional document scope, built in Python by `scoped()` as an
+-- unconditional `AND c.document_id = ANY(:documents)`. A plpgsql signature cannot be built by
+-- string concatenation the same way, so `candidate_scoped` carries the filter unconditionally
+-- behind a NULL guard instead: `(docs IS NULL OR c.document_id = ANY(docs))`. Section 5f asks
+-- Bar 1 and Bar 2 of this file's own bars against that guard, both with a document scope
+-- (three documents on the session tenant, 513 of its 1,700 chunks) and without.
+--
+-- **Under the custom plan — the first five executions of a prepared statement, and what a
+-- fresh or lightly loaded backend runs — the guard costs nothing.** 5f-2 (scoped) and 5f-3
+-- (NULL) both show one partition per relation, no `Append`, no `Subplans Removed`, the same
+-- `One-Time Filter` folding the policy and the qualifier together, and `Index Scan using
+-- e5_embedding_half_idx` — the HNSW index — still driving the scan. The planner evaluates the
+-- guard against the literal parameter at plan time and erases whichever side is dead:
+-- `document_id = ANY(...)` alone when a scope is given, nothing at all when it is NULL.
+-- Planning 0.178 ms and 0.159 ms, against the scoped shipped baseline's 1.311 ms (5f-1, still
+-- `Subplans Removed: 31` on both `Append`s — the scope changes nothing about the shipped
+-- arm's executor-startup pruning). Bar 2 holds against the literal statement `search.dense()`
+-- sends when scoped, not a hand-filtered reading of the unscoped arm: 50 shipped, 50
+-- candidate, `in_both` 50, `max_score_delta` 0, 0 rows at a different rank (5f-4). Locks are
+-- unchanged by the scope in either direction: 233 for the shipped shape, 16 for the candidate
+-- shape, identical to the unscoped figures in 5e (5f-5).
+--
+-- **Under a forced generic plan, the guard is not free, and it is not free in a way the
+-- unscoped candidate's degradation is.** Section 5b already established that the *unscoped*
+-- candidate degrades gracefully under `plan_cache_mode = force_generic_plan`: plan-time
+-- partition pruning is lost, `Subplans Removed: 31` reappears, but `Index Scan using
+-- e5_embedding_half_idx` — the HNSW index — is still what drives the scan, ordered by
+-- `embedding_half <=> $2` with the `LIMIT` pushed down through a `Merge Append` and a
+-- `Nested Loop`. 5f-8 repeats that exact plan for tenant 3 on partition `e5`, as the control:
+-- `Index Scan using e5_embedding_half_idx`, `Subplans Removed: 31`, planning 0.086 ms,
+-- execution 0.847 ms.
+--
+-- `candidate_scoped` under the same forced generic plan does not do that. 5f-6 (a document
+-- scope) and 5f-7 (NULL, same tenant, same partition `e5`, generic plan forced identically)
+-- both replace the ordered `Index Scan` with `Seq Scan on e5 e_1` reading all 1,700 rows of
+-- the partition, a `Hash Join` against `c5` in place of the `Nested Loop`, and a `Sort ...
+-- Sort Method: top-N heapsort` after the join instead of the index supplying the order. The
+-- HNSW index is not named anywhere in either plan. **5f-7 is the finding, not 5f-6**: the
+-- plans are structurally identical whether a scope is supplied or NULL, so this is not the
+-- runtime value of `docs` costing the index — a generic plan cannot see that value regardless.
+-- It is the mere presence of the `$6 IS NULL OR document_id = ANY($6)` disjunct in the
+-- statement's *shape* that turns the planner off ordered index retrieval once it has to plan
+-- for an unknown parameter, on a relation the disjunct does not even touch (`e5`, the
+-- embedding side) — because the join strategy the `LIMIT` pushdown depends on is decided once,
+-- for the whole statement, and a join whose build side carries a disjunct the planner cannot
+-- cost tips it toward a hash join with a downstream sort. At this corpus's partition size —
+-- 1,700 rows — that sort is still cheap: execution 0.872 ms and 1.859 ms, not worse than the
+-- scoped shipped arm's 2.679 ms. The concern is what the same plan shape costs on a partition
+-- that is not 1,700 rows scored by fp16 cosine, which this corpus cannot exhibit — a sequential
+-- scan the size of a tenant's whole partition, defeating the reason the HNSW index exists, is
+-- exactly the failure `search.py`'s docstring already names for a mismatched vector cast, and
+-- this is the same failure reached a different way.
+--
+-- Whether a real backend hits the generic plan is not hypothetical here: `dense-plan-time.json`
+-- already recorded the spike this represents, unforced, on both the shipped and the `local`
+-- (candidate) statement's own `planning_series_ms` -- the fifth timed call on one backend, at
+-- every modulus measured (`"local"` at modulus 256: `0.114, 0.114, 0.115, 0.114, 0.103,
+-- 19.451, ...`, the sixth reading jumping two orders of magnitude before settling straight
+-- back down). That is Postgres building a candidate generic plan once custom planning has run
+-- long enough to look expensive on average -- a decision made per prepared statement, per
+-- backend, independent of what the statement's shape is. `candidate_scoped` is not measured in
+-- that ladder, but the mechanism that promotes it is the same one already caught doing this to
+-- `candidate`, and a pooled connection serving more than a handful of `search.dense()` calls --
+-- ordinary within a session under FastAPI's connection reuse -- reaches it in the course of
+-- normal traffic, not only under a forced setting.
+--
+-- ## Section 5f, the conclusion
+--
+-- The technique still passes Bar 1 and Bar 2 for the scoped case, and still isolates exactly
+-- as before -- nothing here reopens sections 4 through 6. But it is not what section 5f set
+-- out to find: a redundant tenant qualifier that survives a document scope for free. The NULL
+-- guard the scope requires is cost-neutral under a custom plan and then, once the backend it
+-- runs on promotes the statement the way `dense-plan-time.json` already shows happening to the
+-- unscoped candidate, silently trades the HNSW index for a sequential scan of the whole
+-- partition -- a strictly worse failure mode than the unscoped candidate's own degradation,
+-- which keeps the index and only gives back plan-time pruning. `search.dense()` is called with
+-- a document scope from real product surfaces (a citation follow-up, a scoped re-search), so
+-- this is not an edge case the migration could ignore. The unscoped half of this technique
+-- stands on its own measurement; a migration that ships it for the scoped path as well, with
+-- no further work, would be shipping a plan that degrades worse than the code it replaces on
+-- exactly the query shape that degradation is most likely to hit at production partition sizes.
 
 \set ON_ERROR_STOP on
 \pset pager off
