@@ -8,6 +8,7 @@ that is absent exactly when it is needed.
 import json
 import re
 from pathlib import Path
+from typing import Literal
 from uuid import uuid4
 
 import pytest
@@ -585,7 +586,9 @@ MODULUS_PROBE_ROWS = (
 )
 
 
-async def _build_modulus_probe(modulus: int | None) -> None:
+async def _build_modulus_probe(
+    modulus: int | None, analysed: Literal["all", "one bucket"] = "all"
+) -> None:
     """A `chunks` of its own, in a schema of its own, analysed so the planner has an opinion.
 
     `ANALYZE` is the whole point of the fixture and not housekeeping. The check reads
@@ -595,7 +598,8 @@ async def _build_modulus_probe(modulus: int | None) -> None:
     both numbers actually live.
 
     `modulus=None` builds the same table unpartitioned, which is the branch every
-    installation that has not yet run 0026 is on.
+    installation that has not yet run 0026 is on. `analysed="one bucket"` reproduces the
+    minutes after 0026 finishes, when autovacuum has reached some partitions and not others.
     """
     from app.core.database import get_owner_session_factory
 
@@ -631,7 +635,21 @@ async def _build_modulus_probe(modulus: int | None) -> None:
         await session.commit()
 
     async with get_owner_session_factory()() as session:
-        await session.execute(text(f"ANALYZE {MODULUS_PROBE_SCHEMA}.chunks"))
+        if analysed == "all":
+            await session.execute(text(f"ANALYZE {MODULUS_PROBE_SCHEMA}.chunks"))
+        else:
+            # The bucket the larger tenant landed in, asked for rather than predicted:
+            # which remainder `hashuuidextended` produces is not this file's business, and
+            # the first version of `_HASH_BOUNDS` is in the repository because somebody
+            # predicted a catalogue answer instead of reading it.
+            biggest = await session.scalar(
+                text(
+                    "SELECT tableoid::regclass::text "
+                    f"FROM {MODULUS_PROBE_SCHEMA}.chunks GROUP BY tableoid "
+                    "ORDER BY count(*) DESC LIMIT 1"
+                )
+            )
+            await session.execute(text(f"ANALYZE {biggest}"))
         await session.commit()
 
 
@@ -701,6 +719,39 @@ async def test_a_modulus_too_small_for_the_largest_tenant_is_a_warning(
         assert "reads 6.2% more than it owns" in detail, detail
         # And what an operator does about it, which is not a setting on its own.
         assert "re-run 0026" in detail, detail
+    finally:
+        await _drop_modulus_probe()
+
+
+@pytest.mark.asyncio
+async def test_half_analysed_partitions_refuse_to_answer_rather_than_answer_wrongly(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The minutes after 0026, which is when somebody is most likely to run this.
+
+    0026 does not `ANALYZE` the buckets it builds, so autovacuum reaches them one at a time
+    and there is a window in which `reltuples` is real for some and -1 for the rest. Measured
+    on a restore of this installation's own corpus: four of 256 partitions had an estimate
+    immediately after the migration returned.
+
+    **Summing what is there would not fail, and that is the danger.** With only the largest
+    tenant's bucket analysed the corpus total is that bucket, the largest tenant's share of it
+    is 1.000, and the rule then wants a modulus of 1 — so the check would report a comfortable
+    `ok` about an installation it had measured a fraction of. This repository has `85d2174`
+    for a report that read a perfect score because it compared something against itself, and
+    this is the same shape. So the check declines and names the one command that fixes it.
+    """
+    await _build_modulus_probe(4, analysed="one bucket")
+    try:
+        monkeypatch.setattr(diagnostics, "PARTITION_SCHEMA", MODULUS_PROBE_SCHEMA)
+        checks = {check.name: check for check in await run_diagnostics()}
+        detail = checks["partition modulus"].detail
+
+        assert checks["partition modulus"].status == "warn", detail
+        assert "3 of 4 never analysed" in detail, detail
+        assert "Run ANALYZE chunks" in detail, detail
+        # And specifically *not* the confident answer it would otherwise have given.
+        assert "wants" not in detail, detail
     finally:
         await _drop_modulus_probe()
 

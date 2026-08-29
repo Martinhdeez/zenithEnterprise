@@ -617,12 +617,27 @@ async def _partition_modulus() -> tuple[Status, str]:
 
     # `reltuples` is -1 on a relation that has never been analysed or vacuumed (Postgres 14
     # and later). That is not zero and must not be added as zero.
+    unanalysed = [row for row in leaves if row.rows < 0]
     corpus = sum(row.rows for row in leaves if row.rows > 0)
-    if not corpus:
-        shape = f"{installed} partition(s)" if partitioned else "not partitioned"
+    shape = f"{installed} partitions" if partitioned else "not partitioned"
+
+    if len(unanalysed) == len(leaves) or not corpus:
         return "ok", (
             f"{MODULUS_TABLE}: {shape}, and the planner has no row estimate for it yet — "
             "nothing to size a modulus against until there is a corpus"
+        )
+    if unanalysed:
+        # **Partial statistics are worse than none, and this is the branch that says so.**
+        # 0026 does not `ANALYZE` what it builds, so for the first minutes after a
+        # repartition autovacuum has reached some buckets and not others. Summing what it has
+        # would produce a corpus total that is a fraction of the real one, a share computed
+        # against it, and a confident recommendation that is simply wrong — the shape of
+        # failure `85d2174` is in this repository for. So it declines instead, and names the
+        # one command that fixes it.
+        return "warn", (
+            f"{MODULUS_TABLE}: {shape}, {len(unanalysed)} of {len(leaves)} never analysed. "
+            f"Run ANALYZE {MODULUS_TABLE}; a modulus sized on part of the corpus is worse "
+            "than none."
         )
 
     # Rows a tenant owns, from its bucket's estimate and its share of that bucket. A tenant
@@ -667,7 +682,7 @@ async def _partition_modulus() -> tuple[Status, str]:
             f"(it is {settings.partition_modulus})."
         )
 
-    shape = f"{MODULUS_TABLE}: {installed} partitions, {fit}"
+    shape = f"{MODULUS_TABLE}: {shape}, {fit}"
     if installed < required:
         # A warning, where the lock budget above fails. The difference is the right way
         # round: that one is a 500 on every search, this one is rows a customer pays for in
