@@ -438,7 +438,7 @@ class IngestionPipeline:
         switched off during the step it was written for.
         """
         async with tenant_session(self.context) as session:
-            await _clear_previous(session, document_id)
+            await _clear_previous(session, document_id, self.context.tenant_id)
             await _ensure_space(session)
 
             session.add_all(
@@ -536,9 +536,24 @@ class IngestionPipeline:
                 document.status_detail = detail[:500]
 
 
-async def _clear_previous(session: AsyncSession, document_id: UUID) -> None:
-    """Idempotency. Chunk embeddings fall with the chunks through the cascade."""
-    await session.execute(delete(ChunkRow).where(ChunkRow.document_id == document_id))
+async def _clear_previous(session: AsyncSession, document_id: UUID, tenant_id: UUID) -> None:
+    """Idempotency. Chunk embeddings fall with the chunks through the cascade.
+
+    `tenant_id` is redundant for correctness and is not redundant for the planner. The policy
+    already restricts this delete to one tenant, so the extra column changes no rows — but the
+    policy's clause is `tenant_id = zenith_current_tenant()`, and that function is `STABLE`.
+    A partitioned `chunks` chooses the partitions an `UPDATE` or `DELETE` will open at *plan*
+    time, and plan-time pruning needs a constant, which a `STABLE` function is not. So the
+    policy alone prunes the scan and opens every partition anyway.
+
+    Measured in `eval/unpruned-queries.json` at MODULUS 256: the same delete takes 2,059 locks
+    with the policy's clause alone and 19 with the tenant bound, of an installation's 6,400.
+    Ingestion is the write path this product runs most often, and a bound parameter is the
+    difference between four concurrent ingestions and three hundred.
+    """
+    await session.execute(
+        delete(ChunkRow).where(ChunkRow.document_id == document_id, ChunkRow.tenant_id == tenant_id)
+    )
     await session.execute(delete(Page).where(Page.document_id == document_id))
 
 
