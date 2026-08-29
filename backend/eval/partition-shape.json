@@ -1,0 +1,2844 @@
+{
+  "generated_at": "2026-08-29T14:57:39+0000",
+  "took_s": 356.6,
+  "profile": "cpu",
+  "postgres": {
+    "enable_partition_pruning": "on",
+    "enable_partitionwise_join": "off",
+    "max_connections": "100",
+    "max_locks_per_transaction": "64",
+    "max_prepared_transactions": "0",
+    "plan_cache_mode": "auto",
+    "server_version": "17.5 (Debian 17.5-1.pgdg120+1)",
+    "shared_buffers": "16384",
+    "work_mem": "4096",
+    "lock_table_slots": 6400,
+    "lock_table_note": "max_locks_per_transaction * max_connections sizes one table shared by the whole cluster; it is not a per-transaction allowance. A query taking N locks consumes N of these slots for the length of its transaction, so the partition ceiling is a concurrency limit, not a query limit."
+  },
+  "corpus": {
+    "passages": 13549,
+    "production_index_bytes": 36986880,
+    "bytes_per_vector": 2729.9,
+    "embedding_space": {
+      "model": "BAAI/bge-m3",
+      "version": "1"
+    }
+  },
+  "build": {
+    "populated_tenants": 8,
+    "rows": 13549,
+    "rows_per_tenant": 1694,
+    "indexes_per_partition": {
+      "emb": [
+        "hnsw(embedding_half)"
+      ],
+      "chk": [
+        "btree(id)"
+      ],
+      "note": "The installation's `chunks` carries five indexes and a primary key, and `chunk_embeddings` a primary key besides the HNSW index. Locks are taken per relation, so multiply the measured lock count by the real index count to project: this ladder's 2 relations per embeddings partition become 3, and its 2 per chunks partition become 6."
+    }
+  },
+  "unpartitioned": {
+    "embeddings": {
+      "planning_ms": 0.164,
+      "execution_ms": 7.22,
+      "subplans_removed": [],
+      "subplans_removed_total": 0,
+      "appends": 0,
+      "scan_nodes": 1,
+      "index_ordered": false,
+      "leaf_scans": [
+        "Seq Scan on emb_flat e (actual rows=1705 loops=1)"
+      ],
+      "locks_before": 2,
+      "locks_held": 4,
+      "locks_for_query": 2,
+      "returned": 50,
+      "median_ms": 4.99,
+      "p95_ms": 5.34,
+      "min_ms": 4.9
+    },
+    "join": {
+      "planning_ms": 0.228,
+      "execution_ms": 9.296,
+      "subplans_removed": [],
+      "subplans_removed_total": 0,
+      "appends": 0,
+      "scan_nodes": 2,
+      "index_ordered": false,
+      "leaf_scans": [
+        "Seq Scan on chk_flat c (actual rows=1705 loops=1)",
+        "Seq Scan on emb_flat e (actual rows=1705 loops=1)"
+      ],
+      "locks_before": 2,
+      "locks_held": 6,
+      "locks_for_query": 4,
+      "returned": 50,
+      "median_ms": 9.37,
+      "p95_ms": 9.59,
+      "min_ms": 9.14
+    }
+  },
+  "ceiling": {
+    "nominal_slots": 6400,
+    "nominal_derivation": "max_locks_per_transaction * max_connections",
+    "observed_highest_locks_that_succeeded": 10001,
+    "observed_lowest_locks_that_failed": 20000,
+    "observed_note": "A query held more locks than the nominal table holds and still ran. The lock hash table grows into unreserved shared memory, so the surplus is real, transient and shared with every other backend. Plan against the nominal number.",
+    "failure_mode": "psycopg.errors.OutOfMemory: out of shared memory, hinting at max_locks_per_transaction. It is raised during planning, so the query never runs and the request is a 500 rather than a slow answer.",
+    "safe_partitions_at_nominal_slots": {
+      "embeddings": {
+        "one_query": 2133,
+        "four_concurrent": 533,
+        "twenty_five_concurrent": 85
+      },
+      "join": {
+        "one_query": 711,
+        "four_concurrent": 177,
+        "twenty_five_concurrent": 28
+      }
+    },
+    "raising_it": "max_locks_per_transaction requires a restart and costs shared memory linearly. P partitions at C concurrent joined queries needs about 9 * P * C / max_connections, so 1,000 partitions at 25 concurrent requests on this installation's 100 connections would need roughly 2,250, from a default of 64."
+  },
+  "ladder": [
+    {
+      "shape": "list",
+      "partitions": 10,
+      "build_s": 10.2,
+      "arms": {
+        "embeddings": {
+          "planning_ms": 0.51,
+          "execution_ms": 3.113,
+          "subplans_removed": [
+            9
+          ],
+          "subplans_removed_total": 9,
+          "appends": 1,
+          "scan_nodes": 1,
+          "index_ordered": false,
+          "leaf_scans": [
+            "Seq Scan on e0 e_1 (actual rows=1705 loops=1)"
+          ],
+          "locks_before": 2,
+          "locks_held": 23,
+          "locks_for_query": 21,
+          "returned": 50,
+          "median_ms": 2.33,
+          "p95_ms": 2.49,
+          "min_ms": 2.19,
+          "pressure": {
+            "locks_per_partition": 2.1,
+            "projected_locks_with_production_indexes": 32,
+            "concurrent_queries_as_built": 304,
+            "concurrent_queries_with_production_indexes": 200
+          }
+        },
+        "join": {
+          "planning_ms": 0.506,
+          "execution_ms": 4.558,
+          "subplans_removed": [
+            9,
+            9
+          ],
+          "subplans_removed_total": 18,
+          "appends": 2,
+          "scan_nodes": 2,
+          "index_ordered": false,
+          "leaf_scans": [
+            "Seq Scan on e0 e_1 (actual rows=1705 loops=1)",
+            "Seq Scan on c0 c_1 (actual rows=1705 loops=1)"
+          ],
+          "locks_before": 2,
+          "locks_held": 44,
+          "locks_for_query": 42,
+          "returned": 50,
+          "median_ms": 4.87,
+          "p95_ms": 4.97,
+          "min_ms": 4.73,
+          "pressure": {
+            "locks_per_partition": 4.2,
+            "projected_locks_with_production_indexes": 94,
+            "concurrent_queries_as_built": 152,
+            "concurrent_queries_with_production_indexes": 68
+          }
+        }
+      },
+      "prepared": {
+        "auto": {
+          "planning_ms": [
+            0.155,
+            0.118,
+            0.124,
+            0.115,
+            0.118,
+            0.08,
+            0.004,
+            0.004
+          ],
+          "execution_ms": [
+            2.115,
+            2.018,
+            2.068,
+            2.042,
+            2.073,
+            78.531,
+            76.797,
+            77.797
+          ],
+          "subplans_removed": [
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Seq Scan on e0 e_1 (actual rows=1705 loops=1)"
+          ]
+        },
+        "force_custom_plan": {
+          "planning_ms": [
+            0.192,
+            0.146,
+            0.131,
+            0.144,
+            0.129,
+            0.122,
+            0.131,
+            0.12
+          ],
+          "execution_ms": [
+            2.46,
+            2.07,
+            2.075,
+            2.02,
+            1.992,
+            1.975,
+            1.949,
+            2.01
+          ],
+          "subplans_removed": [
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Seq Scan on e0 e_1 (actual rows=1705 loops=1)"
+          ]
+        },
+        "force_generic_plan": {
+          "planning_ms": [
+            0.082,
+            0.003,
+            0.004,
+            0.005,
+            0.003,
+            0.003,
+            0.003,
+            0.002
+          ],
+          "execution_ms": [
+            78.727,
+            78.009,
+            77.983,
+            76.467,
+            77.259,
+            77.824,
+            76.661,
+            76.9
+          ],
+          "subplans_removed": [
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Seq Scan on e0 e_1 (actual rows=1705 loops=1)"
+          ]
+        }
+      }
+    },
+    {
+      "shape": "list",
+      "partitions": 100,
+      "build_s": 9.9,
+      "arms": {
+        "embeddings": {
+          "planning_ms": 2.861,
+          "execution_ms": 2.725,
+          "subplans_removed": [
+            99
+          ],
+          "subplans_removed_total": 99,
+          "appends": 1,
+          "scan_nodes": 1,
+          "index_ordered": false,
+          "leaf_scans": [
+            "Seq Scan on e0 e_1 (actual rows=1705 loops=1)"
+          ],
+          "locks_before": 2,
+          "locks_held": 203,
+          "locks_for_query": 201,
+          "returned": 50,
+          "median_ms": 2.98,
+          "p95_ms": 3.28,
+          "min_ms": 2.92,
+          "pressure": {
+            "locks_per_partition": 2.01,
+            "projected_locks_with_production_indexes": 302,
+            "concurrent_queries_as_built": 31,
+            "concurrent_queries_with_production_indexes": 21
+          }
+        },
+        "join": {
+          "planning_ms": 4.676,
+          "execution_ms": 2.441,
+          "subplans_removed": [
+            99,
+            99
+          ],
+          "subplans_removed_total": 198,
+          "appends": 2,
+          "scan_nodes": 2,
+          "index_ordered": true,
+          "leaf_scans": [
+            "Index Scan using e0_embedding_half_idx on e0 e_1 (actual rows=50 loops=1)",
+            "Seq Scan on c0 c_1 (actual rows=1705 loops=1)"
+          ],
+          "locks_before": 2,
+          "locks_held": 404,
+          "locks_for_query": 402,
+          "returned": 50,
+          "median_ms": 4.66,
+          "p95_ms": 5.04,
+          "min_ms": 4.39,
+          "pressure": {
+            "locks_per_partition": 4.02,
+            "projected_locks_with_production_indexes": 904,
+            "concurrent_queries_as_built": 15,
+            "concurrent_queries_with_production_indexes": 7
+          }
+        }
+      },
+      "prepared": {
+        "auto": {
+          "planning_ms": [
+            0.716,
+            0.661,
+            0.622,
+            0.642,
+            0.632,
+            0.644,
+            0.006,
+            0.008
+          ],
+          "execution_ms": [
+            2.531,
+            2.09,
+            2.098,
+            2.113,
+            2.112,
+            78.599,
+            77.372,
+            77.059
+          ],
+          "subplans_removed": [
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Seq Scan on e0 e_1 (actual rows=1705 loops=1)"
+          ]
+        },
+        "force_custom_plan": {
+          "planning_ms": [
+            0.933,
+            0.636,
+            0.708,
+            0.712,
+            0.67,
+            0.688,
+            0.644,
+            0.635
+          ],
+          "execution_ms": [
+            2.324,
+            2.087,
+            2.25,
+            2.271,
+            2.145,
+            2.001,
+            2.044,
+            2.021
+          ],
+          "subplans_removed": [
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Seq Scan on e0 e_1 (actual rows=1705 loops=1)"
+          ]
+        },
+        "force_generic_plan": {
+          "planning_ms": [
+            0.69,
+            0.012,
+            0.012,
+            0.009,
+            0.008,
+            0.024,
+            0.007,
+            0.008
+          ],
+          "execution_ms": [
+            78.121,
+            78.975,
+            79.384,
+            76.985,
+            78.913,
+            79.854,
+            77.715,
+            79.5
+          ],
+          "subplans_removed": [
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Seq Scan on e0 e_1 (actual rows=1705 loops=1)"
+          ]
+        }
+      }
+    },
+    {
+      "shape": "list",
+      "partitions": 1000,
+      "build_s": 11.1,
+      "arms": {
+        "embeddings": {
+          "planning_ms": 43.77,
+          "execution_ms": 0.83,
+          "subplans_removed": [
+            999
+          ],
+          "subplans_removed_total": 999,
+          "appends": 1,
+          "scan_nodes": 1,
+          "index_ordered": true,
+          "leaf_scans": [
+            "Index Scan using e0_embedding_half_idx on e0 e_1 (actual rows=50 loops=1)"
+          ],
+          "locks_before": 2,
+          "locks_held": 2003,
+          "locks_for_query": 2001,
+          "returned": 50,
+          "median_ms": 19.3,
+          "p95_ms": 20.04,
+          "min_ms": 18.21,
+          "pressure": {
+            "locks_per_partition": 2.0,
+            "projected_locks_with_production_indexes": 3002,
+            "concurrent_queries_as_built": 3,
+            "concurrent_queries_with_production_indexes": 2
+          }
+        },
+        "join": {
+          "planning_ms": 129.985,
+          "execution_ms": 2.616,
+          "subplans_removed": [
+            999,
+            999
+          ],
+          "subplans_removed_total": 1998,
+          "appends": 2,
+          "scan_nodes": 2,
+          "index_ordered": true,
+          "leaf_scans": [
+            "Index Scan using e0_embedding_half_idx on e0 e_1 (actual rows=50 loops=1)",
+            "Seq Scan on c0 c_1 (actual rows=1705 loops=1)"
+          ],
+          "locks_before": 2,
+          "locks_held": 4004,
+          "locks_for_query": 4002,
+          "returned": 50,
+          "median_ms": 110.43,
+          "p95_ms": 112.42,
+          "min_ms": 107.85,
+          "pressure": {
+            "locks_per_partition": 4.0,
+            "projected_locks_with_production_indexes": 9004,
+            "concurrent_queries_as_built": 1,
+            "concurrent_queries_with_production_indexes": 0
+          }
+        }
+      },
+      "prepared": {
+        "auto": {
+          "planning_ms": [
+            16.958,
+            15.264,
+            15.022,
+            15.461,
+            16.407,
+            16.19,
+            0.039,
+            0.028
+          ],
+          "execution_ms": [
+            0.618,
+            0.557,
+            0.569,
+            0.556,
+            0.654,
+            2.962,
+            2.79,
+            2.654
+          ],
+          "subplans_removed": [
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ]
+          ],
+          "index_ordered": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "leaf_scans": [
+            "Index Scan using e0_embedding_half_idx on e0 e_1 (actual rows=50 loops=1)"
+          ]
+        },
+        "force_custom_plan": {
+          "planning_ms": [
+            16.13,
+            15.284,
+            15.615,
+            15.284,
+            14.719,
+            14.666,
+            14.505,
+            14.91
+          ],
+          "execution_ms": [
+            0.605,
+            0.574,
+            0.645,
+            0.552,
+            0.519,
+            0.538,
+            0.57,
+            0.597
+          ],
+          "subplans_removed": [
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ]
+          ],
+          "index_ordered": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "leaf_scans": [
+            "Index Scan using e0_embedding_half_idx on e0 e_1 (actual rows=50 loops=1)"
+          ]
+        },
+        "force_generic_plan": {
+          "planning_ms": [
+            15.965,
+            0.044,
+            0.039,
+            0.035,
+            0.045,
+            0.035,
+            0.028,
+            0.028
+          ],
+          "execution_ms": [
+            2.885,
+            2.699,
+            2.635,
+            2.672,
+            2.633,
+            2.531,
+            2.563,
+            2.584
+          ],
+          "subplans_removed": [
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ]
+          ],
+          "index_ordered": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "leaf_scans": [
+            "Index Scan using e0_embedding_half_idx on e0 e_1 (actual rows=50 loops=1)"
+          ]
+        }
+      }
+    },
+    {
+      "shape": "list",
+      "partitions": 2000,
+      "build_s": 13.5,
+      "arms": {
+        "embeddings": {
+          "planning_ms": 92.168,
+          "execution_ms": 0.821,
+          "subplans_removed": [
+            1999
+          ],
+          "subplans_removed_total": 1999,
+          "appends": 1,
+          "scan_nodes": 1,
+          "index_ordered": true,
+          "leaf_scans": [
+            "Index Scan using e0_embedding_half_idx on e0 e_1 (actual rows=50 loops=1)"
+          ],
+          "locks_before": 2,
+          "locks_held": 4003,
+          "locks_for_query": 4001,
+          "returned": 50,
+          "median_ms": 58.42,
+          "p95_ms": 60.86,
+          "min_ms": 56.39,
+          "pressure": {
+            "locks_per_partition": 2.0,
+            "projected_locks_with_production_indexes": 6002,
+            "concurrent_queries_as_built": 1,
+            "concurrent_queries_with_production_indexes": 1
+          }
+        },
+        "join": {
+          "planning_ms": 909.526,
+          "execution_ms": 2.677,
+          "subplans_removed": [
+            1999,
+            1999
+          ],
+          "subplans_removed_total": 3998,
+          "appends": 2,
+          "scan_nodes": 2,
+          "index_ordered": true,
+          "leaf_scans": [
+            "Index Scan using e0_embedding_half_idx on e0 e_1 (actual rows=50 loops=1)",
+            "Seq Scan on c0 c_1 (actual rows=1705 loops=1)"
+          ],
+          "locks_before": 2,
+          "locks_held": 8004,
+          "locks_for_query": 8002,
+          "returned": 50,
+          "median_ms": 908.06,
+          "p95_ms": 928.44,
+          "min_ms": 892.25,
+          "pressure": {
+            "locks_per_partition": 4.0,
+            "projected_locks_with_production_indexes": 18004,
+            "concurrent_queries_as_built": 0,
+            "concurrent_queries_with_production_indexes": 0
+          }
+        }
+      },
+      "prepared": {
+        "auto": {
+          "planning_ms": [
+            62.799,
+            56.414,
+            56.439,
+            56.278,
+            60.077,
+            59.772,
+            0.13,
+            0.093
+          ],
+          "execution_ms": [
+            0.659,
+            0.706,
+            0.7,
+            0.675,
+            0.689,
+            3.123,
+            3.165,
+            3.133
+          ],
+          "subplans_removed": [
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ]
+          ],
+          "index_ordered": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "leaf_scans": [
+            "Index Scan using e0_embedding_half_idx on e0 e_1 (actual rows=50 loops=1)"
+          ]
+        },
+        "force_custom_plan": {
+          "planning_ms": [
+            57.332,
+            58.64,
+            54.781,
+            57.636,
+            57.796,
+            57.031,
+            53.925,
+            54.356
+          ],
+          "execution_ms": [
+            0.722,
+            0.677,
+            0.684,
+            0.741,
+            0.692,
+            0.642,
+            0.69,
+            0.635
+          ],
+          "subplans_removed": [
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ]
+          ],
+          "index_ordered": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "leaf_scans": [
+            "Index Scan using e0_embedding_half_idx on e0 e_1 (actual rows=50 loops=1)"
+          ]
+        },
+        "force_generic_plan": {
+          "planning_ms": [
+            55.272,
+            0.093,
+            0.079,
+            0.074,
+            0.084,
+            0.069,
+            0.063,
+            0.062
+          ],
+          "execution_ms": [
+            2.991,
+            2.689,
+            2.637,
+            2.614,
+            2.602,
+            2.643,
+            2.621,
+            2.653
+          ],
+          "subplans_removed": [
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ]
+          ],
+          "index_ordered": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "leaf_scans": [
+            "Index Scan using e0_embedding_half_idx on e0 e_1 (actual rows=50 loops=1)"
+          ]
+        }
+      }
+    },
+    {
+      "shape": "list",
+      "partitions": 5000,
+      "build_s": 30.2,
+      "arms": {
+        "embeddings": {
+          "planning_ms": 1194.086,
+          "execution_ms": 1.021,
+          "subplans_removed": [
+            4999
+          ],
+          "subplans_removed_total": 4999,
+          "appends": 1,
+          "scan_nodes": 1,
+          "index_ordered": true,
+          "leaf_scans": [
+            "Index Scan using e0_embedding_half_idx on e0 e_1 (actual rows=50 loops=1)"
+          ],
+          "locks_before": 2,
+          "locks_held": 10003,
+          "locks_for_query": 10001,
+          "returned": 50,
+          "median_ms": 650.09,
+          "p95_ms": 668.68,
+          "min_ms": 630.9,
+          "pressure": {
+            "locks_per_partition": 2.0,
+            "projected_locks_with_production_indexes": 15002,
+            "concurrent_queries_as_built": 0,
+            "concurrent_queries_with_production_indexes": 0
+          }
+        },
+        "join": {
+          "error": "OperationalError: (psycopg.errors.OutOfMemory) out of shared memory"
+        }
+      },
+      "prepared": {
+        "auto": {
+          "planning_ms": [
+            683.606,
+            682.763,
+            672.145,
+            683.153,
+            672.47,
+            667.058,
+            662.485,
+            0.274
+          ],
+          "execution_ms": [
+            0.679,
+            0.694,
+            0.67,
+            0.714,
+            0.767,
+            3.045,
+            2.992,
+            2.846
+          ],
+          "subplans_removed": [
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ]
+          ],
+          "index_ordered": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "leaf_scans": [
+            "Index Scan using e0_embedding_half_idx on e0 e_1 (actual rows=50 loops=1)"
+          ]
+        },
+        "force_custom_plan": {
+          "planning_ms": [
+            669.855,
+            665.217,
+            654.794,
+            651.256,
+            660.411,
+            648.438,
+            648.086,
+            650.7
+          ],
+          "execution_ms": [
+            0.716,
+            0.669,
+            0.652,
+            0.66,
+            0.657,
+            0.67,
+            0.689,
+            0.668
+          ],
+          "subplans_removed": [
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ]
+          ],
+          "index_ordered": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "leaf_scans": [
+            "Index Scan using e0_embedding_half_idx on e0 e_1 (actual rows=50 loops=1)"
+          ]
+        },
+        "force_generic_plan": {
+          "planning_ms": [
+            667.155,
+            0.259,
+            0.295,
+            0.198,
+            0.189,
+            0.186,
+            0.163,
+            0.192
+          ],
+          "execution_ms": [
+            2.927,
+            3.128,
+            3.053,
+            2.829,
+            2.778,
+            2.739,
+            2.828,
+            3.14
+          ],
+          "subplans_removed": [
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ]
+          ],
+          "index_ordered": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "leaf_scans": [
+            "Index Scan using e0_embedding_half_idx on e0 e_1 (actual rows=50 loops=1)"
+          ]
+        }
+      }
+    },
+    {
+      "shape": "list",
+      "partitions": 10000,
+      "build_s": 84.7,
+      "arms": {
+        "embeddings": {
+          "error": "OperationalError: (psycopg.errors.OutOfMemory) out of shared memory"
+        },
+        "join": {
+          "error": "OperationalError: (psycopg.errors.OutOfMemory) out of shared memory"
+        }
+      },
+      "prepared": {
+        "auto": {
+          "error": "OperationalError: (psycopg.errors.OutOfMemory) out of shared memory"
+        },
+        "force_custom_plan": {
+          "error": "ProgrammingError: (psycopg.errors.DuplicatePreparedStatement) prepared statement \"partshape_probe\" already exists"
+        },
+        "force_generic_plan": {
+          "error": "ProgrammingError: (psycopg.errors.DuplicatePreparedStatement) prepared statement \"partshape_probe\" already exists"
+        }
+      }
+    },
+    {
+      "shape": "hash",
+      "partitions": 10,
+      "build_s": 11.2,
+      "arms": {
+        "embeddings": {
+          "planning_ms": 0.77,
+          "execution_ms": 4.019,
+          "subplans_removed": [
+            9
+          ],
+          "subplans_removed_total": 9,
+          "appends": 1,
+          "scan_nodes": 1,
+          "index_ordered": false,
+          "leaf_scans": [
+            "Seq Scan on e5 e_1 (actual rows=1705 loops=1)"
+          ],
+          "locks_before": 2,
+          "locks_held": 23,
+          "locks_for_query": 21,
+          "returned": 50,
+          "median_ms": 3.4,
+          "p95_ms": 3.56,
+          "min_ms": 3.35,
+          "pressure": {
+            "locks_per_partition": 2.1,
+            "projected_locks_with_production_indexes": 32,
+            "concurrent_queries_as_built": 304,
+            "concurrent_queries_with_production_indexes": 200
+          }
+        },
+        "join": {
+          "planning_ms": 0.812,
+          "execution_ms": 6.796,
+          "subplans_removed": [
+            9,
+            9
+          ],
+          "subplans_removed_total": 18,
+          "appends": 2,
+          "scan_nodes": 2,
+          "index_ordered": false,
+          "leaf_scans": [
+            "Seq Scan on e5 e_1 (actual rows=1705 loops=1)",
+            "Seq Scan on c5 c_1 (actual rows=1705 loops=1)"
+          ],
+          "locks_before": 2,
+          "locks_held": 44,
+          "locks_for_query": 42,
+          "returned": 50,
+          "median_ms": 6.8,
+          "p95_ms": 6.88,
+          "min_ms": 6.72,
+          "pressure": {
+            "locks_per_partition": 4.2,
+            "projected_locks_with_production_indexes": 94,
+            "concurrent_queries_as_built": 152,
+            "concurrent_queries_with_production_indexes": 68
+          }
+        }
+      },
+      "prepared": {
+        "auto": {
+          "planning_ms": [
+            0.146,
+            0.185,
+            0.138,
+            0.135,
+            0.131,
+            0.089,
+            0.004,
+            0.006
+          ],
+          "execution_ms": [
+            3.051,
+            2.919,
+            3.07,
+            2.996,
+            2.976,
+            82.514,
+            83.486,
+            83.213
+          ],
+          "subplans_removed": [
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Seq Scan on e5 e_1 (actual rows=1705 loops=1)"
+          ]
+        },
+        "force_custom_plan": {
+          "planning_ms": [
+            0.23,
+            0.159,
+            0.144,
+            0.169,
+            0.138,
+            0.192,
+            0.143,
+            0.143
+          ],
+          "execution_ms": [
+            3.201,
+            3.066,
+            3.026,
+            3.048,
+            2.984,
+            2.865,
+            2.996,
+            2.955
+          ],
+          "subplans_removed": [
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Seq Scan on e5 e_1 (actual rows=1705 loops=1)"
+          ]
+        },
+        "force_generic_plan": {
+          "planning_ms": [
+            0.108,
+            0.005,
+            0.008,
+            0.006,
+            0.005,
+            0.005,
+            0.004,
+            0.008
+          ],
+          "execution_ms": [
+            82.932,
+            82.527,
+            83.864,
+            82.442,
+            82.155,
+            82.96,
+            84.046,
+            83.658
+          ],
+          "subplans_removed": [
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ],
+            [
+              9
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Seq Scan on e5 e_1 (actual rows=1705 loops=1)"
+          ]
+        }
+      }
+    },
+    {
+      "shape": "hash",
+      "partitions": 100,
+      "build_s": 10.8,
+      "arms": {
+        "embeddings": {
+          "planning_ms": 7.5,
+          "execution_ms": 3.408,
+          "subplans_removed": [
+            99
+          ],
+          "subplans_removed_total": 99,
+          "appends": 1,
+          "scan_nodes": 1,
+          "index_ordered": false,
+          "leaf_scans": [
+            "Seq Scan on e25 e_1 (actual rows=1705 loops=1)"
+          ],
+          "locks_before": 2,
+          "locks_held": 203,
+          "locks_for_query": 201,
+          "returned": 50,
+          "median_ms": 3.22,
+          "p95_ms": 3.57,
+          "min_ms": 3.13,
+          "pressure": {
+            "locks_per_partition": 2.01,
+            "projected_locks_with_production_indexes": 302,
+            "concurrent_queries_as_built": 31,
+            "concurrent_queries_with_production_indexes": 21
+          }
+        },
+        "join": {
+          "planning_ms": 9.689,
+          "execution_ms": 2.514,
+          "subplans_removed": [
+            99,
+            99
+          ],
+          "subplans_removed_total": 198,
+          "appends": 2,
+          "scan_nodes": 2,
+          "index_ordered": false,
+          "leaf_scans": [
+            "Index Scan using e25_embedding_half_idx on e25 e_1 (actual rows=50 loops=1)",
+            "Seq Scan on c25 c_1 (actual rows=1705 loops=1)"
+          ],
+          "locks_before": 2,
+          "locks_held": 404,
+          "locks_for_query": 402,
+          "returned": 50,
+          "median_ms": 4.46,
+          "p95_ms": 5.26,
+          "min_ms": 4.3,
+          "pressure": {
+            "locks_per_partition": 4.02,
+            "projected_locks_with_production_indexes": 904,
+            "concurrent_queries_as_built": 15,
+            "concurrent_queries_with_production_indexes": 7
+          }
+        }
+      },
+      "prepared": {
+        "auto": {
+          "planning_ms": [
+            0.776,
+            0.746,
+            0.762,
+            0.731,
+            0.729,
+            0.719,
+            0.009,
+            0.009
+          ],
+          "execution_ms": [
+            2.512,
+            2.15,
+            2.137,
+            2.139,
+            2.123,
+            82.477,
+            82.876,
+            81.796
+          ],
+          "subplans_removed": [
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Seq Scan on e25 e_1 (actual rows=1705 loops=1)"
+          ]
+        },
+        "force_custom_plan": {
+          "planning_ms": [
+            1.156,
+            0.781,
+            0.773,
+            0.813,
+            0.796,
+            0.777,
+            0.743,
+            0.749
+          ],
+          "execution_ms": [
+            2.313,
+            2.148,
+            2.12,
+            2.146,
+            2.187,
+            2.115,
+            2.128,
+            2.109
+          ],
+          "subplans_removed": [
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Seq Scan on e25 e_1 (actual rows=1705 loops=1)"
+          ]
+        },
+        "force_generic_plan": {
+          "planning_ms": [
+            0.767,
+            0.015,
+            0.014,
+            0.014,
+            0.015,
+            0.012,
+            0.01,
+            0.007
+          ],
+          "execution_ms": [
+            81.655,
+            81.266,
+            80.75,
+            82.642,
+            82.837,
+            82.742,
+            82.84,
+            83.364
+          ],
+          "subplans_removed": [
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ],
+            [
+              99
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Seq Scan on e25 e_1 (actual rows=1705 loops=1)"
+          ]
+        }
+      }
+    },
+    {
+      "shape": "hash",
+      "partitions": 1000,
+      "build_s": 11.9,
+      "arms": {
+        "embeddings": {
+          "planning_ms": 52.394,
+          "execution_ms": 1.116,
+          "subplans_removed": [
+            999
+          ],
+          "subplans_removed_total": 999,
+          "appends": 1,
+          "scan_nodes": 1,
+          "index_ordered": false,
+          "leaf_scans": [
+            "Index Scan using e925_embedding_half_idx on e925 e_1 (actual rows=50 loops=1)"
+          ],
+          "locks_before": 2,
+          "locks_held": 2003,
+          "locks_for_query": 2001,
+          "returned": 50,
+          "median_ms": 16.73,
+          "p95_ms": 20.52,
+          "min_ms": 16.37,
+          "pressure": {
+            "locks_per_partition": 2.0,
+            "projected_locks_with_production_indexes": 3002,
+            "concurrent_queries_as_built": 3,
+            "concurrent_queries_with_production_indexes": 2
+          }
+        },
+        "join": {
+          "planning_ms": 209.684,
+          "execution_ms": 2.615,
+          "subplans_removed": [
+            999,
+            999
+          ],
+          "subplans_removed_total": 1998,
+          "appends": 2,
+          "scan_nodes": 2,
+          "index_ordered": false,
+          "leaf_scans": [
+            "Index Scan using e925_embedding_half_idx on e925 e_1 (actual rows=50 loops=1)",
+            "Seq Scan on c925 c_1 (actual rows=1705 loops=1)"
+          ],
+          "locks_before": 2,
+          "locks_held": 4004,
+          "locks_for_query": 4002,
+          "returned": 50,
+          "median_ms": 114.31,
+          "p95_ms": 117.65,
+          "min_ms": 113.27,
+          "pressure": {
+            "locks_per_partition": 4.0,
+            "projected_locks_with_production_indexes": 9004,
+            "concurrent_queries_as_built": 1,
+            "concurrent_queries_with_production_indexes": 0
+          }
+        }
+      },
+      "prepared": {
+        "auto": {
+          "planning_ms": [
+            19.115,
+            16.967,
+            16.351,
+            16.443,
+            16.419,
+            16.143,
+            0.044,
+            0.032
+          ],
+          "execution_ms": [
+            0.751,
+            0.607,
+            0.591,
+            0.58,
+            0.56,
+            2.967,
+            2.727,
+            2.758
+          ],
+          "subplans_removed": [
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Index Scan using e925_embedding_half_idx on e925 e_1 (actual rows=50 loops=1)"
+          ]
+        },
+        "force_custom_plan": {
+          "planning_ms": [
+            18.744,
+            17.49,
+            17.979,
+            16.684,
+            16.362,
+            17.268,
+            16.871,
+            16.802
+          ],
+          "execution_ms": [
+            0.595,
+            0.622,
+            0.596,
+            0.572,
+            0.55,
+            0.604,
+            0.561,
+            0.572
+          ],
+          "subplans_removed": [
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Index Scan using e925_embedding_half_idx on e925 e_1 (actual rows=50 loops=1)"
+          ]
+        },
+        "force_generic_plan": {
+          "planning_ms": [
+            16.477,
+            0.052,
+            0.049,
+            0.045,
+            0.044,
+            0.065,
+            0.031,
+            0.027
+          ],
+          "execution_ms": [
+            3.009,
+            2.719,
+            2.72,
+            2.712,
+            2.671,
+            2.688,
+            2.686,
+            2.68
+          ],
+          "subplans_removed": [
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ],
+            [
+              999
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Index Scan using e925_embedding_half_idx on e925 e_1 (actual rows=50 loops=1)"
+          ]
+        }
+      }
+    },
+    {
+      "shape": "hash",
+      "partitions": 2000,
+      "build_s": 13.2,
+      "arms": {
+        "embeddings": {
+          "planning_ms": 160.99,
+          "execution_ms": 0.869,
+          "subplans_removed": [
+            1999
+          ],
+          "subplans_removed_total": 1999,
+          "appends": 1,
+          "scan_nodes": 1,
+          "index_ordered": false,
+          "leaf_scans": [
+            "Index Scan using e1925_embedding_half_idx on e1925 e_1 (actual rows=50 loops=1)"
+          ],
+          "locks_before": 2,
+          "locks_held": 4003,
+          "locks_for_query": 4001,
+          "returned": 50,
+          "median_ms": 64.76,
+          "p95_ms": 65.05,
+          "min_ms": 60.05,
+          "pressure": {
+            "locks_per_partition": 2.0,
+            "projected_locks_with_production_indexes": 6002,
+            "concurrent_queries_as_built": 1,
+            "concurrent_queries_with_production_indexes": 1
+          }
+        },
+        "join": {
+          "planning_ms": 979.994,
+          "execution_ms": 2.526,
+          "subplans_removed": [
+            1999,
+            1999
+          ],
+          "subplans_removed_total": 3998,
+          "appends": 2,
+          "scan_nodes": 2,
+          "index_ordered": false,
+          "leaf_scans": [
+            "Index Scan using e1925_embedding_half_idx on e1925 e_1 (actual rows=50 loops=1)",
+            "Seq Scan on c1925 c_1 (actual rows=1705 loops=1)"
+          ],
+          "locks_before": 2,
+          "locks_held": 8004,
+          "locks_for_query": 8002,
+          "returned": 50,
+          "median_ms": 913.21,
+          "p95_ms": 920.32,
+          "min_ms": 901.94,
+          "pressure": {
+            "locks_per_partition": 4.0,
+            "projected_locks_with_production_indexes": 18004,
+            "concurrent_queries_as_built": 0,
+            "concurrent_queries_with_production_indexes": 0
+          }
+        }
+      },
+      "prepared": {
+        "auto": {
+          "planning_ms": [
+            61.201,
+            59.367,
+            58.693,
+            58.991,
+            59.722,
+            57.899,
+            0.086,
+            0.064
+          ],
+          "execution_ms": [
+            0.638,
+            0.623,
+            0.655,
+            0.663,
+            0.681,
+            2.981,
+            2.718,
+            2.734
+          ],
+          "subplans_removed": [
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Index Scan using e1925_embedding_half_idx on e1925 e_1 (actual rows=50 loops=1)"
+          ]
+        },
+        "force_custom_plan": {
+          "planning_ms": [
+            60.752,
+            59.402,
+            58.051,
+            59.14,
+            59.67,
+            58.392,
+            59.672,
+            59.047
+          ],
+          "execution_ms": [
+            0.629,
+            0.707,
+            0.629,
+            0.63,
+            0.672,
+            0.636,
+            0.655,
+            0.677
+          ],
+          "subplans_removed": [
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Index Scan using e1925_embedding_half_idx on e1925 e_1 (actual rows=50 loops=1)"
+          ]
+        },
+        "force_generic_plan": {
+          "planning_ms": [
+            57.347,
+            0.1,
+            0.079,
+            0.083,
+            0.073,
+            0.072,
+            0.07,
+            0.062
+          ],
+          "execution_ms": [
+            2.992,
+            2.741,
+            2.714,
+            2.568,
+            2.574,
+            2.661,
+            2.671,
+            2.784
+          ],
+          "subplans_removed": [
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ],
+            [
+              1999
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Index Scan using e1925_embedding_half_idx on e1925 e_1 (actual rows=50 loops=1)"
+          ]
+        }
+      }
+    },
+    {
+      "shape": "hash",
+      "partitions": 5000,
+      "build_s": 23.1,
+      "arms": {
+        "embeddings": {
+          "planning_ms": 1396.04,
+          "execution_ms": 2.87,
+          "subplans_removed": [
+            4999
+          ],
+          "subplans_removed_total": 4999,
+          "appends": 1,
+          "scan_nodes": 1,
+          "index_ordered": false,
+          "leaf_scans": [
+            "Index Scan using e2925_embedding_half_idx on e2925 e_1 (actual rows=50 loops=1)"
+          ],
+          "locks_before": 2,
+          "locks_held": 10003,
+          "locks_for_query": 10001,
+          "returned": 50,
+          "median_ms": 687.43,
+          "p95_ms": 754.86,
+          "min_ms": 665.31,
+          "pressure": {
+            "locks_per_partition": 2.0,
+            "projected_locks_with_production_indexes": 15002,
+            "concurrent_queries_as_built": 0,
+            "concurrent_queries_with_production_indexes": 0
+          }
+        },
+        "join": {
+          "error": "OperationalError: (psycopg.errors.OutOfMemory) out of shared memory"
+        }
+      },
+      "prepared": {
+        "auto": {
+          "planning_ms": [
+            684.675,
+            679.659,
+            671.037,
+            669.875,
+            663.511,
+            660.782,
+            0.229,
+            0.169
+          ],
+          "execution_ms": [
+            0.744,
+            0.627,
+            0.617,
+            0.625,
+            0.615,
+            2.931,
+            2.684,
+            2.767
+          ],
+          "subplans_removed": [
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Index Scan using e2925_embedding_half_idx on e2925 e_1 (actual rows=50 loops=1)"
+          ]
+        },
+        "force_custom_plan": {
+          "planning_ms": [
+            666.793,
+            664.992,
+            663.138,
+            668.239,
+            665.907,
+            667.78,
+            666.49,
+            683.416
+          ],
+          "execution_ms": [
+            0.613,
+            0.61,
+            0.609,
+            0.743,
+            0.612,
+            0.61,
+            0.627,
+            0.651
+          ],
+          "subplans_removed": [
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Index Scan using e2925_embedding_half_idx on e2925 e_1 (actual rows=50 loops=1)"
+          ]
+        },
+        "force_generic_plan": {
+          "planning_ms": [
+            677.976,
+            0.228,
+            0.19,
+            0.183,
+            0.205,
+            0.171,
+            0.164,
+            0.162
+          ],
+          "execution_ms": [
+            3.004,
+            2.812,
+            2.748,
+            2.685,
+            2.674,
+            2.725,
+            2.753,
+            2.754
+          ],
+          "subplans_removed": [
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ],
+            [
+              4999
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "leaf_scans": [
+            "Index Scan using e2925_embedding_half_idx on e2925 e_1 (actual rows=50 loops=1)"
+          ]
+        }
+      }
+    },
+    {
+      "shape": "hash",
+      "partitions": 10000,
+      "build_s": 53.6,
+      "arms": {
+        "embeddings": {
+          "error": "OperationalError: (psycopg.errors.OutOfMemory) out of shared memory"
+        },
+        "join": {
+          "error": "OperationalError: (psycopg.errors.OutOfMemory) out of shared memory"
+        }
+      },
+      "prepared": {
+        "auto": {
+          "error": "OperationalError: (psycopg.errors.OutOfMemory) out of shared memory"
+        },
+        "force_custom_plan": {
+          "error": "ProgrammingError: (psycopg.errors.DuplicatePreparedStatement) prepared statement \"partshape_probe\" already exists"
+        },
+        "force_generic_plan": {
+          "error": "ProgrammingError: (psycopg.errors.DuplicatePreparedStatement) prepared statement \"partshape_probe\" already exists"
+        }
+      }
+    }
+  ],
+  "distribution": {
+    "tenants_provisioned": 6,
+    "tenants_with_passages": 2,
+    "passages": 13549,
+    "largest_share": 0.6106,
+    "uniform_share_would_be": 0.5,
+    "note": "Two tenants and 13,549 passages cannot settle a distribution. What it can do is refute the assumption the plan carries: the larger tenant holds a majority of the corpus, not the 1/T a uniform split would give it.",
+    "by_tenant": [
+      {
+        "tenant": "55e60787-412f-4d4d-acc8-93b2b7482868",
+        "documents": 26,
+        "passages": 8273,
+        "share": 0.6106
+      },
+      {
+        "tenant": "36c074a4-9dee-4766-815a-4ff17d0b0ca8",
+        "documents": 16,
+        "passages": 5276,
+        "share": 0.3894
+      },
+      {
+        "tenant": "9e3b29ce-d891-4aec-9bf6-ab0a78b164cb",
+        "documents": 0,
+        "passages": 0,
+        "share": 0.0
+      },
+      {
+        "tenant": "a815c7a2-1a0d-41d7-b327-796af7db9ac9",
+        "documents": 0,
+        "passages": 0,
+        "share": 0.0
+      },
+      {
+        "tenant": "b750fb57-9ca8-44aa-bb52-d6eeb108723b",
+        "documents": 0,
+        "passages": 0,
+        "share": 0.0
+      },
+      {
+        "tenant": "f8359772-af6d-43b6-afb9-0bf49075af64",
+        "documents": 0,
+        "passages": 0,
+        "share": 0.0
+      }
+    ]
+  },
+  "benefit": {
+    "form": "residency_saving = 1 - s_max, where s_max is the largest tenant's share of the corpus. Under HASH with modulus P and T tenants the saving is 1 - (s_max + (1 - s_max) * (T/P - 1)/(T - 1)), because hashing does not split a tenant, it seats other tenants beside it.",
+    "provenance": "No customer size distribution exists in this repository and this installation has two tenants. The Zipf rows are assumptions with a stated exponent range and no measurement behind them. The plan should carry s_max as a parameter and ask the customer for their per-tenant document counts; substituting a real s_max into the form above is a one-line change and substituting a real distribution into a headline percentage is not.",
+    "bytes_per_vector": 2729.9,
+    "plan_corpus_passages": 322000000,
+    "models": [
+      {
+        "tenants": 50,
+        "uniform": {
+          "largest_share": 0.02,
+          "residency_saving": 0.98,
+          "largest_tenant_passages_at_plan_corpus": 6440000,
+          "largest_tenant_index_gib": 16.4
+        },
+        "zipf_0.8": {
+          "largest_share": 0.153424,
+          "p99_share": 0.153424,
+          "residency_saving": 0.8466,
+          "times_the_uniform_assumption": 7.7,
+          "largest_tenant_passages_at_plan_corpus": 49402481,
+          "largest_tenant_index_gib": 125.6,
+          "hash_partition_share": {
+            "64": 0.153424,
+            "256": 0.153424,
+            "1024": 0.153424
+          }
+        },
+        "zipf_1.0": {
+          "largest_share": 0.222261,
+          "p99_share": 0.222261,
+          "residency_saving": 0.7777,
+          "times_the_uniform_assumption": 11.1,
+          "largest_tenant_passages_at_plan_corpus": 71568194,
+          "largest_tenant_index_gib": 182.0,
+          "hash_partition_share": {
+            "64": 0.222261,
+            "256": 0.222261,
+            "1024": 0.222261
+          }
+        },
+        "zipf_1.2": {
+          "largest_share": 0.30215,
+          "p99_share": 0.30215,
+          "residency_saving": 0.6978,
+          "times_the_uniform_assumption": 15.1,
+          "largest_tenant_passages_at_plan_corpus": 97292373,
+          "largest_tenant_index_gib": 247.4,
+          "hash_partition_share": {
+            "64": 0.30215,
+            "256": 0.30215,
+            "1024": 0.30215
+          }
+        }
+      },
+      {
+        "tenants": 200,
+        "uniform": {
+          "largest_share": 0.005,
+          "residency_saving": 0.995,
+          "largest_tenant_passages_at_plan_corpus": 1610000,
+          "largest_tenant_index_gib": 4.1
+        },
+        "zipf_0.8": {
+          "largest_share": 0.100033,
+          "p99_share": 0.057454,
+          "residency_saving": 0.9,
+          "times_the_uniform_assumption": 20.0,
+          "largest_tenant_passages_at_plan_corpus": 32210728,
+          "largest_tenant_index_gib": 81.9,
+          "hash_partition_share": {
+            "64": 0.109644,
+            "256": 0.100033,
+            "1024": 0.100033
+          }
+        },
+        "zipf_1.0": {
+          "largest_share": 0.170125,
+          "p99_share": 0.085062,
+          "residency_saving": 0.8299,
+          "times_the_uniform_assumption": 34.0,
+          "largest_tenant_passages_at_plan_corpus": 54780249,
+          "largest_tenant_index_gib": 139.3,
+          "hash_partition_share": {
+            "64": 0.178987,
+            "256": 0.170125,
+            "1024": 0.170125
+          }
+        },
+        "zipf_1.2": {
+          "largest_share": 0.259095,
+          "p99_share": 0.112778,
+          "residency_saving": 0.7409,
+          "times_the_uniform_assumption": 51.8,
+          "largest_tenant_passages_at_plan_corpus": 83428639,
+          "largest_tenant_index_gib": 212.1,
+          "hash_partition_share": {
+            "64": 0.267007,
+            "256": 0.259095,
+            "1024": 0.259095
+          }
+        }
+      },
+      {
+        "tenants": 1000,
+        "uniform": {
+          "largest_share": 0.001,
+          "residency_saving": 0.999,
+          "largest_tenant_passages_at_plan_corpus": 322000,
+          "largest_tenant_index_gib": 0.8
+        },
+        "zipf_0.8": {
+          "largest_share": 0.064642,
+          "p99_share": 0.010245,
+          "residency_saving": 0.9354,
+          "times_the_uniform_assumption": 64.6,
+          "largest_tenant_passages_at_plan_corpus": 20814735,
+          "largest_tenant_index_gib": 52.9,
+          "hash_partition_share": {
+            "64": 0.078335,
+            "256": 0.067363,
+            "1024": 0.064642
+          }
+        },
+        "zipf_1.0": {
+          "largest_share": 0.133592,
+          "p99_share": 0.013359,
+          "residency_saving": 0.8664,
+          "times_the_uniform_assumption": 133.6,
+          "largest_tenant_passages_at_plan_corpus": 43016666,
+          "largest_tenant_index_gib": 109.4,
+          "hash_partition_share": {
+            "64": 0.146276,
+            "256": 0.136113,
+            "1024": 0.133592
+          }
+        },
+        "zipf_1.2": {
+          "largest_share": 0.23064,
+          "p99_share": 0.014552,
+          "residency_saving": 0.7694,
+          "times_the_uniform_assumption": 230.6,
+          "largest_tenant_passages_at_plan_corpus": 74266021,
+          "largest_tenant_index_gib": 188.8,
+          "hash_partition_share": {
+            "64": 0.241903,
+            "256": 0.232878,
+            "1024": 0.23064
+          }
+        }
+      },
+      {
+        "tenants": 10000,
+        "uniform": {
+          "largest_share": 0.0001,
+          "residency_saving": 0.9999,
+          "largest_tenant_passages_at_plan_corpus": 32200,
+          "largest_tenant_index_gib": 0.1
+        },
+        "zipf_0.8": {
+          "largest_share": 0.036886,
+          "p99_share": 0.000927,
+          "residency_saving": 0.9631,
+          "times_the_uniform_assumption": 368.9,
+          "largest_tenant_passages_at_plan_corpus": 11877254,
+          "largest_tenant_index_gib": 30.2,
+          "hash_partition_share": {
+            "64": 0.05184,
+            "256": 0.040552,
+            "1024": 0.03773
+          }
+        },
+        "zipf_1.0": {
+          "largest_share": 0.10217,
+          "p99_share": 0.001022,
+          "residency_saving": 0.8978,
+          "times_the_uniform_assumption": 1021.7,
+          "largest_tenant_passages_at_plan_corpus": 32898750,
+          "largest_tenant_index_gib": 83.6,
+          "hash_partition_share": {
+            "64": 0.11611,
+            "256": 0.105588,
+            "1024": 0.102957
+          }
+        },
+        "zipf_1.2": {
+          "largest_share": 0.208371,
+          "p99_share": 0.00083,
+          "residency_saving": 0.7916,
+          "times_the_uniform_assumption": 2083.7,
+          "largest_tenant_passages_at_plan_corpus": 67095302,
+          "largest_tenant_index_gib": 170.6,
+          "hash_partition_share": {
+            "64": 0.220662,
+            "256": 0.211384,
+            "1024": 0.209064
+          }
+        }
+      }
+    ]
+  },
+  "caveats": [
+    "Latency on this machine is contended and memory-starved: 7.75 GB for the whole VM and 128 MB of shared_buffers, shared with the production corpus and with whatever else is running. Execution and median figures are indicative. Planning time, Subplans Removed and the lock counts are the sound half \u2014 they are properties of the plan and of the catalogue, not of how busy the machine was.",
+    "Every partition beyond the eight populated ones is empty. That is deliberate and it does not affect what is being measured: planning time and lock count depend on the number of partitions, not on their contents, and holding the queried partition's row count constant is what makes execution times comparable between rungs.",
+    "The scratch tables carry one index per partition. The production tables carry more, so every lock count here is a floor - see build.indexes_per_partition for the multiplier.",
+    "enable_partitionwise_join is off, which is the installation's setting. With it on, the join arm would plan per-partition joins and both the planning cost and the pruning behaviour of that arm would change. That is a separate measurement and this sweep does not make a claim about it.",
+    "The query vector is a stored passage embedding rather than a question embedded through TEI. Question-to-passage asymmetry changes which rows come back; it does not change planning time, lock count or Subplans Removed, which is everything this sweep concludes from.",
+    "The lock table grew past its nominal size and queries above it still ran - see ceiling.observed_note. That surplus is unreserved shared memory shared with every other backend, so a rung that passed here on an idle installation is not a rung that passes under load.",
+    "The PREPARE/EXECUTE arm runs the embeddings shape only. The join shape exhausts the lock table two rungs earlier and a prepared-statement figure for it would exist at 10 and 100 partitions and nowhere the answer matters.",
+    "Execution time falls when the table is partitioned, and that is pruning working rather than a machine artefact - the scan goes from 13,549 rows under a policy filter to the queried tenant's 1,705. It is also the wrong way round for the question being asked: what grows with partition count is planning, and past about a thousand partitions planning is the whole query.",
+    "The tenant size distribution cannot be settled by this installation. The Zipf rows under benefit.models are assumptions, labelled as such, and the number the plan should carry is the parametric form beside them."
+  ],
+  "verification": {
+    "scratch_schemas_left": 0,
+    "security_definers_in_public": 7,
+    "expected_security_definers": 7,
+    "clean": true
+  }
+}

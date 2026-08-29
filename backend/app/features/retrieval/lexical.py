@@ -1,6 +1,6 @@
 """The query side of lexical search, and the bug that nearly cost us ParadeDB.
 
-`chunks.tsv` is a generated column: `to_tsvector('english', text)`. The corpus side is
+`chunks.tsv` is a generated column: `to_tsvector('zenith_text', text)`. The corpus side is
 therefore tokenised by Postgres, with Postgres's rules.
 
 M0's first implementation tokenised the *query* with `re.findall(r"[A-Za-z0-9']+", ...)`.
@@ -19,10 +19,41 @@ built the index.** A regex that looks equivalent is not, and the failure is sile
 does not error, it just returns worse results.
 """
 
+from typing import Final
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-CONFIGURATION = "english"
+from app.core.config import settings
+
+#: The implementations `ZENITH_LEXICAL_ENGINE` may name.
+#:
+#: `tsvector` is `ts_rank_cd` over the GIN index — every recall figure in `eval/` was
+#: measured against it. `bm25` is ParadeDB resolving the top N inside its own index, which
+#: is the only one of the two that does not cost time linear in rows matched.
+ENGINES: Final[frozenset[str]] = frozenset({"tsvector", "bm25"})
+
+
+def engine() -> str:
+    """The configured lexical engine, or a startup failure.
+
+    Same reasoning as `hardware.active()`: an operator who types `ZENITH_LEXICAL_ENGINE=BM25`
+    gets an error naming the valid values, not a silent fallback to the other implementation
+    and a recall number nobody can explain.
+    """
+    if settings.lexical_engine not in ENGINES:
+        raise ValueError(
+            f"ZENITH_LEXICAL_ENGINE is {settings.lexical_engine!r}, which is not an engine. "
+            f"Valid values: {', '.join(sorted(ENGINES))}."
+        )
+    return settings.lexical_engine
+
+
+#: The configuration both sides use. `zenith_text` is `english` with `unaccent` in front of
+#: the stemmer — migration 0018 — so `maximo` finds `máximo` and every English rule is
+#: unchanged. The name is read here and by the generated column's definition, which is what
+#: keeps the two ends tokenised by the same analyser.
+CONFIGURATION = "zenith_text"
 
 
 async def to_tsquery(session: AsyncSession, question: str) -> str:

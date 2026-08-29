@@ -22,7 +22,19 @@ import structlog
 from app.core.config import settings
 from app.core.hardware import Profile
 from app.core.hardware import active as active_profile
-from app.features.embeddings.client import QUERY_TIMEOUT
+
+# Reranking is not embedding, and borrowing embedding's 5-second budget was wrong about the
+# work. An embedding call is one short forward pass; a rerank batch is a cross-encoder
+# reading the question against every passage in it. Measured on a 14-core CPU with
+# `bge-reranker-v2-m3`, saturating all of them: **1,785 ms per 400-token passage**, linear —
+# a batch of four takes 7.1 s and tripped the 5-second limit every single time, so every
+# search paid five seconds to then report `degraded` and use the fused order anyway.
+#
+# The number below is the whole `rank()` call, not one request, and it is deliberately far
+# above the measured cost of `rerank_candidates` passages. It exists to catch a hung or
+# swapping service, not to police how long a cross-encoder takes — the profile's candidate
+# count is what bounds the wait, because that is the knob with a quality meaning.
+RERANK_TIMEOUT = 60.0
 
 log = structlog.get_logger()
 
@@ -66,7 +78,7 @@ class TeiReranker:
             return []
 
         scores: list[Scored] = []
-        async with httpx.AsyncClient(timeout=QUERY_TIMEOUT, transport=self.transport) as client:
+        async with httpx.AsyncClient(timeout=RERANK_TIMEOUT, transport=self.transport) as client:
             for start, batch in self.plan_batches(question, passages):
                 response = await client.post(
                     f"{self.url}/rerank",

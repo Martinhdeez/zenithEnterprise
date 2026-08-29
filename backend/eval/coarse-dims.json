@@ -1,0 +1,258 @@
+{
+  "generated_at": "2026-08-29T13:24:11+0000",
+  "took_s": 150.7,
+  "question": "Grouping and dimension reduction were measured separately and both work. Do they compose end to end, or does pooling a projected vector lose what pooling an unprojected one kept?",
+  "corpus": {
+    "passages": 13549,
+    "groups": 866,
+    "documents": 42,
+    "passages_per_document": 322.6
+  },
+  "grouping": "chunks16/mean",
+  "width": 512,
+  "projection": "Uncentred SVD basis fitted by eval/dimensions.py's `_fit`, imported. Two fits would be two bases \u2014 eigenvectors are defined up to sign and up to the ordering of near-degenerate eigenvalues \u2014 and numbers taken against two bases cannot be read beside each other.",
+  "commutation": {
+    "groups": 866,
+    "max_abs_difference": 5.36e-07,
+    "relative_to_largest_component": 6.98e-07,
+    "commutes": true
+  },
+  "questions": {
+    "end_to_end_scored": 30,
+    "index_sweep_scored": 31
+  },
+  "depth": 10,
+  "index_recall": {
+    "truth": "Exact fp32 cosine at 1024 components over the passages, enable_indexscan and enable_bitmapscan off. Unprojected on purpose: the question is what the two levers cost against retrieval as it is today.",
+    "arms": [
+      {
+        "dim": 1024,
+        "open": 2,
+        "recall_at_10": 0.4,
+        "worst_question": 0.1,
+        "io_fraction": 0.0023
+      },
+      {
+        "dim": 1024,
+        "open": 4,
+        "recall_at_10": 0.5613,
+        "worst_question": 0.1,
+        "io_fraction": 0.0046
+      },
+      {
+        "dim": 1024,
+        "open": 8,
+        "recall_at_10": 0.7194,
+        "worst_question": 0.2,
+        "io_fraction": 0.0092
+      },
+      {
+        "dim": 1024,
+        "open": 16,
+        "recall_at_10": 0.8258,
+        "worst_question": 0.2,
+        "io_fraction": 0.0184
+      },
+      {
+        "dim": 1024,
+        "open": 32,
+        "recall_at_10": 0.9355,
+        "worst_question": 0.7,
+        "io_fraction": 0.0368
+      },
+      {
+        "dim": 1024,
+        "open": 64,
+        "recall_at_10": 0.9677,
+        "worst_question": 0.8,
+        "io_fraction": 0.0737
+      },
+      {
+        "dim": 1024,
+        "open": 128,
+        "recall_at_10": 0.9839,
+        "worst_question": 0.8,
+        "io_fraction": 0.1478
+      },
+      {
+        "dim": 512,
+        "open": 2,
+        "recall_at_10": 0.4065,
+        "worst_question": 0.1,
+        "io_fraction": 0.0023
+      },
+      {
+        "dim": 512,
+        "open": 4,
+        "recall_at_10": 0.5581,
+        "worst_question": 0.1,
+        "io_fraction": 0.0046
+      },
+      {
+        "dim": 512,
+        "open": 8,
+        "recall_at_10": 0.7065,
+        "worst_question": 0.2,
+        "io_fraction": 0.0092
+      },
+      {
+        "dim": 512,
+        "open": 16,
+        "recall_at_10": 0.8161,
+        "worst_question": 0.2,
+        "io_fraction": 0.0184
+      },
+      {
+        "dim": 512,
+        "open": 32,
+        "recall_at_10": 0.9194,
+        "worst_question": 0.7,
+        "io_fraction": 0.0368
+      },
+      {
+        "dim": 512,
+        "open": 64,
+        "recall_at_10": 0.9452,
+        "worst_question": 0.7,
+        "io_fraction": 0.0737
+      },
+      {
+        "dim": 512,
+        "open": 128,
+        "recall_at_10": 0.9548,
+        "worst_question": 0.7,
+        "io_fraction": 0.1477
+      }
+    ]
+  },
+  "end_to_end": {
+    "exact": {
+      "headline_recall_at_8": 0.9,
+      "headline_scored": 20,
+      "recall_at_8_all": 0.9,
+      "recall_at_1_all": 0.6667,
+      "dense_median_ms": 31.028,
+      "dense_p95_ms": 34.88,
+      "search_median_ms": 810,
+      "search_p95_ms": 924
+    },
+    "svd512_flat": {
+      "headline_recall_at_8": 0.9,
+      "headline_scored": 20,
+      "recall_at_8_all": 0.9,
+      "recall_at_1_all": 0.6667,
+      "dense_median_ms": 24.675,
+      "dense_p95_ms": 38.281,
+      "search_median_ms": 784,
+      "search_p95_ms": 885
+    },
+    "chunks16/mean/open32@1024": {
+      "headline_recall_at_8": 0.9,
+      "headline_scored": 20,
+      "recall_at_8_all": 0.9,
+      "recall_at_1_all": 0.6667,
+      "dense_median_ms": 4.776,
+      "dense_p95_ms": 5.466,
+      "search_median_ms": 754,
+      "search_p95_ms": 832
+    },
+    "chunks16/mean/open32@512": {
+      "headline_recall_at_8": 0.9,
+      "headline_scored": 20,
+      "recall_at_8_all": 0.9,
+      "recall_at_1_all": 0.6667,
+      "dense_median_ms": 11.937,
+      "dense_p95_ms": 17.534,
+      "search_median_ms": 769,
+      "search_p95_ms": 909
+    },
+    "chunks16/mean/open64@512": {
+      "headline_recall_at_8": 0.9,
+      "headline_scored": 20,
+      "recall_at_8_all": 0.9,
+      "recall_at_1_all": 0.6667,
+      "dense_median_ms": 8.035,
+      "dense_p95_ms": 16.971,
+      "search_median_ms": 770,
+      "search_p95_ms": 858
+    },
+    "chunks16/mean/open128@512": {
+      "headline_recall_at_8": 0.9,
+      "headline_scored": 20,
+      "recall_at_8_all": 0.9,
+      "recall_at_1_all": 0.6667,
+      "dense_median_ms": 10.008,
+      "dense_p95_ms": 21.884,
+      "search_median_ms": 773,
+      "search_p95_ms": 862
+    }
+  },
+  "bar": "headline Recall@8 and Recall@1 must not fall below the exact dense baseline measured in this run. coarse.json's bar, unchanged.",
+  "verdict": {
+    "svd512_flat": {
+      "headline_delta": 0.0,
+      "recall_at_1_delta": 0.0,
+      "recall_at_8_all_delta": 0.0,
+      "clears_bar": true
+    },
+    "chunks16/mean/open32@1024": {
+      "headline_delta": 0.0,
+      "recall_at_1_delta": 0.0,
+      "recall_at_8_all_delta": 0.0,
+      "clears_bar": true
+    },
+    "chunks16/mean/open32@512": {
+      "headline_delta": 0.0,
+      "recall_at_1_delta": 0.0,
+      "recall_at_8_all_delta": 0.0,
+      "clears_bar": true
+    },
+    "chunks16/mean/open64@512": {
+      "headline_delta": 0.0,
+      "recall_at_1_delta": 0.0,
+      "recall_at_8_all_delta": 0.0,
+      "clears_bar": true
+    },
+    "chunks16/mean/open128@512": {
+      "headline_delta": 0.0,
+      "recall_at_1_delta": 0.0,
+      "recall_at_8_all_delta": 0.0,
+      "clears_bar": true
+    }
+  },
+  "memory": {
+    "source": "dimensions.json bytes_per_vector (fresh HNSW at m=16, ef_construction=64)",
+    "bytes_per_vector": {
+      "identity_1024": 2729.9,
+      "svd_512": 1365.8
+    },
+    "resident_vectors": {
+      "today": 13549,
+      "grouped": 866
+    },
+    "factor": {
+      "width_only_svd_512": 2.0,
+      "grouping_only_chunks16": 15.65,
+      "combined": 31.27
+    },
+    "gib_at_1m_documents": {
+      "passages_per_document": 322.6,
+      "today": 820.2,
+      "combined": 26.2
+    },
+    "note": "Resident index only. The passage vectors stage two rescans still exist on disk at full width \u2014 grouping moves them out of memory, it does not delete them \u2014 and at 512 components they are half the disk they are today."
+  },
+  "caveats": [
+    "Dense-stage recall does not predict the page and is reported only as context. coarse.json refuted that inference with its own numbers: chunks16/mean/open16 has better dense recall than binary_r20 and worse headline recall, because group pruning discards coherent regions and the lexical half tends to fail on the same questions.",
+    "Every arm is exact at both stages, with all indexes refused, so this measures what the grouping and the projection cost and not what HNSW costs on top. dimensions.json measured the arms under HNSW and found identity_1024 itself at 0.9667 against exact \u2014 a real installation pays that before either lever is applied.",
+    "The SVD basis is fitted on 42 documents. It is a statement about this corpus's structure, and a basis fitted on a thousand tenants' documents may not be this one. dimensions.json makes the same caveat and it is not weakened by being repeated.",
+    "Shipping a fitted basis means storing a 1024x512 matrix, applying it in the ingestion and the query path, and deciding what happens when the corpus drifts far enough that the fit is stale. None of that is measured here.",
+    "The operating point measured here is the one that was free at 13,549 passages. Whether `open` can stay at 32 as the corpus grows is a different question, measured in coarse-scale.json, and this file's verdict is conditional on that one."
+  ],
+  "hygiene": {
+    "own_schemas_left": [],
+    "other_scratch_schemas_seen": [],
+    "security_definer_in_public": 7,
+    "clean": true
+  }
+}

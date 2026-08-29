@@ -1,5 +1,5 @@
-from pgvector.sqlalchemy import Vector
-from sqlalchemy import CheckConstraint, ForeignKey, Index
+from pgvector.sqlalchemy import HALFVEC, Vector
+from sqlalchemy import CheckConstraint, Computed, ForeignKey, ForeignKeyConstraint, Index
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base, created_at, uuid_col
@@ -29,25 +29,56 @@ class EmbeddingSpace(Base):
 class ChunkEmbedding(Base):
     __tablename__ = "chunk_embeddings"
     __table_args__ = (
-        # `vector_cosine_ops` because BGE-M3 returns normalised vectors.
-        # Declared here, not only in the migration, so the drift test can check that
-        # database and models say the same thing.
+        # The index is on the fp16 representation, migration 0025. `halfvec_cosine_ops`
+        # because BGE-M3 returns normalised vectors, and fp16 because the index is what has
+        # to stay resident: 2,729.9 bytes per vector against 8,188.4, at index recall
+        # 1.0000 against exact at both depths on the full corpus. Measured in
+        # `eval/quantisation.json`. Declared here, not only in the migration, so the drift
+        # test can check that database and models say the same thing.
         Index(
-            "ix_chunk_embeddings_hnsw",
-            "embedding",
+            "ix_chunk_embeddings_hnsw_half",
+            "embedding_half",
             postgresql_using="hnsw",
-            postgresql_ops={"embedding": "vector_cosine_ops"},
+            postgresql_ops={"embedding_half": "halfvec_cosine_ops"},
             postgresql_with={"m": 16, "ef_construction": 64},
         ),
+        # Composite since migration 0026: `chunks` is partitioned by `tenant_id`, so its
+        # primary key is `(id, tenant_id)` and nothing can reference `chunks.id` alone. The
+        # column was already here for the policy, so this costs no storage — and it buys a
+        # guarantee that did not exist before, that an embedding cannot reference a chunk
+        # belonging to a different tenant.
+        ForeignKeyConstraint(
+            ["chunk_id", "tenant_id"],
+            ["chunks.id", "chunks.tenant_id"],
+            name="fk_chunk_embeddings_chunk_id",
+            ondelete="CASCADE",
+        ),
+        {"postgresql_partition_by": "HASH (tenant_id)"},
     )
 
-    chunk_id: Mapped[uuid_col] = mapped_column(
-        ForeignKey("chunks.id", ondelete="CASCADE"), primary_key=True
-    )
+    chunk_id: Mapped[uuid_col] = mapped_column(primary_key=True)
     # Denormalised so the RLS policy is an equality rather than an EXISTS against
     # `chunks`. This table sits on the hot path of vector search: a per-row subquery
     # here is paid on every single query.
-    tenant_id: Mapped[uuid_col] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
+    #
+    # In the primary key since 0026, for the same reason as `Chunk.tenant_id`: the partition
+    # key has to be in every unique constraint on a partitioned table.
+    tenant_id: Mapped[uuid_col] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), primary_key=True
+    )
     embedding_model: Mapped[str] = mapped_column(primary_key=True)
     embedding_version: Mapped[str] = mapped_column(primary_key=True)
     embedding: Mapped[list[float]] = mapped_column(Vector(EMBEDDING_DIM))
+    #: The same vector at half the precision, and the one the HNSW index covers.
+    #:
+    #: Derived rather than stored in place: `ALTER COLUMN embedding TYPE halfvec` rounds,
+    #: so a rollback would restore the type and not the values. Keeping fp32 also keeps
+    #: exact rescoring possible, which is what any two-stage retrieval over a more
+    #: aggressively compressed index would need. See migration 0025.
+    #:
+    #: Generated, so no write path can let it drift from `embedding` — and not writable,
+    #: which is why the ingestion INSERT is unchanged.
+    embedding_half: Mapped[list[float]] = mapped_column(
+        HALFVEC(EMBEDDING_DIM),
+        Computed(f"embedding::halfvec({EMBEDDING_DIM})", persisted=True),
+    )

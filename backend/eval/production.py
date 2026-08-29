@@ -139,7 +139,9 @@ async def ingest(corpus: Corpus) -> int:
     from eval.corpus import load_manifest
 
     documents = [document for document in load_manifest() if document.path.exists()]
-    all_chunks: list[tuple[str, int, str]] = []
+    # `page_num` is `int | None`: a text document has no pages. This harness only ever
+    # feeds it PDFs, so the `None` never occurs — but the type is the type.
+    all_chunks: list[tuple[str, int | None, str]] = []
 
     for document in documents:
         pages = PdfPlumberParser().parse(document.path)
@@ -250,7 +252,7 @@ def _embed_cached(texts: list[str], model: str) -> list[list[float]]:
 
 async def measure(corpus: Corpus) -> list[Outcome]:
     """Every question through `SearchService`, scored against the recorded pages."""
-    from app.features.auth.permissions import CATALOGUE
+    from app.features.auth.access.permissions import CATALOGUE
     from app.features.auth.service import AccessProfile
     from app.features.retrieval.service import SearchService
     from app.features.tenancy.context import TenantContext

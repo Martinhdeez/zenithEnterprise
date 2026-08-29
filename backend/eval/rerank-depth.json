@@ -1,0 +1,80 @@
+{
+  "scored": 30,
+  "by_depth": {
+    "8": {
+      "headline_recall_at_8": 0.9,
+      "headline_scored": 20,
+      "recall_at_8_all": 0.9,
+      "recall_at_1_all": 0.6667,
+      "mean_rank": 1.407,
+      "median_ms": 965,
+      "p95_ms": 1090,
+      "degraded": 0,
+      "missed": [
+        "boe-bank-rate",
+        "cross-platform-obligations",
+        "table-form-1040-status"
+      ]
+    },
+    "12": {
+      "headline_recall_at_8": 0.9,
+      "headline_scored": 20,
+      "recall_at_8_all": 0.9,
+      "recall_at_1_all": 0.6333,
+      "mean_rank": 1.333,
+      "median_ms": 1293,
+      "p95_ms": 1461,
+      "degraded": 0,
+      "missed": [
+        "boe-bank-rate",
+        "cross-platform-obligations",
+        "table-form-1040-status"
+      ]
+    },
+    "16": {
+      "headline_recall_at_8": 0.9,
+      "headline_scored": 20,
+      "recall_at_8_all": 0.9,
+      "recall_at_1_all": 0.6,
+      "mean_rank": 1.481,
+      "median_ms": 1725,
+      "p95_ms": 1851,
+      "degraded": 0,
+      "missed": [
+        "boe-bank-rate",
+        "cross-platform-obligations",
+        "table-form-1040-status"
+      ]
+    },
+    "24": {
+      "headline_recall_at_8": 0.9,
+      "headline_scored": 20,
+      "recall_at_8_all": 0.9,
+      "recall_at_1_all": 0.5333,
+      "mean_rank": 1.815,
+      "median_ms": 2428,
+      "p95_ms": 2690,
+      "degraded": 0,
+      "missed": [
+        "boe-bank-rate",
+        "cross-platform-obligations",
+        "table-form-1040-status"
+      ]
+    },
+    "32": {
+      "headline_recall_at_8": 0.9,
+      "headline_scored": 20,
+      "recall_at_8_all": 0.9,
+      "recall_at_1_all": 0.5,
+      "mean_rank": 1.889,
+      "median_ms": 3222,
+      "p95_ms": 3578,
+      "degraded": 0,
+      "missed": [
+        "boe-bank-rate",
+        "cross-platform-obligations",
+        "table-form-1040-status"
+      ]
+    }
+  }
+}

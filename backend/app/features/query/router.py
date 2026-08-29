@@ -5,7 +5,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sse_starlette.sse import EventSourceResponse
 
-from app.features.auth.dependencies import CurrentProfile, requires, requires_any
+from app.features.auth.access.dependencies import CurrentProfile, requires, requires_any
+from app.features.generation.answering.conversation import Turn
 from app.features.generation.service import EXECUTE, Answer, AnswerService
 from app.features.query.history import ANY, OWN, HistoryService
 from app.features.query.schemas import (
@@ -16,6 +17,7 @@ from app.features.query.schemas import (
     QueryRequest,
     QueryResponse,
 )
+from app.features.query.throttle import RateLimit
 
 router = APIRouter(tags=["query"])
 
@@ -26,9 +28,14 @@ router = APIRouter(tags=["query"])
     summary="Ask a question and receive a fully validated, cited answer",
     responses={
         403: {"description": "Missing query.execute, or a label the caller does not hold"},
+        429: {"description": "Too many questions from this user or organisation"},
         503: {"description": "No language model is configured, or it could not be reached"},
     },
-    dependencies=[Depends(requires(EXECUTE))],
+    # The permission says *may* you ask; the limit says *how often*. Both, because the
+    # expensive thing here is the model call and a permission cannot bound it — F9 measured
+    # ~9 seconds of model time per answer, and F11 measured what ten concurrent requests do
+    # to four cores.
+    dependencies=[Depends(requires(EXECUTE)), RateLimit],
 )
 async def ask(profile: CurrentProfile, request: QueryRequest) -> QueryResponse:
     """Ask a question of the corpus this caller is allowed to read.
@@ -43,7 +50,16 @@ async def ask(profile: CurrentProfile, request: QueryRequest) -> QueryResponse:
     it cannot name one it was not given; markers naming a passage that was not sent are
     stripped before the answer leaves this process.
     """
-    return _rendered(await AnswerService(profile).answer(request.question, request.labels))
+    return _rendered(
+        await AnswerService(profile).answer(
+            request.question, request.labels, _thread(request), request.documents
+        )
+    )
+
+
+def _thread(request: QueryRequest) -> list[Turn]:
+    """The client's thread, in the shape the generator wants."""
+    return [Turn(question=turn.question, answer=turn.answer) for turn in request.history]
 
 
 def _rendered(result: Answer) -> QueryResponse:
@@ -62,7 +78,10 @@ def _rendered(result: Answer) -> QueryResponse:
                 chunk_id=citation.chunk_id,
                 document_id=citation.document_id,
                 filename=citation.filename,
+                media_type=citation.media_type,
                 page_num=citation.page_num,
+                char_start=citation.char_start,
+                char_end=citation.char_end,
                 text=citation.text,
                 bboxes=citation.bboxes,
             )
@@ -104,9 +123,13 @@ def _rendered(result: Answer) -> QueryResponse:
             "content": {"text/event-stream": {}},
         },
         403: {"description": "Missing query.execute, or a label the caller does not hold"},
+        429: {"description": "Too many questions from this user or organisation"},
         503: {"description": "No language model is configured, or it could not be reached"},
     },
-    dependencies=[Depends(requires(EXECUTE))],
+    # More important here than on `/query`, not less: a stream holds a worker and a socket
+    # for the whole answer, so thirty tabs left open on a dashboard that retries is an outage
+    # nobody had to be malicious to cause.
+    dependencies=[Depends(requires(EXECUTE)), RateLimit],
 )
 async def ask_streaming(profile: CurrentProfile, request: QueryRequest) -> EventSourceResponse:
     """Server-Sent Events rather than WebSockets.
@@ -122,7 +145,9 @@ async def ask_streaming(profile: CurrentProfile, request: QueryRequest) -> Event
     service = AnswerService(profile)
 
     async def events() -> AsyncIterator[dict[str, str]]:
-        async for piece in service.stream(request.question, request.labels):
+        async for piece in service.stream(
+            request.question, request.labels, _thread(request), request.documents
+        ):
             if piece.token is not None:
                 yield {"event": "token", "data": piece.token}
             elif piece.result is not None:
@@ -142,16 +167,29 @@ async def history(
     profile: CurrentProfile,
     limit: Annotated[int | None, Query(ge=1, le=200)] = None,
     cursor: Annotated[str | None, Query(description="From a previous page.")] = None,
+    search: Annotated[
+        str | None, Query(max_length=200, description="Match against the question text.")
+    ] = None,
+    mine: Annotated[
+        bool, Query(description="Only your own questions, even if you may read everyone's.")
+    ] = False,
+    unanswered: Annotated[bool, Query(description="Only questions no document answered.")] = False,
 ) -> HistoryResponse:
     """Whose history is returned is decided by the caller's permissions, never by a
     parameter.
 
     `query.history.any` reads the whole tenant's; `query.history.own` reads only the
-    caller's. That distinction is enforced in the service rather than by RLS, because RLS
-    models tenant and label and not "mine versus my colleagues'" — and the questions people
-    ask are more revealing than the documents they read.
+    caller's. That distinction is enforced by migration 0005's policy rather than here,
+    because the questions people ask — *"what is my severance?"* — are more revealing than
+    the documents they read.
+
+    The three parameters below narrow that set and can never widen it. `mine=true` is
+    somebody who may read everyone's asking to look away from it; there is no parameter for
+    the opposite, because that is a fact about the caller rather than a request.
     """
-    page = await HistoryService(profile).page(limit, cursor)
+    page = await HistoryService(profile).page(
+        limit, cursor, search=search, mine_only=mine, unanswered_only=unanswered
+    )
     return HistoryResponse(
         entries=[HistoryEntryResponse(**asdict(entry)) for entry in page.entries],
         next_cursor=page.next_cursor,

@@ -10,25 +10,42 @@ must survive it.
 """
 
 from dataclasses import asdict
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from app.features.admin.schemas import (
+    AnalyticsResponse,
     AssignRolesRequest,
+    AuditEntryResponse,
+    AuditEventPageResponse,
+    AuditEventResponse,
+    AuditPageResponse,
     InviteRequest,
     InviteResponse,
     LlmConfigRequest,
     LlmConfigResponse,
+    MemberResponse,
+    RoleClearanceRequest,
     RoleRequest,
     RoleResponse,
 )
-from app.features.auth.dependencies import CurrentProfile, requires
-from app.features.auth.invitations import INVITE, InvitationService
-from app.features.auth.roles import MANAGE as ROLES_MANAGE
-from app.features.auth.roles import RoleService
-from app.features.generation.config_service import MANAGE as LLM_MANAGE
-from app.features.generation.config_service import LlmConfigService
+from app.features.audit.service import READ as AUDIT_READ
+from app.features.audit.service import AuditService, record
+from app.features.auth.access.dependencies import CurrentProfile, requires, requires_any
+from app.features.auth.access.roles import MANAGE as ROLES_MANAGE
+from app.features.auth.access.roles import RoleService
+from app.features.auth.directory import MANAGE as USERS_MANAGE
+from app.features.auth.directory import DirectoryService
+from app.features.auth.onboarding.credentials import RESET, issue_for
+from app.features.auth.onboarding.invitations import INVITE, InvitationService
+from app.features.documents.pagination import Cursor
+from app.features.generation.connector.config_service import MANAGE as LLM_MANAGE
+from app.features.generation.connector.config_service import LlmConfigService
+from app.features.query.analytics import AnalyticsService
+from app.features.query.history import ANY as HISTORY_ANY
+from app.features.query.history import OWN as HISTORY_OWN
 
 router = APIRouter(tags=["admin"])
 
@@ -60,8 +77,67 @@ async def create_role(profile: CurrentProfile, request: RoleRequest) -> RoleResp
     A permission nobody checks is a lie in the administration screen: it appears granted
     and grants nothing.
     """
-    role = await RoleService(profile).create(request.name, request.permissions)
+    role = await RoleService(profile).create(
+        request.name, request.permissions, request.priority_level
+    )
+    await record(
+        profile,
+        "role.created",
+        target_type="role",
+        target_id=role.id,
+        target_name=role.name,
+        permissions=sorted(request.permissions),
+        clearance=request.priority_level,
+    )
     return RoleResponse(**asdict(role))
+
+
+@router.put(
+    "/roles/{role_id}/clearance",
+    operation_id="setRoleClearance",
+    summary="Set how much clearance this role carries",
+    responses={404: {"description": "No such role in this tenant"}},
+    dependencies=[roles_manage],
+)
+async def set_clearance(
+    profile: CurrentProfile, role_id: UUID, request: RoleClearanceRequest
+) -> RoleResponse:
+    """Allowed on system roles, unlike permissions.
+
+    Stripping `admin` of `roles.manage` can lock a tenant out of its own administration and
+    is refused for that reason. Changing what an administrator may *read* locks nobody out
+    of anything, and a customer whose admin role should carry no clearance is entitled to
+    say so.
+    """
+    role = await RoleService(profile).set_clearance(role_id, request.priority_level)
+    await record(
+        profile,
+        "role.clearance_set",
+        target_type="role",
+        target_id=role.id,
+        target_name=role.name,
+        clearance=request.priority_level,
+    )
+    return RoleResponse(**asdict(role))
+
+
+@router.delete(
+    "/roles/{role_id}",
+    operation_id="deleteRole",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a role",
+    responses={
+        404: {"description": "No such role in this tenant"},
+        409: {"description": "A system role, or the tenant's last administrator"},
+    },
+    dependencies=[roles_manage],
+)
+async def delete_role(profile: CurrentProfile, role_id: UUID) -> None:
+    # Read before the delete: afterwards there is no name left to record, and a row naming
+    # only a uuid is a row nobody can act on.
+    name = next((r.name for r in await RoleService(profile).visible() if r.id == role_id), None)
+    await RoleService(profile).delete(role_id)
+    await record(profile, "role.deleted", target_type="role", target_id=role_id, target_name=name)
 
 
 @router.put(
@@ -85,7 +161,23 @@ async def set_permissions(
     Refuse, because recovering from "nobody holds roles.manage" on an on-premise install
     means somebody in `psql` on the customer's server.
     """
+    nothing: list[str] = []
+    before = next(
+        (r.permissions for r in await RoleService(profile).visible() if r.id == role_id), nothing
+    )
     role = await RoleService(profile).set_permissions(role_id, request.permissions)
+    # Both sides, because "who has access to what" is answered by the difference and
+    # reconstructing it from a chain of end-states is exactly the work an auditor should
+    # not have to do.
+    await record(
+        profile,
+        "role.permissions_set",
+        target_type="role",
+        target_id=role.id,
+        target_name=role.name,
+        before=sorted(before),
+        after=sorted(request.permissions),
+    )
     return RoleResponse(**asdict(role))
 
 
@@ -99,6 +191,82 @@ async def set_permissions(
 )
 async def assign_roles(profile: CurrentProfile, user_id: UUID, request: AssignRolesRequest) -> None:
     await RoleService(profile).assign(user_id, request.role_ids)
+    # Names, not ids: "who made this person an administrator" is the other question this
+    # table exists to answer, and it is not answered by four uuids.
+    named = {role.id: role.name for role in await RoleService(profile).visible()}
+    await record(
+        profile,
+        "user.roles_assigned",
+        target_type="user",
+        target_id=user_id,
+        roles=sorted(named.get(role_id, str(role_id)) for role_id in request.role_ids),
+    )
+
+
+@router.get(
+    "/analytics",
+    operation_id="getAnalytics",
+    summary="Usage, cost and the audit log of what answers read",
+    dependencies=[Depends(requires_any(HISTORY_OWN, HISTORY_ANY))],
+)
+async def analytics(profile: CurrentProfile) -> AnalyticsResponse:
+    """Everything here comes from `queries` and `query_citations`, which have logged it
+    since 0001 and had never been read.
+
+    Scoped by migration 0005's policy rather than by a filter written here: without
+    `query.history.any` the caller sees their own activity and the numbers are about them.
+    That is the honest answer to "show me the analytics" from somebody who may only read
+    their own history, and it is enforced in the database rather than remembered here.
+    """
+    return AnalyticsResponse(**asdict(await AnalyticsService(profile).overview()))
+
+
+@router.get(
+    "/analytics/audit",
+    operation_id="getAuditLog",
+    summary="Recent questions and the documents each answer read, newest first",
+    responses={400: {"description": "A cursor we did not issue"}},
+    dependencies=[Depends(requires_any(HISTORY_OWN, HISTORY_ANY))],
+)
+async def audit_log(
+    profile: CurrentProfile,
+    cursor: Annotated[str | None, Query(description="From the previous page.")] = None,
+    limit: Annotated[int | None, Query(ge=1, le=200)] = None,
+) -> AuditPageResponse:
+    """Its own route rather than a field on `/analytics`.
+
+    A page turn cannot change a single aggregate up there, so recomputing four of them to
+    return ten different log rows is work nobody asked for — and the audit log is the one
+    part of that screen somebody reads more than one page of.
+
+    Keyset, not `OFFSET`: under RLS the policy is evaluated on every row an offset discards,
+    so a deep page costs access checks nobody sees the result of.
+    """
+    page = await AnalyticsService(profile).audit(
+        cursor=Cursor.decode(cursor) if cursor else None, limit=limit
+    )
+    return AuditPageResponse(
+        entries=[AuditEntryResponse(**asdict(entry)) for entry in page.entries],
+        next_cursor=page.next_cursor,
+    )
+
+
+@router.get(
+    "/users",
+    operation_id="listUsers",
+    summary="Everyone in this tenant, with the roles and groups they hold",
+    dependencies=[Depends(requires(USERS_MANAGE))],
+)
+async def list_users(profile: CurrentProfile) -> list[MemberResponse]:
+    """The directory an administrator edits access from.
+
+    Roles and groups are returned as ids rather than names: the screen already holds both
+    catalogues to render its selectors, and sending names too would give it two sources for
+    one fact that can disagree.
+    """
+    return [
+        MemberResponse(**asdict(member)) for member in await DirectoryService(profile).members()
+    ]
 
 
 @router.get(
@@ -132,6 +300,17 @@ async def set_llm_config(profile: CurrentProfile, request: LlmConfigRequest) -> 
     settings = await LlmConfigService(profile).put(
         request.endpoint_url, request.model_name, request.api_key
     )
+    # The endpoint and the model, never the key. Changing where answers are generated sends
+    # this tenant's passages to a different host, which is a decision about their data and
+    # belongs in the record beside the access changes — and the credential is the one field
+    # that must not be in a log anybody can read.
+    await record(
+        profile,
+        "llm_config.set",
+        target_type="llm_config",
+        endpoint_url=settings.endpoint_url,
+        model_name=settings.model_name,
+    )
     return LlmConfigResponse(**asdict(settings))
 
 
@@ -144,6 +323,9 @@ async def set_llm_config(profile: CurrentProfile, request: LlmConfigRequest) -> 
 )
 async def clear_llm_config(profile: CurrentProfile) -> None:
     await LlmConfigService(profile).clear()
+    # Worth a line of its own: afterwards the tenant falls back to the installation's model,
+    # so this changes where their passages go without naming a destination.
+    await record(profile, "llm_config.cleared", target_type="llm_config")
 
 
 @router.post(
@@ -171,4 +353,80 @@ async def invite_user(profile: CurrentProfile, request: InviteRequest) -> Invite
     answer and needs a public unauthenticated route and a token table.
     """
     invitation = await InvitationService(profile).invite(request.email, request.role_ids)
-    return InviteResponse(**asdict(invitation))
+    await record(
+        profile,
+        "user.invited",
+        target_type="user",
+        target_id=invitation.user_id,
+        target_name=invitation.email,
+    )
+    return InviteResponse(
+        user_id=invitation.user_id,
+        email=invitation.email,
+        path=f"/set-password/{invitation.token}",
+        expires_at=invitation.expires_at,
+        role_ids=invitation.role_ids,
+    )
+
+
+@router.post(
+    "/users/{user_id}/reset-link",
+    operation_id="issueResetLink",
+    summary="Issue a single-use link so somebody can set a new password",
+    responses={404: {"description": "No such user in this organisation"}},
+    dependencies=[Depends(requires(USERS_MANAGE))],
+)
+async def issue_reset_link(profile: CurrentProfile, user_id: UUID) -> InviteResponse:
+    """Recovery without a shell.
+
+    This was `zenith reset-password` over SSH, which does not survive a third customer and
+    makes every forgotten password an escalation to whoever holds the server key.
+
+    Issuing one retires any link already outstanding for that person, and redeeming it ends
+    their existing sessions — which is the behaviour you want when the reason for the reset
+    is that somebody else had the account.
+    """
+    link = await issue_for(profile, user_id, RESET)
+    await record(
+        profile,
+        "user.reset_link_issued",
+        target_type="user",
+        target_id=user_id,
+        target_name=link.email,
+    )
+    return InviteResponse(
+        user_id=user_id,
+        email=link.email,
+        path=f"/set-password/{link.token}",
+        expires_at=link.expires_at,
+        role_ids=[],
+    )
+
+
+@router.get(
+    "/analytics/audit-events",
+    operation_id="getAuditEvents",
+    summary="Who changed access to what, newest first",
+    responses={400: {"description": "A cursor we did not issue"}},
+    dependencies=[Depends(requires(AUDIT_READ))],
+)
+async def audit_events(
+    profile: CurrentProfile,
+    cursor: Annotated[str | None, Query(description="From the previous page.")] = None,
+    limit: Annotated[int | None, Query(ge=1, le=200)] = None,
+) -> AuditEventPageResponse:
+    """A separate route from `/analytics/audit`, and a separate permission.
+
+    The neighbouring endpoint returns questions people asked. This returns changes people
+    made to who can read what. They were one word for a while, which is how a product ends
+    up believing it has an audit trail because a screen is called one.
+
+    `audit.read` rather than `query.history.any`: reading colleagues' questions and reading
+    the grant history are different powers, and an organisation that wants to separate them
+    should be able to.
+    """
+    page = await AuditService(profile).page(cursor=cursor, limit=limit)
+    return AuditEventPageResponse(
+        events=[AuditEventResponse(**asdict(event)) for event in page.events],
+        next_cursor=page.next_cursor,
+    )

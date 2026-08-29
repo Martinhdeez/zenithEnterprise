@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.features.auth.permissions import CATALOGUE
+from app.features.auth.access.permissions import CATALOGUE
 from app.features.auth.service import AuthService
 from conftest import Account
 
@@ -35,10 +35,19 @@ async def test_the_context_carries_exactly_the_labels_of_the_users_roles(
     member = await AuthService().profile(account.member_id, account.tenant_id)
 
     assert admin.context.tenant_id == account.tenant_id
-    assert set(admin.context.label_ids) == {account.finance_label, account.default_label}
-    # `member` reaches the tenant default and nothing else. Both system roles hold it
-    # because F4 files unlabelled uploads there, and a default no role reaches would
-    # store every unclassified document invisible to everyone who could fix it.
+    assert set(admin.context.label_ids) == {
+        account.finance_label,
+        account.hr_label,
+        account.default_label,
+        # `admin` alone reaches the quarantine label, and that asymmetry is the feature:
+        # it is what lets an unfiled upload be readable by somebody who can classify it
+        # without being readable by the whole tenant. See migration 0017.
+        account.quarantine_label,
+    }
+    # `member` reaches the tenant default and nothing else — in particular *not* the
+    # quarantine label. Both system roles hold the default because that is where the
+    # classifier files a document when it declines, and a default no role reaches would
+    # store every such document invisible to everyone who could fix it.
     assert set(member.context.label_ids) == {account.default_label}
 
 

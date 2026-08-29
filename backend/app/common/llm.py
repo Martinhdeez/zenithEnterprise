@@ -26,26 +26,40 @@ from app.common.exceptions import ZenithError
 class GenerationResponse:
     """What any provider returns, reduced to what this system uses.
 
-    Deliberately narrower than every vendor's response. Tools, JSON mode, logprobs, cached
-    token counts — each is something one provider has and another does not, and a field
-    here for any of them would be a field that is `None` on half the installations and load-
-    bearing on the other half.
+    Deliberately narrower than every vendor's response. Tools, JSON mode, logprobs — each is
+    something one provider has and another does not, and a field here for any of them would
+    be a field that is `None` on half the installations and load-bearing on the other half.
 
     `model` is what the provider says it ran, not what was asked for: it lands in
     `queries.model_used`, and a gateway silently substituting a model is exactly the thing
     that column exists to catch.
+
+    **Token counts are the one exception, and they are `None` on purpose.** An installation
+    that pays per token needs to know what it spent, which the analytics dashboard exists to
+    answer — so the field is here. But the objection above still stands: a local llama.cpp
+    binding reports nothing, and a gateway may strip `usage` entirely. So nothing treats
+    absence as zero. The dashboard says the provider did not report it rather than showing a
+    confident 0, because a cost of zero and an unknown cost are different answers and only
+    one of them is ever true.
     """
 
     text: str
     model: str
+    #: What the provider said it spent, when it says anything. Never inferred, never
+    #: estimated from character counts — a made-up number in a cost report is worse than no
+    #: number, because somebody will budget against it.
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class ChunkCitation:
     """One passage the answer leaned on, resolved to something clickable.
 
-    A citation is not the string "page 34" (mvp.md 2.9): clicking it opens the PDF on that
-    page with the chunk highlighted, which is why the boxes travel with it.
+    A citation is not the string "page 34" (mvp.md 2.9): clicking it opens the document at
+    the passage with the chunk highlighted, which is why the geometry travels with it — a
+    page and rectangles for a PDF, a character range for a text file. `media_type` says
+    which of the two to read.
 
     `marker` is the number as it appears in the answer text. It is an index into the
     shortlist that was sent to the model and nothing more — the model never sees a chunk id,
@@ -56,7 +70,10 @@ class ChunkCitation:
     chunk_id: UUID
     document_id: UUID
     filename: str
-    page_num: int
+    media_type: str
+    page_num: int | None
+    char_start: int
+    char_end: int
     text: str
     bboxes: list[dict[str, float]] = field(default_factory=list[dict[str, float]])
 

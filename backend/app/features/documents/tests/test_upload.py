@@ -52,7 +52,7 @@ async def labels_of(tenant_id: UUID, document_id: UUID) -> set[UUID]:
 async def profile_for(
     account: Account, *, admin: bool = True, labels: tuple[UUID, ...] | None = None
 ) -> AccessProfile:
-    from app.features.auth.permissions import CATALOGUE, SYSTEM_ROLES
+    from app.features.auth.access.permissions import CATALOGUE, SYSTEM_ROLES
 
     async with owner_session() as session:
         reachable = tuple(
@@ -143,25 +143,47 @@ async def test_deduplication_unions_the_labels(account: Account, storage: Docume
     Storing a second copy would cost the disk and, worse, put duplicate chunks into every
     later search result. The union is visible in the response so the widening is something
     the uploader can see rather than something that happens to them.
+
+    Both uploads name a real compartment. Naming *only* the tenant default is not a choice —
+    it is what the upload screen pre-ticks — so it quarantines instead, and this test would
+    then be measuring quarantine rather than the union it is about.
     """
-    async with owner_session() as session:
-        default = await session.scalar(
-            text("SELECT id FROM access_labels WHERE tenant_id = :t AND is_default"),
-            {"t": account.tenant_id},
-        )
     admin = await profile_for(account)
 
-    first = await DocumentService(admin, storage).upload("report.pdf", pdf(), [default])
+    first = await DocumentService(admin, storage).upload(
+        "report.pdf", pdf(), [account.finance_label]
+    )
+    second = await DocumentService(admin, storage).upload("report.pdf", pdf(), [account.hr_label])
+
+    assert second.deduplicated is True
+    assert set(second.labels) == {account.finance_label, account.hr_label}
+    assert await labels_of(account.tenant_id, first.document.id) == {
+        account.finance_label,
+        account.hr_label,
+    }
+
+
+async def test_naming_a_compartment_releases_a_quarantined_duplicate(
+    account: Account, storage: DocumentStorage
+) -> None:
+    """Quarantine is exclusive: alone, or not at all.
+
+    Unioned like any other label it would survive beside the compartment somebody chose, and
+    `_file` would then decline to touch the document — those are not "exactly the quarantine
+    label" — leaving every administrator on it permanently. A second uploader naming a
+    compartment for these bytes is the human decision quarantine was waiting for.
+    """
+    admin = await profile_for(account)
+
+    first = await DocumentService(admin, storage).upload("report.pdf", pdf(), None)
+    assert set(first.labels) == {account.quarantine_label}
+
     second = await DocumentService(admin, storage).upload(
         "report.pdf", pdf(), [account.finance_label]
     )
 
-    assert second.deduplicated is True
-    assert set(second.labels) == {default, account.finance_label}
-    assert await labels_of(account.tenant_id, first.document.id) == {
-        default,
-        account.finance_label,
-    }
+    assert set(second.labels) == {account.finance_label}
+    assert await labels_of(account.tenant_id, first.document.id) == {account.finance_label}
 
 
 async def test_a_label_the_caller_does_not_reach_is_refused(
@@ -249,7 +271,7 @@ async def test_delete_own_cannot_reach_another_users_upload(
     admin = await profile_for(account)
     uploaded = await DocumentService(admin, storage).upload("report.pdf", pdf())
 
-    from app.features.auth.permissions import CATALOGUE
+    from app.features.auth.access.permissions import CATALOGUE
 
     member = AccessProfile(
         user_id=account.member_id,
@@ -284,3 +306,112 @@ async def test_another_tenant_cannot_see_or_delete_the_document(
     assert visible == []
     with pytest.raises(NotFoundError):
         await DocumentService(intruder, storage).delete(uploaded.document.id)
+
+
+# --- text documents ----------------------------------------------------------------------
+#
+# The interesting cases are the ones where "is this text?" has a wrong answer that looks
+# right: a PDF wearing a `.txt` name, a binary that happens to decode, a multi-byte
+# character split across two network chunks.
+
+NOTE = "# Runbook\n\nRestart the collector before the reconciler.\n" * 8
+
+
+async def chunks_of(*parts: bytes) -> AsyncIterator[bytes]:
+    """Deliberately several parts: the gate decodes incrementally and this is what proves it."""
+    for part in parts:
+        yield part
+
+
+async def test_a_markdown_file_is_stored_as_markdown(
+    account: Account, storage: DocumentStorage
+) -> None:
+    profile = await profile_for(account)
+
+    result = await DocumentService(profile, storage).upload("runbook.md", chunks_of(NOTE.encode()))
+
+    assert result.document.media_type == "text/markdown"
+    # The suffix on disk follows the type. Content addressing makes it decorative for
+    # lookup, and a `.md` written as `.pdf` is a trap for whoever debugs this next.
+    assert storage.path_for(account.tenant_id, result.document.sha256, "text/markdown").exists()
+
+
+async def test_a_plain_text_file_is_stored_as_plain_text(
+    account: Account, storage: DocumentStorage
+) -> None:
+    profile = await profile_for(account)
+
+    result = await DocumentService(profile, storage).upload("notes.txt", chunks_of(NOTE.encode()))
+
+    assert result.document.media_type == "text/plain"
+
+
+async def test_a_pdf_wearing_a_text_name_is_refused(
+    account: Account, storage: DocumentStorage
+) -> None:
+    """Not stored as text and silently indexed as mojibake.
+
+    This is the case the filename-based decision gets wrong on its own, which is why the
+    bytes still have the last word.
+    """
+    profile = await profile_for(account)
+
+    with pytest.raises(UnsupportedFileError):
+        await DocumentService(profile, storage).upload("report.txt", chunks_of(PDF))
+
+    async with tenant_session(profile.context) as session:
+        assert await session.scalar(text("SELECT count(*) FROM documents")) == 0
+
+
+async def test_a_binary_wearing_a_text_name_is_refused(
+    account: Account, storage: DocumentStorage
+) -> None:
+    profile = await profile_for(account)
+
+    with pytest.raises(UnsupportedFileError):
+        await DocumentService(profile, storage).upload(
+            "image.txt", chunks_of(b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR")
+        )
+
+
+async def test_invalid_utf8_is_refused(account: Account, storage: DocumentStorage) -> None:
+    profile = await profile_for(account)
+
+    with pytest.raises(UnsupportedFileError):
+        await DocumentService(profile, storage).upload(
+            "latin.txt", chunks_of(b"caf\xe9 \xff\xfe not utf-8 at all")
+        )
+
+
+async def test_a_character_split_across_two_chunks_is_not_a_rejection(
+    account: Account, storage: DocumentStorage
+) -> None:
+    """A multi-byte character arriving in two network chunks is ordinary, not corruption.
+
+    A decoder handed each chunk on its own would reject this file with a message that reads
+    exactly like a real encoding problem, and the uploader would have no way to tell the
+    difference.
+    """
+    profile = await profile_for(account)
+    body = (NOTE + "café añejo — reconciliación").encode()
+    split = body.index(b"caf\xc3\xa9") + 4  # between the two bytes of "é"
+
+    result = await DocumentService(profile, storage).upload(
+        "acentos.md", chunks_of(body[:split], body[split:])
+    )
+
+    assert result.document.media_type == "text/markdown"
+
+
+async def test_a_word_document_is_refused_like_any_other_unsupported_file(
+    account: Account, storage: DocumentStorage
+) -> None:
+    """`.docx` claims PDF, so it meets the magic-number check and its long-standing message.
+
+    Deliberate: a format we do not support should be refused once, in one sentence, not by
+    whichever branch of the gate happens to catch it.
+    """
+    profile = await profile_for(account)
+
+    with pytest.raises(UnsupportedFileError):
+        await DocumentService(profile, storage).upload("contract.docx", chunks_of(b"PK\x03\x04"))

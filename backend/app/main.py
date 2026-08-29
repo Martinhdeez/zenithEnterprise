@@ -14,10 +14,13 @@ from app.core.request_context import RequestContextMiddleware
 from app.features.admin.router import router as admin_router
 from app.features.auth.router import router as auth_router
 from app.features.documents.router import router as documents_router
+from app.features.groups.router import router as groups_router
 from app.features.ingestion.tasks import app as procrastinate_app
 from app.features.labels.router import router as labels_router
 from app.features.query.router import router as query_router
+from app.features.retrieval.lexical import engine as lexical_engine
 from app.features.retrieval.router import router as search_router
+from app.features.system.router import router as system_router
 from app.features.tenancy.router import router as tenancy_router
 
 # Import-only, and load-bearing rather than tidiness: `app.models` is the one place every
@@ -41,6 +44,9 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
     # And if the hardware profile is not one we know, fail here rather than at the first
     # embedding request, at three in the morning, on a customer's server.
     active_profile()
+    # And the same for the lexical engine: a typo in `ZENITH_LEXICAL_ENGINE` must not
+    # silently mean "the other implementation" on a customer's installation.
+    lexical_engine()
     # `defer_async` needs its own pool open before the first call, or it raises
     # `AppNotOpen` — which `enqueue_ingestion` deliberately treats as non-fatal to the
     # upload (a stored document a requeue can recover beats a lost upload), so this was
@@ -133,6 +139,8 @@ app.include_router(search_router)
 app.include_router(query_router)
 app.include_router(tenancy_router)
 app.include_router(admin_router)
+app.include_router(groups_router)
+app.include_router(system_router)
 
 
 @app.get("/health")

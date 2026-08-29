@@ -3,10 +3,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from app.features.auth.dependencies import CurrentProfile, requires
+from app.features.audit.service import record
+from app.features.auth.access.dependencies import CurrentProfile, requires
 from app.features.labels.pagination import DEFAULT_SORT, MAX_LIMIT, Sort
 from app.features.labels.schemas import (
     LabelAssignment,
+    LabelClearance,
     LabelCreate,
     LabelMerge,
     LabelMergeResult,
@@ -14,6 +16,8 @@ from app.features.labels.schemas import (
     LabelResponse,
     LabelSearchItem,
     LabelSearchPage,
+    LabelSuggestion,
+    SuggestedLabels,
 )
 from app.features.labels.service import MANAGE, LabelService
 
@@ -104,12 +108,34 @@ async def merge_labels(request: LabelMerge, profile: CurrentProfile) -> LabelMer
     `200` rather than `201`: nothing is created, and under `dry_run` nothing changes at
     all.
     """
-    result = await LabelService(profile.context).merge(
+    service = LabelService(profile.context)
+    # Read *before* the merge. A merged source no longer exists, so resolving its name
+    # afterwards returns nothing — which would have made the audit entry say a merge happened
+    # and not which labels it consumed, i.e. exactly the fact worth keeping.
+    consumed = await service.names_of(request.sources)
+
+    result = await service.merge(
         request.sources,
         request.target,
         dry_run=request.dry_run,
         acknowledge_widening=request.acknowledge_widening,
     )
+    # Not under `dry_run`: nothing changed, and an audit trail full of previews is one
+    # nobody can scan. A merge that *did* run moves documents between compartments — the
+    # docstring above says so — and `visibility_widening` is recorded because a merge that
+    # widened access is exactly the entry somebody comes looking for.
+    if not result.dry_run:
+        await record(
+            profile,
+            "label.merged",
+            target_type="label",
+            target_id=result.target.id,
+            target_name=result.target.name,
+            sources=consumed,
+            documents_relabelled=result.documents_relabelled,
+            visibility_widening=result.visibility_widening,
+        )
+
     return LabelMergeResult(
         target=LabelResponse.model_validate(result.target),
         merged=result.merged,
@@ -124,6 +150,9 @@ async def create_label(request: LabelCreate, profile: CurrentProfile) -> LabelRe
     label = await LabelService(profile.context).create(
         request.name, request.is_default, created_by=profile.user_id
     )
+    await record(
+        profile, "label.created", target_type="label", target_id=label.id, target_name=label.name
+    )
     return LabelResponse.model_validate(label)
 
 
@@ -132,23 +161,98 @@ async def rename_label(
     label_id: UUID, request: LabelRename, profile: CurrentProfile
 ) -> LabelResponse:
     label = await LabelService(profile.context).rename(label_id, request.name)
+    await record(
+        profile, "label.renamed", target_type="label", target_id=label.id, target_name=label.name
+    )
     return LabelResponse.model_validate(label)
 
 
 @router.put("/labels/{label_id}/default", dependencies=[manage])
 async def set_default_label(label_id: UUID, profile: CurrentProfile) -> LabelResponse:
     label = await LabelService(profile.context).set_default(label_id)
+    await record(
+        profile,
+        "label.default_set",
+        target_type="label",
+        target_id=label.id,
+        target_name=label.name,
+    )
     return LabelResponse.model_validate(label)
 
 
 @router.delete("/labels/{label_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[manage])
 async def delete_label(label_id: UUID, profile: CurrentProfile) -> None:
     await LabelService(profile.context).delete(label_id)
+    await record(profile, "label.deleted", target_type="label", target_id=label_id)
 
 
 @router.put("/roles/{role_id}/labels", dependencies=[manage])
 async def set_role_labels(role_id: UUID, request: LabelAssignment, profile: CurrentProfile) -> None:
-    await LabelService(profile.context).set_role_labels(role_id, request.label_ids)
+    service = LabelService(profile.context)
+    await service.set_role_labels(role_id, request.label_ids)
+    # *The* grant operation, and it was the one thing on this router not recorded. Deleting a
+    # label was in the trail; deciding which compartments a role reaches was not — and that is
+    # the change an auditor asks about first. The whole set is stored rather than a delta,
+    # because the request replaces rather than adds and a log of deltas cannot answer "what
+    # could this role reach on Tuesday".
+    await record(
+        profile,
+        "role.labels_set",
+        target_type="role",
+        target_id=role_id,
+        # Names, not only ids. `audit_events` denormalises `actor_email` for the reason this
+        # follows: a row that loses its subject when the subject changes records nothing, and
+        # labels are renamed and merged far more often than people leave.
+        labels=await service.names_of(request.label_ids),
+    )
+
+
+@router.post("/labels/suggest")
+async def suggest_labels(request: LabelSuggestion, profile: CurrentProfile) -> SuggestedLabels:
+    """Which of *your* labels this text belongs under, according to the configured model.
+
+    A suggestion, not an assignment: nothing is written, and the client is free to ignore it.
+    The staging area calls this per file so somebody can review a hundred guesses before
+    committing any of them, which is the difference between assistance and a model quietly
+    filing a corpus.
+
+    Gated on nothing beyond being signed in, deliberately. The candidate list is the
+    caller's own reach — resolved by `Classifier` through `UserRepository.label_ids`, the
+    single function that answers that question — so this can only ever name labels they
+    already hold, and a suggestion of a label you hold tells you nothing you did not know.
+
+    Answers with an empty list rather than an error when no model is configured. An
+    installation without generation still uploads documents.
+    """
+    from app.features.ingestion.classification import Classifier
+
+    suggested = await Classifier(profile.context).suggest(profile.user_id, request.excerpt)
+    return SuggestedLabels(label_ids=suggested)
+
+
+@router.put("/labels/{label_id}/clearance", dependencies=[manage])
+async def set_label_clearance(
+    label_id: UUID, request: LabelClearance, profile: CurrentProfile
+) -> LabelResponse:
+    """Classify a label, or declassify it back to zero.
+
+    Zero is the default and means the group route asks for no clearance — not that the
+    label is public. Clearance only ever narrows what a group opens; it is not a route of
+    its own, so raising it can take access away and lowering it can never give access to
+    somebody outside the group.
+    """
+    label = await LabelService(profile.context).set_clearance(label_id, request.priority_level)
+    # Raising this can take access away from people who had it a moment ago, which is
+    # precisely the kind of change somebody comes looking for an explanation of later.
+    await record(
+        profile,
+        "label.clearance_set",
+        target_type="label",
+        target_id=label.id,
+        target_name=label.name,
+        clearance=request.priority_level,
+    )
+    return LabelResponse.model_validate(label)
 
 
 @router.put("/documents/{document_id}/labels", dependencies=[manage])
@@ -163,3 +267,10 @@ async def set_document_labels(
     to read — and it means an administrator needs the labels they intend to manage.
     """
     await LabelService(profile.context).set_document_labels(document_id, request.label_ids)
+    await record(
+        profile,
+        "document.labels_set",
+        target_type="document",
+        target_id=document_id,
+        labels=[str(label_id) for label_id in request.label_ids],
+    )

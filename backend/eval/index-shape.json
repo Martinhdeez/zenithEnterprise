@@ -1,0 +1,4421 @@
+{
+  "corpus": {
+    "documents": 42,
+    "chunks": 13549,
+    "passages_per_document": 322.6,
+    "vectors_indexed": 13549,
+    "scratch_table_total_bytes": 115679232,
+    "scratch_table_note": "Heap plus TOAST plus indexes at the moment it was read, for all three representations at once. It is the size the sequential-scan alternative has to move, and the scale against which median_shared_blocks is read."
+  },
+  "questions": {
+    "answerable": 30,
+    "unanswerable": 12,
+    "note": "`answerable` counts the questions with a source passage whose document is loaded here; questions.toml holds 31 answerable and 12 unanswerable, and a question whose document was never uploaded is dropped rather than scored as a miss \u2014 live.py's rule. The unanswerable twelve have no correct passage, so their exact top ten is whatever the embedding space happens to put nearest a question the corpus cannot answer; reproducing that ordering is the reproduction of noise. They are scored by the same rule and reported separately under `unanswerable` at every point."
+  },
+  "settings": {
+    "profile": "cpu",
+    "maintenance_work_mem": "1GB",
+    "shared_buffers": "128MB",
+    "max_parallel_maintenance_workers": "2",
+    "block_size": 8192,
+    "repeats": 3,
+    "depths": [
+      10,
+      50
+    ],
+    "hnsw": {
+      "m": 16,
+      "ef_construction": 64,
+      "ef_search_swept": [
+        10,
+        50,
+        100,
+        200,
+        400,
+        800
+      ]
+    },
+    "ivfflat": {
+      "lists_swept": [
+        10,
+        30,
+        100,
+        300,
+        1000,
+        3000
+      ],
+      "probes_swept": [
+        1,
+        2,
+        5,
+        10,
+        20,
+        50,
+        100
+      ],
+      "max_lists": 32768,
+      "bit_rescore_width": 200
+    },
+    "assumed_storage": {
+      "random_8k_read_us": 80.0,
+      "sequential_bytes_per_second": 2000000000,
+      "note": "Assumptions, not measurements. Nothing here read from a cold device. They exist so the projection can be rescaled rather than redone."
+    }
+  },
+  "geometry": {
+    "fp32": {
+      "empty_index_pages": {
+        "10": 21,
+        "3000": 6001
+      },
+      "pages_per_extra_list": 2.0,
+      "centroids_per_page": 1,
+      "centroid_bytes_per_list": 8192.0,
+      "agrees": true,
+      "method": "centroids_per_page from the slope of empty-index pages against lists; cross-checked against ceil(lists / centroids_per_page) == pages - lists - 1"
+    },
+    "fp16": {
+      "empty_index_pages": {
+        "10": 15,
+        "3000": 4001
+      },
+      "pages_per_extra_list": 1.33311,
+      "centroids_per_page": 3,
+      "centroid_bytes_per_list": 2730.7,
+      "agrees": true,
+      "method": "centroids_per_page from the slope of empty-index pages against lists; cross-checked against ceil(lists / centroids_per_page) == pages - lists - 1"
+    },
+    "bit": {
+      "empty_index_pages": {
+        "10": 12,
+        "3000": 3056
+      },
+      "pages_per_extra_list": 1.01806,
+      "centroids_per_page": 55,
+      "centroid_bytes_per_list": 148.9,
+      "agrees": true,
+      "method": "centroids_per_page from the slope of empty-index pages against lists; cross-checked against ceil(lists / centroids_per_page) == pages - lists - 1"
+    }
+  },
+  "hnsw": {
+    "fp32": {
+      "index_bytes": 110944256,
+      "bytes_per_vector": 8188.4,
+      "build_ms": 4286,
+      "build_vectors_per_second": 3160.9,
+      "resident_bytes": 110944256,
+      "resident_bytes_per_vector": 8188.4,
+      "resident_share_of_index": 1.0,
+      "by_ef_search": {
+        "10": {
+          "headline": {
+            "questions": 30,
+            "recall_at_10": 0.8333,
+            "worst_at_10": 0.0,
+            "recall_at_50": 0.188,
+            "worst_at_50": 0.04
+          },
+          "unanswerable": {
+            "questions": 12,
+            "recall_at_10": 0.6167,
+            "worst_at_10": 0.0,
+            "recall_at_50": 0.1633,
+            "worst_at_50": 0.04
+          },
+          "median_ms": 0.461,
+          "p95_ms": 0.523,
+          "median_shared_blocks": 288,
+          "max_shared_blocks": 471,
+          "median_bytes_read": 2359296,
+          "used_index": true,
+          "planner_prefers_index": false
+        },
+        "50": {
+          "headline": {
+            "questions": 30,
+            "recall_at_10": 0.96,
+            "worst_at_10": 0.3,
+            "recall_at_50": 0.9453,
+            "worst_at_50": 0.48
+          },
+          "unanswerable": {
+            "questions": 12,
+            "recall_at_10": 0.8667,
+            "worst_at_10": 0.0,
+            "recall_at_50": 0.8283,
+            "worst_at_50": 0.26
+          },
+          "median_ms": 0.669,
+          "p95_ms": 0.764,
+          "median_shared_blocks": 784,
+          "max_shared_blocks": 1118,
+          "median_bytes_read": 6422528,
+          "used_index": true,
+          "planner_prefers_index": true
+        },
+        "100": {
+          "headline": {
+            "questions": 30,
+            "recall_at_10": 0.9667,
+            "worst_at_10": 0.5,
+            "recall_at_50": 0.9707,
+            "worst_at_50": 0.72
+          },
+          "unanswerable": {
+            "questions": 12,
+            "recall_at_10": 0.8667,
+            "worst_at_10": 0.0,
+            "recall_at_50": 0.8767,
+            "worst_at_50": 0.26
+          },
+          "median_ms": 0.815,
+          "p95_ms": 0.938,
+          "median_shared_blocks": 1114,
+          "max_shared_blocks": 1487,
+          "median_bytes_read": 9125888,
+          "used_index": true,
+          "planner_prefers_index": true
+        },
+        "200": {
+          "headline": {
+            "questions": 30,
+            "recall_at_10": 0.97,
+            "worst_at_10": 0.5,
+            "recall_at_50": 0.9787,
+            "worst_at_50": 0.72
+          },
+          "unanswerable": {
+            "questions": 12,
+            "recall_at_10": 0.975,
+            "worst_at_10": 0.8,
+            "recall_at_50": 0.9717,
+            "worst_at_50": 0.84
+          },
+          "median_ms": 1.119,
+          "p95_ms": 1.314,
+          "median_shared_blocks": 1811,
+          "max_shared_blocks": 2339,
+          "median_bytes_read": 14835712,
+          "used_index": true,
+          "planner_prefers_index": true
+        },
+        "400": {
+          "headline": {
+            "questions": 30,
+            "recall_at_10": 0.9967,
+            "worst_at_10": 0.9,
+            "recall_at_50": 0.9993,
+            "worst_at_50": 0.98
+          },
+          "unanswerable": {
+            "questions": 12,
+            "recall_at_10": 1.0,
+            "worst_at_10": 1.0,
+            "recall_at_50": 0.9933,
+            "worst_at_50": 0.96
+          },
+          "median_ms": 1.755,
+          "p95_ms": 2.01,
+          "median_shared_blocks": 3187,
+          "max_shared_blocks": 4041,
+          "median_bytes_read": 26107904,
+          "used_index": true,
+          "planner_prefers_index": true
+        },
+        "800": {
+          "headline": {
+            "questions": 30,
+            "recall_at_10": 0.9967,
+            "worst_at_10": 0.9,
+            "recall_at_50": 0.9993,
+            "worst_at_50": 0.98
+          },
+          "unanswerable": {
+            "questions": 12,
+            "recall_at_10": 1.0,
+            "worst_at_10": 1.0,
+            "recall_at_50": 0.9967,
+            "worst_at_50": 0.98
+          },
+          "median_ms": 2.868,
+          "p95_ms": 3.719,
+          "median_shared_blocks": 5248,
+          "max_shared_blocks": 6941,
+          "median_bytes_read": 42991616,
+          "used_index": true,
+          "planner_prefers_index": true
+        }
+      }
+    },
+    "fp16": {
+      "index_bytes": 36986880,
+      "bytes_per_vector": 2729.9,
+      "build_ms": 2975,
+      "build_vectors_per_second": 4553.9,
+      "resident_bytes": 36986880,
+      "resident_bytes_per_vector": 2729.9,
+      "resident_share_of_index": 1.0,
+      "by_ef_search": {
+        "10": {
+          "headline": {
+            "questions": 30,
+            "recall_at_10": 0.7,
+            "worst_at_10": 0.0,
+            "recall_at_50": 0.16,
+            "worst_at_50": 0.0
+          },
+          "unanswerable": {
+            "questions": 12,
+            "recall_at_10": 0.3167,
+            "worst_at_10": 0.0,
+            "recall_at_50": 0.11,
+            "worst_at_50": 0.0
+          },
+          "median_ms": 0.489,
+          "p95_ms": 0.574,
+          "median_shared_blocks": 314,
+          "max_shared_blocks": 491,
+          "median_bytes_read": 2572288,
+          "used_index": true,
+          "planner_prefers_index": true
+        },
+        "50": {
+          "headline": {
+            "questions": 30,
+            "recall_at_10": 0.9233,
+            "worst_at_10": 0.0,
+            "recall_at_50": 0.9107,
+            "worst_at_50": 0.0
+          },
+          "unanswerable": {
+            "questions": 12,
+            "recall_at_10": 0.7833,
+            "worst_at_10": 0.0,
+            "recall_at_50": 0.7683,
+            "worst_at_50": 0.16
+          },
+          "median_ms": 0.748,
+          "p95_ms": 0.939,
+          "median_shared_blocks": 870,
+          "max_shared_blocks": 1381,
+          "median_bytes_read": 7127040,
+          "used_index": true,
+          "planner_prefers_index": true
+        },
+        "100": {
+          "headline": {
+            "questions": 30,
+            "recall_at_10": 0.96,
+            "worst_at_10": 0.5,
+            "recall_at_50": 0.9647,
+            "worst_at_50": 0.72
+          },
+          "unanswerable": {
+            "questions": 12,
+            "recall_at_10": 0.9,
+            "worst_at_10": 0.0,
+            "recall_at_50": 0.9067,
+            "worst_at_50": 0.26
+          },
+          "median_ms": 0.874,
+          "p95_ms": 1.043,
+          "median_shared_blocks": 1200,
+          "max_shared_blocks": 2201,
+          "median_bytes_read": 9830400,
+          "used_index": true,
+          "planner_prefers_index": false
+        },
+        "200": {
+          "headline": {
+            "questions": 30,
+            "recall_at_10": 0.9633,
+            "worst_at_10": 0.5,
+            "recall_at_50": 0.974,
+            "worst_at_50": 0.72
+          },
+          "unanswerable": {
+            "questions": 12,
+            "recall_at_10": 0.9833,
+            "worst_at_10": 0.8,
+            "recall_at_50": 0.9833,
+            "worst_at_50": 0.9
+          },
+          "median_ms": 1.109,
+          "p95_ms": 1.375,
+          "median_shared_blocks": 1865,
+          "max_shared_blocks": 2772,
+          "median_bytes_read": 15278080,
+          "used_index": true,
+          "planner_prefers_index": true
+        },
+        "400": {
+          "headline": {
+            "questions": 30,
+            "recall_at_10": 0.9967,
+            "worst_at_10": 0.9,
+            "recall_at_50": 0.9993,
+            "worst_at_50": 0.98
+          },
+          "unanswerable": {
+            "questions": 12,
+            "recall_at_10": 1.0,
+            "worst_at_10": 1.0,
+            "recall_at_50": 0.9933,
+            "worst_at_50": 0.96
+          },
+          "median_ms": 1.679,
+          "p95_ms": 1.947,
+          "median_shared_blocks": 3187,
+          "max_shared_blocks": 4045,
+          "median_bytes_read": 26107904,
+          "used_index": true,
+          "planner_prefers_index": true
+        },
+        "800": {
+          "headline": {
+            "questions": 30,
+            "recall_at_10": 0.9967,
+            "worst_at_10": 0.9,
+            "recall_at_50": 0.9993,
+            "worst_at_50": 0.98
+          },
+          "unanswerable": {
+            "questions": 12,
+            "recall_at_10": 1.0,
+            "worst_at_10": 1.0,
+            "recall_at_50": 0.9967,
+            "worst_at_50": 0.98
+          },
+          "median_ms": 2.852,
+          "p95_ms": 3.578,
+          "median_shared_blocks": 5258,
+          "max_shared_blocks": 6920,
+          "median_bytes_read": 43073536,
+          "used_index": true,
+          "planner_prefers_index": true
+        }
+      }
+    },
+    "bit": {
+      "index_bytes": 5898240,
+      "bytes_per_vector": 435.3,
+      "build_ms": 1490,
+      "build_vectors_per_second": 9090.8,
+      "resident_bytes": 5898240,
+      "resident_bytes_per_vector": 435.3,
+      "resident_share_of_index": 1.0,
+      "by_ef_search": {
+        "10": {
+          "headline": {
+            "questions": 30,
+            "recall_at_10": 0.5,
+            "worst_at_10": 0.0,
+            "recall_at_50": 0.1633,
+            "worst_at_50": 0.0
+          },
+          "unanswerable": {
+            "questions": 12,
+            "recall_at_10": 0.3167,
+            "worst_at_10": 0.0,
+            "recall_at_50": 0.135,
+            "worst_at_50": 0.0
+          },
+          "median_ms": 12.481,
+          "p95_ms": 13.799,
+          "median_shared_blocks": 714,
+          "max_shared_blocks": 1052,
+          "median_bytes_read": 5849088,
+          "used_index": true,
+          "planner_prefers_index": true
+        },
+        "50": {
+          "headline": {
+            "questions": 30,
+            "recall_at_10": 0.8933,
+            "worst_at_10": 0.0,
+            "recall_at_50": 0.6213,
+            "worst_at_50": 0.0
+          },
+          "unanswerable": {
+            "questions": 12,
+            "recall_at_10": 0.6417,
+            "worst_at_10": 0.0,
+            "recall_at_50": 0.4583,
+            "worst_at_50": 0.06
+          },
+          "median_ms": 13.042,
+          "p95_ms": 13.772,
+          "median_shared_blocks": 1328,
+          "max_shared_blocks": 2133,
+          "median_bytes_read": 10878976,
+          "used_index": true,
+          "planner_prefers_index": true
+        },
+        "100": {
+          "headline": {
+            "questions": 30,
+            "recall_at_10": 0.9533,
+            "worst_at_10": 0.4,
+            "recall_at_50": 0.8333,
+            "worst_at_50": 0.48
+          },
+          "unanswerable": {
+            "questions": 12,
+            "recall_at_10": 0.8417,
+            "worst_at_10": 0.4,
+            "recall_at_50": 0.6933,
+            "worst_at_50": 0.28
+          },
+          "median_ms": 13.426,
+          "p95_ms": 14.495,
+          "median_shared_blocks": 1972,
+          "max_shared_blocks": 3095,
+          "median_bytes_read": 16154624,
+          "used_index": true,
+          "planner_prefers_index": true
+        },
+        "200": {
+          "headline": {
+            "questions": 30,
+            "recall_at_10": 0.9667,
+            "worst_at_10": 0.5,
+            "recall_at_50": 0.93,
+            "worst_at_50": 0.68
+          },
+          "unanswerable": {
+            "questions": 12,
+            "recall_at_10": 0.9083,
+            "worst_at_10": 0.5,
+            "recall_at_50": 0.8217,
+            "worst_at_50": 0.4
+          },
+          "median_ms": 14.481,
+          "p95_ms": 15.258,
+          "median_shared_blocks": 3310,
+          "max_shared_blocks": 4294,
+          "median_bytes_read": 27115520,
+          "used_index": true,
+          "planner_prefers_index": true
+        },
+        "400": {
+          "headline": {
+            "questions": 30,
+            "recall_at_10": 0.97,
+            "worst_at_10": 0.6,
+            "recall_at_50": 0.9267,
+            "worst_at_50": 0.62
+          },
+          "unanswerable": {
+            "questions": 12,
+            "recall_at_10": 0.9167,
+            "worst_at_10": 0.6,
+            "recall_at_50": 0.8267,
+            "worst_at_50": 0.42
+          },
+          "median_ms": 14.777,
+          "p95_ms": 15.753,
+          "median_shared_blocks": 4892,
+          "max_shared_blocks": 6390,
+          "median_bytes_read": 40075264,
+          "used_index": true,
+          "planner_prefers_index": true
+        },
+        "800": {
+          "headline": {
+            "questions": 30,
+            "recall_at_10": 0.9833,
+            "worst_at_10": 0.8,
+            "recall_at_50": 0.9307,
+            "worst_at_50": 0.66
+          },
+          "unanswerable": {
+            "questions": 12,
+            "recall_at_10": 0.925,
+            "worst_at_10": 0.6,
+            "recall_at_50": 0.8233,
+            "worst_at_50": 0.4
+          },
+          "median_ms": 16.131,
+          "p95_ms": 17.07,
+          "median_shared_blocks": 7583,
+          "max_shared_blocks": 9682,
+          "median_bytes_read": 62119936,
+          "used_index": true,
+          "planner_prefers_index": false
+        }
+      }
+    }
+  },
+  "ivfflat": {
+    "fp32": {
+      "by_lists": {
+        "10": {
+          "index_bytes": 111083520,
+          "bytes_per_vector": 8198.7,
+          "build_ms": 376,
+          "build_vectors_per_second": 36064.4,
+          "centroid_bytes": 81920,
+          "resident_bytes": 90112,
+          "resident_bytes_per_vector": 6.651,
+          "resident_share_of_index": 0.00081,
+          "partial_page_waste_bytes": 73728,
+          "by_probes": {
+            "1": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9167,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.902,
+                "worst_at_50": 0.1
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.7,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.67,
+                "worst_at_50": 0.04
+              },
+              "median_ms": 0.852,
+              "p95_ms": 1.164,
+              "median_shared_blocks": 1050,
+              "max_shared_blocks": 1978,
+              "median_bytes_read": 8601600,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.1
+            },
+            "2": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9667,
+                "worst_at_10": 0.7,
+                "recall_at_50": 0.96,
+                "worst_at_50": 0.62
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.8333,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.8283,
+                "worst_at_50": 0.14
+              },
+              "median_ms": 1.2,
+              "p95_ms": 2.253,
+              "median_shared_blocks": 2054,
+              "max_shared_blocks": 4564,
+              "median_bytes_read": 16826368,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.2
+            },
+            "5": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 0.996,
+                "worst_at_50": 0.96
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9667,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.98,
+                "worst_at_50": 0.92
+              },
+              "median_ms": 2.834,
+              "p95_ms": 3.682,
+              "median_shared_blocks": 5898,
+              "max_shared_blocks": 8751,
+              "median_bytes_read": 48316416,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 0.5
+            },
+            "10": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "median_ms": 13.559,
+              "p95_ms": 15.959,
+              "median_shared_blocks": 13760,
+              "max_shared_blocks": 13760,
+              "median_bytes_read": 112721920,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 1.0
+            }
+          }
+        },
+        "30": {
+          "index_bytes": 111247360,
+          "bytes_per_vector": 8210.7,
+          "build_ms": 678,
+          "build_vectors_per_second": 19978.9,
+          "centroid_bytes": 245760,
+          "resident_bytes": 253952,
+          "resident_bytes_per_vector": 18.743,
+          "resident_share_of_index": 0.00228,
+          "partial_page_waste_bytes": 237568,
+          "by_probes": {
+            "1": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.77,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.7387,
+                "worst_at_50": 0.02
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.6167,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.6033,
+                "worst_at_50": 0.14
+              },
+              "median_ms": 0.572,
+              "p95_ms": 0.659,
+              "median_shared_blocks": 497,
+              "max_shared_blocks": 811,
+              "median_bytes_read": 4071424,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0333
+            },
+            "2": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.93,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.9113,
+                "worst_at_50": 0.6
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.7333,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.7333,
+                "worst_at_50": 0.4
+              },
+              "median_ms": 0.712,
+              "p95_ms": 1.452,
+              "median_shared_blocks": 900,
+              "max_shared_blocks": 2587,
+              "median_bytes_read": 7372800,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0667
+            },
+            "5": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.98,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9787,
+                "worst_at_50": 0.8
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.875,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.8817,
+                "worst_at_50": 0.54
+              },
+              "median_ms": 1.137,
+              "p95_ms": 1.973,
+              "median_shared_blocks": 1970,
+              "max_shared_blocks": 4541,
+              "median_bytes_read": 16138240,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.1667
+            },
+            "10": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9933,
+                "worst_at_10": 0.9,
+                "recall_at_50": 0.9947,
+                "worst_at_50": 0.96
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9417,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.955,
+                "worst_at_50": 0.8
+              },
+              "median_ms": 2.329,
+              "p95_ms": 3.648,
+              "median_shared_blocks": 4856,
+              "max_shared_blocks": 7194,
+              "median_bytes_read": 39780352,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.3333
+            },
+            "20": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 0.998,
+                "worst_at_50": 0.96
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9917,
+                "worst_at_10": 0.9,
+                "recall_at_50": 0.99,
+                "worst_at_50": 0.94
+              },
+              "median_ms": 4.239,
+              "p95_ms": 4.612,
+              "median_shared_blocks": 9786,
+              "max_shared_blocks": 10721,
+              "median_bytes_read": 80166912,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 0.6667
+            },
+            "30": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "median_ms": 13.158,
+              "p95_ms": 14.943,
+              "median_shared_blocks": 13780,
+              "max_shared_blocks": 13780,
+              "median_bytes_read": 112885760,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 1.0
+            }
+          }
+        },
+        "100": {
+          "index_bytes": 111820800,
+          "bytes_per_vector": 8253.1,
+          "build_ms": 1183,
+          "build_vectors_per_second": 11454.8,
+          "centroid_bytes": 819200,
+          "resident_bytes": 827392,
+          "resident_bytes_per_vector": 61.067,
+          "resident_share_of_index": 0.0074,
+          "partial_page_waste_bytes": 811008,
+          "by_probes": {
+            "1": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.6567,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.588,
+                "worst_at_50": 0.08
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.6417,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.5067,
+                "worst_at_50": 0.02
+              },
+              "median_ms": 0.547,
+              "p95_ms": 0.599,
+              "median_shared_blocks": 442,
+              "max_shared_blocks": 636,
+              "median_bytes_read": 3620864,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.01
+            },
+            "2": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.8233,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.7813,
+                "worst_at_50": 0.08
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.7083,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.5967,
+                "worst_at_50": 0.12
+              },
+              "median_ms": 0.594,
+              "p95_ms": 0.736,
+              "median_shared_blocks": 579,
+              "max_shared_blocks": 829,
+              "median_bytes_read": 4743168,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.02
+            },
+            "5": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.93,
+                "worst_at_10": 0.4,
+                "recall_at_50": 0.8973,
+                "worst_at_50": 0.32
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9,
+                "worst_at_10": 0.7,
+                "recall_at_50": 0.8367,
+                "worst_at_50": 0.58
+              },
+              "median_ms": 0.723,
+              "p95_ms": 0.829,
+              "median_shared_blocks": 936,
+              "max_shared_blocks": 1361,
+              "median_bytes_read": 7667712,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.05
+            },
+            "10": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9667,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.9533,
+                "worst_at_50": 0.42
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9417,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9067,
+                "worst_at_50": 0.7
+              },
+              "median_ms": 0.937,
+              "p95_ms": 1.217,
+              "median_shared_blocks": 1522,
+              "max_shared_blocks": 2367,
+              "median_bytes_read": 12468224,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.1
+            },
+            "20": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.99,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9847,
+                "worst_at_50": 0.82
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9833,
+                "worst_at_10": 0.9,
+                "recall_at_50": 0.9783,
+                "worst_at_50": 0.94
+              },
+              "median_ms": 1.465,
+              "p95_ms": 1.825,
+              "median_shared_blocks": 2880,
+              "max_shared_blocks": 3965,
+              "median_bytes_read": 23592960,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.2
+            },
+            "50": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 0.9967,
+                "worst_at_50": 0.98
+              },
+              "median_ms": 3.196,
+              "p95_ms": 3.605,
+              "median_shared_blocks": 7118,
+              "max_shared_blocks": 8279,
+              "median_bytes_read": 58310656,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 0.5
+            },
+            "100": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "median_ms": 12.71,
+              "p95_ms": 15.114,
+              "median_shared_blocks": 13850,
+              "max_shared_blocks": 13850,
+              "median_bytes_read": 113459200,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 1.0
+            }
+          }
+        },
+        "300": {
+          "index_bytes": 113459200,
+          "bytes_per_vector": 8374.0,
+          "build_ms": 3320,
+          "build_vectors_per_second": 4081.6,
+          "centroid_bytes": 2457600,
+          "resident_bytes": 2465792,
+          "resident_bytes_per_vector": 181.991,
+          "resident_share_of_index": 0.02173,
+          "partial_page_waste_bytes": 2449408,
+          "by_probes": {
+            "1": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.5133,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.378,
+                "worst_at_50": 0.04
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.55,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.3717,
+                "worst_at_50": 0.02
+              },
+              "median_ms": 0.581,
+              "p95_ms": 0.713,
+              "median_shared_blocks": 552,
+              "max_shared_blocks": 603,
+              "median_bytes_read": 4521984,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0033
+            },
+            "2": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.7033,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.5707,
+                "worst_at_50": 0.14
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.6583,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.47,
+                "worst_at_50": 0.08
+              },
+              "median_ms": 0.584,
+              "p95_ms": 0.61,
+              "median_shared_blocks": 591,
+              "max_shared_blocks": 686,
+              "median_bytes_read": 4841472,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0067
+            },
+            "5": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.87,
+                "worst_at_10": 0.4,
+                "recall_at_50": 0.8013,
+                "worst_at_50": 0.38
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.85,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.74,
+                "worst_at_50": 0.34
+              },
+              "median_ms": 0.63,
+              "p95_ms": 0.668,
+              "median_shared_blocks": 736,
+              "max_shared_blocks": 874,
+              "median_bytes_read": 6029312,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0167
+            },
+            "10": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.94,
+                "worst_at_10": 0.6,
+                "recall_at_50": 0.912,
+                "worst_at_50": 0.58
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9167,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.8267,
+                "worst_at_50": 0.58
+              },
+              "median_ms": 0.737,
+              "p95_ms": 0.818,
+              "median_shared_blocks": 984,
+              "max_shared_blocks": 1146,
+              "median_bytes_read": 8060928,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0333
+            },
+            "20": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9767,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9613,
+                "worst_at_50": 0.74
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.95,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.925,
+                "worst_at_50": 0.78
+              },
+              "median_ms": 0.924,
+              "p95_ms": 1.112,
+              "median_shared_blocks": 1456,
+              "max_shared_blocks": 1956,
+              "median_bytes_read": 11927552,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0667
+            },
+            "50": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.99,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.99,
+                "worst_at_50": 0.92
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9917,
+                "worst_at_10": 0.9,
+                "recall_at_50": 0.9883,
+                "worst_at_50": 0.94
+              },
+              "median_ms": 1.437,
+              "p95_ms": 1.705,
+              "median_shared_blocks": 2848,
+              "max_shared_blocks": 3706,
+              "median_bytes_read": 23330816,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.1667
+            },
+            "100": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 0.9993,
+                "worst_at_50": 0.98
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9917,
+                "worst_at_10": 0.9,
+                "recall_at_50": 0.995,
+                "worst_at_50": 0.96
+              },
+              "median_ms": 2.4,
+              "p95_ms": 2.606,
+              "median_shared_blocks": 5324,
+              "max_shared_blocks": 5753,
+              "median_bytes_read": 43614208,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.3333
+            },
+            "300": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "median_ms": 6.16,
+              "p95_ms": 6.44,
+              "median_shared_blocks": 14050,
+              "max_shared_blocks": 14050,
+              "median_bytes_read": 115097600,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 1.0
+            }
+          }
+        },
+        "1000": {
+          "index_bytes": 119193600,
+          "bytes_per_vector": 8797.2,
+          "build_ms": 8443,
+          "build_vectors_per_second": 1604.7,
+          "centroid_bytes": 8192000,
+          "resident_bytes": 8200192,
+          "resident_bytes_per_vector": 605.225,
+          "resident_share_of_index": 0.0688,
+          "partial_page_waste_bytes": 8183808,
+          "by_probes": {
+            "1": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.39,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.1933,
+                "worst_at_50": 0.04
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.3167,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.155,
+                "worst_at_50": 0.02
+              },
+              "median_ms": 0.728,
+              "p95_ms": 0.785,
+              "median_shared_blocks": 1081,
+              "max_shared_blocks": 1171,
+              "median_bytes_read": 8855552,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.001
+            },
+            "2": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.56,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.336,
+                "worst_at_50": 0.06
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.5167,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.3,
+                "worst_at_50": 0.04
+              },
+              "median_ms": 0.779,
+              "p95_ms": 0.873,
+              "median_shared_blocks": 1186,
+              "max_shared_blocks": 1306,
+              "median_bytes_read": 9715712,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.002
+            },
+            "5": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.78,
+                "worst_at_10": 0.3,
+                "recall_at_50": 0.6367,
+                "worst_at_50": 0.2
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.7417,
+                "worst_at_10": 0.3,
+                "recall_at_50": 0.5067,
+                "worst_at_50": 0.1
+              },
+              "median_ms": 0.841,
+              "p95_ms": 0.879,
+              "median_shared_blocks": 1286,
+              "max_shared_blocks": 1372,
+              "median_bytes_read": 10534912,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.005
+            },
+            "10": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9,
+                "worst_at_10": 0.4,
+                "recall_at_50": 0.8113,
+                "worst_at_50": 0.48
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.85,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.715,
+                "worst_at_50": 0.4
+              },
+              "median_ms": 0.864,
+              "p95_ms": 0.906,
+              "median_shared_blocks": 1368,
+              "max_shared_blocks": 1534,
+              "median_bytes_read": 11206656,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.01
+            },
+            "20": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9467,
+                "worst_at_10": 0.6,
+                "recall_at_50": 0.9047,
+                "worst_at_50": 0.54
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9167,
+                "worst_at_10": 0.6,
+                "recall_at_50": 0.82,
+                "worst_at_50": 0.54
+              },
+              "median_ms": 0.915,
+              "p95_ms": 0.99,
+              "median_shared_blocks": 1526,
+              "max_shared_blocks": 1764,
+              "median_bytes_read": 12500992,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.02
+            },
+            "50": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9833,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.972,
+                "worst_at_50": 0.7
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9583,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9233,
+                "worst_at_50": 0.74
+              },
+              "median_ms": 1.1,
+              "p95_ms": 1.186,
+              "median_shared_blocks": 1944,
+              "max_shared_blocks": 2328,
+              "median_bytes_read": 15925248,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.05
+            },
+            "100": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9867,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9873,
+                "worst_at_50": 0.78
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.975,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.97,
+                "worst_at_50": 0.86
+              },
+              "median_ms": 1.358,
+              "p95_ms": 1.538,
+              "median_shared_blocks": 2730,
+              "max_shared_blocks": 3313,
+              "median_bytes_read": 22364160,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.1
+            },
+            "1000": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "median_ms": 6.722,
+              "p95_ms": 7.343,
+              "median_shared_blocks": 14750,
+              "max_shared_blocks": 14750,
+              "median_bytes_read": 120832000,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 1.0
+            }
+          }
+        },
+        "3000": {
+          "index_bytes": 135577600,
+          "bytes_per_vector": 10006.5,
+          "build_ms": 25468,
+          "build_vectors_per_second": 532.0,
+          "centroid_bytes": 24576000,
+          "resident_bytes": 24584192,
+          "resident_bytes_per_vector": 1814.465,
+          "resident_share_of_index": 0.18133,
+          "partial_page_waste_bytes": 24567808,
+          "by_probes": {
+            "1": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.2767,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.0987,
+                "worst_at_50": 0.02
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.2167,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.0967,
+                "worst_at_50": 0.0
+              },
+              "median_ms": 1.591,
+              "p95_ms": 2.186,
+              "median_shared_blocks": 3028,
+              "max_shared_blocks": 3081,
+              "median_bytes_read": 24805376,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0003
+            },
+            "2": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.4233,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.1667,
+                "worst_at_50": 0.04
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.4083,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.1867,
+                "worst_at_50": 0.04
+              },
+              "median_ms": 1.51,
+              "p95_ms": 1.619,
+              "median_shared_blocks": 3061,
+              "max_shared_blocks": 3146,
+              "median_bytes_read": 25075712,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0007
+            },
+            "5": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.67,
+                "worst_at_10": 0.3,
+                "recall_at_50": 0.3587,
+                "worst_at_50": 0.22
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.6833,
+                "worst_at_10": 0.3,
+                "recall_at_50": 0.37,
+                "worst_at_50": 0.18
+              },
+              "median_ms": 1.563,
+              "p95_ms": 1.68,
+              "median_shared_blocks": 3154,
+              "max_shared_blocks": 3262,
+              "median_bytes_read": 25837568,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0017
+            },
+            "10": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.8633,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.5793,
+                "worst_at_50": 0.42
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.8,
+                "worst_at_10": 0.6,
+                "recall_at_50": 0.5433,
+                "worst_at_50": 0.32
+              },
+              "median_ms": 1.632,
+              "p95_ms": 1.786,
+              "median_shared_blocks": 3264,
+              "max_shared_blocks": 3308,
+              "median_bytes_read": 26738688,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0033
+            },
+            "20": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9333,
+                "worst_at_10": 0.6,
+                "recall_at_50": 0.7887,
+                "worst_at_50": 0.62
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.925,
+                "worst_at_10": 0.7,
+                "recall_at_50": 0.745,
+                "worst_at_50": 0.48
+              },
+              "median_ms": 1.721,
+              "p95_ms": 2.035,
+              "median_shared_blocks": 3320,
+              "max_shared_blocks": 3407,
+              "median_bytes_read": 27197440,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0067
+            },
+            "50": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9733,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9353,
+                "worst_at_50": 0.76
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.975,
+                "worst_at_10": 0.9,
+                "recall_at_50": 0.915,
+                "worst_at_50": 0.78
+              },
+              "median_ms": 2.015,
+              "p95_ms": 3.031,
+              "median_shared_blocks": 3485,
+              "max_shared_blocks": 3627,
+              "median_bytes_read": 28549120,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0167
+            },
+            "100": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.99,
+                "worst_at_10": 0.9,
+                "recall_at_50": 0.9747,
+                "worst_at_50": 0.8
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9833,
+                "worst_at_10": 0.9,
+                "recall_at_50": 0.975,
+                "worst_at_50": 0.92
+              },
+              "median_ms": 2.132,
+              "p95_ms": 2.76,
+              "median_shared_blocks": 3772,
+              "max_shared_blocks": 3989,
+              "median_bytes_read": 30900224,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0333
+            },
+            "3000": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "median_ms": 14.913,
+              "p95_ms": 15.68,
+              "median_shared_blocks": 16750,
+              "max_shared_blocks": 16750,
+              "median_bytes_read": 137216000,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 1.0
+            }
+          }
+        }
+      }
+    },
+    "fp16": {
+      "by_lists": {
+        "10": {
+          "index_bytes": 37052416,
+          "bytes_per_vector": 2734.7,
+          "build_ms": 288,
+          "build_vectors_per_second": 46979.7,
+          "centroid_bytes": 32768,
+          "resident_bytes": 40960,
+          "resident_bytes_per_vector": 3.023,
+          "resident_share_of_index": 0.00111,
+          "partial_page_waste_bytes": 73728,
+          "by_probes": {
+            "1": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.93,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.9,
+                "worst_at_50": 0.16
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.4917,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.47,
+                "worst_at_50": 0.04
+              },
+              "median_ms": 0.75,
+              "p95_ms": 1.011,
+              "median_shared_blocks": 545,
+              "max_shared_blocks": 795,
+              "median_bytes_read": 4464640,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.1
+            },
+            "2": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9567,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.9507,
+                "worst_at_50": 0.18
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.7917,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.755,
+                "worst_at_50": 0.14
+              },
+              "median_ms": 0.916,
+              "p95_ms": 1.335,
+              "median_shared_blocks": 915,
+              "max_shared_blocks": 1445,
+              "median_bytes_read": 7495680,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.2
+            },
+            "5": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 0.998,
+                "worst_at_50": 0.98
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.975,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9717,
+                "worst_at_50": 0.88
+              },
+              "median_ms": 2.063,
+              "p95_ms": 2.377,
+              "median_shared_blocks": 2530,
+              "max_shared_blocks": 3031,
+              "median_bytes_read": 20725760,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 0.5
+            },
+            "10": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "median_ms": 6.314,
+              "p95_ms": 7.475,
+              "median_shared_blocks": 4723,
+              "max_shared_blocks": 4723,
+              "median_bytes_read": 38690816,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 1.0
+            }
+          }
+        },
+        "30": {
+          "index_bytes": 37142528,
+          "bytes_per_vector": 2741.3,
+          "build_ms": 411,
+          "build_vectors_per_second": 32968.1,
+          "centroid_bytes": 81920,
+          "resident_bytes": 90112,
+          "resident_bytes_per_vector": 6.651,
+          "resident_share_of_index": 0.00243,
+          "partial_page_waste_bytes": 237568,
+          "by_probes": {
+            "1": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.81,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.762,
+                "worst_at_50": 0.08
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.575,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.58,
+                "worst_at_50": 0.12
+              },
+              "median_ms": 0.554,
+              "p95_ms": 0.647,
+              "median_shared_blocks": 320,
+              "max_shared_blocks": 424,
+              "median_bytes_read": 2621440,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0333
+            },
+            "2": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9,
+                "worst_at_10": 0.3,
+                "recall_at_50": 0.868,
+                "worst_at_50": 0.26
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.7417,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.7583,
+                "worst_at_50": 0.52
+              },
+              "median_ms": 0.632,
+              "p95_ms": 0.775,
+              "median_shared_blocks": 454,
+              "max_shared_blocks": 724,
+              "median_bytes_read": 3719168,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0667
+            },
+            "5": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.98,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9707,
+                "worst_at_50": 0.8
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.85,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.8833,
+                "worst_at_50": 0.6
+              },
+              "median_ms": 0.915,
+              "p95_ms": 1.233,
+              "median_shared_blocks": 821,
+              "max_shared_blocks": 1197,
+              "median_bytes_read": 6725632,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.1667
+            },
+            "10": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9933,
+                "worst_at_10": 0.9,
+                "recall_at_50": 0.994,
+                "worst_at_50": 0.94
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9417,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.9533,
+                "worst_at_50": 0.8
+              },
+              "median_ms": 1.487,
+              "p95_ms": 2.177,
+              "median_shared_blocks": 1544,
+              "max_shared_blocks": 2080,
+              "median_bytes_read": 12648448,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.3333
+            },
+            "20": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 0.9993,
+                "worst_at_50": 0.98
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 0.9967,
+                "worst_at_50": 0.98
+              },
+              "median_ms": 3.029,
+              "p95_ms": 3.646,
+              "median_shared_blocks": 3153,
+              "max_shared_blocks": 3597,
+              "median_bytes_read": 25829376,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 0.6667
+            },
+            "30": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "median_ms": 5.968,
+              "p95_ms": 7.659,
+              "median_shared_blocks": 4734,
+              "max_shared_blocks": 4734,
+              "median_bytes_read": 38780928,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 1.0
+            }
+          }
+        },
+        "100": {
+          "index_bytes": 37543936,
+          "bytes_per_vector": 2771.0,
+          "build_ms": 844,
+          "build_vectors_per_second": 16057.7,
+          "centroid_bytes": 278528,
+          "resident_bytes": 286720,
+          "resident_bytes_per_vector": 21.162,
+          "resident_share_of_index": 0.00764,
+          "partial_page_waste_bytes": 811008,
+          "by_probes": {
+            "1": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.6967,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.6353,
+                "worst_at_50": 0.06
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.6083,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.5367,
+                "worst_at_50": 0.12
+              },
+              "median_ms": 0.537,
+              "p95_ms": 0.619,
+              "median_shared_blocks": 286,
+              "max_shared_blocks": 360,
+              "median_bytes_read": 2342912,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.01
+            },
+            "2": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.7867,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.7773,
+                "worst_at_50": 0.18
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.6667,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.6483,
+                "worst_at_50": 0.24
+              },
+              "median_ms": 0.542,
+              "p95_ms": 0.616,
+              "median_shared_blocks": 314,
+              "max_shared_blocks": 422,
+              "median_bytes_read": 2572288,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.02
+            },
+            "5": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.91,
+                "worst_at_10": 0.3,
+                "recall_at_50": 0.904,
+                "worst_at_50": 0.48
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.8083,
+                "worst_at_10": 0.3,
+                "recall_at_50": 0.8017,
+                "worst_at_50": 0.52
+              },
+              "median_ms": 0.656,
+              "p95_ms": 0.742,
+              "median_shared_blocks": 468,
+              "max_shared_blocks": 643,
+              "median_bytes_read": 3833856,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.05
+            },
+            "10": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9667,
+                "worst_at_10": 0.7,
+                "recall_at_50": 0.9553,
+                "worst_at_50": 0.62
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.9017,
+                "worst_at_50": 0.76
+              },
+              "median_ms": 0.84,
+              "p95_ms": 0.949,
+              "median_shared_blocks": 700,
+              "max_shared_blocks": 825,
+              "median_bytes_read": 5734400,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.1
+            },
+            "20": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9867,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9853,
+                "worst_at_50": 0.8
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9333,
+                "worst_at_10": 0.6,
+                "recall_at_50": 0.965,
+                "worst_at_50": 0.88
+              },
+              "median_ms": 1.209,
+              "p95_ms": 1.512,
+              "median_shared_blocks": 1151,
+              "max_shared_blocks": 1485,
+              "median_bytes_read": 9428992,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.2
+            },
+            "50": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9967,
+                "worst_at_10": 0.9,
+                "recall_at_50": 0.9987,
+                "worst_at_50": 0.98
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9917,
+                "worst_at_10": 0.9,
+                "recall_at_50": 0.995,
+                "worst_at_50": 0.98
+              },
+              "median_ms": 2.726,
+              "p95_ms": 3.282,
+              "median_shared_blocks": 2614,
+              "max_shared_blocks": 2878,
+              "median_bytes_read": 21413888,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 0.5
+            },
+            "100": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "median_ms": 6.948,
+              "p95_ms": 9.215,
+              "median_shared_blocks": 4783,
+              "max_shared_blocks": 4783,
+              "median_bytes_read": 39182336,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 1.0
+            }
+          }
+        },
+        "300": {
+          "index_bytes": 38576128,
+          "bytes_per_vector": 2847.2,
+          "build_ms": 2180,
+          "build_vectors_per_second": 6216.1,
+          "centroid_bytes": 819200,
+          "resident_bytes": 827392,
+          "resident_bytes_per_vector": 61.067,
+          "resident_share_of_index": 0.02145,
+          "partial_page_waste_bytes": 2449408,
+          "by_probes": {
+            "1": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.4733,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.3247,
+                "worst_at_50": 0.04
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.4333,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.3167,
+                "worst_at_50": 0.04
+              },
+              "median_ms": 0.531,
+              "p95_ms": 0.582,
+              "median_shared_blocks": 316,
+              "max_shared_blocks": 332,
+              "median_bytes_read": 2588672,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0033
+            },
+            "2": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.6833,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.5507,
+                "worst_at_50": 0.08
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.6583,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.4633,
+                "worst_at_50": 0.08
+              },
+              "median_ms": 0.544,
+              "p95_ms": 0.591,
+              "median_shared_blocks": 332,
+              "max_shared_blocks": 356,
+              "median_bytes_read": 2719744,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0067
+            },
+            "5": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.8967,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.8093,
+                "worst_at_50": 0.52
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.85,
+                "worst_at_10": 0.6,
+                "recall_at_50": 0.69,
+                "worst_at_50": 0.32
+              },
+              "median_ms": 0.579,
+              "p95_ms": 0.609,
+              "median_shared_blocks": 379,
+              "max_shared_blocks": 421,
+              "median_bytes_read": 3104768,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0167
+            },
+            "10": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9467,
+                "worst_at_10": 0.7,
+                "recall_at_50": 0.926,
+                "worst_at_50": 0.64
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.8917,
+                "worst_at_10": 0.7,
+                "recall_at_50": 0.8167,
+                "worst_at_50": 0.6
+              },
+              "median_ms": 0.624,
+              "p95_ms": 0.663,
+              "median_shared_blocks": 456,
+              "max_shared_blocks": 545,
+              "median_bytes_read": 3735552,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0333
+            },
+            "20": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9767,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9633,
+                "worst_at_50": 0.8
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9417,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9117,
+                "worst_at_50": 0.8
+              },
+              "median_ms": 0.727,
+              "p95_ms": 0.806,
+              "median_shared_blocks": 595,
+              "max_shared_blocks": 732,
+              "median_bytes_read": 4874240,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0667
+            },
+            "50": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 0.9927,
+                "worst_at_50": 0.92
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9833,
+                "worst_at_10": 0.9,
+                "recall_at_50": 0.98,
+                "worst_at_50": 0.94
+              },
+              "median_ms": 1.072,
+              "p95_ms": 1.383,
+              "median_shared_blocks": 1054,
+              "max_shared_blocks": 1278,
+              "median_bytes_read": 8634368,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.1667
+            },
+            "100": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 0.9967,
+                "worst_at_50": 0.96
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 0.9967,
+                "worst_at_50": 0.98
+              },
+              "median_ms": 1.889,
+              "p95_ms": 2.235,
+              "median_shared_blocks": 1914,
+              "max_shared_blocks": 2112,
+              "median_bytes_read": 15679488,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.3333
+            },
+            "300": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "median_ms": 5.476,
+              "p95_ms": 5.862,
+              "median_shared_blocks": 4909,
+              "max_shared_blocks": 4909,
+              "median_bytes_read": 40214528,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 1.0
+            }
+          }
+        },
+        "1000": {
+          "index_bytes": 42442752,
+          "bytes_per_vector": 3132.5,
+          "build_ms": 6479,
+          "build_vectors_per_second": 2091.3,
+          "centroid_bytes": 2736128,
+          "resident_bytes": 2744320,
+          "resident_bytes_per_vector": 202.548,
+          "resident_share_of_index": 0.06466,
+          "partial_page_waste_bytes": 8183808,
+          "by_probes": {
+            "1": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.39,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.1967,
+                "worst_at_50": 0.06
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.3083,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.2067,
+                "worst_at_50": 0.0
+              },
+              "median_ms": 0.584,
+              "p95_ms": 0.665,
+              "median_shared_blocks": 416,
+              "max_shared_blocks": 539,
+              "median_bytes_read": 3407872,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.001
+            },
+            "2": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.54,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.36,
+                "worst_at_50": 0.14
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.4833,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.2983,
+                "worst_at_50": 0.06
+              },
+              "median_ms": 0.625,
+              "p95_ms": 0.714,
+              "median_shared_blocks": 477,
+              "max_shared_blocks": 558,
+              "median_bytes_read": 3907584,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.002
+            },
+            "5": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.7733,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.6213,
+                "worst_at_50": 0.3
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.7667,
+                "worst_at_10": 0.4,
+                "recall_at_50": 0.5567,
+                "worst_at_50": 0.26
+              },
+              "median_ms": 0.677,
+              "p95_ms": 0.713,
+              "median_shared_blocks": 564,
+              "max_shared_blocks": 582,
+              "median_bytes_read": 4620288,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.005
+            },
+            "10": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.88,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.796,
+                "worst_at_50": 0.5
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.8833,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.755,
+                "worst_at_50": 0.4
+              },
+              "median_ms": 0.682,
+              "p95_ms": 0.79,
+              "median_shared_blocks": 595,
+              "max_shared_blocks": 620,
+              "median_bytes_read": 4874240,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.01
+            },
+            "20": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9533,
+                "worst_at_10": 0.7,
+                "recall_at_50": 0.9027,
+                "worst_at_50": 0.66
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.95,
+                "worst_at_10": 0.9,
+                "recall_at_50": 0.8583,
+                "worst_at_50": 0.58
+              },
+              "median_ms": 0.74,
+              "p95_ms": 0.817,
+              "median_shared_blocks": 646,
+              "max_shared_blocks": 724,
+              "median_bytes_read": 5292032,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.02
+            },
+            "50": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9833,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9753,
+                "worst_at_50": 0.88
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.975,
+                "worst_at_10": 0.9,
+                "recall_at_50": 0.9483,
+                "worst_at_50": 0.86
+              },
+              "median_ms": 0.878,
+              "p95_ms": 1.078,
+              "median_shared_blocks": 802,
+              "max_shared_blocks": 944,
+              "median_bytes_read": 6569984,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.05
+            },
+            "100": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.99,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.992,
+                "worst_at_50": 0.92
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9917,
+                "worst_at_10": 0.9,
+                "recall_at_50": 0.9833,
+                "worst_at_50": 0.96
+              },
+              "median_ms": 1.11,
+              "p95_ms": 1.316,
+              "median_shared_blocks": 1070,
+              "max_shared_blocks": 1256,
+              "median_bytes_read": 8765440,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.1
+            },
+            "1000": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "median_ms": 6.321,
+              "p95_ms": 6.754,
+              "median_shared_blocks": 5381,
+              "max_shared_blocks": 5381,
+              "median_bytes_read": 44081152,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 1.0
+            }
+          }
+        },
+        "3000": {
+          "index_bytes": 53829632,
+          "bytes_per_vector": 3973.0,
+          "build_ms": 13444,
+          "build_vectors_per_second": 1007.8,
+          "centroid_bytes": 8192000,
+          "resident_bytes": 8200192,
+          "resident_bytes_per_vector": 605.225,
+          "resident_share_of_index": 0.15234,
+          "partial_page_waste_bytes": 24567808,
+          "by_probes": {
+            "1": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.2967,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.1027,
+                "worst_at_50": 0.02
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.2583,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.1133,
+                "worst_at_50": 0.02
+              },
+              "median_ms": 1.0,
+              "p95_ms": 1.672,
+              "median_shared_blocks": 1027,
+              "max_shared_blocks": 1110,
+              "median_bytes_read": 8413184,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0003
+            },
+            "2": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.4533,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.194,
+                "worst_at_50": 0.06
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.4333,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.1983,
+                "worst_at_50": 0.1
+              },
+              "median_ms": 1.03,
+              "p95_ms": 1.131,
+              "median_shared_blocks": 1053,
+              "max_shared_blocks": 1136,
+              "median_bytes_read": 8626176,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0007
+            },
+            "5": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.7267,
+                "worst_at_10": 0.3,
+                "recall_at_50": 0.392,
+                "worst_at_50": 0.18
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.725,
+                "worst_at_10": 0.3,
+                "recall_at_50": 0.385,
+                "worst_at_50": 0.22
+              },
+              "median_ms": 1.104,
+              "p95_ms": 1.181,
+              "median_shared_blocks": 1154,
+              "max_shared_blocks": 1220,
+              "median_bytes_read": 9453568,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0017
+            },
+            "10": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.8633,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.598,
+                "worst_at_50": 0.36
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.8833,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.615,
+                "worst_at_50": 0.38
+              },
+              "median_ms": 1.087,
+              "p95_ms": 1.235,
+              "median_shared_blocks": 1224,
+              "max_shared_blocks": 1243,
+              "median_bytes_read": 10027008,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0033
+            },
+            "20": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9267,
+                "worst_at_10": 0.6,
+                "recall_at_50": 0.7913,
+                "worst_at_50": 0.52
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9417,
+                "worst_at_10": 0.7,
+                "recall_at_50": 0.77,
+                "worst_at_50": 0.56
+              },
+              "median_ms": 1.152,
+              "p95_ms": 1.281,
+              "median_shared_blocks": 1247,
+              "max_shared_blocks": 1279,
+              "median_bytes_read": 10215424,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0067
+            },
+            "50": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.98,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.936,
+                "worst_at_50": 0.72
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9667,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9283,
+                "worst_at_50": 0.8
+              },
+              "median_ms": 1.243,
+              "p95_ms": 1.356,
+              "median_shared_blocks": 1314,
+              "max_shared_blocks": 1379,
+              "median_bytes_read": 10764288,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0167
+            },
+            "100": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9933,
+                "worst_at_10": 0.9,
+                "recall_at_50": 0.974,
+                "worst_at_50": 0.82
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9833,
+                "worst_at_10": 0.9,
+                "recall_at_50": 0.9767,
+                "worst_at_50": 0.94
+              },
+              "median_ms": 1.338,
+              "p95_ms": 1.457,
+              "median_shared_blocks": 1418,
+              "max_shared_blocks": 1518,
+              "median_bytes_read": 11616256,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0333
+            },
+            "3000": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 1.0,
+                "worst_at_10": 1.0,
+                "recall_at_50": 1.0,
+                "worst_at_50": 1.0
+              },
+              "median_ms": 8.229,
+              "p95_ms": 9.002,
+              "median_shared_blocks": 6771,
+              "max_shared_blocks": 6771,
+              "median_bytes_read": 55468032,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 1.0
+            }
+          }
+        }
+      }
+    },
+    "bit": {
+      "by_lists": {
+        "10": {
+          "index_bytes": 2072576,
+          "bytes_per_vector": 153.0,
+          "build_ms": 215,
+          "build_vectors_per_second": 62911.9,
+          "centroid_bytes": 8192,
+          "resident_bytes": 16384,
+          "resident_bytes_per_vector": 1.209,
+          "resident_share_of_index": 0.00791,
+          "partial_page_waste_bytes": 73728,
+          "by_probes": {
+            "1": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.86,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.8373,
+                "worst_at_50": 0.04
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.6667,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.625,
+                "worst_at_50": 0.02
+              },
+              "median_ms": 13.538,
+              "p95_ms": 14.089,
+              "median_shared_blocks": 1211,
+              "max_shared_blocks": 1218,
+              "median_bytes_read": 9920512,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.1
+            },
+            "2": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.95,
+                "worst_at_10": 0.6,
+                "recall_at_50": 0.9167,
+                "worst_at_50": 0.6
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.6917,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.6517,
+                "worst_at_50": 0.02
+              },
+              "median_ms": 13.575,
+              "p95_ms": 14.076,
+              "median_shared_blocks": 1233,
+              "max_shared_blocks": 1263,
+              "median_bytes_read": 10100736,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.2
+            },
+            "5": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.98,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9307,
+                "worst_at_50": 0.62
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.85,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.77,
+                "worst_at_50": 0.32
+              },
+              "median_ms": 14.021,
+              "p95_ms": 14.574,
+              "median_shared_blocks": 1305,
+              "max_shared_blocks": 1337,
+              "median_bytes_read": 10690560,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.5
+            },
+            "10": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9833,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9313,
+                "worst_at_50": 0.64
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.815,
+                "worst_at_50": 0.38
+              },
+              "median_ms": 14.712,
+              "p95_ms": 15.549,
+              "median_shared_blocks": 1437,
+              "max_shared_blocks": 1437,
+              "median_bytes_read": 11771904,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 1.0
+            }
+          }
+        },
+        "30": {
+          "index_bytes": 2162688,
+          "bytes_per_vector": 159.6,
+          "build_ms": 620,
+          "build_vectors_per_second": 21868.7,
+          "centroid_bytes": 8192,
+          "resident_bytes": 16384,
+          "resident_bytes_per_vector": 1.209,
+          "resident_share_of_index": 0.00758,
+          "partial_page_waste_bytes": 237568,
+          "by_probes": {
+            "1": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.7367,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.7167,
+                "worst_at_50": 0.02
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.5333,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.4867,
+                "worst_at_50": 0.0
+              },
+              "median_ms": 13.274,
+              "p95_ms": 14.046,
+              "median_shared_blocks": 1193,
+              "max_shared_blocks": 1202,
+              "median_bytes_read": 9773056,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0333
+            },
+            "2": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9,
+                "worst_at_10": 0.3,
+                "recall_at_50": 0.854,
+                "worst_at_50": 0.2
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.6333,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.64,
+                "worst_at_50": 0.14
+              },
+              "median_ms": 13.486,
+              "p95_ms": 14.291,
+              "median_shared_blocks": 1200,
+              "max_shared_blocks": 1211,
+              "median_bytes_read": 9830400,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0667
+            },
+            "5": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.96,
+                "worst_at_10": 0.6,
+                "recall_at_50": 0.9233,
+                "worst_at_50": 0.58
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.7417,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.72,
+                "worst_at_50": 0.28
+              },
+              "median_ms": 13.347,
+              "p95_ms": 14.097,
+              "median_shared_blocks": 1226,
+              "max_shared_blocks": 1240,
+              "median_bytes_read": 10043392,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.1667
+            },
+            "10": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.98,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9307,
+                "worst_at_50": 0.66
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.8333,
+                "worst_at_10": 0.3,
+                "recall_at_50": 0.7783,
+                "worst_at_50": 0.26
+              },
+              "median_ms": 13.5,
+              "p95_ms": 14.597,
+              "median_shared_blocks": 1271,
+              "max_shared_blocks": 1293,
+              "median_bytes_read": 10412032,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.3333
+            },
+            "20": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9833,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9313,
+                "worst_at_50": 0.62
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9,
+                "worst_at_10": 0.6,
+                "recall_at_50": 0.82,
+                "worst_at_50": 0.4
+              },
+              "median_ms": 14.079,
+              "p95_ms": 15.03,
+              "median_shared_blocks": 1364,
+              "max_shared_blocks": 1380,
+              "median_bytes_read": 11173888,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.6667
+            },
+            "30": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9833,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9307,
+                "worst_at_50": 0.64
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9083,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.82,
+                "worst_at_50": 0.38
+              },
+              "median_ms": 14.736,
+              "p95_ms": 15.746,
+              "median_shared_blocks": 1448,
+              "max_shared_blocks": 1448,
+              "median_bytes_read": 11862016,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 1.0
+            }
+          }
+        },
+        "100": {
+          "index_bytes": 2449408,
+          "bytes_per_vector": 180.8,
+          "build_ms": 562,
+          "build_vectors_per_second": 24094.9,
+          "centroid_bytes": 16384,
+          "resident_bytes": 24576,
+          "resident_bytes_per_vector": 1.814,
+          "resident_share_of_index": 0.01003,
+          "partial_page_waste_bytes": 811008,
+          "by_probes": {
+            "1": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.66,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.5713,
+                "worst_at_50": 0.04
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.3417,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.295,
+                "worst_at_50": 0.0
+              },
+              "median_ms": 12.827,
+              "p95_ms": 13.766,
+              "median_shared_blocks": 1048,
+              "max_shared_blocks": 1192,
+              "median_bytes_read": 8585216,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.01
+            },
+            "2": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.74,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.6787,
+                "worst_at_50": 0.1
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.3583,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.3567,
+                "worst_at_50": 0.0
+              },
+              "median_ms": 13.073,
+              "p95_ms": 13.974,
+              "median_shared_blocks": 1193,
+              "max_shared_blocks": 1196,
+              "median_bytes_read": 9773056,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.02
+            },
+            "5": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.88,
+                "worst_at_10": 0.3,
+                "recall_at_50": 0.8493,
+                "worst_at_50": 0.22
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.55,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.5867,
+                "worst_at_50": 0.04
+              },
+              "median_ms": 13.139,
+              "p95_ms": 14.035,
+              "median_shared_blocks": 1201,
+              "max_shared_blocks": 1206,
+              "median_bytes_read": 9838592,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.05
+            },
+            "10": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9333,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.9067,
+                "worst_at_50": 0.58
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.7167,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.72,
+                "worst_at_50": 0.16
+              },
+              "median_ms": 13.28,
+              "p95_ms": 14.184,
+              "median_shared_blocks": 1216,
+              "max_shared_blocks": 1221,
+              "median_bytes_read": 9961472,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.1
+            },
+            "20": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.97,
+                "worst_at_10": 0.6,
+                "recall_at_50": 0.9213,
+                "worst_at_50": 0.66
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.7833,
+                "worst_at_10": 0.3,
+                "recall_at_50": 0.7783,
+                "worst_at_50": 0.2
+              },
+              "median_ms": 13.65,
+              "p95_ms": 14.886,
+              "median_shared_blocks": 1246,
+              "max_shared_blocks": 1257,
+              "median_bytes_read": 10207232,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.2
+            },
+            "50": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9833,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9313,
+                "worst_at_50": 0.64
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.8833,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.815,
+                "worst_at_50": 0.4
+              },
+              "median_ms": 13.746,
+              "p95_ms": 14.317,
+              "median_shared_blocks": 1335,
+              "max_shared_blocks": 1352,
+              "median_bytes_read": 10936320,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.5
+            },
+            "100": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9833,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9287,
+                "worst_at_50": 0.64
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9083,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.8167,
+                "worst_at_50": 0.38
+              },
+              "median_ms": 14.542,
+              "p95_ms": 15.159,
+              "median_shared_blocks": 1483,
+              "max_shared_blocks": 1483,
+              "median_bytes_read": 12148736,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 1.0
+            }
+          }
+        },
+        "300": {
+          "index_bytes": 3284992,
+          "bytes_per_vector": 242.5,
+          "build_ms": 768,
+          "build_vectors_per_second": 17643.5,
+          "centroid_bytes": 49152,
+          "resident_bytes": 57344,
+          "resident_bytes_per_vector": 4.232,
+          "resident_share_of_index": 0.01746,
+          "partial_page_waste_bytes": 2449408,
+          "by_probes": {
+            "1": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.4167,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.3153,
+                "worst_at_50": 0.0
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.225,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.15,
+                "worst_at_50": 0.0
+              },
+              "median_ms": 12.217,
+              "p95_ms": 12.906,
+              "median_shared_blocks": 544,
+              "max_shared_blocks": 825,
+              "median_bytes_read": 4456448,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0033
+            },
+            "2": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.6333,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.5193,
+                "worst_at_50": 0.04
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.4417,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.3167,
+                "worst_at_50": 0.0
+              },
+              "median_ms": 12.328,
+              "p95_ms": 13.182,
+              "median_shared_blocks": 780,
+              "max_shared_blocks": 1195,
+              "median_bytes_read": 6389760,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0067
+            },
+            "5": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.7933,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.7113,
+                "worst_at_50": 0.22
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.6833,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.5633,
+                "worst_at_50": 0.06
+              },
+              "median_ms": 13.118,
+              "p95_ms": 13.81,
+              "median_shared_blocks": 1196,
+              "max_shared_blocks": 1200,
+              "median_bytes_read": 9797632,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0167
+            },
+            "10": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9167,
+                "worst_at_10": 0.4,
+                "recall_at_50": 0.86,
+                "worst_at_50": 0.48
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.75,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.6583,
+                "worst_at_50": 0.06
+              },
+              "median_ms": 13.215,
+              "p95_ms": 14.174,
+              "median_shared_blocks": 1203,
+              "max_shared_blocks": 1209,
+              "median_bytes_read": 9854976,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0333
+            },
+            "20": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9567,
+                "worst_at_10": 0.6,
+                "recall_at_50": 0.914,
+                "worst_at_50": 0.6
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.8083,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.7333,
+                "worst_at_50": 0.16
+              },
+              "median_ms": 13.22,
+              "p95_ms": 14.066,
+              "median_shared_blocks": 1216,
+              "max_shared_blocks": 1225,
+              "median_bytes_read": 9961472,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0667
+            },
+            "50": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.98,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9253,
+                "worst_at_50": 0.64
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.8917,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.8233,
+                "worst_at_50": 0.44
+              },
+              "median_ms": 13.46,
+              "p95_ms": 14.009,
+              "median_shared_blocks": 1256,
+              "max_shared_blocks": 1269,
+              "median_bytes_read": 10289152,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.1667
+            },
+            "100": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9833,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9293,
+                "worst_at_50": 0.64
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9167,
+                "worst_at_10": 0.6,
+                "recall_at_50": 0.8183,
+                "worst_at_50": 0.36
+              },
+              "median_ms": 13.41,
+              "p95_ms": 13.95,
+              "median_shared_blocks": 1323,
+              "max_shared_blocks": 1337,
+              "median_bytes_read": 10838016,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.3333
+            },
+            "300": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9833,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.93,
+                "worst_at_50": 0.64
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9083,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.8217,
+                "worst_at_50": 0.38
+              },
+              "median_ms": 14.571,
+              "p95_ms": 16.074,
+              "median_shared_blocks": 1585,
+              "max_shared_blocks": 1585,
+              "median_bytes_read": 12984320,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 1.0
+            }
+          }
+        },
+        "1000": {
+          "index_bytes": 8388608,
+          "bytes_per_vector": 619.1,
+          "build_ms": 1512,
+          "build_vectors_per_second": 8961.2,
+          "centroid_bytes": 155648,
+          "resident_bytes": 163840,
+          "resident_bytes_per_vector": 12.092,
+          "resident_share_of_index": 0.01953,
+          "partial_page_waste_bytes": 8183808,
+          "by_probes": {
+            "1": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.3167,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.1873,
+                "worst_at_50": 0.02
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.2167,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.11,
+                "worst_at_50": 0.0
+              },
+              "median_ms": 11.883,
+              "p95_ms": 13.23,
+              "median_shared_blocks": 481,
+              "max_shared_blocks": 581,
+              "median_bytes_read": 3940352,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.001
+            },
+            "2": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.4267,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.2953,
+                "worst_at_50": 0.02
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.3083,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.1767,
+                "worst_at_50": 0.0
+              },
+              "median_ms": 11.825,
+              "p95_ms": 12.758,
+              "median_shared_blocks": 546,
+              "max_shared_blocks": 690,
+              "median_bytes_read": 4472832,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.002
+            },
+            "5": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.67,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.5233,
+                "worst_at_50": 0.08
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.4417,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.32,
+                "worst_at_50": 0.0
+              },
+              "median_ms": 12.359,
+              "p95_ms": 13.166,
+              "median_shared_blocks": 742,
+              "max_shared_blocks": 957,
+              "median_bytes_read": 6078464,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.005
+            },
+            "10": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.7867,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.678,
+                "worst_at_50": 0.2
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.5833,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.5183,
+                "worst_at_50": 0.0
+              },
+              "median_ms": 12.838,
+              "p95_ms": 13.799,
+              "median_shared_blocks": 1085,
+              "max_shared_blocks": 1214,
+              "median_bytes_read": 8888320,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.01
+            },
+            "20": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.8967,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.8093,
+                "worst_at_50": 0.44
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.725,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.65,
+                "worst_at_50": 0.26
+              },
+              "median_ms": 13.151,
+              "p95_ms": 13.917,
+              "median_shared_blocks": 1224,
+              "max_shared_blocks": 1224,
+              "median_bytes_read": 10027008,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.02
+            },
+            "50": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.96,
+                "worst_at_10": 0.7,
+                "recall_at_50": 0.9033,
+                "worst_at_50": 0.58
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.8417,
+                "worst_at_10": 0.3,
+                "recall_at_50": 0.7667,
+                "worst_at_50": 0.44
+              },
+              "median_ms": 13.29,
+              "p95_ms": 13.944,
+              "median_shared_blocks": 1254,
+              "max_shared_blocks": 1255,
+              "median_bytes_read": 10272768,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.05
+            },
+            "100": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.97,
+                "worst_at_10": 0.7,
+                "recall_at_50": 0.9227,
+                "worst_at_50": 0.62
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.875,
+                "worst_at_10": 0.3,
+                "recall_at_50": 0.8067,
+                "worst_at_50": 0.46
+              },
+              "median_ms": 13.545,
+              "p95_ms": 14.53,
+              "median_shared_blocks": 1304,
+              "max_shared_blocks": 1307,
+              "median_bytes_read": 10682368,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.1
+            },
+            "1000": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9833,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9313,
+                "worst_at_50": 0.66
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9083,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.82,
+                "worst_at_50": 0.38
+              },
+              "median_ms": 15.406,
+              "p95_ms": 16.556,
+              "median_shared_blocks": 2207,
+              "max_shared_blocks": 2208,
+              "median_bytes_read": 18079744,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 1.0
+            }
+          }
+        },
+        "3000": {
+          "index_bytes": 25034752,
+          "bytes_per_vector": 1847.7,
+          "build_ms": 2329,
+          "build_vectors_per_second": 5817.6,
+          "centroid_bytes": 450560,
+          "resident_bytes": 458752,
+          "resident_bytes_per_vector": 33.859,
+          "resident_share_of_index": 0.01832,
+          "partial_page_waste_bytes": 24567808,
+          "by_probes": {
+            "1": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.2467,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.0887,
+                "worst_at_50": 0.0
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.125,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.0683,
+                "worst_at_50": 0.0
+              },
+              "median_ms": 12.038,
+              "p95_ms": 12.995,
+              "median_shared_blocks": 465,
+              "max_shared_blocks": 497,
+              "median_bytes_read": 3809280,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0003
+            },
+            "2": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.36,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.1587,
+                "worst_at_50": 0.0
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.2583,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.135,
+                "worst_at_50": 0.0
+              },
+              "median_ms": 12.041,
+              "p95_ms": 12.933,
+              "median_shared_blocks": 490,
+              "max_shared_blocks": 550,
+              "median_bytes_read": 4014080,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0007
+            },
+            "5": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.5667,
+                "worst_at_10": 0.1,
+                "recall_at_50": 0.3227,
+                "worst_at_50": 0.06
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.3917,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.24,
+                "worst_at_50": 0.0
+              },
+              "median_ms": 12.044,
+              "p95_ms": 13.034,
+              "median_shared_blocks": 573,
+              "max_shared_blocks": 669,
+              "median_bytes_read": 4694016,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0017
+            },
+            "10": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.71,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.5007,
+                "worst_at_50": 0.24
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.4917,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.3317,
+                "worst_at_50": 0.02
+              },
+              "median_ms": 12.375,
+              "p95_ms": 13.471,
+              "median_shared_blocks": 710,
+              "max_shared_blocks": 858,
+              "median_bytes_read": 5816320,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0033
+            },
+            "20": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.8433,
+                "worst_at_10": 0.3,
+                "recall_at_50": 0.6907,
+                "worst_at_50": 0.46
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.5917,
+                "worst_at_10": 0.0,
+                "recall_at_50": 0.4917,
+                "worst_at_50": 0.1
+              },
+              "median_ms": 12.778,
+              "p95_ms": 13.65,
+              "median_shared_blocks": 970,
+              "max_shared_blocks": 1257,
+              "median_bytes_read": 7946240,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0067
+            },
+            "50": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9433,
+                "worst_at_10": 0.6,
+                "recall_at_50": 0.8573,
+                "worst_at_50": 0.48
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.7917,
+                "worst_at_10": 0.2,
+                "recall_at_50": 0.6933,
+                "worst_at_50": 0.16
+              },
+              "median_ms": 13.356,
+              "p95_ms": 14.468,
+              "median_shared_blocks": 1290,
+              "max_shared_blocks": 1290,
+              "median_bytes_read": 10567680,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0167
+            },
+            "100": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9733,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9093,
+                "worst_at_50": 0.58
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.8583,
+                "worst_at_10": 0.3,
+                "recall_at_50": 0.7633,
+                "worst_at_50": 0.3
+              },
+              "median_ms": 13.455,
+              "p95_ms": 14.198,
+              "median_shared_blocks": 1340,
+              "max_shared_blocks": 1340,
+              "median_bytes_read": 10977280,
+              "used_index": true,
+              "planner_prefers_index": true,
+              "fraction_of_lists_probed": 0.0333
+            },
+            "3000": {
+              "headline": {
+                "questions": 30,
+                "recall_at_10": 0.9833,
+                "worst_at_10": 0.8,
+                "recall_at_50": 0.9307,
+                "worst_at_50": 0.64
+              },
+              "unanswerable": {
+                "questions": 12,
+                "recall_at_10": 0.9083,
+                "worst_at_10": 0.5,
+                "recall_at_50": 0.8217,
+                "worst_at_50": 0.38
+              },
+              "median_ms": 16.821,
+              "p95_ms": 17.899,
+              "median_shared_blocks": 4240,
+              "max_shared_blocks": 4240,
+              "median_bytes_read": 34734080,
+              "used_index": true,
+              "planner_prefers_index": false,
+              "fraction_of_lists_probed": 1.0
+            }
+          }
+        }
+      }
+    }
+  },
+  "crossing": {
+    "fp32": {
+      "hnsw_recall_at_10_at_ef_100": 0.9667,
+      "hnsw_median_shared_blocks_at_ef_100": 1114,
+      "ivfflat_first_probes_reaching_it": {
+        "10": {
+          "probes": 2,
+          "fraction_of_lists_probed": 0.2,
+          "recall_at_10": 0.9667,
+          "worst_at_10": 0.7,
+          "median_shared_blocks": 2054,
+          "blocks_against_hnsw": 1.84,
+          "resident_bytes": 90112,
+          "resident_against_hnsw": 0.00081
+        },
+        "30": {
+          "probes": 5,
+          "fraction_of_lists_probed": 0.1667,
+          "recall_at_10": 0.98,
+          "worst_at_10": 0.8,
+          "median_shared_blocks": 1970,
+          "blocks_against_hnsw": 1.77,
+          "resident_bytes": 253952,
+          "resident_against_hnsw": 0.00229
+        },
+        "100": {
+          "probes": 10,
+          "fraction_of_lists_probed": 0.1,
+          "recall_at_10": 0.9667,
+          "worst_at_10": 0.5,
+          "median_shared_blocks": 1522,
+          "blocks_against_hnsw": 1.37,
+          "resident_bytes": 827392,
+          "resident_against_hnsw": 0.00746
+        },
+        "300": {
+          "probes": 20,
+          "fraction_of_lists_probed": 0.0667,
+          "recall_at_10": 0.9767,
+          "worst_at_10": 0.8,
+          "median_shared_blocks": 1456,
+          "blocks_against_hnsw": 1.31,
+          "resident_bytes": 2465792,
+          "resident_against_hnsw": 0.02223
+        },
+        "1000": {
+          "probes": 50,
+          "fraction_of_lists_probed": 0.05,
+          "recall_at_10": 0.9833,
+          "worst_at_10": 0.8,
+          "median_shared_blocks": 1944,
+          "blocks_against_hnsw": 1.75,
+          "resident_bytes": 8200192,
+          "resident_against_hnsw": 0.07391
+        },
+        "3000": {
+          "probes": 50,
+          "fraction_of_lists_probed": 0.0167,
+          "recall_at_10": 0.9733,
+          "worst_at_10": 0.8,
+          "median_shared_blocks": 3485,
+          "blocks_against_hnsw": 3.13,
+          "resident_bytes": 24584192,
+          "resident_against_hnsw": 0.22159
+        }
+      }
+    },
+    "fp16": {
+      "hnsw_recall_at_10_at_ef_100": 0.96,
+      "hnsw_median_shared_blocks_at_ef_100": 1200,
+      "ivfflat_first_probes_reaching_it": {
+        "10": {
+          "probes": 5,
+          "fraction_of_lists_probed": 0.5,
+          "recall_at_10": 1.0,
+          "worst_at_10": 1.0,
+          "median_shared_blocks": 2530,
+          "blocks_against_hnsw": 2.11,
+          "resident_bytes": 40960,
+          "resident_against_hnsw": 0.00111
+        },
+        "30": {
+          "probes": 5,
+          "fraction_of_lists_probed": 0.1667,
+          "recall_at_10": 0.98,
+          "worst_at_10": 0.8,
+          "median_shared_blocks": 821,
+          "blocks_against_hnsw": 0.68,
+          "resident_bytes": 90112,
+          "resident_against_hnsw": 0.00244
+        },
+        "100": {
+          "probes": 10,
+          "fraction_of_lists_probed": 0.1,
+          "recall_at_10": 0.9667,
+          "worst_at_10": 0.7,
+          "median_shared_blocks": 700,
+          "blocks_against_hnsw": 0.58,
+          "resident_bytes": 286720,
+          "resident_against_hnsw": 0.00775
+        },
+        "300": {
+          "probes": 20,
+          "fraction_of_lists_probed": 0.0667,
+          "recall_at_10": 0.9767,
+          "worst_at_10": 0.8,
+          "median_shared_blocks": 595,
+          "blocks_against_hnsw": 0.5,
+          "resident_bytes": 827392,
+          "resident_against_hnsw": 0.02237
+        },
+        "1000": {
+          "probes": 50,
+          "fraction_of_lists_probed": 0.05,
+          "recall_at_10": 0.9833,
+          "worst_at_10": 0.8,
+          "median_shared_blocks": 802,
+          "blocks_against_hnsw": 0.67,
+          "resident_bytes": 2744320,
+          "resident_against_hnsw": 0.0742
+        },
+        "3000": {
+          "probes": 50,
+          "fraction_of_lists_probed": 0.0167,
+          "recall_at_10": 0.98,
+          "worst_at_10": 0.8,
+          "median_shared_blocks": 1314,
+          "blocks_against_hnsw": 1.09,
+          "resident_bytes": 8200192,
+          "resident_against_hnsw": 0.22171
+        }
+      }
+    },
+    "bit": {
+      "hnsw_recall_at_10_at_ef_100": 0.9533,
+      "hnsw_median_shared_blocks_at_ef_100": 1972,
+      "ivfflat_first_probes_reaching_it": {
+        "10": {
+          "probes": 5,
+          "fraction_of_lists_probed": 0.5,
+          "recall_at_10": 0.98,
+          "worst_at_10": 0.8,
+          "median_shared_blocks": 1305,
+          "blocks_against_hnsw": 0.66,
+          "resident_bytes": 16384,
+          "resident_against_hnsw": 0.00278
+        },
+        "30": {
+          "probes": 5,
+          "fraction_of_lists_probed": 0.1667,
+          "recall_at_10": 0.96,
+          "worst_at_10": 0.6,
+          "median_shared_blocks": 1226,
+          "blocks_against_hnsw": 0.62,
+          "resident_bytes": 16384,
+          "resident_against_hnsw": 0.00278
+        },
+        "100": {
+          "probes": 20,
+          "fraction_of_lists_probed": 0.2,
+          "recall_at_10": 0.97,
+          "worst_at_10": 0.6,
+          "median_shared_blocks": 1246,
+          "blocks_against_hnsw": 0.63,
+          "resident_bytes": 24576,
+          "resident_against_hnsw": 0.00417
+        },
+        "300": {
+          "probes": 20,
+          "fraction_of_lists_probed": 0.0667,
+          "recall_at_10": 0.9567,
+          "worst_at_10": 0.6,
+          "median_shared_blocks": 1216,
+          "blocks_against_hnsw": 0.62,
+          "resident_bytes": 57344,
+          "resident_against_hnsw": 0.00972
+        },
+        "1000": {
+          "probes": 50,
+          "fraction_of_lists_probed": 0.05,
+          "recall_at_10": 0.96,
+          "worst_at_10": 0.7,
+          "median_shared_blocks": 1254,
+          "blocks_against_hnsw": 0.64,
+          "resident_bytes": 163840,
+          "resident_against_hnsw": 0.02778
+        },
+        "3000": {
+          "probes": 100,
+          "fraction_of_lists_probed": 0.0333,
+          "recall_at_10": 0.9733,
+          "worst_at_10": 0.8,
+          "median_shared_blocks": 1340,
+          "blocks_against_hnsw": 0.68,
+          "resident_bytes": 458752,
+          "resident_against_hnsw": 0.07778
+        }
+      }
+    }
+  },
+  "projection": {
+    "fp32": {
+      "packed_bytes_per_vector_in_ivfflat": 8192.0,
+      "measured_at_lists": 100,
+      "why_this_lists": "The fraction is read at lists = 100 because that is the sweep's point nearest sqrt(13549) = 116, and the projection applies the same sqrt rule \u2014 so a list here holds ~135 vectors and stands in the same relation to its corpus as the projected ~17,945 do to 322M. The larger-lists rows under `crossing` reach the same recall on a much smaller fraction, down to 1.7% at lists = 3000, and that is not a cheaper option hiding in the data: at lists = 3000 a list holds four vectors, probing fifty of them reads 226 vectors, and nothing about that is structurally comparable to probing lists that hold ten thousand each. The fraction is the transferable quantity only between points where the partitioning is the same shape.",
+      "probes_measured": 10,
+      "fraction_assumed": 0.1,
+      "sizes": {
+        "10000000": {
+          "hnsw_resident_gib": 76.3,
+          "hnsw_random_read_ms_per_query_if_not_resident": 89.1,
+          "ivfflat": {
+            "sqrt(rows)": {
+              "lists_wanted": 3162,
+              "lists_used": 3162,
+              "capped_by_pgvector": false,
+              "resident_centroid_bytes": 25903104,
+              "resident_centroid_gib": 0.0241,
+              "vectors_per_list": 3163,
+              "bytes_per_list": 25907653,
+              "fraction_of_corpus_read": 0.1,
+              "probes_implied": 317,
+              "build_sample_bytes": 1295155200,
+              "bytes_read_per_query": 8212726123,
+              "gib_read_per_query": 7.649,
+              "sequential_read_ms_per_query": 4106.4
+            },
+            "rows/1000": {
+              "lists_wanted": 10000,
+              "lists_used": 10000,
+              "capped_by_pgvector": false,
+              "resident_centroid_bytes": 81920000,
+              "resident_centroid_gib": 0.0763,
+              "vectors_per_list": 1000,
+              "bytes_per_list": 8192000,
+              "fraction_of_corpus_read": 0.1,
+              "probes_implied": 1000,
+              "build_sample_bytes": 4096000000,
+              "bytes_read_per_query": 8192000000,
+              "gib_read_per_query": 7.629,
+              "sequential_read_ms_per_query": 4096.0
+            }
+          }
+        },
+        "100000000": {
+          "hnsw_resident_gib": 762.6,
+          "hnsw_random_read_ms_per_query_if_not_resident": 89.1,
+          "ivfflat": {
+            "sqrt(rows)": {
+              "lists_wanted": 10000,
+              "lists_used": 10000,
+              "capped_by_pgvector": false,
+              "resident_centroid_bytes": 81920000,
+              "resident_centroid_gib": 0.0763,
+              "vectors_per_list": 10000,
+              "bytes_per_list": 81920000,
+              "fraction_of_corpus_read": 0.1,
+              "probes_implied": 1000,
+              "build_sample_bytes": 4096000000,
+              "bytes_read_per_query": 81920000000,
+              "gib_read_per_query": 76.294,
+              "sequential_read_ms_per_query": 40960.0
+            },
+            "rows/1000": {
+              "lists_wanted": 100000,
+              "lists_used": 32768,
+              "capped_by_pgvector": true,
+              "resident_centroid_bytes": 268435456,
+              "resident_centroid_gib": 0.25,
+              "vectors_per_list": 3052,
+              "bytes_per_list": 25000000,
+              "fraction_of_corpus_read": 0.1,
+              "probes_implied": 3277,
+              "build_sample_bytes": 13421772800,
+              "bytes_read_per_query": 81925000000,
+              "gib_read_per_query": 76.299,
+              "sequential_read_ms_per_query": 40962.5
+            }
+          }
+        },
+        "322000000": {
+          "hnsw_resident_gib": 2455.6,
+          "hnsw_random_read_ms_per_query_if_not_resident": 89.1,
+          "ivfflat": {
+            "sqrt(rows)": {
+              "lists_wanted": 17944,
+              "lists_used": 17944,
+              "capped_by_pgvector": false,
+              "resident_centroid_bytes": 146997248,
+              "resident_centroid_gib": 0.1369,
+              "vectors_per_list": 17945,
+              "bytes_per_list": 147003121,
+              "fraction_of_corpus_read": 0.1,
+              "probes_implied": 1795,
+              "build_sample_bytes": 7349862400,
+              "bytes_read_per_query": 263870601872,
+              "gib_read_per_query": 245.749,
+              "sequential_read_ms_per_query": 131935.3
+            },
+            "rows/1000": {
+              "lists_wanted": 322000,
+              "lists_used": 32768,
+              "capped_by_pgvector": true,
+              "resident_centroid_bytes": 268435456,
+              "resident_centroid_gib": 0.25,
+              "vectors_per_list": 9827,
+              "bytes_per_list": 80500000,
+              "fraction_of_corpus_read": 0.1,
+              "probes_implied": 3277,
+              "build_sample_bytes": 13421772800,
+              "bytes_read_per_query": 263798500000,
+              "gib_read_per_query": 245.681,
+              "sequential_read_ms_per_query": 131899.2
+            }
+          }
+        },
+        "1000000000": {
+          "hnsw_resident_gib": 7626.0,
+          "hnsw_random_read_ms_per_query_if_not_resident": 89.1,
+          "ivfflat": {
+            "sqrt(rows)": {
+              "lists_wanted": 31623,
+              "lists_used": 31623,
+              "capped_by_pgvector": false,
+              "resident_centroid_bytes": 259055616,
+              "resident_centroid_gib": 0.2413,
+              "vectors_per_list": 31623,
+              "bytes_per_list": 259051956,
+              "fraction_of_corpus_read": 0.1,
+              "probes_implied": 3163,
+              "build_sample_bytes": 12952780800,
+              "bytes_read_per_query": 819381336369,
+              "gib_read_per_query": 763.108,
+              "sequential_read_ms_per_query": 409690.7
+            },
+            "rows/1000": {
+              "lists_wanted": 1000000,
+              "lists_used": 32768,
+              "capped_by_pgvector": true,
+              "resident_centroid_bytes": 268435456,
+              "resident_centroid_gib": 0.25,
+              "vectors_per_list": 30518,
+              "bytes_per_list": 250000000,
+              "fraction_of_corpus_read": 0.1,
+              "probes_implied": 3277,
+              "build_sample_bytes": 13421772800,
+              "bytes_read_per_query": 819250000000,
+              "gib_read_per_query": 762.986,
+              "sequential_read_ms_per_query": 409625.0
+            }
+          }
+        }
+      }
+    },
+    "fp16": {
+      "packed_bytes_per_vector_in_ivfflat": 2731.7,
+      "measured_at_lists": 100,
+      "why_this_lists": "The fraction is read at lists = 100 because that is the sweep's point nearest sqrt(13549) = 116, and the projection applies the same sqrt rule \u2014 so a list here holds ~135 vectors and stands in the same relation to its corpus as the projected ~17,945 do to 322M. The larger-lists rows under `crossing` reach the same recall on a much smaller fraction, down to 1.7% at lists = 3000, and that is not a cheaper option hiding in the data: at lists = 3000 a list holds four vectors, probing fifty of them reads 226 vectors, and nothing about that is structurally comparable to probing lists that hold ten thousand each. The fraction is the transferable quantity only between points where the partitioning is the same shape.",
+      "probes_measured": 10,
+      "fraction_assumed": 0.1,
+      "sizes": {
+        "10000000": {
+          "hnsw_resident_gib": 25.4,
+          "hnsw_random_read_ms_per_query_if_not_resident": 96.0,
+          "ivfflat": {
+            "sqrt(rows)": {
+              "lists_wanted": 3162,
+              "lists_used": 3162,
+              "capped_by_pgvector": false,
+              "resident_centroid_bytes": 8634368,
+              "resident_centroid_gib": 0.008,
+              "vectors_per_list": 3163,
+              "bytes_per_list": 8639071,
+              "fraction_of_corpus_read": 0.1,
+              "probes_implied": 317,
+              "build_sample_bytes": 431877717,
+              "bytes_read_per_query": 2738585624,
+              "gib_read_per_query": 2.551,
+              "sequential_read_ms_per_query": 1369.3
+            },
+            "rows/1000": {
+              "lists_wanted": 10000,
+              "lists_used": 10000,
+              "capped_by_pgvector": false,
+              "resident_centroid_bytes": 27312128,
+              "resident_centroid_gib": 0.0254,
+              "vectors_per_list": 1000,
+              "bytes_per_list": 2731674,
+              "fraction_of_corpus_read": 0.1,
+              "probes_implied": 1000,
+              "build_sample_bytes": 1365837184,
+              "bytes_read_per_query": 2731674367,
+              "gib_read_per_query": 2.544,
+              "sequential_read_ms_per_query": 1365.8
+            }
+          }
+        },
+        "100000000": {
+          "hnsw_resident_gib": 254.2,
+          "hnsw_random_read_ms_per_query_if_not_resident": 96.0,
+          "ivfflat": {
+            "sqrt(rows)": {
+              "lists_wanted": 10000,
+              "lists_used": 10000,
+              "capped_by_pgvector": false,
+              "resident_centroid_bytes": 27312128,
+              "resident_centroid_gib": 0.0254,
+              "vectors_per_list": 10000,
+              "bytes_per_list": 27316744,
+              "fraction_of_corpus_read": 0.1,
+              "probes_implied": 1000,
+              "build_sample_bytes": 1365837184,
+              "bytes_read_per_query": 27316743671,
+              "gib_read_per_query": 25.441,
+              "sequential_read_ms_per_query": 13658.4
+            },
+            "rows/1000": {
+              "lists_wanted": 100000,
+              "lists_used": 32768,
+              "capped_by_pgvector": true,
+              "resident_centroid_bytes": 89481216,
+              "resident_centroid_gib": 0.0833,
+              "vectors_per_list": 3052,
+              "bytes_per_list": 8336409,
+              "fraction_of_corpus_read": 0.1,
+              "probes_implied": 3277,
+              "build_sample_bytes": 4475575283,
+              "bytes_read_per_query": 27318410953,
+              "gib_read_per_query": 25.442,
+              "sequential_read_ms_per_query": 13659.2
+            }
+          }
+        },
+        "322000000": {
+          "hnsw_resident_gib": 818.7,
+          "hnsw_random_read_ms_per_query_if_not_resident": 96.0,
+          "ivfflat": {
+            "sqrt(rows)": {
+              "lists_wanted": 17944,
+              "lists_used": 17944,
+              "capped_by_pgvector": false,
+              "resident_centroid_bytes": 49004544,
+              "resident_centroid_gib": 0.0456,
+              "vectors_per_list": 17945,
+              "bytes_per_list": 49019123,
+              "fraction_of_corpus_read": 0.1,
+              "probes_implied": 1795,
+              "build_sample_bytes": 2450858242,
+              "bytes_read_per_query": 87989326095,
+              "gib_read_per_query": 81.946,
+              "sequential_read_ms_per_query": 43994.7
+            },
+            "rows/1000": {
+              "lists_wanted": 322000,
+              "lists_used": 32768,
+              "capped_by_pgvector": true,
+              "resident_centroid_bytes": 89481216,
+              "resident_centroid_gib": 0.0833,
+              "vectors_per_list": 9827,
+              "bytes_per_list": 26843236,
+              "fraction_of_corpus_read": 0.1,
+              "probes_implied": 3277,
+              "build_sample_bytes": 4475575283,
+              "bytes_read_per_query": 87965283268,
+              "gib_read_per_query": 81.924,
+              "sequential_read_ms_per_query": 43982.6
+            }
+          }
+        },
+        "1000000000": {
+          "hnsw_resident_gib": 2542.4,
+          "hnsw_random_read_ms_per_query_if_not_resident": 96.0,
+          "ivfflat": {
+            "sqrt(rows)": {
+              "lists_wanted": 31623,
+              "lists_used": 31623,
+              "capped_by_pgvector": false,
+              "resident_centroid_bytes": 86351872,
+              "resident_centroid_gib": 0.0804,
+              "vectors_per_list": 31623,
+              "bytes_per_list": 86382518,
+              "fraction_of_corpus_read": 0.1,
+              "probes_implied": 3163,
+              "build_sample_bytes": 4319186926,
+              "bytes_read_per_query": 273227904474,
+              "gib_read_per_query": 254.463,
+              "sequential_read_ms_per_query": 136614.0
+            },
+            "rows/1000": {
+              "lists_wanted": 1000000,
+              "lists_used": 32768,
+              "capped_by_pgvector": true,
+              "resident_centroid_bytes": 89481216,
+              "resident_centroid_gib": 0.0833,
+              "vectors_per_list": 30518,
+              "bytes_per_list": 83364086,
+              "fraction_of_corpus_read": 0.1,
+              "probes_implied": 3277,
+              "build_sample_bytes": 4475575283,
+              "bytes_read_per_query": 273184109528,
+              "gib_read_per_query": 254.423,
+              "sequential_read_ms_per_query": 136592.1
+            }
+          }
+        }
+      }
+    },
+    "bit": {
+      "packed_bytes_per_vector_in_ivfflat": 151.8,
+      "measured_at_lists": 100,
+      "why_this_lists": "The fraction is read at lists = 100 because that is the sweep's point nearest sqrt(13549) = 116, and the projection applies the same sqrt rule \u2014 so a list here holds ~135 vectors and stands in the same relation to its corpus as the projected ~17,945 do to 322M. The larger-lists rows under `crossing` reach the same recall on a much smaller fraction, down to 1.7% at lists = 3000, and that is not a cheaper option hiding in the data: at lists = 3000 a list holds four vectors, probing fifty of them reads 226 vectors, and nothing about that is structurally comparable to probing lists that hold ten thousand each. The fraction is the transferable quantity only between points where the partitioning is the same shape.",
+      "probes_measured": 20,
+      "fraction_assumed": 0.2,
+      "sizes": {
+        "10000000": {
+          "hnsw_resident_gib": 4.1,
+          "hnsw_random_read_ms_per_query_if_not_resident": 157.8,
+          "ivfflat": {
+            "sqrt(rows)": {
+              "lists_wanted": 3162,
+              "lists_used": 3162,
+              "capped_by_pgvector": false,
+              "resident_centroid_bytes": 475136,
+              "resident_centroid_gib": 0.0004,
+              "vectors_per_list": 3163,
+              "bytes_per_list": 479948,
+              "fraction_of_corpus_read": 0.2,
+              "probes_implied": 633,
+              "build_sample_bytes": 23993207,
+              "bytes_read_per_query": 303807343,
+              "gib_read_per_query": 0.283,
+              "sequential_read_ms_per_query": 151.9
+            },
+            "rows/1000": {
+              "lists_wanted": 10000,
+              "lists_used": 10000,
+              "capped_by_pgvector": false,
+              "resident_centroid_bytes": 1490944,
+              "resident_centroid_gib": 0.0014,
+              "vectors_per_list": 1000,
+              "bytes_per_list": 151760,
+              "fraction_of_corpus_read": 0.2,
+              "probes_implied": 2000,
+              "build_sample_bytes": 75879844,
+              "bytes_read_per_query": 303519374,
+              "gib_read_per_query": 0.283,
+              "sequential_read_ms_per_query": 151.8
+            }
+          }
+        },
+        "100000000": {
+          "hnsw_resident_gib": 40.5,
+          "hnsw_random_read_ms_per_query_if_not_resident": 157.8,
+          "ivfflat": {
+            "sqrt(rows)": {
+              "lists_wanted": 10000,
+              "lists_used": 10000,
+              "capped_by_pgvector": false,
+              "resident_centroid_bytes": 1490944,
+              "resident_centroid_gib": 0.0014,
+              "vectors_per_list": 10000,
+              "bytes_per_list": 1517597,
+              "fraction_of_corpus_read": 0.2,
+              "probes_implied": 2000,
+              "build_sample_bytes": 75879844,
+              "bytes_read_per_query": 3035193741,
+              "gib_read_per_query": 2.827,
+              "sequential_read_ms_per_query": 1517.6
+            },
+            "rows/1000": {
+              "lists_wanted": 100000,
+              "lists_used": 32768,
+              "capped_by_pgvector": true,
+              "resident_centroid_bytes": 4882432,
+              "resident_centroid_gib": 0.0045,
+              "vectors_per_list": 3052,
+              "bytes_per_list": 463134,
+              "fraction_of_corpus_read": 0.2,
+              "probes_implied": 6554,
+              "build_sample_bytes": 248643071,
+              "bytes_read_per_query": 3035378995,
+              "gib_read_per_query": 2.827,
+              "sequential_read_ms_per_query": 1517.7
+            }
+          }
+        },
+        "322000000": {
+          "hnsw_resident_gib": 130.5,
+          "hnsw_random_read_ms_per_query_if_not_resident": 157.8,
+          "ivfflat": {
+            "sqrt(rows)": {
+              "lists_wanted": 17944,
+              "lists_used": 17944,
+              "capped_by_pgvector": false,
+              "resident_centroid_bytes": 2678784,
+              "resident_centroid_gib": 0.0025,
+              "vectors_per_list": 17945,
+              "bytes_per_list": 2723285,
+              "fraction_of_corpus_read": 0.2,
+              "probes_implied": 3589,
+              "build_sample_bytes": 136158791,
+              "bytes_read_per_query": 9773868504,
+              "gib_read_per_query": 9.103,
+              "sequential_read_ms_per_query": 4886.9
+            },
+            "rows/1000": {
+              "lists_wanted": 322000,
+              "lists_used": 32768,
+              "capped_by_pgvector": true,
+              "resident_centroid_bytes": 4882432,
+              "resident_centroid_gib": 0.0045,
+              "vectors_per_list": 9827,
+              "bytes_per_list": 1491291,
+              "fraction_of_corpus_read": 0.2,
+              "probes_implied": 6554,
+              "build_sample_bytes": 248643071,
+              "bytes_read_per_query": 9773920363,
+              "gib_read_per_query": 9.103,
+              "sequential_read_ms_per_query": 4887.0
+            }
+          }
+        },
+        "1000000000": {
+          "hnsw_resident_gib": 405.4,
+          "hnsw_random_read_ms_per_query_if_not_resident": 157.8,
+          "ivfflat": {
+            "sqrt(rows)": {
+              "lists_wanted": 31623,
+              "lists_used": 31623,
+              "capped_by_pgvector": false,
+              "resident_centroid_bytes": 4710400,
+              "resident_centroid_gib": 0.0044,
+              "vectors_per_list": 31623,
+              "bytes_per_list": 4799029,
+              "fraction_of_corpus_read": 0.2,
+              "probes_implied": 6325,
+              "build_sample_bytes": 239954829,
+              "bytes_read_per_query": 30353857024,
+              "gib_read_per_query": 28.269,
+              "sequential_read_ms_per_query": 15176.9
+            },
+            "rows/1000": {
+              "lists_wanted": 1000000,
+              "lists_used": 32768,
+              "capped_by_pgvector": true,
+              "resident_centroid_bytes": 4882432,
+              "resident_centroid_gib": 0.0045,
+              "vectors_per_list": 30518,
+              "bytes_per_list": 4631338,
+              "fraction_of_corpus_read": 0.2,
+              "probes_implied": 6554,
+              "build_sample_bytes": 248643071,
+              "bytes_read_per_query": 30353789948,
+              "gib_read_per_query": 28.269,
+              "sequential_read_ms_per_query": 15176.9
+            }
+          }
+        }
+      }
+    }
+  },
+  "caveats": [
+    "Latency is indicative only. 128 MB of shared_buffers, 7.75 GB for the whole Docker VM, two other measurement agents competing for CPU, and a corpus small enough \u2014 see corpus.scratch_table_total_bytes \u2014 that a sequential scan is a respectable plan. Recall, index size and resident footprint are the report.",
+    "`median_shared_blocks` counts pages the executor touched, hit or read, not pages it fetched from disk. On this machine almost everything is a hit. It is a measure of the working set, which is the question, not of I/O.",
+    "The scratch table carries no RLS policy and no join to `chunks`, so `hnsw.iterative_scan` \u2014 which exists in the product precisely because RLS discards HNSW neighbours after the walk \u2014 is off here and irrelevant. A latency from this report is not comparable to `latency.json`. Whether iterative scan has an IVF equivalent, and what RLS costs an IVF probe, is unmeasured and is the first thing anyone taking this route must measure.",
+    "`lists` is a build-time parameter. Changing it is a full rebuild, and the build is k-means \u2014 the build-time and build_wall columns here are the whole of what is known about that, and they are measured at 13,549 vectors. pgvector holds a sample of ~50 vectors per list in maintenance_work_mem and refuses rather than spilling, so an unbuildable `lists` appears as `build_wall` with the memory it asked for rather than as a missing row.",
+    "Every measured point ran with `enable_seqscan = off`. At this corpus size the planner correctly prefers a scan for several of these settings, and left alone it would have reported recall 1.0000 for an index it never opened. `planner_prefers_index` records what it would have chosen; `used_index` records that the forced plan was the index. Both are per point.",
+    "IVF recall at 13,549 vectors says little about IVF recall at 322M. Cluster quality depends on how well k-means separates the space, and the space is denser at scale. Unlike `quantisation.py` this sweep does not fit a trend across subset sizes, so it cannot extrapolate recall at all: every recall number here is a measurement at this corpus size and nothing more.",
+    "The IVF build is k-means and k-means is seeded randomly, so two runs of this sweep produce two different partitionings. Across repeated runs the recall at a given (lists, probes) moved by up to two points and the first probe count reaching HNSW's recall moved by one step of the probe ladder. Read `crossing` as the shape of a boundary, not as a threshold: the trend across lists is stable, an individual cell is not.",
+    "The `bit` arm's latency is not the index's. Its rescore looks the shortlist up by `chunk_id = ANY(...)` on a scratch table that carries no index on chunk_id, so every rescored query pays a full pass over the copy \u2014 which is why every bit row reads ~10 ms while its block counts are among the lowest here. The block counts are the comparable figure for that arm; the milliseconds are not. It is left unindexed so the arm matches `quantisation.py`'s rescore exactly.",
+    "The `bit` arm is rescored against fp32 in the heap at a single width. Its index is tiny and its resident footprint is the smallest of anything measured, but the rescore reads fp32 vectors that no quantisation shrank. `quantisation.json` holds the width sweep behind that trade."
+  ]
+}

@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://zenith_app:change-me@localhost:5432/zenith"
     # Schema owner, bypasses RLS. Migrations and the install CLI only.
     database_owner_url: str = "postgresql+psycopg://zenith:zenith@localhost:5432/zenith"
+    # Bypasses RLS, holds no DDL. The system administration panel only — the one bypass
+    # that is reachable over HTTP, which is why it is a role of its own rather than the
+    # owner: it can destroy a tenant's data, and it cannot destroy the schema.
+    database_platform_url: str = (
+        "postgresql+psycopg://zenith_platform:change-me@localhost:5432/zenith"
+    )
     tei_embed_url: str = "http://localhost:8081"
     tei_rerank_url: str = "http://localhost:8082"
 
@@ -103,6 +109,73 @@ class Settings(BaseSettings):
     api_pool_size: int = 10
     worker_pool_size: int = 5
     statement_timeout_ms: int = 10_000
+
+    # `tsvector` | `bm25`. Which implementation the lexical half of retrieval uses.
+    #
+    # A setting rather than a straight replacement, and only until the BM25 path has been
+    # exercised on real corpora: `ts_rank_cd` is what every recall figure in `eval/` was
+    # measured against, and reverting a retrieval change on a customer installation has to
+    # be a restart rather than a redeploy. Migration 0022 keeps the GIN index for the same
+    # reason — dropping it would make the rollback a reindex.
+    #
+    # Not validated here for the reason `hardware` is not: importing the module that reads
+    # it would be a cycle. `verify_lexical_engine()` runs at startup.
+    lexical_engine: str = "tsvector"
+
+    # How many hash buckets migration 0026 cuts `chunks` and `chunk_embeddings` into.
+    #
+    # **The right value is a property of the installation, not of this repository**, and
+    # `docs/partitioning-modulus.md` gives the operator the rule that decides it:
+    #
+    #     P >= (1 - s) / (epsilon * s)
+    #
+    # holds a tenant owning share `s` of the corpus to `epsilon` extra rows, because a
+    # tenant's query reaches `s + (1 - s) / P` of the corpus and there is no tenant-count
+    # term — every other tenant lands in its bucket with probability `1 / P` whatever its
+    # size. `eval/modulus-cost.json` evaluates that formula beside forty draws per cell over
+    # eight tenant counts and four size distributions, and it agrees to within 3%.
+    #
+    # 128 is the default because it covers the wide case rather than because it is optimal
+    # for any particular one: a 200-tenant Zipf-1.0 population puts its largest tenant at
+    # `s = 0.17`, and the rule then asks for 128 at 5%. This installation's own measured
+    # datum is the opposite end — the larger of two tenants holds 0.6106 of the corpus
+    # (`eval/partition-shape.json`), and the rule asks for 16. `zenith diagnose` reads the
+    # live statistics and says which.
+    #
+    # Read *only* by migration 0026, at the moment it partitions. After that the modulus is
+    # a property of the installed schema and every reader that needs it — the diagnostic,
+    # the guard tests — counts partitions instead of trusting this. Changing it on an
+    # installation that has already run 0026 changes nothing until 0026 is run again.
+    #
+    # Larger is not safer. Planning triples per doubling of the modulus against a benefit
+    # that halves, and at 1024 `modulus-cost.json` records the OOM killer taking the cluster
+    # into crash recovery while planning a single statement. The floor is checked below; the
+    # ceiling is a property of the machine and is left to `_require_lock_table` in 0026 and
+    # to the `partition modulus` check in `zenith diagnose`.
+    partition_modulus: int = 128
+
+    @field_validator("partition_modulus")
+    @classmethod
+    def modulus_must_be_a_usable_bucket_count(cls, value: int) -> int:
+        """Postgres's own floor, enforced before a migration spends an hour finding it.
+
+        `FOR VALUES WITH (MODULUS m, REMAINDER r)` requires `m > 0`, and 0026 emits every
+        remainder in `range(m)` — so at zero it creates a partitioned parent with no
+        partitions, the backfill fails with "no partition of relation found for row", and
+        the failure arrives after the table rewrite rather than before it.
+
+        No upper bound, deliberately. The measured ceiling is the host's: 1024 took *this*
+        7.75 GB machine into crash recovery, and a number that would be right here would be
+        wrong on the customer hardware this ships to. What travels is the shape of the
+        curve, which is in `docs/partitioning-modulus.md`, and the two runtime checks that
+        read the actual machine.
+        """
+        if value < 1:
+            raise ValueError(
+                f"ZENITH_PARTITION_MODULUS must be at least 1 (got {value}). "
+                "See docs/partitioning-modulus.md for the rule that chooses it."
+            )
+        return value
 
     @field_validator("jwt_secret")
     @classmethod

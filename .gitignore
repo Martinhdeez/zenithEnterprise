@@ -18,7 +18,11 @@ __pycache__/
 .env
 
 # node
-node_modules/
+# No trailing slash. `node_modules/` matches directories only, so a *symlink* named
+# node_modules is not ignored — it gets committed, and merging that commit replaces the
+# real directory on the other side with a link. That has now happened twice, once
+# self-referential, and both times it took the whole install with it.
+node_modules
 dist/
 
 # Playwright MCP scratch output (screenshots, snapshots, console logs)
@@ -37,3 +41,6 @@ backend/.data/
 
 # Claude Code scratch screenshots; the skills/ directory below is real project config.
 .claude/*.png
+
+# Backups hold customer documents and a full database dump. Never in the repository.
+backups/

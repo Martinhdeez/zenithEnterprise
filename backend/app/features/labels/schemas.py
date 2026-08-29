@@ -28,8 +28,32 @@ class LabelResponse(BaseModel):
     id: UUID
     name: str
     is_default: bool
+    #: How much clearance this label demands of anyone reaching it through a group. Zero
+    #: demands none — which is not the same as public: a label mapped to no group and
+    #: granted to no role is still reachable by nobody.
+    priority_level: int = 0
 
     model_config = {"from_attributes": True}
+
+
+class LabelSuggestion(BaseModel):
+    """An excerpt of a document that has not been uploaded yet.
+
+    Text rather than the file: the staging area holds files in the browser until the user
+    confirms, and sending the bytes to get a suggestion would upload everything twice — once
+    to be read, once to be kept.
+    """
+
+    excerpt: str = Field(min_length=1, max_length=8000)
+
+
+class SuggestedLabels(BaseModel):
+    #: Ids from the caller's own reach, or empty. Never a name, and never a new label.
+    label_ids: list[UUID]
+
+
+class LabelClearance(BaseModel):
+    priority_level: int = Field(ge=0, le=10)
 
 
 class LabelSearchItem(BaseModel):

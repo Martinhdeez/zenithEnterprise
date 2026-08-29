@@ -47,7 +47,8 @@ async def log(tenant_id: UUID, user_id: UUID, question: str, citations: int = 0)
             if chunk_id:
                 await session.execute(
                     text(
-                        "INSERT INTO query_citations (query_id, chunk_id, rank) VALUES (:q, :c, 1)"
+                        "INSERT INTO query_citations (query_id, tenant_id, chunk_id, rank) "
+                        "SELECT :q, q.tenant_id, :c, 1 FROM queries q WHERE q.id = :q"
                     ),
                     {"q": query_id, "c": chunk_id},
                 )
@@ -213,3 +214,111 @@ async def test_citations_of_an_unreadable_query_are_unreadable_too(
             text("SELECT chunk_id FROM query_citations WHERE query_id = :q"), {"q": query_id}
         )
         assert rows.all() == []
+
+
+# --- searching and filtering ------------------------------------------------------------
+
+
+async def test_search_matches_a_fragment_of_the_question(account: Account) -> None:
+    """A substring, not a stemmed term. Somebody looking for the question they asked on
+    Tuesday types a piece of it, and `sever` should find "what is my severance?"."""
+    await log(account.tenant_id, account.admin_id, "what is my severance?")
+    await log(account.tenant_id, account.admin_id, "how do I book leave?")
+    reader = HistoryService(profile_with(account, account.admin_id, {ANY}))
+
+    page = await reader.page(search="sever")
+
+    assert [entry.question for entry in page.entries] == ["what is my severance?"]
+
+
+async def test_search_ignores_the_answer(account: Account) -> None:
+    """Matching the answer would surface somebody's question because of words the *model*
+    wrote — a confusing result, and on a shared history a slightly invasive one. Every row
+    `log` writes has the answer 'an answer', so a search for it must find nothing."""
+    await log(account.tenant_id, account.admin_id, "a question about leave")
+    reader = HistoryService(profile_with(account, account.admin_id, {ANY}))
+
+    page = await reader.page(search="an answer")
+
+    assert page.entries == []
+
+
+async def test_a_percent_sign_is_searched_for_rather_than_matched_as_a_wildcard(
+    account: Account,
+) -> None:
+    """`%` and `_` are ordinary characters in a question and wildcards in `ILIKE`.
+    Unescaped, a search for "50%" would match every row."""
+    await log(account.tenant_id, account.admin_id, "is the rate 50% or 20%?")
+    await log(account.tenant_id, account.admin_id, "something else entirely")
+    reader = HistoryService(profile_with(account, account.admin_id, {ANY}))
+
+    page = await reader.page(search="50%")
+
+    assert len(page.entries) == 1
+
+
+async def test_mine_narrows_a_shared_history_to_the_caller(account: Account) -> None:
+    await log(account.tenant_id, account.admin_id, "mine")
+    await log(account.tenant_id, account.member_id, "a colleague's")
+    reader = HistoryService(profile_with(account, account.admin_id, {ANY}))
+
+    everyones = await reader.page()
+    just_mine = await reader.page(mine_only=True)
+
+    assert len(everyones.entries) == 2
+    assert [entry.question for entry in just_mine.entries] == ["mine"]
+
+
+async def test_the_filters_cannot_widen_what_the_policy_narrowed(account: Account) -> None:
+    """`mine=false` is the default and is not a request to see other people. Whether this
+    caller reads anybody else's questions is decided from their permissions and handed to
+    migration 0005's policy — there is no parameter for it, deliberately."""
+    await log(account.tenant_id, account.admin_id, "mine")
+    await log(account.tenant_id, account.member_id, "a colleague's")
+    reader = HistoryService(profile_with(account, account.admin_id, {OWN}))
+
+    page = await reader.page(mine_only=False)
+
+    assert [entry.question for entry in page.entries] == ["mine"]
+
+
+async def test_unanswered_finds_the_questions_the_corpus_could_not_answer(
+    account: Account,
+    labelled_document: UUID,  # `log(citations=...)` needs a document to cite
+) -> None:
+    """What is missing from the corpus, which is the most useful thing this screen can
+    surface. Derived from the citation rows the same way the analytics abstention count is,
+    so the two cannot disagree."""
+    await log(account.tenant_id, account.admin_id, "answered", citations=1)
+    await log(account.tenant_id, account.admin_id, "found nothing")
+    reader = HistoryService(profile_with(account, account.admin_id, {ANY}))
+
+    page = await reader.page(unanswered_only=True)
+
+    assert [entry.question for entry in page.entries] == ["found nothing"]
+
+
+async def test_filters_combine(account: Account) -> None:
+    await log(account.tenant_id, account.admin_id, "my unanswered question")
+    await log(account.tenant_id, account.member_id, "their unanswered question")
+    reader = HistoryService(profile_with(account, account.admin_id, {ANY}))
+
+    page = await reader.page(mine_only=True, unanswered_only=True)
+
+    assert [entry.question for entry in page.entries] == ["my unanswered question"]
+
+
+async def test_a_cursor_still_works_across_a_filtered_page(account: Account) -> None:
+    """No sort is encoded in the cursor, unlike `LabelCursor`, and none needs to be: the
+    ordering is always newest-first, so a cursor means "older than this row" whatever the
+    filters remove."""
+    for index in range(4):
+        await log(account.tenant_id, account.admin_id, f"question {index}")
+    reader = HistoryService(profile_with(account, account.admin_id, {ANY}))
+
+    first = await reader.page(limit=2, search="question")
+    second = await reader.page(limit=2, cursor=first.next_cursor, search="question")
+
+    seen = [entry.question for entry in first.entries + second.entries]
+
+    assert len(set(seen)) == 4

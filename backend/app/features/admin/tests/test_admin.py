@@ -12,15 +12,15 @@ from sqlalchemy import text
 
 from app.common.exceptions import ConflictError, NotFoundError
 from app.core.database import owner_session
-from app.features.auth.roles import RoleService
+from app.features.auth.access.roles import RoleService
 from app.features.auth.service import AccessProfile
-from app.features.generation.config_service import LlmConfigService
+from app.features.generation.connector.config_service import LlmConfigService
 from app.features.tenancy.context import TenantContext
 from conftest import Account
 
 
 def admin(account: Account) -> AccessProfile:
-    from app.features.auth.permissions import CATALOGUE
+    from app.features.auth.access.permissions import CATALOGUE
 
     return AccessProfile(
         user_id=account.admin_id,
@@ -205,55 +205,93 @@ async def test_another_tenant_cannot_read_the_configuration(account: Account) ->
 # --- invitations -------------------------------------------------------------------
 
 
-async def test_an_invited_user_can_sign_in_with_the_returned_password(
+async def test_an_invited_user_sets_their_own_password_from_the_link(
     account: Account,
 ) -> None:
-    """The password is the whole product of this endpoint, so it has to work.
+    """The link is the whole product of this endpoint, so it has to work end to end.
 
-    There is no email server on an on-premise install, so it is returned once and passed on
-    by the administrator — which only helps if it actually authenticates.
+    There is still no email server on an on-premise install, so it is returned once and
+    passed on by the administrator — exactly as a generated password used to be. What
+    changed is that the credential is chosen by the person it belongs to, and never travels.
     """
-    from app.features.auth.invitations import InvitationService
+    from app.features.auth.onboarding.credentials import CredentialTokens
+    from app.features.auth.onboarding.invitations import InvitationService
     from app.features.auth.service import AuthService
 
     service = RoleService(admin(account))
     member = next(role for role in await service.visible() if role.name == "member")
 
     invitation = await InvitationService(admin(account)).invite("new@example.com", [member.id])
-    tokens = await AuthService().authenticate("new@example.com", invitation.password)
+    await CredentialTokens().redeem(invitation.token, "a-password-they-chose")
+    tokens = await AuthService().authenticate("new@example.com", "a-password-they-chose")
 
     assert tokens.access_token
 
 
-async def test_the_password_is_generated_not_predictable(account: Account) -> None:
-    """An administrator inventing passwords for colleagues produces the same one twice."""
-    from app.features.auth.invitations import InvitationService
+async def test_the_link_works_exactly_once(account: Account) -> None:
+    """The property that makes this better than a password in a chat window.
 
-    first = await InvitationService(admin(account)).invite("a@example.com", [])
-    second = await InvitationService(admin(account)).invite("b@example.com", [])
+    A password pasted into a chat is a working credential for as long as the account
+    exists. This is worthless the moment it has been used, so the same paste — in the same
+    chat log, read by the same people later — opens nothing.
+    """
+    from app.features.auth.onboarding.credentials import CredentialTokens
+    from app.features.auth.onboarding.invitations import InvitationService
 
-    assert first.password != second.password
-    assert len(first.password) >= 20
+    invitation = await InvitationService(admin(account)).invite("once@example.com", [])
+    await CredentialTokens().redeem(invitation.token, "the-first-password")
+
+    with pytest.raises(NotFoundError):
+        await CredentialTokens().redeem(invitation.token, "a-second-attempt")
 
 
-async def test_the_password_is_never_stored_in_the_clear(account: Account) -> None:
-    """Argon2 on the way in, and nothing anywhere that could return it later."""
-    from app.features.auth.invitations import InvitationService
+async def test_an_invitation_never_returns_a_password(account: Account) -> None:
+    """Not an omission — the account is created with 32 bytes nobody keeps.
 
-    invitation = await InvitationService(admin(account)).invite("c@example.com", [])
+    If a password came back here as well, the link would be an extra step protecting
+    nothing: the thing in the administrator's clipboard would still be a permanent
+    credential.
+    """
+    from app.features.auth.onboarding.invitations import InvitationService
+
+    invitation = await InvitationService(admin(account)).invite(f"link-{uuid4()}@example.com", [])
+
+    assert not hasattr(invitation, "password")
+    assert invitation.token
+
+
+async def test_the_token_is_never_stored_in_the_clear(account: Account) -> None:
+    """A database dump must not be a set of working links into every account.
+
+    Backups end up on laptops and in support tickets. The row holds sha256 of the token and
+    cannot produce a usable link.
+    """
+    from app.features.auth.onboarding.invitations import InvitationService
+
+    invitation = await InvitationService(admin(account)).invite(f"hash-{uuid4()}@example.com", [])
 
     async with owner_session() as session:
         stored = await session.scalar(
-            text("SELECT password_hash FROM users WHERE id = :u"), {"u": invitation.user_id}
+            text("SELECT token_hash FROM credential_tokens WHERE user_id = :u"),
+            {"u": invitation.user_id},
         )
 
-    assert stored and invitation.password not in stored
-    assert stored.startswith("$argon2")
+    assert stored and invitation.token not in stored
+
+
+async def test_a_link_is_generated_not_predictable(account: Account) -> None:
+    from app.features.auth.onboarding.invitations import InvitationService
+
+    first = await InvitationService(admin(account)).invite(f"one-{uuid4()}@example.com", [])
+    second = await InvitationService(admin(account)).invite(f"two-{uuid4()}@example.com", [])
+
+    assert first.token != second.token
+    assert len(first.token) >= 20
 
 
 async def test_inviting_an_existing_address_is_a_conflict(account: Account) -> None:
     """The administrator is entitled to know about their own users."""
-    from app.features.auth.invitations import InvitationService
+    from app.features.auth.onboarding.invitations import InvitationService
 
     with pytest.raises(ConflictError):
         await InvitationService(admin(account)).invite(account.member_email, [])
@@ -262,7 +300,7 @@ async def test_inviting_an_existing_address_is_a_conflict(account: Account) -> N
 async def test_an_unknown_role_is_refused_before_the_user_exists(account: Account) -> None:
     """Validated first, so a bad request cannot leave a user with no roles and an
     administrator wondering whether the invitation half-worked."""
-    from app.features.auth.invitations import InvitationService
+    from app.features.auth.onboarding.invitations import InvitationService
 
     with pytest.raises(NotFoundError):
         await InvitationService(admin(account)).invite("d@example.com", [uuid4()])
@@ -277,7 +315,7 @@ async def test_an_unknown_role_is_refused_before_the_user_exists(account: Accoun
 async def test_an_invitation_lands_in_the_inviter_s_tenant(account: Account) -> None:
     """RLS decides where the row goes: the tenant comes from the caller's context, never
     from the request."""
-    from app.features.auth.invitations import InvitationService
+    from app.features.auth.onboarding.invitations import InvitationService
 
     invitation = await InvitationService(admin(account)).invite("e@example.com", [])
 

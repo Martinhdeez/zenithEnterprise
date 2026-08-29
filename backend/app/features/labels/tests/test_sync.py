@@ -141,6 +141,19 @@ async def test_an_unrelated_document_update_does_not_rewrite_its_chunks(
             {"d": labelled_document},
         )
 
+    # **This test is also the guard on migration 0022's `enable_custom_scan` setting**, and
+    # it earned that role by catching the problem before anyone was looking for it.
+    #
+    # Putting the isolation columns into the BM25 index lets the planner believe pg_search's
+    # custom scan can serve any query filtering on them; on 0.15.26 it then fails with
+    # `rt_fetch used out-of-bounds` — on ordinary columns, with no `@@@` anywhere. The
+    # setting is off for the database and switched on only inside `zenith_lexical_search`.
+    # Turn it back on and this assertion is what breaks, from two features away.
+    #
+    # A purpose-built regression test was written for it and deleted: on a four-row fixture
+    # the planner never chooses the custom scan, so it passed against the mutant. This one
+    # reproduces it, so this one is the guard.
+
     # `xmin` is the transaction that last wrote the row. Unchanged means untouched.
     assert before == after
 

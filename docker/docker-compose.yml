@@ -5,6 +5,7 @@ services:
     # ParadeDB ships pgvector and pg_search in one image: both halves of hybrid
     # search without adding another service to the deployment.
     image: paradedb/paradedb:0.15.26-pg17
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-zenith}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zenith}
@@ -13,6 +14,87 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    # `max_locks_per_transaction` is the setting partitioning breaks first, and it is the one
+    # that cannot be changed without a restart.
+    #
+    # **It is sized against `ZENITH_PARTITION_MODULUS`, which is set in `../.env` and reaches
+    # this stack through `env_file` on `api` and `worker`.** That variable decides how many
+    # buckets migration 0026 cuts `chunks` and `chunk_embeddings` into, and the locks below
+    # are exactly `9P + 9` — measured at every rung in `eval/modulus-cost.json`. The two are
+    # therefore one decision made in two files, and the one that fails is this one: 0026
+    # refuses to start below `4 x modulus`, and a search over a schema this setting is too
+    # small for is a 500 raised during planning. `zenith diagnose` reports both sides off the
+    # running installation rather than off either file.
+    #
+    # A query over a partitioned table takes an `AccessShareLock` on every relation of every
+    # partition **at plan time**, before runtime pruning has removed anything. Measured, in
+    # `eval/lock-budget.json`: 9.00 locks per partition-pair — exactly the nine relations the
+    # schema declares, one heap and five indexes on `chunks`, one heap and two on
+    # `chunk_embeddings` — plus nine for the two parents and their partitioned indexes. At the
+    # default modulus of 128 that is **1,161 locks for one search**, and at the 256 this
+    # comment was first written against, 2,313. The second and third statements of the request
+    # add none, because the planner already opened every index of both tables for the first.
+    #
+    # The setting does not cap a transaction. It sizes one table of
+    # `max_locks_per_transaction * (max_connections + max_prepared_transactions)` slots that
+    # the whole cluster draws from, so what it bounds is *concurrency*. At the default 64 that
+    # is 6,400 slots, and the same file records what happens: twelve concurrent searches over
+    # 256 partitions were clean and sixteen were not, with `psycopg.errors.OutOfMemory: out of
+    # shared memory` raised **during planning**. The query never runs. An ordinary search is a
+    # 500 rather than a slow answer, and it arrives at whatever concurrency the room happens
+    # to produce.
+    #
+    # Twelve is not a limit to design to. Those twelve held 27,756 locks against a table of
+    # 6,400 and every one of them succeeded, because the lock hash table grows into shared
+    # memory nobody reserved — and the ladder above it is not monotonic, with more surviving
+    # at twenty than at sixteen. The surplus is real, transient and shared with every other
+    # backend, so the number to size against is the nominal one.
+    #
+    # 2,560 is `relations x partitions` rounded up, and the multiplication by concurrency
+    # cancels on purpose: slots are allocated per connection, so a value that covers one
+    # backend covers all `max_connections` of them. Sizing it against the pools instead would
+    # give 463 and would be silently wrong the day somebody raises `api_pool_size`. The
+    # rounding to 2,560 buys one more index per partition-pair — 10 x 256 — before the number
+    # has to be revisited, and `zenith diagnose` recomputes it from the live schema rather than
+    # trusting this comment.
+    #
+    # **Left at 2,560 although the default modulus is now 128, and that is a decision rather
+    # than an oversight.** 10 x 256 covers 10 x 128 twice over, so an installation that raises
+    # `ZENITH_PARTITION_MODULUS` back to 256 — which the rule sanctions for a corpus whose
+    # largest tenant holds a twentieth of it — needs no second change and no second restart.
+    # Halving this would recover 60 MB of shared memory and would turn one variable into two
+    # that have to move together. `zenith diagnose` is what says whether it is enough.
+    #
+    # **It costs 119 MB of shared memory, measured** — `shared_memory_size` moves 143 MB ->
+    # 262 MB across the restart, about 500 bytes a slot. That is allocated at startup whether
+    # or not anything is partitioned, which is the whole reason it is set here now: nothing is
+    # partitioned yet, and the alternative is discovering the restart at cutover.
+    #
+    # `shared_buffers` and `work_mem` are deliberately left alone. Nothing measured here asks
+    # for them: what the partition ladder moves is planning — about 0.2 ms unpartitioned to
+    # 55-75 ms at modulus 256 — while execution stays under 4 ms at every rung. Buffers and
+    # sort memory are not what a planner walking a bucket per subplan is short of.
+    command:
+      - "postgres"
+      - "-c"
+      - "max_locks_per_transaction=${POSTGRES_MAX_LOCKS_PER_TRANSACTION:-2560}"
+    # Docker gives a container 64 MB of /dev/shm, and Postgres allocates a parallel
+    # query's shared workspace there. A parallel scan over a large table asks for more
+    # than that and dies with `DiskFull: could not resize shared memory segment`, which
+    # names the wrong resource entirely — measured here on a 150,000-row table with
+    # 389 GB free on the volume, while somebody read the message and went to check disk.
+    #
+    # It cannot happen on the demonstration corpus, which is why it has not: 13,549
+    # passages never reach a parallel plan. It becomes reachable at the corpus sizes this
+    # product is being aimed at, and it arrives as a 500 on an ordinary search.
+    shm_size: 1gb
+    # **Change it here, or through the variable above. Never with `ALTER SYSTEM`.** A
+    # command-line flag outranks both `postgresql.conf` and the `postgresql.auto.conf` that
+    # `ALTER SYSTEM` writes — verified on this image, `pg_settings.source` reads `command
+    # line` — so a value set on a live installation is shadowed the next time the container
+    # is recreated, silently and with no error anywhere. It is also invisible to this
+    # repository and lost on a volume restore. `zenith diagnose` reports the value that is
+    # actually in force, which is the only way to tell the two apart.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zenith}"]
       interval: 5s
@@ -21,6 +103,7 @@ services:
 
   tei-embed:
     image: ${TEI_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.8}
+    restart: unless-stopped
     # These two numbers must agree with the ZENITH_HARDWARE profile the application runs
     # with — see `app/core/hardware.py`. They are the difference between an installation
     # that serves and one the kernel kills: with TEI's defaults, M0 watched this container
@@ -52,9 +135,23 @@ services:
       - "${TEI_EMBED_PORT:-8081}:80"
     volumes:
       - hf_cache:/data
+    # Embedding on CPU will take every core it is given: unlimited, this container ran at
+    # 1301% on a 14-core laptop and the machine got hot enough for its owner to come asking
+    # what was wrong. Ingestion is a background job and nobody is watching it finish, so the
+    # trade is the right way round — the box stays usable while a long document is indexed.
+    #
+    # It is a ceiling, not a reservation, and it is here rather than in a `docker update`
+    # because that one is lost the next time the container is recreated.
+    cpus: ${TEI_CPUS:-4.0}
 
   tei-rerank:
     image: ${TEI_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.8}
+    # Restarted on its own, because the failure it protects against is silent. This service
+    # was killed for memory on 28 August and nothing said so: search kept answering from the
+    # fused order, about fifteen points of recall worse, marked `degraded` in a field nobody
+    # was reading. `docker-compose.prod.yml` has always had this; the file the demonstration
+    # actually runs did not.
+    restart: unless-stopped
     # These flags were missing until F11 measured what their absence does, and their
     # absence was worse than a wrong value. `TeiReranker.plan_batches` builds batches up to
     # the profile's `max_client_batch_size` — 16 on `cpu`, 32 on `gpu`. TEI's own default
@@ -70,9 +167,31 @@ services:
     # They share the embedder's variables deliberately. One TEI setting must never be
     # configurable in two places that can disagree — that is the mistake this comment
     # exists to prevent from recurring.
+    # The model is a variable because it is a latency decision, and the right answer differs
+    # by an order of magnitude between a CPU and a GPU. Measured on the 30-question live set
+    # over a 21,295-passage corpus, same queries, same everything else:
+    #
+    #                              Recall@8   Recall@1   mean rank   median latency
+    #   mmarco-mMiniLMv2-L12         85.0%      66.7%       1.35          784 ms
+    #   bge-reranker-v2-m3           85.0%      76.7%       1.12       13,731 ms
+    #
+    # **Recall@8 is identical**, which is the number the answer path depends on: generation
+    # is handed eight passages either way, so the model sees the same evidence. What the
+    # larger cross-encoder buys is the *order* within those eight — ten points more often
+    # putting the answer first — and on this hardware it costs 17x the latency to do it.
+    #
+    # The default is therefore the small one, because a 13-second search is not a product.
+    # On a GPU the trade reverses: set `TEI_RERANK_MODEL=BAAI/bge-reranker-v2-m3` there and
+    # it is strictly better.
+    #
+    # Not calibrated by candidate count either — that was tried. `rerank_candidates=32` with
+    # the small model made it *worse*: Recall@1 66.7% -> 53.3%, mean rank 1.35 -> 1.62, at
+    # 2,781 ms. A weaker cross-encoder handed four times the candidates has four times the
+    # opportunities to be wrong, and RRF's ordering of the top eight was better than its
+    # reordering of thirty-two. Depth is not a substitute for a better judge.
     command:
       - "--model-id"
-      - "BAAI/bge-reranker-v2-m3"
+      - "${TEI_RERANK_MODEL:-cross-encoder/mmarco-mMiniLMv2-L12-H384-v1}"
       - "--auto-truncate"
       - "--max-batch-tokens"
       - "${TEI_MAX_BATCH_TOKENS:-2048}"
@@ -82,11 +201,17 @@ services:
       - "${TEI_RERANK_PORT:-8082}:80"
     volumes:
       - hf_cache:/data
+    # The embedder got this ceiling and the reranker never did, which cost memory rather
+    # than heat: unbounded, ONNX Runtime opened one arena per core — 44 threads on a
+    # 14-core laptop — and a 120M-parameter cross-encoder held 3.45 GB. That is the
+    # allocation that was killed for memory, and it was never work being done.
+    cpus: ${TEI_RERANK_CPUS:-4.0}
 
   api:
     build:
       context: ..
       dockerfile: docker/Dockerfile.backend
+    restart: unless-stopped
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     env_file: [../.env]
     environment:
@@ -94,6 +219,10 @@ services:
       # policy, which `verify_rls_active()` refuses to start against. See db.7's role setup.
       ZENITH_DATABASE_URL: postgresql+psycopg://zenith_app:${ZENITH_APP_PASSWORD:-zenith_app}@db:5432/${POSTGRES_DB:-zenith}
       ZENITH_DATABASE_OWNER_URL: postgresql+psycopg://${POSTGRES_USER:-zenith}:${POSTGRES_PASSWORD:-zenith}@db:5432/${POSTGRES_DB:-zenith}
+      # Bypasses RLS and holds no DDL: the system administration panel only, via
+      # `platform_session`. Migration 0010 creates the role NOLOGIN — the operator sets
+      # the password, exactly as with zenith_app.
+      ZENITH_DATABASE_PLATFORM_URL: postgresql+psycopg://zenith_platform:${ZENITH_PLATFORM_PASSWORD:-zenith_platform}@db:5432/${POSTGRES_DB:-zenith}
       ZENITH_TEI_EMBED_URL: http://tei-embed:80
       ZENITH_TEI_RERANK_URL: http://tei-rerank:80
     ports:
@@ -112,9 +241,15 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.backend
+    restart: unless-stopped
     # One document at a time by default. On `low-spec` that is not a preference: the
     # parser's memory and the embedder's must not overlap on a machine M0 already pushed
     # into an out-of-memory kill.
+    #
+    # This argument is what actually decides it — `Profile.ingestion_concurrency` records the
+    # value for the hardware and cannot enforce it, because procrastinate fixes concurrency at
+    # launch. `zenith diagnose` prints the active profile; `tasks.worker_concurrency()` is the
+    # number to put here for it.
     command:
       - "procrastinate"
       - "--app=app.features.ingestion.tasks.app"
@@ -127,6 +262,7 @@ services:
       # an API reading them (see `core.database.verify_rls_active`).
       ZENITH_DATABASE_URL: postgresql+psycopg://zenith_app:${ZENITH_APP_PASSWORD:-zenith_app}@db:5432/${POSTGRES_DB:-zenith}
       ZENITH_DATABASE_OWNER_URL: postgresql+psycopg://${POSTGRES_USER:-zenith}:${POSTGRES_PASSWORD:-zenith}@db:5432/${POSTGRES_DB:-zenith}
+      ZENITH_DATABASE_PLATFORM_URL: postgresql+psycopg://zenith_platform:${ZENITH_PLATFORM_PASSWORD:-zenith_platform}@db:5432/${POSTGRES_DB:-zenith}
       ZENITH_TEI_EMBED_URL: http://tei-embed:80
       ZENITH_TEI_RERANK_URL: http://tei-rerank:80
     volumes:
@@ -140,6 +276,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.frontend
+    restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-5173}:80"
     depends_on:

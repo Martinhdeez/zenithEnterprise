@@ -13,15 +13,17 @@ unreachable is useless at exactly the moment it is needed. Every check catches i
 failure and reports it as a result; the run always completes.
 """
 
+import math
 import re
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Final, Literal
 
 import httpx
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_owner_session_factory, get_session_factory
@@ -61,6 +63,125 @@ class Check:
             "detail": self.detail,
             "elapsed_ms": round(self.elapsed_ms, 1),
         }
+
+
+# --- The `SECURITY DEFINER` surface ---------------------------------------------------
+#
+# The third class of RLS bypass, and the one no grep finds: such a function executes as its
+# owner, so the policies are not applied to it, and nothing in Python names it. See CLAUDE.md
+# invariant 2.
+#
+# The list lives here rather than in a test because it has two readers.
+# `tests/integration/test_security_definer_audit.py` holds the schema the *migrations
+# declare* to it; `_security_definer_surface` below holds a *running installation* to it.
+# Those are different questions — the same distinction CLAUDE.md draws between `make check`
+# and `demo-check` — and answering them from two copies of the list would be two catalogues
+# of justified bypasses drifting apart. `eval/harness.py` makes that argument about a credit
+# rule, where the cost is an incomparable report; here the cost is a bypass nobody lists.
+
+
+#: Every `SECURITY DEFINER` function the schema is allowed to contain, by identity
+#: signature. An overload is a different function and needs its own entry.
+#:
+#: An entry is added for a security guarantee, never for ergonomics — ADR 0001's rule, and
+#: `.artifacts/todo/2026-08-02-f5-ingestion.md` records a route declined on exactly it.
+AUTHORISED_SECURITY_DEFINERS: frozenset[str] = frozenset(
+    {
+        # 0002, replaced in place by 0010 — login has to find a user before a tenant context
+        # exists, because the context is what the login is establishing. Returns four fields
+        # for one address; the alternative was an owner session in an unauthenticated route.
+        "zenith_authenticate_lookup(p_email text)",
+        # 0003 — maintains `documents.label_ids` from `document_labels`. Bypasses so that an
+        # administrator with `labels.manage` can remove a label they do not personally reach
+        # without the `WITH CHECK` on `documents` rejecting a row they never mentioned.
+        "zenith_sync_document_labels()",
+        # 0003 — propagates that same array down to `chunks`, for the same reason. Rewritten
+        # in place by 0026 to add `AND tenant_id = NEW.tenant_id`: `chunks` is partitioned,
+        # an UPDATE picks its result relations at plan time, and without a constant for the
+        # partition key it opens every one for writing. The predicate is redundant — a chunk's
+        # tenant is its document's, enforced by `fk_chunks_document_id` — and changes no row.
+        # The bypass is unchanged and so is the signature.
+        "zenith_sync_chunk_labels()",
+        # 0003 — gives a chunk its document's labels at insert time; without it a chunk is
+        # born unlabelled, which in this schema means readable by the whole tenant.
+        "zenith_fill_chunk_labels()",
+        # 0016 — an invitation or reset link is consumed by an unauthenticated route, so
+        # there is no tenant for a policy to filter on. Takes a hash, returns one row.
+        "zenith_credential_token_lookup(p_hash text)",
+        # 0016 — spends the link and sets the password in one statement, so there is no
+        # window in which the link is used and no password was set.
+        "zenith_credential_token_consume(p_hash text, p_password_hash text)",
+        # 0022 — BM25 needs the tenant and label clauses *inside* the Tantivy query, which a
+        # policy cannot express. Enforces them imperatively instead; `test_bm25_isolation.py`
+        # is what makes that enforcement worth the same as a policy.
+        #
+        # Rewritten in place by 0026. The tenant is now read into a plpgsql local and that
+        # local is used both in the Tantivy term and as an ordinary SQL qualifier, so the
+        # planner has a constant to prune every other partition on. It is deliberately **not** a
+        # parameter of the function: this bypass is only safe because no caller can name the
+        # tenant, and an argument would hand that away. The signature is therefore unchanged,
+        # which is also what keeps this entry accurate.
+        "zenith_lexical_search(query_string text, want integer)",
+    }
+)
+
+#: `public` is the only schema this project creates objects in. The ParadeDB image ships
+#: several others — `paradedb`, `topology`, `tiger` — and they are not ours to vet.
+#:
+#: Extension-owned functions inside `public` are deliberately *not* excluded. None of them is
+#: `SECURITY DEFINER` today, and the day an extension is added that ships one, adding that
+#: extension has widened the bypass surface and should be argued for like anything else.
+SECURITY_DEFINER_SCHEMA = "public"
+
+# `grantee = 0` is `PUBLIC` in `pg_proc.proacl`. A NULL acl means nobody has said anything,
+# and for a function the default is `EXECUTE` to `PUBLIC` — which is why the NULL case counts
+# as public rather than as restricted. That default is the whole reason this column is
+# reported: a bypass only `zenith_app` can call and one any role can call are different
+# findings, and 0022 restricting `zenith_lexical_search` is what the difference looks like.
+_SECURITY_DEFINERS = """
+SELECT p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' AS signature,
+       pg_get_userbyid(p.proowner) AS owner,
+       p.proacl IS NULL OR EXISTS (
+           SELECT 1 FROM aclexplode(p.proacl) a
+           WHERE a.grantee = 0 AND a.privilege_type = 'EXECUTE'
+       ) AS public_execute,
+       coalesce(p.proconfig, '{}') AS config
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE p.prosecdef AND n.nspname = :schema
+ORDER BY signature
+"""
+
+
+@dataclass(frozen=True, slots=True)
+class SecurityDefiner:
+    """One `SECURITY DEFINER` function as the database actually holds it."""
+
+    signature: str
+    owner: str
+    public_execute: bool
+    config: tuple[str, ...]
+
+    @property
+    def pins_search_path(self) -> bool:
+        """Without a fixed `search_path`, owner-privileged code resolves names through
+        schemas the *caller* chooses. That is the standard escalation against one of these,
+        and migration 0002 pinned it for that reason before anything else was written."""
+        return any(setting.startswith("search_path=") for setting in self.config)
+
+
+async def security_definers(session: AsyncSession) -> list[SecurityDefiner]:
+    """Read the bypass surface out of the catalogue of whatever database this is.
+
+    Takes a session rather than opening one, because the two callers ask about different
+    databases: the diagnostic asks about the installation, the test asks about a container
+    built from the migrations.
+    """
+    rows = await session.execute(text(_SECURITY_DEFINERS), {"schema": SECURITY_DEFINER_SCHEMA})
+    return [
+        SecurityDefiner(signature, owner, public_execute, tuple(config))
+        for signature, owner, public_execute, config in rows
+    ]
 
 
 def _known_secrets() -> list[str]:
@@ -158,6 +279,559 @@ async def _migration_state() -> tuple[Status, str]:
     )
 
 
+def _describe(function: SecurityDefiner) -> str:
+    reach = "PUBLIC EXECUTE" if function.public_execute else "restricted"
+    return f"{function.signature} (owner {function.owner}, {reach})"
+
+
+async def _security_definer_surface() -> tuple[Status, str]:
+    """The bypass surface of *this installation*, against the list of the justified ones.
+
+    `test_security_definer_audit.py` already holds the migrations to that list, and that is
+    the check which catches the next person to add one. It cannot catch this: it audits a
+    container built from the migrations, so a function created by hand on a running database
+    is invisible to it and to every grep and every branch. Two such functions were found on a
+    live installation — leftovers of the F18 BM25 investigation, owned by the schema owner and
+    carrying `PUBLIC EXECUTE`, declared in no migration and no file.
+
+    Which is the same shape as the trap CLAUDE.md records two bullets apart: a green suite
+    does not mean the database is migrated, and a declared schema is not the installed one.
+
+    `PUBLIC EXECUTE` decides the severity — a failure when `PUBLIC` may execute an undeclared
+    function, a warning when it may not — because an owner-privileged function every role can
+    call is reachable by anything holding any credential on the database, and a restricted one
+    is reachable only by whoever was granted it. It is *not* a signal that something is wrong
+    by itself: it is the default for a function, four of the declared seven carry it, and
+    `test_security_definer_audit.py` records which and why. A declared function that is
+    *absent* fails too: at head, that means somebody has been editing the live schema by hand,
+    and the next thing they leave behind may not be a harmless leftover.
+    """
+    async with get_session_factory()() as session:
+        installed = await security_definers(session)
+
+    undeclared = [f for f in installed if f.signature not in AUTHORISED_SECURITY_DEFINERS]
+    absent = sorted(AUTHORISED_SECURITY_DEFINERS - {f.signature for f in installed})
+    unpinned = sorted(f.signature for f in installed if not f.pins_search_path)
+
+    findings: list[str] = []
+    if undeclared:
+        # Two, then a count. `_scrub` truncates a detail at 200 characters, and a finding cut
+        # off mid-name is one nobody can act on.
+        #
+        # Known limitation: `_scrub` removes every known secret by exact match, so an
+        # installation whose database password is the word `zenith` — the default in
+        # `.env.example` — gets these names redacted into `***_lexical`. The count, the owner
+        # and `PUBLIC EXECUTE` still come through, which is what decides whether to act.
+        more = f" and {len(undeclared) - 2} more" if len(undeclared) > 2 else ""
+        findings.append("undeclared: " + "; ".join(map(_describe, undeclared[:2])) + more)
+    if absent:
+        findings.append(f"declared but absent: {', '.join(absent)}")
+    if unpinned:
+        findings.append(f"no pinned search_path: {', '.join(unpinned)}")
+
+    if not findings:
+        return "ok", f"{len(installed)} function(s), every one declared"
+
+    status: Status = "fail" if absent or any(f.public_execute for f in undeclared) else "warn"
+    return status, "  ".join(findings)
+
+
+# --- The lock budget ------------------------------------------------------------------
+#
+# A query over a partitioned table takes an `AccessShareLock` on every relation of every
+# partition **at plan time**, before runtime pruning has removed anything, and the lock table
+# it draws from is one table for the whole cluster. When it runs out, Postgres raises
+# `OutOfMemory` during *planning*: the query never runs and an ordinary search is a 500.
+#
+# `eval/lock-budget.json` measured the shape. Locks are taken per relation, exactly — the
+# slope across two rungs is 9.00 locks per partition-pair against a schema declaring nine
+# relations — and the second and third statements of a search request add none, because the
+# planner already opened every index of both tables for the first. So the budget is a
+# property of the schema, not of the query mix, and it can be computed.
+#
+# It is computed here rather than written down, because a constant would be wrong the day
+# the partition count or the index set changes and nothing would say so. That is the same
+# reason `AUTHORISED_SECURITY_DEFINERS` is checked against a *running* installation above
+# and not only against the migrations.
+
+
+#: What a transaction may be asked to hold at once, over and above the application pools.
+#:
+#: `api_pool_size` and `worker_pool_size` both run with `max_overflow=0`, so they are hard
+#: ceilings on concurrent application transactions rather than targets. The owner and
+#: platform engines add two apiece (`core.database`), and they are counted because a
+#: diagnostic or a `/system` page running beside a search competes for the same slots.
+BYPASS_POOL_CONNECTIONS: Final = 4
+
+#: How much headroom below which the setting is reported as a warning rather than an error.
+#: A quarter, because the measured boundary is not sharp: `eval/lock-budget.json` records a
+#: transaction holding 2,313 locks against a nominal 6,400-slot table with eight of them in
+#: flight — 18,504 slots' worth — and succeeding, because the lock hash table grows into
+#: shared memory nobody reserved. That surplus is real, transient and shared with every other
+#: backend, so an installation sitting on it is not failing yet and is not safe either.
+LOCK_BUDGET_HEADROOM: Final = 1.25
+
+# Every relation a partitioned table contributes: its partitions, its partitions' indexes,
+# the partitioned parents and their partitioned indexes. `relispartition` covers the first
+# two; `relkind IN ('p', 'I')` covers the last two, and both are locked — measured, not
+# assumed: the count is `9P + 9` for a pair carrying nine relations per bucket, which is
+# 1,161 at the default modulus of 128 and 2,313 at the 256 it was first measured against.
+# `eval/modulus-cost.json` records that identity at all five of its partitioned rungs.
+#
+# Summed over every partitioned table in the schema, which is the ceiling for any transaction
+# rather than the cost of one particular query. Naming the tables a search touches would be
+# a list to keep in step with the schema, and this file exists because those rot.
+
+#: The schema this counts partitions in. `public` is the only one this project creates
+#: objects in, exactly as `SECURITY_DEFINER_SCHEMA` above says of the bypass surface, and it
+#: is a constant here for the same reason that one is: the check has two readers asking about
+#: two different databases. The installation this runs against has been partitioned since
+#: 0026, so `public` can no longer exhibit the unpartitioned branch, and
+#: `test_an_unpartitioned_installation_has_nothing_to_size_for` points this at a schema
+#: holding nothing rather than asserting that branch's message against a schema that cannot
+#: produce it. Production reads the constant and is unchanged.
+PARTITION_SCHEMA = "public"
+
+_PARTITION_RELATIONS = """
+SELECT count(*) AS relations,
+       count(*) FILTER (WHERE c.relkind = 'p') AS partitioned_tables,
+       count(*) FILTER (WHERE c.relispartition AND c.relkind = 'r') AS partitions
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = :schema
+  AND (c.relispartition OR c.relkind IN ('p', 'I'))
+"""
+
+
+async def _lock_budget() -> tuple[Status, str]:
+    """Does this installation's `max_locks_per_transaction` cover its partition count?
+
+    Two questions, and they are the split this whole file is built on. `make check` can ask
+    whether the code is right; only a running installation knows how many partitions it has
+    and what its Postgres was started with, and the answer is a restart away from being
+    fixed — so it has to be asked here, before somebody discovers it as a 500.
+
+    **`max_locks_per_transaction` is not a per-transaction cap.** It sizes one table of
+    `max_locks_per_transaction * (max_connections + max_prepared_transactions)` slots that
+    every backend draws from, so the constraint is on concurrency and a single query passing
+    proves nothing about ten. Both are reported: a setting too small for one query is a
+    certain failure, and one too small for the pools is a failure under load only.
+
+    Returns `ok` on an installation with no partitioned tables. That is not a pass by
+    omission — there is genuinely nothing to size for until something is partitioned, and
+    saying so is what lets an operator tell that from a check that did not run. That branch
+    stopped being the development default when 0026 landed and did *not* stop mattering: any
+    installation that has not yet run 0026 reaches it on every `zenith diagnose`, and the
+    on-premise ones are upgraded when the customer schedules it rather than when we ship.
+    """
+    async with get_owner_session_factory()() as session:
+        row = (
+            await session.execute(text(_PARTITION_RELATIONS), {"schema": PARTITION_SCHEMA})
+        ).one()
+        rows = await session.execute(
+            text(
+                "SELECT name, setting FROM pg_settings WHERE name IN "
+                "('max_locks_per_transaction', 'max_connections', "
+                "'max_prepared_transactions')"
+            )
+        )
+        server = {str(name): int(setting) for name, setting in rows}
+
+    per_transaction = int(row.relations)
+    backends = server["max_connections"] + server["max_prepared_transactions"]
+    slots = server["max_locks_per_transaction"] * backends
+    setting = server["max_locks_per_transaction"]
+
+    if not per_transaction:
+        return "ok", (
+            f"max_locks_per_transaction={setting} x {backends} = {slots} slots; "
+            "no partitioned tables, so nothing draws on them yet"
+        )
+
+    concurrency = settings.api_pool_size + settings.worker_pool_size + BYPASS_POOL_CONNECTIONS
+    needed = per_transaction * concurrency
+    # What the setting would have to be, phrased as the thing an operator changes. Ceiling
+    # division: a fractional slot is a slot short.
+    required = -(-needed // backends)
+    # Short on purpose, and `fix` is kept short for the same reason `_breaker_note` is:
+    # `_scrub` truncates a detail at 200 characters, and the half naming the setting to change
+    # must never be the half that is cut. The first version of this said the same thing in 208
+    # characters and lost the word "restart", which is the part with a consequence.
+    shape = (
+        f"{row.partitions} partition(s) of {row.partitioned_tables} table(s) = "
+        f"{per_transaction} locks/txn; {concurrency} concurrent needs {needed} of {slots} slots"
+    )
+    fix = f"Set max_locks_per_transaction={required} and restart."
+
+    if slots < per_transaction:
+        return "fail", f"{shape}. One query alone exceeds the table: every search 500s. {fix}"
+    if slots < needed:
+        return "fail", f"{shape}. Room for {slots // per_transaction} concurrent. {fix}"
+    if slots < needed * LOCK_BUDGET_HEADROOM:
+        # A warning rather than a failure: it works, and the margin it is working on is
+        # shared memory nobody reserved and every other backend may want.
+        return "warn", f"{shape}. Under a quarter of headroom. {fix}"
+    return "ok", f"{shape}, room for {slots // per_transaction} concurrent"
+
+
+# --- Does the installed modulus fit this installation? --------------------------------
+#
+# The lock budget above asks whether the partition count is *affordable*. This asks whether
+# it is *useful*, which is the other half of the same decision and the half nothing in this
+# repository could answer, because the answer is a property of somebody else's corpus.
+#
+# `eval/modulus-cost.json` measured what a modulus buys and what it costs, and
+# `docs/partitioning-modulus.md` reduces it to one inequality an operator can act on. A
+# tenant's query reaches its own rows plus about one modulus-th of everybody else's:
+#
+#     share_of_corpus_reached = s + (1 - s) / P
+#
+# where `s` is that tenant's share of the corpus and `P` the modulus. There is no
+# tenant-count term — every other tenant lands in a given bucket with probability `1 / P`
+# whatever its size, so `T` cancels — and there is a floor, because `(1 - s) / P` goes to
+# zero while `s` does not. Rearranged:
+#
+#     P >= (1 - s) / (epsilon * s)
+#
+# holds a tenant of share `s` to `epsilon` extra rows.
+#
+# So the check reads `s` off the running installation and evaluates the rule, rather than
+# asserting the 128 that `ZENITH_PARTITION_MODULUS` defaults to. 128 covers a 200-tenant
+# Zipf population at 5%; this installation's own two tenants split 0.6106/0.3894, and the
+# rule asks that one for 16. Neither number is knowable from the migrations, which is the
+# same reason `AUTHORISED_SECURITY_DEFINERS` is checked against a running installation and
+# not only against the schema they declare.
+
+
+#: The corpus table whose partitioning the rule is about, and the column it is cut on.
+#:
+#: Named rather than discovered. A search reads `chunks` and `chunk_embeddings`, they carry
+#: the same tenant distribution by construction — an embedding exists only for a chunk — and
+#: reporting the same ratio twice would be noise. `chunks` is the one that also holds the
+#: text, so it is the one whose statistics are certain to exist.
+#:
+#: A constant a test can point elsewhere, exactly as `PARTITION_SCHEMA` is: the installed
+#: schema cannot exhibit a badly-sized modulus on demand, and a check whose warning branch
+#: has never run is not a check.
+MODULUS_TABLE = "chunks"
+MODULUS_KEY = "tenant_id"
+
+#: The extra rows the rule is solved for: 5%, which is `docs/partitioning-modulus.md`'s
+#: tighter column and the one its recommended moduli are read off.
+#:
+#: A target rather than a threshold — being above it is not a failure, and the check says so
+#: by warning rather than failing. Widening costs rows read, not correctness: a tenant whose
+#: bucket holds a neighbour gets slower answers, never wrong ones, because RLS is still the
+#: only access control and the partition boundary is not what enforces isolation.
+MODULUS_EPSILON: Final = 0.05
+
+#: Every leaf of the corpus table's partition tree, with what the planner believes it holds
+#: and how that is split between tenants.
+#:
+#: **Catalogue only: it reads no row of the corpus, at any modulus and any corpus size.** The
+#: alternative is `SELECT tenant_id, count(*) FROM chunks GROUP BY 1`, which opens every
+#: bucket and scans all of them — the objection `_ESTIMATED` below records against counting
+#: `chunks` at all, and it gets worse rather than better at ADR 0009's target of 322.6M
+#: passages, where it is the difference between a diagnostic and an outage.
+#:
+#: `reltuples` gives what a bucket holds, which is what every tenant in it *reaches*; the
+#: most-common-value list gives each tenant's slice of that, which is what it *owns*. Both
+#: come from the same `ANALYZE`, so they are consistent with each other even when they are
+#: both a little stale. The output marks them `~` rather than expecting the reader to know.
+#:
+#: They are not merely close. On the installation this was written against `pg_stats` reports
+#: 0.61059856 for the larger tenant and the exact count is 8,273 of 13,549 = 0.6105985..., the
+#: 0.6106 that `eval/partition-shape.json` and `eval/modulus-cost.json` both quote.
+_MODULUS_FIT = """
+WITH RECURSIVE tree AS (
+    SELECT c.oid, c.relname, n.nspname
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = :schema AND c.relname = :table
+    UNION ALL
+    SELECT child.oid, child.relname, n.nspname
+    FROM pg_inherits i
+    JOIN tree t ON i.inhparent = t.oid
+    JOIN pg_class child ON child.oid = i.inhrelid
+    JOIN pg_namespace n ON n.oid = child.relnamespace
+)
+SELECT c.relkind::text AS relkind,
+       c.reltuples::bigint AS rows,
+       s.most_common_vals::text::text[] AS vals,
+       s.most_common_freqs AS freqs
+FROM tree t
+JOIN pg_class c ON c.oid = t.oid
+LEFT JOIN pg_stats s
+       ON s.schemaname = t.nspname AND s.tablename = t.relname AND s.attname = :key
+"""
+
+
+def _required_modulus(share: float) -> int:
+    """`P >= (1 - s) / (epsilon * s)`, rounded up to a whole bucket.
+
+    Not rounded to a power of two. Postgres accepts any modulus above zero, the rule gives
+    12.75 for this installation's own largest tenant, and reporting 16 where the arithmetic
+    says 13 would be this file inventing a convention the schema does not have.
+    `docs/partitioning-modulus.md`'s table rounds up to powers of two because an operator
+    reads a modulus off it by eye; a machine solving the inequality does not need to.
+    """
+    return max(1, math.ceil((1.0 - share) / (MODULUS_EPSILON * share)))
+
+
+async def _partition_modulus() -> tuple[Status, str]:
+    """Is `ZENITH_PARTITION_MODULUS` the right size for *this* corpus?
+
+    The second half of the partitioning decision, and the half that cannot be tested from
+    the migrations: a modulus is affordable or not depending on the lock table above, and it
+    is useful or not depending on how the corpus is split between customers. Only a running
+    installation knows the second.
+
+    Answers before 0026 as well as after, and that is deliberate rather than incidental. On
+    an unpartitioned installation the rule still has all of its inputs, so the check reports
+    the modulus to set *before* the migration runs — which is the only moment the setting can
+    be acted on without a second table rewrite.
+
+    Never a failure. Too small a modulus costs a tenant rows read, never rows returned:
+    isolation is RLS's job and a partition boundary is not what enforces it. Too large a one
+    costs planning on every search, which is a real bill and still not an outage. So the
+    worst this reports is a warning, and it prints the numbers either way.
+    """
+    async with get_owner_session_factory()() as session:
+        rows = (
+            await session.execute(
+                text(_MODULUS_FIT),
+                {"schema": PARTITION_SCHEMA, "table": MODULUS_TABLE, "key": MODULUS_KEY},
+            )
+        ).all()
+
+    if not rows:
+        return "ok", f"{MODULUS_TABLE} is not installed, so there is no modulus to size"
+
+    # `relkind = 'p'` is the partitioned parent, which holds no rows of its own; the leaves
+    # are what `reltuples` means anything about. An unpartitioned table is its own leaf, so
+    # the leaf count is one rather than zero — the parent's *presence* is what says whether
+    # anything is partitioned, not how many leaves there are.
+    partitioned = any(row.relkind == "p" for row in rows)
+    leaves = [row for row in rows if row.relkind == "r"]
+    installed = len(leaves) if partitioned else 0
+
+    # `reltuples` is -1 on a relation that has never been analysed or vacuumed (Postgres 14
+    # and later). That is not zero and must not be added as zero.
+    unanalysed = [row for row in leaves if row.rows < 0]
+    corpus = sum(row.rows for row in leaves if row.rows > 0)
+    shape = f"{installed} partitions" if partitioned else "not partitioned"
+
+    if len(unanalysed) == len(leaves) or not corpus:
+        return "ok", (
+            f"{MODULUS_TABLE}: {shape}, and the planner has no row estimate for it yet — "
+            "nothing to size a modulus against until there is a corpus"
+        )
+    if unanalysed:
+        # **Partial statistics are worse than none, and this is the branch that says so.**
+        # 0026 does not `ANALYZE` what it builds, so for the first minutes after a
+        # repartition autovacuum has reached some buckets and not others. Summing what it has
+        # would produce a corpus total that is a fraction of the real one, a share computed
+        # against it, and a confident recommendation that is simply wrong — the shape of
+        # failure `85d2174` is in this repository for. So it declines instead, and names the
+        # one command that fixes it.
+        return "warn", (
+            f"{MODULUS_TABLE}: {shape}, {len(unanalysed)} of {len(leaves)} never analysed. "
+            f"Run ANALYZE {MODULUS_TABLE}; a modulus sized on part of the corpus is worse "
+            "than none."
+        )
+
+    # Rows a tenant owns, from its bucket's estimate and its share of that bucket. A tenant
+    # is in exactly one bucket — that is what hashing the partition key means — so the sum
+    # over leaves has one non-zero term per tenant, and what it reaches is that bucket entire.
+    owned: dict[str, float] = {}
+    reached: dict[str, float] = {}
+    for row in leaves:
+        if row.rows <= 0 or not row.vals or not row.freqs:
+            continue
+        for value, frequency in zip(row.vals, row.freqs, strict=False):
+            owned[value] = owned.get(value, 0.0) + row.rows * frequency
+            reached[value] = max(reached.get(value, 0.0), float(row.rows))
+
+    if not owned:
+        # Rows exist and nothing says whose they are. Recoverable in one command, and worth
+        # saying rather than guessing: without the distribution this check has no input at
+        # all, and reporting `ok` would be reporting that it had looked.
+        return "warn", (
+            f"{MODULUS_TABLE}: ~{corpus:,} rows and no statistics on {MODULUS_KEY}. "
+            f"Run ANALYZE {MODULUS_TABLE}; until then the modulus cannot be sized."
+        )
+
+    tenant = max(owned, key=lambda key: owned[key])
+    share = owned[tenant] / corpus
+    required = _required_modulus(share)
+    # The rule's own prediction rather than the measured widening, and on purpose: `reached`
+    # is one draw of the hash's luck on this installation, while `(1 - s) / (P * s)` is the
+    # quantity that transfers and the one an operator is choosing a modulus on.
+    extra = (1.0 - share) / (installed * share) if installed else 0.0
+    # Every string below is kept well inside `_scrub`'s 200 characters, and the half naming
+    # the setting is never the half at risk of being cut.
+    fit = (
+        f"largest tenant owns {share:.3f} of ~{corpus:,} rows, "
+        f"so the rule wants {required} at {MODULUS_EPSILON:.0%}"
+    )
+
+    if not partitioned:
+        return "ok", (
+            f"{MODULUS_TABLE} is not partitioned; {fit}. "
+            f"Set ZENITH_PARTITION_MODULUS={required} before 0026 runs "
+            f"(it is {settings.partition_modulus})."
+        )
+
+    shape = f"{MODULUS_TABLE}: {shape}, {fit}"
+    if installed < required:
+        # A warning, where the lock budget above fails. The difference is the right way
+        # round: that one is a 500 on every search, this one is rows a customer pays for in
+        # milliseconds.
+        return "warn", (
+            f"{shape}. It reads {extra:.1%} more than it owns; re-run 0026 at a larger modulus."
+        )
+    return "ok", f"{shape}, and it reads {extra:.1%} more than it owns"
+
+
+async def _job_queue() -> tuple[Status, str]:
+    """Are the job-queue tables installed?
+
+    Procrastinate owns its own schema and manages it itself, so it is deliberately not part
+    of our migrations — mixing the two would mean our `downgrade` had opinions about a
+    library's tables. The cost of that separation is a second install step, `zenith
+    install-queue`, and a fresh installation that runs only `alembic upgrade head` gets an
+    application which accepts uploads and never ingests one of them.
+
+    That failure is quiet in the worst way: `POST /documents` answers 201, the row appears,
+    the status stays `pending` forever, and the only complaint is in a worker log nobody is
+    reading. It is exactly the shape of failure this whole module exists to make loud.
+    """
+    async with get_owner_session_factory()() as session:
+        installed = await session.scalar(text("SELECT to_regclass('public.procrastinate_jobs')"))
+
+    if installed is None:
+        # The command is named without the `zenith` prefix on purpose. `_scrub` removes every
+        # known secret from every detail, and an installation whose database password happens
+        # to be the word `zenith` — which is the default in `.env.example`, and therefore in
+        # every development and test environment — gets `Run \`*** install-queue\``. The one
+        # actionable sentence in this whole check, redacted into nonsense exactly where it is
+        # read most.
+        return "fail", "job-queue tables are missing. Run the `install-queue` CLI command."
+
+    # The owner connection, because that is the one Procrastinate itself uses — `tasks.py`
+    # says why: the queue tables are ours rather than customer data, they carry no RLS, and
+    # the worker has to read a job before it has any tenant context to read it with. So
+    # `zenith_app` holds no privilege on them *by design*, and asking with the application
+    # role reported `permission denied` on a perfectly healthy installation. A check that
+    # cries wolf is a check somebody switches off.
+    async with get_owner_session_factory()() as session:
+        waiting = await session.scalar(
+            text("SELECT count(*) FROM procrastinate_jobs WHERE status = 'todo'")
+        )
+    return "ok", f"installed, {waiting} job(s) waiting"
+
+
+async def _stranded_documents() -> tuple[Status, str]:
+    """Documents that should be in the pipeline and are not.
+
+    Two paths leave one behind, both chosen deliberately and both documented in
+    `ingestion/requeue.py`: a failed enqueue does not fail the upload, because losing a
+    customer's document to a queue insert would be far worse than leaving it `pending`; and a
+    document relabelled between upload and ingestion strands its own job, which is the price
+    of keeping the RLS bypass surface at four routes.
+
+    `zenith reingest` has been able to find and fix these since it was written. Nothing ever
+    said they existed — the document sits at `pending` for ever, looking to its owner exactly
+    like one that is merely queued behind others.
+
+    Which is why this asks a narrower question than `find_stranded` does. Anything `pending`
+    *with* a job waiting is a healthy queue doing its work; only `pending` with nothing behind
+    it is stuck. A check that counted the first would report a busy installation as broken
+    every time somebody uploaded a batch.
+    """
+    from app.features.documents.model import IN_FLIGHT
+
+    async with get_owner_session_factory()() as session:
+        if not await session.scalar(text("SELECT to_regclass('public.procrastinate_jobs')")):
+            # The queue check above already reports this, and with the sentence that fixes it.
+            return "warn", "cannot tell: the job-queue tables are not installed"
+
+        # Every in-flight status, not only `pending`. A worker killed mid-document leaves it
+        # at whatever stage it had reached and nothing moves it again — always true of
+        # `parsing`, `chunking` and `embedding`, and one more since `classifying` (0019).
+        # Derived from the model rather than listed, for the reason `IN_FLIGHT` exists.
+        stranded = await session.scalar(
+            text(
+                "SELECT count(*) FROM documents d "
+                "WHERE d.status = ANY(:statuses) AND NOT EXISTS ("
+                "  SELECT 1 FROM procrastinate_jobs j "
+                "  WHERE j.status IN ('todo', 'doing') "
+                "    AND j.args->>'document_id' = d.id::text"
+                ")"
+            ),
+            {"statuses": list(IN_FLIGHT)},
+        )
+
+    if not stranded:
+        return "ok", "no documents waiting without a job"
+    return "warn", (
+        f"{stranded} document(s) are pending with no job behind them and will never ingest. "
+        f"Run the `reingest` CLI command to put them back in the queue."
+    )
+
+
+async def _orphaned_documents() -> tuple[Status, str]:
+    """Rows whose PDF is no longer on disk.
+
+    The one inconsistency the product's own ordering permits. `DocumentService.create` commits
+    the row and *then* writes the file, deliberately, so a rolled-back transaction can never
+    leave a file nobody can find — the accepted residue being the reverse: a row pointing at a
+    file that was never written, or one lost to a restore, a migration between machines, or a
+    storage directory that moved.
+
+    Nothing surfaces it until somebody clicks the document and the viewer says *"That document
+    is no longer available"* — in front of whoever is being shown the product, on a corpus that
+    reports itself complete everywhere else. `backup.sh` has reported this for a while; it is
+    the sort of thing an operator should not have to take a backup to discover.
+
+    A warning rather than a failure. The installation works, search over every other document
+    is unaffected, and the repair — re-upload, or delete the row — is a decision for a person.
+    """
+    from app.features.documents.storage import DocumentStorage
+
+    storage = DocumentStorage()
+    async with get_owner_session_factory()() as session:
+        rows = (
+            await session.execute(
+                text("SELECT tenant_id, sha256, filename, media_type FROM documents")
+            )
+        ).all()
+
+    def absent(row: Any) -> bool:
+        try:
+            return not storage.path_for(row.tenant_id, row.sha256, row.media_type).exists()
+        except Exception:  # noqa: BLE001
+            # `path_for` refuses anything that is not a SHA-256 digest — the guard that keeps
+            # a stored key from walking out of its tenant directory. A row that trips it has
+            # no reachable file by definition, so it belongs in this count; letting it raise
+            # would take down the whole check over one bad row and report nothing about the
+            # other nine hundred.
+            return True
+
+    missing = [row for row in rows if absent(row)]
+    if not missing:
+        return "ok", f"{len(rows)} document(s), every file present"
+
+    # Named, up to a point: an operator with three broken documents wants to know which, and
+    # one with three hundred wants the number and a place to start.
+    shown = ", ".join(row.filename for row in missing[:3])
+    more = f" and {len(missing) - 3} more" if len(missing) > 3 else ""
+    return "warn", (
+        f"{len(missing)} of {len(rows)} document(s) have no file on disk ({shown}{more}). "
+        f"They appear in listings and fail when opened."
+    )
+
+
 async def _extensions() -> tuple[Status, str]:
     required = {"vector", "pg_search", "pgcrypto"}
     async with get_session_factory()() as session:
@@ -168,18 +842,59 @@ async def _extensions() -> tuple[Status, str]:
     return "ok", ", ".join(sorted(required))
 
 
+#: Tables small enough, and unpartitioned enough, to count exactly.
+_COUNTED_EXACTLY = ("tenants", "users", "documents")
+
+#: The two tables ADR 0009 partitions, counted from the planner's own statistics instead.
+#:
+#: `SELECT count(*)` over a partitioned table opens every bucket and reads all of them:
+#: 1,542 locks of this installation's 6,400 at MODULUS 256, measured in
+#: `eval/unpruned-queries.json`. It is
+#: not slow — 4.6 ms there — and slowness was never the objection. The objection is that a
+#: diagnostic an operator runs *while the installation is serving* should not take a quarter
+#: of the cluster's lock table to answer a question nobody needs to the row.
+#:
+#: The estimate scans nothing at any modulus and takes 7 locks. It is an estimate, and the
+#: `~` in the output says so rather than the reader having to know.
+_ESTIMATED = ("chunks", "chunk_embeddings")
+
+#: Summed over the partition tree, because after partitioning the parent's own `reltuples` is
+#: zero and a reader of that number would conclude the corpus had been lost. Recursive rather
+#: than one level down, so it still holds if a partition is ever itself partitioned.
+_ESTIMATE = """
+WITH RECURSIVE tree AS (
+    SELECT to_regclass(:table)::oid AS oid
+    UNION ALL
+    SELECT i.inhrelid FROM pg_inherits i JOIN tree t ON i.inhparent = t.oid
+)
+SELECT coalesce(sum(c.reltuples), 0)::bigint
+FROM tree JOIN pg_class c ON c.oid = tree.oid
+WHERE c.relkind = 'r'
+"""
+
+
 async def _content() -> tuple[Status, str]:
     """Row counts through the owner connection.
 
     Deliberately the owner: this is an operator asking about their own installation, and
     under RLS with no context the answer would be zero for everything, which reads as data
     loss rather than as an empty context.
+
+    The two partitioned tables are estimated rather than counted — see `_ESTIMATED`. A
+    `reltuples` figure is as stale as the last `ANALYZE`, which on a busy installation is a
+    real difference and on this one was zero at every rung of
+    `eval/unpruned-queries.json`'s ladder. `-1` means the table has never been analysed at
+    all, and it is reported as unknown rather than shown to an operator as a negative corpus.
     """
-    tables = ("tenants", "users", "documents", "chunks", "chunk_embeddings")
     counts: list[str] = []
     async with get_owner_session_factory()() as session:
-        for table in tables:
+        for table in _COUNTED_EXACTLY:
             counts.append(f"{table}={await session.scalar(text(f'SELECT count(*) FROM {table}'))}")
+        for table in _ESTIMATED:
+            estimate = await session.scalar(text(_ESTIMATE), {"table": table})
+            counts.append(
+                f"{table}={'unknown' if estimate is None or estimate < 0 else f'~{estimate}'}"
+            )
     return "ok", "  ".join(counts)
 
 
@@ -201,15 +916,181 @@ async def _vector_space() -> tuple[Status, str]:
 
 
 def _model_service(name: str, url: str) -> Callable[[], Awaitable[tuple[Status, str]]]:
+    """Reachable, and **serving what**.
+
+    "Responding" was not enough. A TEI container serving a different model than the
+    deployment intends looks identical to a correct one from the outside: it answers
+    `/health`, it returns scores, and nothing anywhere says which weights produced them. The
+    two ways that goes wrong are both real — a cross-encoder swapped for a faster one is a
+    quality change nobody can see, and one swapped for a heavier one is the difference
+    between a search that takes 800 ms and one that takes fourteen seconds.
+
+    Reported rather than checked against an expected value: the model is a deployment
+    decision, and this file's job is to make decisions visible, not to have opinions about
+    them.
+    """
+
     async def check() -> tuple[Status, str]:
+        base = url.rstrip("/")
         async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(f"{url.rstrip('/')}/health")
-        if response.status_code == 200:
-            return "ok", f"{redact(url)} responding"
-        return "fail", f"{redact(url)} returned {response.status_code}"
+            response = await client.get(f"{base}/health")
+            if response.status_code != 200:
+                return "fail", f"{redact(url)} returned {response.status_code}"
+            # Best effort. An older TEI without `/info` is still a working service, and
+            # failing the check over a missing label would cry wolf.
+            served = ""
+            try:
+                info = await client.get(f"{base}/info")
+                if info.status_code == 200:
+                    served = str(info.json().get("model_id") or "")
+            except Exception:  # noqa: BLE001 - the health answer is what decides the status
+                served = ""
+        return "ok", f"{redact(url)} responding{f', serving {served}' if served else ''}"
 
     check.__name__ = name
     return check
+
+
+#: What losing the reranker costs, in one sentence, said the same way in every branch below.
+#:
+#: Every word here has been chosen to survive `_scrub`. That is not a stylistic preference:
+#: `_scrub` removes every known secret by exact match, the default database password in
+#: `.env.example` is the word `zenith`, and the word `nothing` is the password in the
+#: unreachable-database URL the tests point at. So this sentence names the *service*
+#: (`tei-rerank`) rather than the container (`zenith-tei-rerank-1`, which prints as
+#: `***-tei-rerank-1`), and counts with a digit rather than saying a component answered
+#: "nothing". `_job_queue` documents the same trap from the other side.
+#:
+#: Short on purpose too. `_scrub` truncates at 200 characters and this is the half an
+#: operator acts on, so it must never be the half that is cut.
+_RERANKER_COST: Final = (
+    "Search answers from the fused order, about 15 points of recall worse (F7). "
+    "Start the `tei-rerank` container."
+)
+
+#: TEI's Prometheus counters are per-process and start at zero, so a restart resets them.
+#: `te_request_count` moves once per inference call and not at all for `/health` or `/info`,
+#: which is what makes it a measure of work done rather than of liveness.
+#:
+#: Label sets are summed: TEI emits one series per `method` (`batch`, `single`), and which
+#: ones exist is a detail of how the client batched, not of how much the service has served.
+_TEI_REQUEST_COUNT = re.compile(
+    r"^te_request_count(?:\{[^}]*\})?\s+([0-9]+(?:\.[0-9]+)?)\s*$", re.MULTILINE
+)
+
+
+def _requests_served(metrics: str | None) -> int | None:
+    """Inference requests this reranker process has answered since it started.
+
+    `None` means the question could not be asked — no `/metrics` route at all, which an
+    older TEI is entitled not to have.
+
+    **An empty body is zero, not silence**, and the difference is the entire restart proxy.
+    A freshly started TEI answers `/metrics` with `200` and *nothing in it*: a Prometheus
+    counter that has never been incremented is not rendered, so the series appears only once
+    the service has done some work. Reading that as "cannot tell" reported a reranker three
+    seconds out of an OOM kill as healthy, which is the exact silence this check exists to
+    break. The status code is what separates the two cases, so the caller passes text only
+    when it got a `200`.
+    """
+    if metrics is None:
+        return None
+    return sum(int(float(value)) for value in _TEI_REQUEST_COUNT.findall(metrics))
+
+
+def _breaker_note() -> str:
+    """What the circuit breaker knows about how long this has been going on — and silence
+    when it knows nothing, which here is almost always.
+
+    `breaker.py` already tracks this and the answer belongs to it, so this reads it rather
+    than starting a second mechanism it would have to keep in step. What it cannot do is
+    read it from *another process*: the breaker is deliberately per-process and in memory
+    (breaker.py says why — a shared one would mean Redis or a table to solve a problem
+    measured in seconds), and `zenith diagnose` is a separate process from the uvicorn
+    workers that serve search. So the breaker this function imports is a freshly
+    constructed one that has never called anything.
+
+    Which is why a closed breaker prints nothing at all. "Circuit closed" would read as
+    "the installation is not degraded" — a claim this process has no way to make, and
+    exactly the failure `demo-check.sh` records in its own comments: a check that reports
+    health when it cannot tell is worse than one that cries wolf, because nobody switches
+    it off and nobody looks again. An *open* breaker is only ever true, so that one is
+    worth printing wherever it is seen.
+    """
+    from app.features.retrieval.breaker import State
+    from app.features.retrieval.service import RERANKER_BREAKER
+
+    breaker = RERANKER_BREAKER
+    if breaker.state is State.OPEN:
+        return f" Circuit open: skipped for up to the last {breaker.cooldown:.0f}s."
+    if breaker.state is State.HALF_OPEN:
+        return f" Circuit open for at least {breaker.cooldown:.0f}s, retrying."
+    return ""
+
+
+async def _reranker_health() -> tuple[Status, str]:
+    """Is the reranker there, and has it just come back?
+
+    `reranking service` above asks whether a model endpoint responds and names the weights
+    it is serving, for both TEI containers alike. This asks the two questions that were
+    unanswered on 28 August, when `tei-rerank` was killed for memory and *nothing said so*:
+    search kept answering from the fused order, about fifteen points of recall worse,
+    marked `degraded` in a field nobody was reading, and it was found by accident hours
+    later.
+
+    **A failure, never a warning.** The runbook and `demo-check.sh` both already treat a
+    missing reranker as a failure, and for the same reason: an installation that answers
+    without it is a working product showing a recall number nobody can reproduce. Severity
+    here is set by what the absence costs, not by whether an HTTP call raised.
+
+    **The restart proxy, and what it cannot see.** The container it is asking about is not
+    this one, so Docker's restart count is out of reach — `.RestartCount` is on the host,
+    which is where `demo-check.sh` reads it. What *is* reachable is TEI's own
+    `/metrics`: those counters live in the serving process and start again at zero when it
+    does. A reranker that is up and has answered zero requests since it started is a
+    process younger than the traffic it exists to serve, which is what the OOM loop looks
+    like from in here.
+
+    It is a proxy and it is reported as one. It cannot say how many times the service
+    restarted, when, or why; and it cannot tell a service that came back thirty seconds ago
+    from one on a fresh installation that nobody has searched yet. That ambiguity is the
+    whole reason it is a warning while an unreachable reranker is a failure — and the
+    reason `demo-check.sh`, which can read the exact answer, also asks.
+    """
+    url = settings.tei_rerank_url.rstrip("/")
+    shown = redact(url)
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            health = await client.get(f"{url}/health")
+            if health.status_code != 200:
+                return (
+                    "fail",
+                    f"{shown} answered /health with {health.status_code}. {_RERANKER_COST}",
+                )
+            # Best effort, like `/info` above: a TEI without `/metrics` is still a working
+            # reranker, and failing the check over a missing counter would cry wolf.
+            try:
+                metrics = await client.get(f"{url}/metrics")
+                # The status code decides, never the body: TEI answers `200` with an empty
+                # body when it has served nothing, and that emptiness is the signal.
+                served = _requests_served(metrics.text if metrics.status_code == 200 else None)
+            except httpx.HTTPError:
+                served = None
+    except httpx.HTTPError as exc:
+        # The exception name, because `degradation.py` sends it here on purpose: the reader
+        # gets a sentence about their results, and the person who can fix it gets the cause.
+        return "fail", f"{shown} is not answering ({type(exc).__name__}). {_RERANKER_COST}"
+
+    note = _breaker_note()
+    if served is None:
+        return "ok", f"{shown} healthy; no /metrics, so a restart is invisible from here.{note}"
+    if served == 0:
+        return "warn", (
+            f"{shown} is up and has answered 0 requests since it last started, which is what "
+            f"a restart looks like from in here. `docker inspect` has the real count.{note}"
+        )
+    return "ok", f"{shown} healthy, {served} request(s) answered since it last started.{note}"
 
 
 async def _hardware() -> tuple[Status, str]:
@@ -286,11 +1167,36 @@ async def run_diagnostics() -> list[Check]:
         await _timed("database (application role)", _application_connection),
         await _timed("row-level security", _rls_active),
         await _timed("migrations", _migration_state),
+        # After migrations, because "declared but absent" only means anything once the
+        # database is known to be at head — before that it is the migration state saying the
+        # same thing twice.
+        await _timed("bypass surface", _security_definer_surface),
+        # Beside the bypass surface because it is the same kind of question and the same kind
+        # of answer: a property of the *running* installation that no test built from the
+        # migrations can see. What a schema declares about partitioning and what a server was
+        # started with are independent, and only one of them causes a 500.
+        await _timed("lock budget", _lock_budget),
+        # And beside *that*, because they are the two halves of one decision: the lock budget
+        # says whether the partition count is affordable, this says whether it is useful.
+        # Neither is answerable from the migrations — one needs the server's start-up flags
+        # and the other needs the customer's own corpus.
+        await _timed("partition modulus", _partition_modulus),
+        # Right after migrations, because it is the half of the install that `alembic upgrade
+        # head` does not do and that nothing else would report as missing.
+        await _timed("job queue", _job_queue),
         await _timed("extensions", _extensions),
         await _timed("content", _content),
         await _timed("document storage", _storage),
+        # After storage, because it needs the storage root to be readable to mean anything.
+        await _timed("document files", _orphaned_documents),
+        await _timed("stranded documents", _stranded_documents),
         await _timed("hardware profile", _hardware),
         await _timed("vector space", _vector_space),
         await _timed("embedding service", _model_service("embed", settings.tei_embed_url)),
         await _timed("reranking service", _model_service("rerank", settings.tei_rerank_url)),
+        # Last, and separate from the line above it. `reranking service` asks the question
+        # every model endpoint is asked — are you there, what are you serving. This asks the
+        # one that went unanswered on 28 August: is the component the recall number depends
+        # on actually present, and has it just come back from the dead.
+        await _timed("reranker health", _reranker_health),
     ]

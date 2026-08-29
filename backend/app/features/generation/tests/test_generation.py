@@ -12,10 +12,10 @@ from sqlalchemy import text
 
 from app.common.llm import GenerationUnavailableError
 from app.core.database import owner_session
-from app.features.auth.permissions import CATALOGUE
+from app.features.auth.access.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
 from app.features.generation.adapters.mock import MockProvider
-from app.features.generation.prompt import ABSTENTION
+from app.features.generation.answering.prompt import ABSTENTION
 from app.features.generation.service import AnswerService
 from app.features.retrieval.service import SearchService
 from app.features.retrieval.tests.test_search import profile_for, seed

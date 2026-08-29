@@ -174,3 +174,68 @@ def test_the_limit_is_capped() -> None:
     assert clamp(10) == 10
     assert clamp(1_000_000) == MAX_LIMIT
     assert clamp(0) == 1
+
+
+async def named(account: Account, *filenames: str) -> None:
+    """Seed documents with chosen names, labelled so the caller can reach them."""
+    async with owner_session() as session:
+        default = await session.scalar(
+            text("SELECT id FROM access_labels WHERE tenant_id = :t AND is_default"),
+            {"t": account.tenant_id},
+        )
+        for index, filename in enumerate(filenames):
+            document_id = await session.scalar(
+                text(
+                    "INSERT INTO documents (tenant_id, filename, sha256, size_bytes) "
+                    "VALUES (:t, :name, :sha, 10) RETURNING id"
+                ),
+                {"t": account.tenant_id, "name": filename, "sha": f"{index + 900:064x}"},
+            )
+            await session.execute(
+                text("INSERT INTO document_labels (document_id, label_id) VALUES (:d, :l)"),
+                {"d": document_id, "l": default},
+            )
+
+
+class TestFindingADocumentByName:
+    """The jump-to box, and why the filter is not in the browser.
+
+    The command palette searches documents by name. Filtering one already-fetched page in
+    the client would work in a demo and quietly stop working at five hundred documents: the
+    box would find what happened to be near the top of the list and miss everything else,
+    which reads to the user as the document not existing.
+    """
+
+    async def test_matches_part_of_a_filename(self, account: Account) -> None:
+        await named(account, "severance-policy.pdf", "travel-expenses.pdf")
+        service = DocumentService(await profile_for(account))
+
+        found, _ = await service.page(search="sever")
+
+        assert [document.filename for document in found] == ["severance-policy.pdf"]
+
+    async def test_ignores_case(self, account: Account) -> None:
+        await named(account, "Severance-Policy.pdf")
+        service = DocumentService(await profile_for(account))
+
+        found, _ = await service.page(search="severance")
+
+        assert [document.filename for document in found] == ["Severance-Policy.pdf"]
+
+    async def test_a_percent_sign_is_matched_literally(self, account: Account) -> None:
+        # Otherwise a search for "50%" becomes a wildcard matching everything, which looks
+        # like the filter silently not working rather than like a filter doing its job.
+        await named(account, "pay-rise-50%.pdf", "travel.pdf")
+        service = DocumentService(await profile_for(account))
+
+        found, _ = await service.page(search="50%")
+
+        assert [document.filename for document in found] == ["pay-rise-50%.pdf"]
+
+    async def test_no_search_returns_everything(self, account: Account) -> None:
+        await named(account, "a.pdf", "b.pdf")
+        service = DocumentService(await profile_for(account))
+
+        found, _ = await service.page()
+
+        assert len(found) == 2

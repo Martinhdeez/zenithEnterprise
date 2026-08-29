@@ -1,6 +1,6 @@
 ---
 name: run-app
-description: Start Zenith Enterprise locally via Docker Compose — backend API, worker, Postgres (ParadeDB), the embeddings model, and the frontend. No reranker, no local LLM (chat/generation goes through the Gemini API, configured in-app under Admin, not via env var). Use whenever asked to run/start/launch the app, or to verify a change in the real running app.
+description: Start Zenith Enterprise locally via Docker Compose — backend API, worker, Postgres (ParadeDB), the embeddings and reranking models, and the frontend. No local LLM (chat/generation goes through the Gemini API, configured in-app under Admin, not via env var). Use whenever asked to run/start/launch the app, or to verify a change in the real running app.
 ---
 
 # Running Zenith Enterprise
@@ -31,6 +31,13 @@ to know if it's needed again (e.g. after `docker compose down -v`).
    ```bash
    docker compose exec api alembic upgrade head
    ```
+   Then the other half of the install, which the migrations deliberately do not cover —
+   Procrastinate manages its own schema:
+   ```bash
+   docker compose exec api zenith install-queue
+   ```
+   Skip it and the app accepts uploads and ingests none: 201, a row, and a status that stays
+   `pending` for ever. `zenith diagnose` reports the missing tables.
 3. Migration `0001_initial_schema.py` creates the `zenith_app` role `NOLOGIN` — nothing
    in the repo ever gives it a password, so right after that first `alembic upgrade head`:
    ```bash
@@ -40,19 +47,42 @@ to know if it's needed again (e.g. after `docker compose down -v`).
    Must match `ZENITH_APP_PASSWORD` in `.env`. Without this, `api`/`worker` fall back to
    connecting as the schema owner and `verify_rls_active()` refuses to start — by design,
    silently disabling RLS is the one failure mode that check exists to prevent.
+4. Migration `0010` creates a second role the same way, for the same reason. `zenith_platform`
+   bypasses RLS and holds no DDL; it is what the system administration panel connects as
+   (`app/core/database.py`'s `platform_session`):
+   ```bash
+   docker compose exec db psql -U zenith -d zenith -c \
+     "ALTER ROLE zenith_platform LOGIN PASSWORD 'zenith_platform';"
+   ```
+   Must match `ZENITH_PLATFORM_PASSWORD` in `.env` (default `zenith_platform`). Only the
+   `/system/*` routes use it, so the rest of the app runs fine without it — the panel is
+   where the omission shows up.
+5. Nobody can reach `/system` until somebody is granted it, and it cannot be granted from
+   inside the product (that is the point — see migration 0010). Bootstrap the first one:
+   ```bash
+   docker compose exec api uv run python -m app.cli grant-system-admin you@example.com
+   ```
 
 ## Start it
 
 ```bash
 open -a Docker  # if the daemon isn't already up
 cd docker
-docker compose up -d --build db tei-embed api worker frontend
+docker compose up -d --build db tei-embed tei-rerank api worker frontend
 ```
 
-Deliberately excluded from that list: `tei-rerank` (reranker — optional, degrades
-gracefully per `search.py`'s fallback, not needed to run the app) and any local LLM
-service (none is defined in this compose file at all — chat generation goes through
-whatever provider is configured in Admin → LLM connector, e.g. Gemini).
+`tei-rerank` is in that list on purpose, and it did not use to be. It is optional in the
+sense that `SearchService` catches its absence and answers anyway from the fused order,
+marked `degraded` — nothing crashes and no error is logged. It is not optional in the sense
+that matters: `docker/docker-compose.yml`'s own comment records that a reranker which never
+runs costs **about 15 points of recall**, and the demonstration claims Recall@8 of 90.0%
+(`.artifacts/specs/2026-08-26-what-this-demo-claims.md`). Starting the stack without it is
+how you demonstrate a number you cannot reproduce, with no symptom in front of you.
+`./scripts/demo-check.sh` fails on it for that reason.
+
+Genuinely excluded: any local LLM service — none is defined in this compose file at all,
+because chat generation goes through whatever provider is configured in Admin → LLM
+connector, e.g. Gemini.
 
 ## Verify it's actually up
 
@@ -97,6 +127,10 @@ until the image is rebuilt:
 ```bash
 docker compose up -d --build api worker
 ```
+**Rebuild `worker` too, not just `api`.** They are separate images from the same source, and
+a new Procrastinate task registered in `ingestion/tasks.py` exists only in the image that was
+rebuilt. A stale worker accepts the job and fails it with `Task was not found` — which reads
+like a queue problem and is a build problem.
 And if the change added an Alembic migration, apply it the same way as initial setup:
 ```bash
 docker compose exec api alembic upgrade head
@@ -120,7 +154,7 @@ docker compose exec api alembic current   # must equal `head`, not just "no erro
 | api | 8000 |
 | db (Postgres) | 5432 |
 | tei-embed | 8081 |
-| tei-rerank (not started by default) | 8082 |
+| tei-rerank | 8082 |
 
 ## Stopping
 

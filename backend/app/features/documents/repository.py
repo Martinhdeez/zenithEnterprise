@@ -28,6 +28,7 @@ class DocumentRepository(ScopedRepository[Document]):
         status: str | None = None,
         label_id: UUID | None = None,
         unlabelled: bool = False,
+        search: str | None = None,
     ) -> tuple[list[Document], Cursor | None]:
         """One page, newest first, plus the cursor for the next one.
 
@@ -59,6 +60,16 @@ class DocumentRepository(ScopedRepository[Document]):
             # `@>` (contains), not `= ANY`: it is the operator the GIN index on
             # `label_ids` (see the model's `ix_documents_label_ids`) actually accelerates.
             statement = statement.where(Document.label_ids.contains([label_id]))
+        if search and search.strip():
+            # Filename only, never the text. A document is found here by what it is called,
+            # which is what somebody typing three letters into a jump-to box is doing;
+            # searching contents is `GET /search`, which ranks passages and returns pages.
+            # Conflating them would give this box two different meanings.
+            #
+            # `%` and `_` escaped so a filename containing them is matched literally rather
+            # than acting as a wildcard.
+            escaped = search.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            statement = statement.where(Document.filename.ilike(f"%{escaped}%"))
         if cursor is not None:
             statement = statement.where(
                 tuple_(Document.created_at, Document.id) < (cursor.created_at, cursor.id)

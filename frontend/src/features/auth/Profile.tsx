@@ -25,6 +25,7 @@ import {
 import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useFormat, useT } from "@/shared/i18n/useT";
 
 interface Props {
   token: string;
@@ -39,6 +40,8 @@ interface Props {
 }
 
 export function Profile({ token, onSignedOut, onProfile }: Props) {
+  const t = useT();
+  const format = useFormat();
   const [me, setMe] = useState<UserProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +57,7 @@ export function Profile({ token, onSignedOut, onProfile }: Props) {
     let cancelled = false;
     void fetchProfile(token)
       .then((result) => !cancelled && remember(result))
-      .catch((failure) => !cancelled && setError(message(failure, "Your profile couldn't be loaded.")));
+      .catch((failure) => !cancelled && setError(message(failure, t("Your profile couldn't be loaded."))));
     return () => {
       cancelled = true;
     };
@@ -72,37 +75,37 @@ export function Profile({ token, onSignedOut, onProfile }: Props) {
     return (
       <p className="flex items-center gap-2 py-10 text-sm text-muted-foreground">
         <Loader2 className="size-4 animate-spin" />
-        Loading…
+        {t("Loading…")}
       </p>
     );
   }
 
   return (
     <div className="space-y-6">
-      <Panel title="Account">
+      <Panel title={t("Account")}>
         <dl className="space-y-3 text-sm">
-          <Row label="Name">
+          <Row label={t("Name")}>
             <EditableName token={token} value={me.name} onSaved={remember} />
           </Row>
-          <Row label="Email">{me.email}</Row>
-          <Row label="Organisation">{me.tenant_name ?? <Absent>Unnamed</Absent>}</Row>
-          <Row label="Member since">{new Date(me.created_at).toLocaleDateString()}</Row>
-          <Row label="Documents uploaded">{me.documents_uploaded}</Row>
+          <Row label={t("Email")}>{me.email}</Row>
+          <Row label={t("Organisation")}>{me.tenant_name ?? <Absent>{t("Unnamed")}</Absent>}</Row>
+          <Row label={t("Member since")}>{format.date(me.created_at)}</Row>
+          <Row label={t("Documents uploaded")}>{me.documents_uploaded}</Row>
         </dl>
       </Panel>
 
-      <Panel title="Access">
+      <Panel title={t("Access")}>
         <div className="space-y-4 text-sm">
-          <Field label="Roles">
-            <Chips values={me.roles} empty="No roles assigned" />
+          <Field label={t("Roles")}>
+            <Chips values={me.roles} empty={t("No roles assigned")} />
           </Field>
           <Field
-            label="Labels you reach"
-            hint="A document is visible to you only if it carries one of these — or none at all."
+            label={t("Labels you reach")}
+            hint={t("A document is visible to you only if it carries one of these — or none at all.")}
           >
-            <Chips values={me.labels} empty="None — you see only unlabelled documents" />
+            <Chips values={me.labels} empty={t("None — you see only unlabelled documents")} />
           </Field>
-          <Field label="Permissions">
+          <Field label={t("Permissions")}>
             <div className="flex flex-wrap gap-1.5">
               {me.permissions.map((permission) => (
                 <code
@@ -117,11 +120,11 @@ export function Profile({ token, onSignedOut, onProfile }: Props) {
         </div>
       </Panel>
 
-      <Panel title="Password">
+      <Panel title={t("Password")}>
         <PasswordForm token={token} onChanged={onSignedOut} />
       </Panel>
 
-      <Panel title="Sessions">
+      <Panel title={t("Sessions")}>
         <Sessions token={token} onSignedOut={onSignedOut} />
       </Panel>
     </div>
@@ -144,6 +147,7 @@ function EditableName({
   value: string | null;
   onSaved: (profile: UserProfile) => void;
 }) {
+  const t = useT();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ?? "");
   const [busy, setBusy] = useState(false);
@@ -159,7 +163,7 @@ function EditableName({
         }}
         className="text-foreground underline decoration-muted-foreground/40 underline-offset-4 transition-colors hover:decoration-foreground"
       >
-        {value ?? <Absent>Set a name</Absent>}
+        {value ?? <Absent>{t("Set a name")}</Absent>}
       </button>
     );
   }
@@ -175,7 +179,7 @@ function EditableName({
             onSaved(updated);
             setEditing(false);
           })
-          .catch((failure) => setError(message(failure, "That name couldn't be saved.")))
+          .catch((failure) => setError(message(failure, t("That name couldn't be saved."))))
           .finally(() => setBusy(false));
       }}
       className="flex flex-col items-end gap-1.5"
@@ -187,8 +191,8 @@ function EditableName({
       <input
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
-        placeholder="Your name"
-        aria-label="Your name"
+        placeholder={t("Your name")}
+        aria-label={t("Your name")}
         maxLength={200}
         autoFocus
         // Escape leaves without saving, which is the shortcut anyone editing in place
@@ -215,14 +219,14 @@ function EditableName({
           }}
           className="text-muted-foreground transition-colors hover:text-foreground"
         >
-          Cancel
+          {t("Cancel")}
         </button>
         <button
           type="submit"
           disabled={busy}
           className="font-medium text-primary transition-colors hover:text-primary/80 disabled:opacity-50"
         >
-          {busy ? "Saving…" : "Save"}
+          {busy ? t("Saving…") : t("Save")}
         </button>
       </div>
     </form>
@@ -230,6 +234,7 @@ function EditableName({
 }
 
 function PasswordForm({ token, onChanged }: { token: string; onChanged: () => void }) {
+  const t = useT();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [busy, setBusy] = useState(false);
@@ -258,7 +263,7 @@ function PasswordForm({ token, onChanged }: { token: string; onChanged: () => vo
     <form onSubmit={(event) => void submit(event)} className="max-w-sm space-y-3">
       <div className="space-y-1.5">
         <label htmlFor="current-password" className="text-xs font-medium text-muted-foreground">
-          Current password
+          {t("Current password")}
         </label>
         <Input
           id="current-password"
@@ -271,7 +276,7 @@ function PasswordForm({ token, onChanged }: { token: string; onChanged: () => vo
       </div>
       <div className="space-y-1.5">
         <label htmlFor="new-password" className="text-xs font-medium text-muted-foreground">
-          New password <span className="font-normal">(at least 8 characters)</span>
+          {t("New password")} <span className="font-normal">{t("(at least 8 characters)")}</span>
         </label>
         <Input
           id="new-password"
@@ -297,7 +302,7 @@ function PasswordForm({ token, onChanged }: { token: string; onChanged: () => vo
         disabled={busy || current.length === 0 || next.length < 8}
         className="rounded-md"
       >
-        {busy ? "Changing…" : "Change password"}
+        {busy ? t("Changing…") : t("Change password")}
       </Button>
     </form>
   );
@@ -313,6 +318,7 @@ function PasswordForm({ token, onChanged }: { token: string; onChanged: () => vo
  * choosing between them will read it.
  */
 function Sessions({ token, onSignedOut }: { token: string; onSignedOut: () => void }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -320,11 +326,11 @@ function Sessions({ token, onSignedOut }: { token: string; onSignedOut: () => vo
     <div className="space-y-5">
       <div className="space-y-3">
         <p className="max-w-prose text-sm text-muted-foreground">
-          Sign out on this device. Your other sessions are untouched.
+          {t("Sign out on this device. Your other sessions are untouched.")}
         </p>
         <Button type="button" variant="outline" onClick={onSignedOut} className="gap-1.5 rounded-md">
           <LogOut className="size-4" />
-          Sign out
+          {t("Sign out")}
         </Button>
       </div>
 
@@ -359,17 +365,21 @@ function Sessions({ token, onSignedOut }: { token: string; onSignedOut: () => vo
         className="gap-1.5 rounded-md"
       >
         <LogOut className="size-4" />
-        {busy ? "Ending…" : "Sign out everywhere"}
+        {busy ? t("Ending…") : t("Sign out everywhere")}
       </Button>
       </div>
     </div>
   );
 }
 
+/** The same frame the administration screens use, so the two read as one product rather
+    than two screens built by different hands — including the correction: the body is
+    `bg-card` and lifts off the working surface, and the header takes the page's own tone so
+    it recedes below its own body. It was inverted while the working surface was white. */
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-lg border border-border bg-card">
-      <h2 className="flex items-center gap-2 border-b border-border px-5 py-3.5 text-sm font-semibold text-foreground">
+    <section className="rounded-lg border border-border bg-card shadow-sm">
+      <h2 className="flex items-center gap-2 rounded-t-lg border-b border-border bg-background px-5 py-3.5 text-sm font-semibold text-foreground">
         {title === "Access" && <ShieldCheck className="size-4 text-primary" />}
         {title}
       </h2>

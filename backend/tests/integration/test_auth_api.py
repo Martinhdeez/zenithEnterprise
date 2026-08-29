@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from app.common.exceptions import ZenithError
-from app.features.auth.dependencies import requires
+from app.features.auth.access.dependencies import requires
 from app.features.auth.router import router as auth_router
 from app.main import handle_domain_error
 from conftest import PASSWORD, Account
@@ -81,7 +81,14 @@ async def test_me_reports_what_the_caller_reaches(client: AsyncClient, account: 
     body = response.json()
     assert body["user_id"] == str(account.admin_id)
     assert body["tenant_id"] == str(account.tenant_id)
-    assert set(body["label_ids"]) == {str(account.finance_label), str(account.default_label)}
+    assert set(body["label_ids"]) == {
+        str(account.finance_label),
+        str(account.hr_label),
+        str(account.default_label),
+        # `admin` alone reaches the quarantine label, which is what lets an unfiled upload be
+        # readable by somebody able to classify it without being readable by the tenant.
+        str(account.quarantine_label),
+    }
     assert "documents.upload" in body["permissions"]
 
 

@@ -19,33 +19,23 @@ it safe:
 
 import asyncio
 import json
-import secrets
-import string
 from collections.abc import Coroutine
 from typing import Annotated, Any
 
 import typer
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.common.exceptions import ConflictError, NotFoundError
 from app.core.config import generate_secret
 from app.core.database import dispose_engines, owner_session
 from app.core.diagnostics import run_diagnostics
 from app.features.auth.model import Role, User
-from app.features.auth.provisioning import create_user
+from app.features.auth.onboarding.provisioning import create_user, generate_password
 from app.features.auth.service import normalise_email
 from app.features.tenancy.model import Tenant
 from app.features.tenancy.service import TenantService
 
 app = typer.Typer(help="Zenith Enterprise installation and recovery commands.")
-
-# Unambiguous alphabet: no O/0, no l/1/I. These passwords get read aloud over the phone
-# and typed from a screenshot, and a character nobody can identify is a support call.
-_ALPHABET = "".join(c for c in string.ascii_letters + string.digits if c not in "O0oIl1")
-
-
-def _generate_password(length: int = 20) -> str:
-    return "".join(secrets.choice(_ALPHABET) for _ in range(length))
 
 
 def _execute(work: Coroutine[Any, Any, None]) -> None:
@@ -76,6 +66,30 @@ def _print_credentials(email: str, password: str) -> None:
     typer.echo("")
 
 
+async def _refuse_if_taken(email: str) -> None:
+    """One address is one account across the installation (migration 0011).
+
+    Checked here as well as by the constraint so the operator gets a sentence naming the
+    organisation, rather than a driver error naming an index. The constraint is still what
+    guarantees it — this only explains it.
+    """
+    async with owner_session() as session:
+        existing = await session.scalar(
+            text(
+                "SELECT t.name FROM users u JOIN tenants t ON t.id = u.tenant_id WHERE u.email = :e"
+            ),
+            {"e": normalise_email(email)},
+        )
+    if existing:
+        typer.secho(
+            f"{email} already has an account in {existing!r}. "
+            f"One address is one account across this installation.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(1)
+
+
 @app.command()
 def create_tenant(
     name: Annotated[str, typer.Argument(help="Company name.")],
@@ -89,13 +103,17 @@ def create_tenant(
     """
 
     async def run() -> None:
+        # Before the tenant exists: a duplicate found afterwards would leave an
+        # organisation with no administrator and nothing to say so.
+        await _refuse_if_taken(admin_email)
+
         try:
             tenant = await TenantService().create(name)
         except ConflictError as exc:
             typer.secho(str(exc), fg=typer.colors.RED, err=True)
             raise typer.Exit(1) from exc
 
-        password = _generate_password()
+        password = generate_password()
         async with owner_session() as session:
             admin_role = await session.scalar(
                 select(Role).where(Role.tenant_id == tenant.id, Role.name == "admin")
@@ -124,7 +142,9 @@ def invite(
             typer.secho(str(exc), fg=typer.colors.RED, err=True)
             raise typer.Exit(1) from exc
 
-        password = _generate_password()
+        await _refuse_if_taken(email)
+
+        password = generate_password()
         async with owner_session() as session:
             target = await session.scalar(
                 select(Role).where(Role.tenant_id == found.id, Role.name == role)
@@ -155,7 +175,7 @@ def reset_password(
     async def run() -> None:
         from app.core.security import hash_password
 
-        password = _generate_password()
+        password = generate_password()
         async with owner_session() as session:
             user = await session.scalar(
                 select(User)
@@ -241,7 +261,10 @@ def diagnose(
 @app.command()
 def reingest(
     tenant: Annotated[str | None, typer.Option(help="Limit to one tenant, by name.")] = None,
-    status: Annotated[str | None, typer.Option(help="Only this status: pending or failed.")] = None,
+    status: Annotated[
+        str | None,
+        typer.Option(help="Only this status. Run with an invalid one to see the list."),
+    ] = None,
     apply: Annotated[
         bool, typer.Option("--apply", help="Actually enqueue. Without it, only report.")
     ] = False,
@@ -255,7 +278,19 @@ def reingest(
     Reports by default. Enqueuing a thousand documents on a machine sized for one at a time
     is an operator's decision, not a side effect of asking what is stuck.
     """
-    from app.features.ingestion.requeue import find_stranded, requeue
+    from app.features.ingestion.requeue import REQUEUABLE, find_stranded, requeue
+
+    # Refused rather than passed through. An unrecognised status matches nothing and reports
+    # "Nothing stranded." — which reads as *the installation is healthy* and is the exact
+    # failure F16 shipped: a folder count filtering on a status that had never existed,
+    # matching nothing, silently. A repair tool that answers "all clear" to a typo is worse
+    # than one that answers nothing.
+    if status is not None and status not in REQUEUABLE:
+        typer.echo(
+            f"{status!r} is not a status this can requeue. Valid: {', '.join(REQUEUABLE)}.",
+            err=True,
+        )
+        raise typer.Exit(2)
 
     async def run() -> None:
         tenant_id = (await TenantService().by_name(tenant)).id if tenant else None
@@ -290,8 +325,14 @@ def install_queue() -> None:
 
     Procrastinate owns its own schema and manages it itself, so it is not part of our
     migrations: mixing the two would mean our `downgrade` had opinions about a library's
-    tables. Separate command, run at install time, and the worker refuses to start without
-    it — which is the loud failure we want rather than jobs vanishing into a missing table.
+    tables.
+
+    The cost of that separation is that an installation which runs only `alembic upgrade
+    head` accepts uploads and never ingests one — 201, a row, and a status that stays
+    `pending` for ever. Nothing used to say so, and an earlier version of this docstring
+    claimed the worker refused to start without the tables, which no code in this repository
+    does. `zenith diagnose` now checks for them instead, which is a claim that is true
+    because something enforces it.
     """
     import asyncio
 
@@ -315,6 +356,81 @@ def generate_jwt_secret() -> None:
     the choice, which is the only reliable fix.
     """
     typer.echo(generate_secret())
+
+
+@app.command("grant-system-admin")
+def grant_system_admin(
+    email: str = typer.Argument(..., help="Address of an existing user"),
+) -> None:
+    """Give a user authority above every tenant.
+
+    The only way to make the first one, and necessarily so: the flag cannot be granted from
+    the product, because a tenant's administrator editing their own roles must never be able
+    to reach out of their own tenant. `zenith_app` has no UPDATE privilege on the column
+    (migration 0010), so this runs on the owner connection.
+
+    The address must be unique across the installation. If two tenants both have a user with
+    it, this refuses rather than guessing — the same reasoning as login, where an ambiguous
+    address is treated as no match.
+    """
+
+    async def work() -> None:
+        async with owner_session() as session:
+            matches = list(
+                await session.scalars(
+                    text("SELECT id FROM users WHERE email = :e"),
+                    {"e": normalise_email(email)},
+                )
+            )
+            if not matches:
+                typer.secho(f"No user with address {email!r}.", fg=typer.colors.RED, err=True)
+                raise typer.Exit(1)
+            if len(matches) > 1:
+                typer.secho(
+                    f"{email!r} exists in {len(matches)} organisations. "
+                    f"Resolve that before granting system administration.",
+                    fg=typer.colors.RED,
+                    err=True,
+                )
+                raise typer.Exit(1)
+
+            await session.execute(
+                text("UPDATE users SET is_system_admin = true WHERE id = :u"), {"u": matches[0]}
+            )
+
+        typer.secho(f"{email} is now a system administrator.", fg=typer.colors.GREEN)
+        typer.echo("They reach /system in the product on their next request.")
+
+    _execute(work())
+
+
+@app.command("revoke-system-admin")
+def revoke_system_admin(
+    email: str = typer.Argument(..., help="Address of a system admin"),
+) -> None:
+    """Take that authority away.
+
+    Effective on the holder's next request, not when their token expires: the flag is read
+    per request in `AuthService.profile` rather than carried in the token.
+    """
+
+    async def work() -> None:
+        async with owner_session() as session:
+            updated = list(
+                await session.scalars(
+                    text(
+                        "UPDATE users SET is_system_admin = false "
+                        "WHERE email = :e AND is_system_admin RETURNING id"
+                    ),
+                    {"e": normalise_email(email)},
+                )
+            )
+        if not updated:
+            typer.secho(f"{email!r} was not a system administrator.", fg=typer.colors.YELLOW)
+            return
+        typer.secho(f"{email} is no longer a system administrator.", fg=typer.colors.GREEN)
+
+    _execute(work())
 
 
 if __name__ == "__main__":

@@ -17,6 +17,7 @@ from app.common.exceptions import ZenithError
 from app.core.config import settings
 from app.core.database import owner_session
 from app.features.auth.router import router as auth_router
+from app.features.retrieval.degradation import SEMANTIC_UNAVAILABLE
 from app.features.retrieval.router import router as search_router
 from app.main import handle_domain_error
 from conftest import PASSWORD, Account
@@ -104,7 +105,10 @@ async def test_search_reports_when_it_ran_on_one_half(
     ).json()
 
     assert body["degraded"] is True
-    assert "lexical" in body["reason"]
+    # The sentence the caller receives, not the mechanism. `EmbeddingServiceError` is in the
+    # log — where somebody who can restart the container will look — and deliberately not in
+    # the response, which is read by whoever is deciding whether to trust the results.
+    assert body["reason"] == SEMANTIC_UNAVAILABLE
     assert body["hits"], "the lexical half must still answer"
 
 

@@ -63,6 +63,9 @@ class ProfileResponse(BaseModel):
     labels: list[str]
     documents_uploaded: int
     created_at: datetime
+    #: Authority above every tenant. The system panel's nav item hangs off this; the API
+    #: refuses those routes on its own regardless.
+    is_system_admin: bool = False
 
 
 class MeResponse(BaseModel):
@@ -72,3 +75,23 @@ class MeResponse(BaseModel):
     # The labels this caller reaches. Returned so the UI can hide what the user cannot
     # open, never so it can decide: the decision is RLS's, in the database.
     label_ids: list[UUID]
+
+
+class SetPasswordRequest(BaseModel):
+    """A password the user chose, from the set-password page.
+
+    The same minimum the change-password route enforces. It is checked here too rather than
+    trusted to the page, because this route is public and the page is not the only thing
+    that can call it.
+    """
+
+    password: str = Field(min_length=12, max_length=128)
+
+
+class CredentialSubjectResponse(BaseModel):
+    """Who a link is for, so the page can address them by name rather than by token."""
+
+    email: str
+    #: `invitation` or `reset`. The page says "Welcome" for one and "Choose a new password"
+    #: for the other, which is the difference between arriving and returning.
+    purpose: str

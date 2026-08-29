@@ -49,6 +49,8 @@ _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
 _owner_engine: AsyncEngine | None = None
 _owner_session_factory: async_sessionmaker[AsyncSession] | None = None
+_platform_engine: AsyncEngine | None = None
+_platform_session_factory: async_sessionmaker[AsyncSession] | None = None
 
 # The configuration is remembered separately from the engines built from it, so that
 # connections can be dropped without losing where they pointed. `dispose_engines` needs
@@ -58,6 +60,7 @@ _owner_session_factory: async_sessionmaker[AsyncSession] | None = None
 _url: str | None = None
 _pool_size: int | None = None
 _owner_url: str | None = None
+_platform_url: str | None = None
 
 
 def configure_engine(url: str, pool_size: int | None = None) -> None:
@@ -86,11 +89,15 @@ def configure_owner_engine(url: str) -> None:
     _owner_session_factory = async_sessionmaker(_owner_engine, expire_on_commit=False)
 
 
-def get_engine() -> AsyncEngine:
-    if _engine is None:
-        configure_engine(_url or settings.database_url, _pool_size)
-    assert _engine is not None
-    return _engine
+def configure_platform_engine(url: str) -> None:
+    global _platform_engine, _platform_session_factory, _platform_url
+    _platform_url = url
+    if _platform_engine is not None:
+        _platform_engine.sync_engine.dispose()
+    # Small pool, same reasoning as the owner engine: this connection bypasses RLS and the
+    # operations that need it are rare and sequential.
+    _platform_engine = create_async_engine(url, pool_size=2, max_overflow=0, pool_pre_ping=True)
+    _platform_session_factory = async_sessionmaker(_platform_engine, expire_on_commit=False)
 
 
 def get_session_factory() -> async_sessionmaker[AsyncSession]:
@@ -107,6 +114,13 @@ def get_owner_session_factory() -> async_sessionmaker[AsyncSession]:
     return _owner_session_factory
 
 
+def get_platform_session_factory() -> async_sessionmaker[AsyncSession]:
+    if _platform_session_factory is None:
+        configure_platform_engine(_platform_url or settings.database_platform_url)
+    assert _platform_session_factory is not None
+    return _platform_session_factory
+
+
 async def dispose_engines() -> None:
     """Close every pooled connection, keeping the configuration.
 
@@ -116,33 +130,52 @@ async def dispose_engines() -> None:
     what makes one process able to run several commands, each in its own loop.
     """
     global _engine, _session_factory, _owner_engine, _owner_session_factory
+    global _platform_engine, _platform_session_factory
     if _engine is not None:
         await _engine.dispose()
     if _owner_engine is not None:
         await _owner_engine.dispose()
+    if _platform_engine is not None:
+        await _platform_engine.dispose()
     _engine = _session_factory = None
     _owner_engine = _owner_session_factory = None
+    _platform_engine = _platform_session_factory = None
 
 
 async def set_rls_context(session: AsyncSession, context: "TenantContext") -> None:
-    await session.execute(
-        text("SELECT set_config('zenith.tenant_id', :tenant, true)"),
-        {"tenant": str(context.tenant_id)},
-    )
-    await session.execute(
-        text("SELECT set_config('zenith.label_ids', :labels, true)"),
-        {"labels": ",".join(str(label) for label in context.label_ids)},
-    )
+    """Pin the four policy variables and the timeout, in one round trip.
+
+    `set_config` is a function and returns its value, so the four compose into one target
+    list. They were four statements plus a `SET LOCAL`, and every `tenant_session` paid all
+    five before its first useful query — on a connection out of a pool of ten, held for the
+    whole transaction, so the cost is the scarce resource rather than the milliseconds.
+
+    **Nothing about the context changes.** The same four variables, the same values, the same
+    `is_local = true`, in the same transaction, before any query runs. That last argument is
+    the load-bearing one: `true` scopes the setting to the transaction, so it cannot outlive
+    the session's return to the pool and reach the next request on the same connection. A
+    session-level setting here would be a cross-tenant leak of the first order.
+
+    `statement_timeout` stays a separate statement because `SET LOCAL` is not a function and
+    has no expression form; `set_config('statement_timeout', ...)` would take the value as
+    text and is the same round trip anyway.
+    """
     # Bound even when absent: an empty string becomes NULL in `zenith_current_user_id()`,
     # and `user_id = NULL` is never true. A context that forgets the user reads nothing
     # rather than everything, which is the direction every policy here fails in.
     await session.execute(
-        text("SELECT set_config('zenith.user_id', :user_id, true)"),
-        {"user_id": str(context.user_id) if context.user_id else ""},
-    )
-    await session.execute(
-        text("SELECT set_config('zenith.reads_all_history', :reads_all, true)"),
-        {"reads_all": "true" if context.reads_all_history else "false"},
+        text(
+            "SELECT set_config('zenith.tenant_id', :tenant, true), "
+            "       set_config('zenith.label_ids', :labels, true), "
+            "       set_config('zenith.user_id', :user_id, true), "
+            "       set_config('zenith.reads_all_history', :reads_all, true)"
+        ),
+        {
+            "tenant": str(context.tenant_id),
+            "labels": ",".join(str(label) for label in context.label_ids),
+            "user_id": str(context.user_id) if context.user_id else "",
+            "reads_all": "true" if context.reads_all_history else "false",
+        },
     )
     await session.execute(text(f"SET LOCAL statement_timeout = {settings.statement_timeout_ms}"))
     # Recorded on the session so the base repository can demand a context without
@@ -221,4 +254,25 @@ async def owner_session() -> AsyncGenerator[AsyncSession]:
     bug regardless of what the handler does.
     """
     async with get_owner_session_factory()() as session, session.begin():
+        yield session
+
+
+@asynccontextmanager
+async def platform_session() -> AsyncGenerator[AsyncSession]:
+    """Session as `zenith_platform`. **Bypasses RLS, and cannot touch the schema.**
+
+    The second bypass surface, and the only one reachable over HTTP. It exists for the
+    system administration panel, whose entire job is the question RLS is built to refuse:
+    what is in every tenant at once.
+
+    Separate from `owner_session` rather than reusing it, and the difference is the point.
+    The owner can `DROP TABLE`; this role holds DML and `USAGE` and nothing else (migration
+    0010). A bug in a system handler can therefore destroy data — which is what the panel is
+    for — but not the schema it lives in.
+
+    Kept greppable for the same reason as `owner_session`: searching for `platform_session`
+    is a complete audit of what the panel can reach. Every caller must sit behind
+    `requires_system_admin`; one that does not is a bug regardless of what it does.
+    """
+    async with get_platform_session_factory()() as session, session.begin():
         yield session

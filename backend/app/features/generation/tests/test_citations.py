@@ -6,8 +6,8 @@ is allowed to leave the process, and they have to hold for any text any model pr
 
 from uuid import uuid4
 
-from app.features.generation.citations import bind
-from app.features.generation.prompt import ABSTENTION, build
+from app.features.generation.answering.citations import bind
+from app.features.generation.answering.prompt import ABSTENTION, build
 from app.features.retrieval.search import Hit
 
 
@@ -16,7 +16,10 @@ def hit(text: str = "a passage", page: int = 1) -> Hit:
         chunk_id=uuid4(),
         document_id=uuid4(),
         filename="contract.pdf",
+        media_type="application/pdf",
         page_num=page,
+        char_start=0,
+        char_end=len(text),
         text=text,
         bboxes=[{"page": 1.0, "x0": 0.1, "y0": 0.1, "x1": 0.9, "y1": 0.2}],
         lexical_rank=1,

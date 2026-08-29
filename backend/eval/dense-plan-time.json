@@ -1,0 +1,2198 @@
+{
+  "question": "Can the dense retrieval query prune at plan time instead of executor startup, without weakening row-level security?",
+  "schema": "zenith_denseplan",
+  "wanted": 50,
+  "tenants": 8,
+  "plan_repeats": 11,
+  "lock_ceiling": 32,
+  "rungs": [
+    {
+      "modulus": null,
+      "built_seconds": 13.6,
+      "plans": {
+        "today": {
+          "planning_ms": {
+            "median": 0.115,
+            "p95": 0.559,
+            "max": 0.559,
+            "min": 0.044,
+            "median_warm": 0.082,
+            "first": 0.559
+          },
+          "execution_ms": {
+            "median": 4.928,
+            "p95": 7.656,
+            "max": 7.656,
+            "min": 4.806,
+            "median_warm": 4.915,
+            "first": 7.656
+          },
+          "planning_series_ms": [
+            0.559,
+            0.172,
+            0.132,
+            0.115,
+            0.123,
+            0.115,
+            0.049,
+            0.049,
+            0.044,
+            0.045,
+            0.048
+          ],
+          "subplans_removed": [],
+          "appends": 0,
+          "partitions_in_plan": 0,
+          "partitions_in_plan_series": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": false,
+          "leaf_scans": [
+            "Bitmap Heap Scan on chk c (actual rows=569 loops=1)",
+            "Bitmap Index Scan on chk_tenant_id_idx (actual rows=1700 loops=1)",
+            "Bitmap Index Scan on chk_label_ids_idx (actual rows=4516 loops=1)",
+            "Bitmap Index Scan on chk_label_ids_idx (actual rows=0 loops=1)"
+          ]
+        },
+        "local": {
+          "planning_ms": {
+            "median": 0.097,
+            "p95": 0.128,
+            "max": 0.128,
+            "min": 0.044,
+            "median_warm": 0.081,
+            "first": 0.128
+          },
+          "execution_ms": {
+            "median": 2.205,
+            "p95": 2.236,
+            "max": 2.236,
+            "min": 2.165,
+            "median_warm": 2.205,
+            "first": 2.18
+          },
+          "planning_series_ms": [
+            0.128,
+            0.102,
+            0.107,
+            0.098,
+            0.097,
+            0.106,
+            0.044,
+            0.048,
+            0.048,
+            0.062,
+            0.064
+          ],
+          "subplans_removed": [],
+          "appends": 0,
+          "partitions_in_plan": 0,
+          "partitions_in_plan_series": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": true,
+          "leaf_scans": [
+            "Bitmap Heap Scan on chk c (actual rows=569 loops=1)",
+            "Bitmap Index Scan on chk_tenant_id_idx (actual rows=1700 loops=1)",
+            "Bitmap Index Scan on chk_label_ids_idx (actual rows=4516 loops=1)",
+            "Bitmap Index Scan on chk_label_ids_idx (actual rows=0 loops=1)"
+          ]
+        },
+        "guc": {
+          "planning_ms": {
+            "median": 0.109,
+            "p95": 0.149,
+            "max": 0.149,
+            "min": 0.045,
+            "median_warm": 0.08,
+            "first": 0.149
+          },
+          "execution_ms": {
+            "median": 4.829,
+            "p95": 5.046,
+            "max": 5.046,
+            "min": 4.74,
+            "median_warm": 4.839,
+            "first": 4.792
+          },
+          "planning_series_ms": [
+            0.149,
+            0.127,
+            0.114,
+            0.109,
+            0.113,
+            0.116,
+            0.051,
+            0.045,
+            0.05,
+            0.049,
+            0.05
+          ],
+          "subplans_removed": [],
+          "appends": 0,
+          "partitions_in_plan": 0,
+          "partitions_in_plan_series": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": false,
+          "leaf_scans": [
+            "Bitmap Heap Scan on chk c (actual rows=569 loops=1)",
+            "Bitmap Index Scan on chk_tenant_id_idx (actual rows=1700 loops=1)",
+            "Bitmap Index Scan on chk_label_ids_idx (actual rows=4516 loops=1)",
+            "Bitmap Index Scan on chk_label_ids_idx (actual rows=0 loops=1)"
+          ]
+        },
+        "local_forced_generic": {
+          "planning_ms": {
+            "median": 0.049,
+            "p95": 0.058,
+            "max": 0.058,
+            "min": 0.044,
+            "median_warm": 0.048,
+            "first": 0.058
+          },
+          "execution_ms": {
+            "median": 2.244,
+            "p95": 2.284,
+            "max": 2.284,
+            "min": 2.22,
+            "median_warm": 2.248,
+            "first": 2.232
+          },
+          "planning_series_ms": [
+            0.058,
+            0.05,
+            0.046,
+            0.045,
+            0.051,
+            0.049,
+            0.05,
+            0.05,
+            0.046,
+            0.046,
+            0.044
+          ],
+          "subplans_removed": [],
+          "appends": 0,
+          "partitions_in_plan": 0,
+          "partitions_in_plan_series": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": true,
+          "leaf_scans": [
+            "Bitmap Heap Scan on chk c (actual rows=569 loops=1)",
+            "Bitmap Index Scan on chk_tenant_id_idx (actual rows=1700 loops=1)",
+            "Bitmap Index Scan on chk_label_ids_idx (actual rows=4516 loops=1)",
+            "Bitmap Index Scan on chk_label_ids_idx (actual rows=0 loops=1)"
+          ]
+        }
+      },
+      "calls": {
+        "f_shipped": {
+          "locks": 9,
+          "returned": 50,
+          "wall_ms": {
+            "median": 5.093,
+            "p95": 5.322,
+            "max": 5.322,
+            "min": 4.985,
+            "median_warm": 5.141,
+            "first": 5.079
+          },
+          "wall_series_ms": [
+            5.079,
+            5.018,
+            5.031,
+            5.22,
+            5.322,
+            5.189,
+            5.093,
+            5.234,
+            4.985
+          ]
+        },
+        "f_local": {
+          "locks": 9,
+          "returned": 50,
+          "wall_ms": {
+            "median": 2.456,
+            "p95": 2.555,
+            "max": 2.555,
+            "min": 2.392,
+            "median_warm": 2.433,
+            "first": 2.555
+          },
+          "wall_series_ms": [
+            2.555,
+            2.468,
+            2.456,
+            2.481,
+            2.538,
+            2.402,
+            2.392,
+            2.407,
+            2.411
+          ]
+        },
+        "f_guc": {
+          "locks": 9,
+          "returned": 50,
+          "wall_ms": {
+            "median": 4.901,
+            "p95": 5.097,
+            "max": 5.097,
+            "min": 4.885,
+            "median_warm": 4.899,
+            "first": 4.971
+          },
+          "wall_series_ms": [
+            4.971,
+            4.925,
+            4.901,
+            4.896,
+            5.097,
+            4.885,
+            4.888,
+            4.891,
+            4.924
+          ]
+        },
+        "f_dynamic": {
+          "locks": 9,
+          "returned": 50,
+          "wall_ms": {
+            "median": 2.439,
+            "p95": 2.483,
+            "max": 2.483,
+            "min": 2.402,
+            "median_warm": 2.428,
+            "first": 2.451
+          },
+          "wall_series_ms": [
+            2.451,
+            2.483,
+            2.402,
+            2.417,
+            2.479,
+            2.439,
+            2.408,
+            2.448,
+            2.406
+          ]
+        }
+      },
+      "equivalence": {
+        "f_local": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_guc": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_dynamic": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        }
+      },
+      "equivalence_under_one_label": {
+        "f_local": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_guc": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_dynamic": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        }
+      },
+      "isolation": {
+        "tenants": 8,
+        "cells": 64,
+        "rows_on_the_diagonal": 400,
+        "rows_off_the_diagonal": 0,
+        "cells_that_returned_anything_off_the_diagonal": [],
+        "across_the_plan_cache": [
+          {
+            "state": "after nine calls as tenant 3, now tenant 5",
+            "rows": 50,
+            "foreign_rows": 0
+          },
+          {
+            "state": "the same with a generic plan forced",
+            "rows": 50,
+            "foreign_rows": 0
+          }
+        ],
+        "rows_with_no_tenant_in_the_session": {
+          "f_shipped": 0,
+          "f_local": 0,
+          "f_guc": 0,
+          "f_dynamic": 0
+        }
+      },
+      "owner_side": {
+        "f_shipped, with tenant 3 in the session": {
+          "rows": 50,
+          "distinct_tenants": 8
+        },
+        "f_local, with tenant 3 in the session": {
+          "rows": 50,
+          "distinct_tenants": 1
+        },
+        "f_shipped, with none": {
+          "rows": 50,
+          "distinct_tenants": 8
+        },
+        "f_local, with none": {
+          "rows": 0,
+          "distinct_tenants": 0
+        }
+      }
+    },
+    {
+      "modulus": 32,
+      "built_seconds": 12.0,
+      "plans": {
+        "today": {
+          "planning_ms": {
+            "median": 1.178,
+            "p95": 5.562,
+            "max": 5.562,
+            "min": 1.129,
+            "median_warm": 1.173,
+            "first": 5.562
+          },
+          "execution_ms": {
+            "median": 1.592,
+            "p95": 3.246,
+            "max": 3.246,
+            "min": 1.522,
+            "median_warm": 1.592,
+            "first": 3.246
+          },
+          "planning_series_ms": [
+            5.562,
+            1.242,
+            1.164,
+            1.178,
+            1.169,
+            2.486,
+            1.129,
+            1.149,
+            1.169,
+            1.185,
+            1.192
+          ],
+          "subplans_removed": [
+            31,
+            31
+          ],
+          "appends": 2,
+          "partitions_in_plan": 2,
+          "partitions_in_plan_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": false,
+          "leaf_scans": [
+            "Index Scan using e5_embedding_half_idx on e5 e_1 (actual rows=122 loops=1)",
+            "Bitmap Heap Scan on c5 c_1 (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)"
+          ]
+        },
+        "local": {
+          "planning_ms": {
+            "median": 0.116,
+            "p95": 1.084,
+            "max": 1.084,
+            "min": 0.104,
+            "median_warm": 0.115,
+            "first": 0.125
+          },
+          "execution_ms": {
+            "median": 0.627,
+            "p95": 0.694,
+            "max": 0.694,
+            "min": 0.601,
+            "median_warm": 0.627,
+            "first": 0.694
+          },
+          "planning_series_ms": [
+            0.125,
+            0.141,
+            0.109,
+            0.116,
+            0.114,
+            1.084,
+            0.108,
+            0.104,
+            0.11,
+            0.117,
+            0.117
+          ],
+          "subplans_removed": [],
+          "appends": 0,
+          "partitions_in_plan": 2,
+          "partitions_in_plan_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": true,
+          "leaf_scans": [
+            "Index Scan using e5_embedding_half_idx on e5 e (actual rows=122 loops=1)",
+            "Index Scan using c5_pkey on c5 c (actual rows=0 loops=122)"
+          ]
+        },
+        "guc": {
+          "planning_ms": {
+            "median": 1.168,
+            "p95": 2.386,
+            "max": 2.386,
+            "min": 1.16,
+            "median_warm": 1.167,
+            "first": 1.2
+          },
+          "execution_ms": {
+            "median": 1.59,
+            "p95": 1.642,
+            "max": 1.642,
+            "min": 1.567,
+            "median_warm": 1.591,
+            "first": 1.567
+          },
+          "planning_series_ms": [
+            1.2,
+            1.16,
+            1.162,
+            1.166,
+            1.165,
+            2.386,
+            1.18,
+            1.168,
+            1.168,
+            1.166,
+            1.17
+          ],
+          "subplans_removed": [
+            31,
+            31
+          ],
+          "appends": 2,
+          "partitions_in_plan": 2,
+          "partitions_in_plan_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": false,
+          "leaf_scans": [
+            "Index Scan using e5_embedding_half_idx on e5 e_1 (actual rows=122 loops=1)",
+            "Bitmap Heap Scan on c5 c_1 (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)"
+          ]
+        },
+        "local_forced_generic": {
+          "planning_ms": {
+            "median": 0.051,
+            "p95": 0.052,
+            "max": 0.052,
+            "min": 0.046,
+            "median_warm": 0.051,
+            "first": 0.048
+          },
+          "execution_ms": {
+            "median": 0.647,
+            "p95": 0.662,
+            "max": 0.662,
+            "min": 0.632,
+            "median_warm": 0.645,
+            "first": 0.649
+          },
+          "planning_series_ms": [
+            0.048,
+            0.051,
+            0.052,
+            0.051,
+            0.051,
+            0.051,
+            0.05,
+            0.051,
+            0.051,
+            0.046,
+            0.046
+          ],
+          "subplans_removed": [
+            31,
+            31
+          ],
+          "appends": 2,
+          "partitions_in_plan": 2,
+          "partitions_in_plan_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": true,
+          "leaf_scans": [
+            "Index Scan using e5_embedding_half_idx on e5 e_1 (actual rows=122 loops=1)",
+            "Index Scan using c5_pkey on c5 c_1 (actual rows=0 loops=122)"
+          ]
+        }
+      },
+      "calls": {
+        "f_shipped": {
+          "locks": 297,
+          "returned": 50,
+          "wall_ms": {
+            "median": 2.761,
+            "p95": 4.107,
+            "max": 4.107,
+            "min": 2.714,
+            "median_warm": 2.751,
+            "first": 3.143
+          },
+          "wall_series_ms": [
+            3.143,
+            2.843,
+            2.761,
+            2.716,
+            4.107,
+            2.855,
+            2.741,
+            2.714,
+            2.729
+          ]
+        },
+        "f_local": {
+          "locks": 18,
+          "returned": 50,
+          "wall_ms": {
+            "median": 0.866,
+            "p95": 1.945,
+            "max": 1.945,
+            "min": 0.844,
+            "median_warm": 0.872,
+            "first": 0.852
+          },
+          "wall_series_ms": [
+            0.852,
+            0.889,
+            0.859,
+            0.877,
+            1.945,
+            0.866,
+            0.845,
+            0.882,
+            0.844
+          ]
+        },
+        "f_guc": {
+          "locks": 297,
+          "returned": 50,
+          "wall_ms": {
+            "median": 2.768,
+            "p95": 4.12,
+            "max": 4.12,
+            "min": 2.723,
+            "median_warm": 2.767,
+            "first": 2.82
+          },
+          "wall_series_ms": [
+            2.82,
+            2.768,
+            2.768,
+            2.766,
+            4.12,
+            2.723,
+            2.777,
+            2.745,
+            2.746
+          ]
+        },
+        "f_dynamic": {
+          "locks": 18,
+          "returned": 50,
+          "wall_ms": {
+            "median": 0.852,
+            "p95": 0.908,
+            "max": 0.908,
+            "min": 0.837,
+            "median_warm": 0.852,
+            "first": 0.867
+          },
+          "wall_series_ms": [
+            0.867,
+            0.852,
+            0.852,
+            0.86,
+            0.908,
+            0.837,
+            0.843,
+            0.869,
+            0.839
+          ]
+        }
+      },
+      "equivalence": {
+        "f_local": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_guc": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_dynamic": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        }
+      },
+      "equivalence_under_one_label": {
+        "f_local": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_guc": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_dynamic": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        }
+      },
+      "isolation": {
+        "tenants": 8,
+        "cells": 64,
+        "rows_on_the_diagonal": 400,
+        "rows_off_the_diagonal": 0,
+        "cells_that_returned_anything_off_the_diagonal": [],
+        "across_the_plan_cache": [
+          {
+            "state": "after nine calls as tenant 3, now tenant 5",
+            "rows": 50,
+            "foreign_rows": 0
+          },
+          {
+            "state": "the same with a generic plan forced",
+            "rows": 50,
+            "foreign_rows": 0
+          }
+        ],
+        "rows_with_no_tenant_in_the_session": {
+          "f_shipped": 0,
+          "f_local": 0,
+          "f_guc": 0,
+          "f_dynamic": 0
+        }
+      },
+      "owner_side": {
+        "f_shipped, with tenant 3 in the session": {
+          "rows": 50,
+          "distinct_tenants": 8
+        },
+        "f_local, with tenant 3 in the session": {
+          "rows": 50,
+          "distinct_tenants": 1
+        },
+        "f_shipped, with none": {
+          "rows": 50,
+          "distinct_tenants": 8
+        },
+        "f_local, with none": {
+          "rows": 0,
+          "distinct_tenants": 0
+        }
+      }
+    },
+    {
+      "modulus": 64,
+      "built_seconds": 12.5,
+      "plans": {
+        "today": {
+          "planning_ms": {
+            "median": 2.537,
+            "p95": 12.023,
+            "max": 12.023,
+            "min": 2.51,
+            "median_warm": 2.534,
+            "first": 12.023
+          },
+          "execution_ms": {
+            "median": 1.667,
+            "p95": 3.603,
+            "max": 3.603,
+            "min": 1.598,
+            "median_warm": 1.645,
+            "first": 3.603
+          },
+          "planning_series_ms": [
+            12.023,
+            2.807,
+            2.526,
+            2.51,
+            2.531,
+            5.408,
+            2.579,
+            2.537,
+            2.514,
+            2.521,
+            2.546
+          ],
+          "subplans_removed": [
+            63,
+            63
+          ],
+          "appends": 2,
+          "partitions_in_plan": 2,
+          "partitions_in_plan_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": false,
+          "leaf_scans": [
+            "Index Scan using e5_embedding_half_idx on e5 e_1 (actual rows=122 loops=1)",
+            "Bitmap Heap Scan on c5 c_1 (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)"
+          ]
+        },
+        "local": {
+          "planning_ms": {
+            "median": 0.113,
+            "p95": 2.316,
+            "max": 2.316,
+            "min": 0.104,
+            "median_warm": 0.113,
+            "first": 0.161
+          },
+          "execution_ms": {
+            "median": 0.619,
+            "p95": 0.754,
+            "max": 0.754,
+            "min": 0.603,
+            "median_warm": 0.619,
+            "first": 0.754
+          },
+          "planning_series_ms": [
+            0.161,
+            0.124,
+            0.113,
+            0.139,
+            0.104,
+            2.316,
+            0.109,
+            0.113,
+            0.106,
+            0.112,
+            0.113
+          ],
+          "subplans_removed": [],
+          "appends": 0,
+          "partitions_in_plan": 2,
+          "partitions_in_plan_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": true,
+          "leaf_scans": [
+            "Index Scan using e5_embedding_half_idx on e5 e (actual rows=122 loops=1)",
+            "Index Scan using c5_pkey on c5 c (actual rows=0 loops=122)"
+          ]
+        },
+        "guc": {
+          "planning_ms": {
+            "median": 2.532,
+            "p95": 5.201,
+            "max": 5.201,
+            "min": 2.388,
+            "median_warm": 2.534,
+            "first": 2.517
+          },
+          "execution_ms": {
+            "median": 1.632,
+            "p95": 1.769,
+            "max": 1.769,
+            "min": 1.584,
+            "median_warm": 1.625,
+            "first": 1.674
+          },
+          "planning_series_ms": [
+            2.517,
+            2.51,
+            2.388,
+            2.49,
+            2.473,
+            5.201,
+            2.604,
+            2.532,
+            2.63,
+            2.559,
+            2.537
+          ],
+          "subplans_removed": [
+            63,
+            63
+          ],
+          "appends": 2,
+          "partitions_in_plan": 2,
+          "partitions_in_plan_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": false,
+          "leaf_scans": [
+            "Index Scan using e5_embedding_half_idx on e5 e_1 (actual rows=122 loops=1)",
+            "Bitmap Heap Scan on c5 c_1 (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)"
+          ]
+        },
+        "local_forced_generic": {
+          "planning_ms": {
+            "median": 0.048,
+            "p95": 0.054,
+            "max": 0.054,
+            "min": 0.047,
+            "median_warm": 0.048,
+            "first": 0.051
+          },
+          "execution_ms": {
+            "median": 0.64,
+            "p95": 0.689,
+            "max": 0.689,
+            "min": 0.629,
+            "median_warm": 0.64,
+            "first": 0.689
+          },
+          "planning_series_ms": [
+            0.051,
+            0.048,
+            0.048,
+            0.048,
+            0.048,
+            0.048,
+            0.047,
+            0.054,
+            0.051,
+            0.049,
+            0.048
+          ],
+          "subplans_removed": [
+            63,
+            63
+          ],
+          "appends": 2,
+          "partitions_in_plan": 2,
+          "partitions_in_plan_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": true,
+          "leaf_scans": [
+            "Index Scan using e5_embedding_half_idx on e5 e_1 (actual rows=122 loops=1)",
+            "Index Scan using c5_pkey on c5 c_1 (actual rows=0 loops=122)"
+          ]
+        }
+      },
+      "calls": {
+        "f_shipped": {
+          "locks": 585,
+          "returned": 50,
+          "wall_ms": {
+            "median": 4.278,
+            "p95": 7.216,
+            "max": 7.216,
+            "min": 4.243,
+            "median_warm": 4.269,
+            "first": 4.278
+          },
+          "wall_series_ms": [
+            4.278,
+            4.243,
+            4.246,
+            4.441,
+            7.216,
+            4.281,
+            4.258,
+            4.286,
+            4.243
+          ]
+        },
+        "f_local": {
+          "locks": 18,
+          "returned": 50,
+          "wall_ms": {
+            "median": 0.916,
+            "p95": 3.336,
+            "max": 3.336,
+            "min": 0.894,
+            "median_warm": 0.91,
+            "first": 0.916
+          },
+          "wall_series_ms": [
+            0.916,
+            0.945,
+            0.895,
+            0.916,
+            3.336,
+            0.934,
+            0.904,
+            0.896,
+            0.894
+          ]
+        },
+        "f_guc": {
+          "locks": 585,
+          "returned": 50,
+          "wall_ms": {
+            "median": 4.239,
+            "p95": 7.087,
+            "max": 7.087,
+            "min": 4.154,
+            "median_warm": 4.23,
+            "first": 4.303
+          },
+          "wall_series_ms": [
+            4.303,
+            4.265,
+            4.239,
+            4.255,
+            7.087,
+            4.154,
+            4.199,
+            4.197,
+            4.221
+          ]
+        },
+        "f_dynamic": {
+          "locks": 18,
+          "returned": 50,
+          "wall_ms": {
+            "median": 0.878,
+            "p95": 0.913,
+            "max": 0.913,
+            "min": 0.827,
+            "median_warm": 0.88,
+            "first": 0.852
+          },
+          "wall_series_ms": [
+            0.852,
+            0.902,
+            0.878,
+            0.827,
+            0.913,
+            0.863,
+            0.844,
+            0.882,
+            0.885
+          ]
+        }
+      },
+      "equivalence": {
+        "f_local": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_guc": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_dynamic": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        }
+      },
+      "equivalence_under_one_label": {
+        "f_local": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_guc": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_dynamic": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        }
+      },
+      "isolation": {
+        "tenants": 8,
+        "cells": 64,
+        "rows_on_the_diagonal": 400,
+        "rows_off_the_diagonal": 0,
+        "cells_that_returned_anything_off_the_diagonal": [],
+        "across_the_plan_cache": [
+          {
+            "state": "after nine calls as tenant 3, now tenant 5",
+            "rows": 50,
+            "foreign_rows": 0
+          },
+          {
+            "state": "the same with a generic plan forced",
+            "rows": 50,
+            "foreign_rows": 0
+          }
+        ],
+        "rows_with_no_tenant_in_the_session": {
+          "f_shipped": 0,
+          "f_local": 0,
+          "f_guc": 0,
+          "f_dynamic": 0
+        }
+      },
+      "owner_side": {
+        "f_shipped, with tenant 3 in the session": {
+          "rows": 50,
+          "distinct_tenants": 8
+        },
+        "f_local, with tenant 3 in the session": {
+          "rows": 50,
+          "distinct_tenants": 1
+        },
+        "f_shipped, with none": {
+          "rows": 50,
+          "distinct_tenants": 8
+        },
+        "f_local, with none": {
+          "rows": 0,
+          "distinct_tenants": 0
+        }
+      }
+    },
+    {
+      "modulus": 128,
+      "built_seconds": 12.8,
+      "plans": {
+        "today": {
+          "planning_ms": {
+            "median": 7.057,
+            "p95": 23.587,
+            "max": 23.587,
+            "min": 6.604,
+            "median_warm": 7.03,
+            "first": 23.587
+          },
+          "execution_ms": {
+            "median": 1.742,
+            "p95": 3.145,
+            "max": 3.145,
+            "min": 1.633,
+            "median_warm": 1.731,
+            "first": 3.145
+          },
+          "planning_series_ms": [
+            23.587,
+            7.87,
+            6.808,
+            7.124,
+            6.751,
+            14.906,
+            7.057,
+            6.604,
+            7.003,
+            6.915,
+            7.234
+          ],
+          "subplans_removed": [
+            127,
+            127
+          ],
+          "appends": 2,
+          "partitions_in_plan": 2,
+          "partitions_in_plan_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": false,
+          "leaf_scans": [
+            "Index Scan using e5_embedding_half_idx on e5 e_1 (actual rows=122 loops=1)",
+            "Bitmap Heap Scan on c5 c_1 (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)"
+          ]
+        },
+        "local": {
+          "planning_ms": {
+            "median": 0.178,
+            "p95": 7.375,
+            "max": 7.375,
+            "min": 0.12,
+            "median_warm": 0.166,
+            "first": 0.248
+          },
+          "execution_ms": {
+            "median": 1.012,
+            "p95": 1.29,
+            "max": 1.29,
+            "min": 0.716,
+            "median_warm": 0.887,
+            "first": 1.29
+          },
+          "planning_series_ms": [
+            0.248,
+            0.225,
+            0.195,
+            0.241,
+            0.178,
+            7.375,
+            0.154,
+            0.144,
+            0.12,
+            0.121,
+            0.122
+          ],
+          "subplans_removed": [],
+          "appends": 0,
+          "partitions_in_plan": 2,
+          "partitions_in_plan_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": true,
+          "leaf_scans": [
+            "Index Scan using e5_embedding_half_idx on e5 e (actual rows=122 loops=1)",
+            "Index Scan using c5_pkey on c5 c (actual rows=0 loops=122)"
+          ]
+        },
+        "guc": {
+          "planning_ms": {
+            "median": 8.136,
+            "p95": 19.321,
+            "max": 19.321,
+            "min": 7.21,
+            "median_warm": 8.078,
+            "first": 8.273
+          },
+          "execution_ms": {
+            "median": 2.278,
+            "p95": 2.681,
+            "max": 2.681,
+            "min": 2.008,
+            "median_warm": 2.28,
+            "first": 2.21
+          },
+          "planning_series_ms": [
+            8.273,
+            8.014,
+            9.348,
+            7.587,
+            8.509,
+            19.321,
+            7.21,
+            8.019,
+            8.292,
+            7.811,
+            8.136
+          ],
+          "subplans_removed": [
+            127,
+            127
+          ],
+          "appends": 2,
+          "partitions_in_plan": 2,
+          "partitions_in_plan_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": false,
+          "leaf_scans": [
+            "Index Scan using e5_embedding_half_idx on e5 e_1 (actual rows=122 loops=1)",
+            "Bitmap Heap Scan on c5 c_1 (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)"
+          ]
+        },
+        "local_forced_generic": {
+          "planning_ms": {
+            "median": 0.057,
+            "p95": 0.067,
+            "max": 0.067,
+            "min": 0.05,
+            "median_warm": 0.057,
+            "first": 0.067
+          },
+          "execution_ms": {
+            "median": 1.509,
+            "p95": 2.926,
+            "max": 2.926,
+            "min": 1.462,
+            "median_warm": 1.498,
+            "first": 2.926
+          },
+          "planning_series_ms": [
+            0.067,
+            0.064,
+            0.06,
+            0.057,
+            0.057,
+            0.059,
+            0.058,
+            0.057,
+            0.057,
+            0.05,
+            0.057
+          ],
+          "subplans_removed": [
+            127,
+            127
+          ],
+          "appends": 2,
+          "partitions_in_plan": 2,
+          "partitions_in_plan_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": true,
+          "leaf_scans": [
+            "Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
+            "Bitmap Heap Scan on c5 c_1 (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)"
+          ]
+        }
+      },
+      "calls": {
+        "f_shipped": {
+          "locks": 1161,
+          "returned": 50,
+          "wall_ms": {
+            "median": 9.044,
+            "p95": 17.024,
+            "max": 17.024,
+            "min": 8.464,
+            "median_warm": 9.11,
+            "first": 9.044
+          },
+          "wall_series_ms": [
+            9.044,
+            9.005,
+            8.464,
+            8.801,
+            17.024,
+            9.013,
+            10.641,
+            9.208,
+            9.516
+          ]
+        },
+        "f_local": {
+          "locks": 18,
+          "returned": 50,
+          "wall_ms": {
+            "median": 0.916,
+            "p95": 7.62,
+            "max": 7.62,
+            "min": 0.858,
+            "median_warm": 0.916,
+            "first": 0.968
+          },
+          "wall_series_ms": [
+            0.968,
+            0.858,
+            0.915,
+            0.924,
+            7.62,
+            0.948,
+            0.911,
+            0.916,
+            0.898
+          ]
+        },
+        "f_guc": {
+          "locks": 1161,
+          "returned": 50,
+          "wall_ms": {
+            "median": 8.502,
+            "p95": 16.026,
+            "max": 16.026,
+            "min": 8.089,
+            "median_warm": 8.608,
+            "first": 8.502
+          },
+          "wall_series_ms": [
+            8.502,
+            8.957,
+            8.441,
+            8.384,
+            16.026,
+            8.089,
+            8.37,
+            8.775,
+            8.824
+          ]
+        },
+        "f_dynamic": {
+          "locks": 18,
+          "returned": 50,
+          "wall_ms": {
+            "median": 0.901,
+            "p95": 0.973,
+            "max": 0.973,
+            "min": 0.884,
+            "median_warm": 0.9,
+            "first": 0.923
+          },
+          "wall_series_ms": [
+            0.923,
+            0.901,
+            0.9,
+            0.92,
+            0.973,
+            0.884,
+            0.907,
+            0.899,
+            0.9
+          ]
+        }
+      },
+      "equivalence": {
+        "f_local": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_guc": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_dynamic": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        }
+      },
+      "equivalence_under_one_label": {
+        "f_local": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_guc": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_dynamic": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        }
+      },
+      "isolation": {
+        "tenants": 8,
+        "cells": 64,
+        "rows_on_the_diagonal": 400,
+        "rows_off_the_diagonal": 0,
+        "cells_that_returned_anything_off_the_diagonal": [],
+        "across_the_plan_cache": [
+          {
+            "state": "after nine calls as tenant 3, now tenant 5",
+            "rows": 50,
+            "foreign_rows": 0
+          },
+          {
+            "state": "the same with a generic plan forced",
+            "rows": 50,
+            "foreign_rows": 0
+          }
+        ],
+        "rows_with_no_tenant_in_the_session": {
+          "f_shipped": 0,
+          "f_local": 0,
+          "f_guc": 0,
+          "f_dynamic": 0
+        }
+      },
+      "owner_side": {
+        "f_shipped, with tenant 3 in the session": {
+          "rows": 50,
+          "distinct_tenants": 8
+        },
+        "f_local, with tenant 3 in the session": {
+          "rows": 50,
+          "distinct_tenants": 1
+        },
+        "f_shipped, with none": {
+          "rows": 50,
+          "distinct_tenants": 8
+        },
+        "f_local, with none": {
+          "rows": 0,
+          "distinct_tenants": 0
+        }
+      }
+    },
+    {
+      "modulus": 256,
+      "built_seconds": 13.5,
+      "plans": {
+        "today": {
+          "planning_ms": {
+            "median": 22.11,
+            "p95": 56.001,
+            "max": 56.001,
+            "min": 21.032,
+            "median_warm": 22.016,
+            "first": 56.001
+          },
+          "execution_ms": {
+            "median": 1.947,
+            "p95": 3.497,
+            "max": 3.497,
+            "min": 1.836,
+            "median_warm": 1.946,
+            "first": 3.497
+          },
+          "planning_series_ms": [
+            56.001,
+            23.485,
+            22.839,
+            22.393,
+            22.11,
+            43.822,
+            21.922,
+            21.063,
+            21.404,
+            21.26,
+            21.032
+          ],
+          "subplans_removed": [
+            255,
+            255
+          ],
+          "appends": 2,
+          "partitions_in_plan": 2,
+          "partitions_in_plan_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": false,
+          "leaf_scans": [
+            "Index Scan using e5_embedding_half_idx on e5 e_1 (actual rows=122 loops=1)",
+            "Bitmap Heap Scan on c5 c_1 (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)"
+          ]
+        },
+        "local": {
+          "planning_ms": {
+            "median": 0.114,
+            "p95": 19.451,
+            "max": 19.451,
+            "min": 0.103,
+            "median_warm": 0.114,
+            "first": 0.146
+          },
+          "execution_ms": {
+            "median": 0.654,
+            "p95": 0.837,
+            "max": 0.837,
+            "min": 0.622,
+            "median_warm": 0.653,
+            "first": 0.785
+          },
+          "planning_series_ms": [
+            0.146,
+            0.114,
+            0.115,
+            0.114,
+            0.103,
+            19.451,
+            0.112,
+            0.123,
+            0.104,
+            0.125,
+            0.109
+          ],
+          "subplans_removed": [],
+          "appends": 0,
+          "partitions_in_plan": 2,
+          "partitions_in_plan_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": true,
+          "leaf_scans": [
+            "Index Scan using e5_embedding_half_idx on e5 e (actual rows=122 loops=1)",
+            "Index Scan using c5_pkey on c5 c (actual rows=0 loops=122)"
+          ]
+        },
+        "guc": {
+          "planning_ms": {
+            "median": 21.7,
+            "p95": 43.227,
+            "max": 43.227,
+            "min": 21.018,
+            "median_warm": 21.671,
+            "first": 21.7
+          },
+          "execution_ms": {
+            "median": 2.0,
+            "p95": 2.18,
+            "max": 2.18,
+            "min": 1.922,
+            "median_warm": 2.018,
+            "first": 1.971
+          },
+          "planning_series_ms": [
+            21.7,
+            22.394,
+            21.561,
+            22.039,
+            21.554,
+            43.227,
+            22.14,
+            21.575,
+            21.018,
+            21.736,
+            21.606
+          ],
+          "subplans_removed": [
+            255,
+            255
+          ],
+          "appends": 2,
+          "partitions_in_plan": 2,
+          "partitions_in_plan_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": false,
+          "leaf_scans": [
+            "Index Scan using e5_embedding_half_idx on e5 e_1 (actual rows=122 loops=1)",
+            "Bitmap Heap Scan on c5 c_1 (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)"
+          ]
+        },
+        "local_forced_generic": {
+          "planning_ms": {
+            "median": 0.059,
+            "p95": 0.07,
+            "max": 0.07,
+            "min": 0.058,
+            "median_warm": 0.059,
+            "first": 0.07
+          },
+          "execution_ms": {
+            "median": 1.515,
+            "p95": 2.399,
+            "max": 2.399,
+            "min": 1.496,
+            "median_warm": 1.512,
+            "first": 2.399
+          },
+          "planning_series_ms": [
+            0.07,
+            0.064,
+            0.06,
+            0.06,
+            0.059,
+            0.058,
+            0.059,
+            0.063,
+            0.058,
+            0.058,
+            0.058
+          ],
+          "subplans_removed": [
+            255,
+            255
+          ],
+          "appends": 2,
+          "partitions_in_plan": 2,
+          "partitions_in_plan_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": true,
+          "leaf_scans": [
+            "Bitmap Heap Scan on c5 c_1 (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
+            "Seq Scan on e5 e_1 (actual rows=1700 loops=1)"
+          ]
+        }
+      },
+      "calls": {
+        "f_shipped": {
+          "locks": 2313,
+          "returned": 50,
+          "wall_ms": {
+            "median": 22.382,
+            "p95": 48.001,
+            "max": 48.001,
+            "min": 22.048,
+            "median_warm": 22.316,
+            "first": 22.711
+          },
+          "wall_series_ms": [
+            22.711,
+            22.468,
+            22.22,
+            22.128,
+            48.001,
+            23.059,
+            22.382,
+            22.251,
+            22.048
+          ]
+        },
+        "f_local": {
+          "locks": 18,
+          "returned": 50,
+          "wall_ms": {
+            "median": 0.917,
+            "p95": 21.185,
+            "max": 21.185,
+            "min": 0.88,
+            "median_warm": 0.92,
+            "first": 0.917
+          },
+          "wall_series_ms": [
+            0.917,
+            0.911,
+            0.899,
+            0.88,
+            21.185,
+            0.987,
+            0.942,
+            0.91,
+            0.929
+          ]
+        },
+        "f_guc": {
+          "locks": 2313,
+          "returned": 50,
+          "wall_ms": {
+            "median": 23.426,
+            "p95": 45.671,
+            "max": 45.671,
+            "min": 22.563,
+            "median_warm": 23.97,
+            "first": 22.682
+          },
+          "wall_series_ms": [
+            22.682,
+            24.514,
+            25.228,
+            24.575,
+            45.671,
+            23.172,
+            22.563,
+            22.918,
+            23.426
+          ]
+        },
+        "f_dynamic": {
+          "locks": 18,
+          "returned": 50,
+          "wall_ms": {
+            "median": 0.901,
+            "p95": 0.964,
+            "max": 0.964,
+            "min": 0.884,
+            "median_warm": 0.901,
+            "first": 0.934
+          },
+          "wall_series_ms": [
+            0.934,
+            0.909,
+            0.901,
+            0.897,
+            0.964,
+            0.909,
+            0.9,
+            0.884,
+            0.898
+          ]
+        }
+      },
+      "equivalence": {
+        "f_local": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_guc": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_dynamic": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        }
+      },
+      "equivalence_under_one_label": {
+        "f_local": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_guc": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_dynamic": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        }
+      },
+      "isolation": {
+        "tenants": 8,
+        "cells": 64,
+        "rows_on_the_diagonal": 400,
+        "rows_off_the_diagonal": 0,
+        "cells_that_returned_anything_off_the_diagonal": [],
+        "across_the_plan_cache": [
+          {
+            "state": "after nine calls as tenant 3, now tenant 5",
+            "rows": 50,
+            "foreign_rows": 0
+          },
+          {
+            "state": "the same with a generic plan forced",
+            "rows": 50,
+            "foreign_rows": 0
+          }
+        ],
+        "rows_with_no_tenant_in_the_session": {
+          "f_shipped": 0,
+          "f_local": 0,
+          "f_guc": 0,
+          "f_dynamic": 0
+        }
+      },
+      "owner_side": {
+        "f_shipped, with tenant 3 in the session": {
+          "rows": 50,
+          "distinct_tenants": 8
+        },
+        "f_local, with tenant 3 in the session": {
+          "rows": 50,
+          "distinct_tenants": 1
+        },
+        "f_shipped, with none": {
+          "rows": 50,
+          "distinct_tenants": 8
+        },
+        "f_local, with none": {
+          "rows": 0,
+          "distinct_tenants": 0
+        }
+      }
+    }
+  ],
+  "embedding_space": {
+    "model": "BAAI/bge-m3",
+    "version": "1"
+  },
+  "assign": {
+    "tenants": 8,
+    "rows": 13549,
+    "rows_per_tenant": {
+      "00000000-0000-0000-0000-000000000001": 1705,
+      "00000000-0000-0000-0000-000000000002": 1650,
+      "00000000-0000-0000-0000-000000000003": 1700,
+      "00000000-0000-0000-0000-000000000004": 1714,
+      "00000000-0000-0000-0000-000000000005": 1739,
+      "00000000-0000-0000-0000-000000000006": 1705,
+      "00000000-0000-0000-0000-000000000007": 1651,
+      "00000000-0000-0000-0000-000000000008": 1685
+    },
+    "rows_per_label": {
+      "aaaaaaaa-0000-0000-0000-000000000001": 4497,
+      "bbbbbbbb-0000-0000-0000-000000000002": 4536,
+      "none": 4516
+    }
+  },
+  "verified": {
+    "chunks": 13549,
+    "chunk_embeddings": 13549,
+    "relations_left_behind": 0
+  },
+  "curve": [
+    {
+      "modulus": null,
+      "today_planning_ms": 0.115,
+      "local_planning_ms": 0.097,
+      "guc_planning_ms": 0.109,
+      "local_generic_planning_ms": 0.049,
+      "today_partitions_in_plan": 0,
+      "local_partitions_in_plan": 0,
+      "today_locks": 9,
+      "local_locks": 9,
+      "guc_locks": 9,
+      "dynamic_locks": 9,
+      "today_wall_ms": 5.093,
+      "local_wall_ms": 2.456,
+      "dynamic_wall_ms": 2.439
+    },
+    {
+      "modulus": 32,
+      "today_planning_ms": 1.178,
+      "local_planning_ms": 0.116,
+      "guc_planning_ms": 1.168,
+      "local_generic_planning_ms": 0.051,
+      "today_partitions_in_plan": 2,
+      "local_partitions_in_plan": 2,
+      "today_locks": 297,
+      "local_locks": 18,
+      "guc_locks": 297,
+      "dynamic_locks": 18,
+      "today_wall_ms": 2.761,
+      "local_wall_ms": 0.866,
+      "dynamic_wall_ms": 0.852
+    },
+    {
+      "modulus": 64,
+      "today_planning_ms": 2.537,
+      "local_planning_ms": 0.113,
+      "guc_planning_ms": 2.532,
+      "local_generic_planning_ms": 0.048,
+      "today_partitions_in_plan": 2,
+      "local_partitions_in_plan": 2,
+      "today_locks": 585,
+      "local_locks": 18,
+      "guc_locks": 585,
+      "dynamic_locks": 18,
+      "today_wall_ms": 4.278,
+      "local_wall_ms": 0.916,
+      "dynamic_wall_ms": 0.878
+    },
+    {
+      "modulus": 128,
+      "today_planning_ms": 7.057,
+      "local_planning_ms": 0.178,
+      "guc_planning_ms": 8.136,
+      "local_generic_planning_ms": 0.057,
+      "today_partitions_in_plan": 2,
+      "local_partitions_in_plan": 2,
+      "today_locks": 1161,
+      "local_locks": 18,
+      "guc_locks": 1161,
+      "dynamic_locks": 18,
+      "today_wall_ms": 9.044,
+      "local_wall_ms": 0.916,
+      "dynamic_wall_ms": 0.901
+    },
+    {
+      "modulus": 256,
+      "today_planning_ms": 22.11,
+      "local_planning_ms": 0.114,
+      "guc_planning_ms": 21.7,
+      "local_generic_planning_ms": 0.059,
+      "today_partitions_in_plan": 2,
+      "local_partitions_in_plan": 2,
+      "today_locks": 2313,
+      "local_locks": 18,
+      "guc_locks": 2313,
+      "dynamic_locks": 18,
+      "today_wall_ms": 22.382,
+      "local_wall_ms": 0.917,
+      "dynamic_wall_ms": 0.901
+    }
+  ],
+  "bars": {
+    "bar_1_the_arms_are_different_plans": true,
+    "bar_2_the_rows_are_identical": true,
+    "bar_3_the_qualifier_never_decides": true,
+    "bar_4_isolation_survives_the_plan_cache": true,
+    "bar_5_the_locks_stop_growing": true,
+    "all_five": true,
+    "failures": []
+  }
+}

@@ -4,6 +4,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 
+import { request } from "./http";
 import { IN_FLIGHT } from "./tenant";
 
 describe("document statuses", () => {
@@ -12,7 +13,17 @@ describe("document statuses", () => {
     // import Python. `documents` is keyed by whatever the server sends, so a typo here is
     // not a type error — it is a counter that reads zero forever, which is exactly what
     // the first version of the status badge did with an invented `processing`.
-    expect([...IN_FLIGHT]).toEqual(["pending", "parsing", "chunking", "embedding"]);
+    // `classifying` joined them in migration 0019, and the reason it exists is the reason
+    // this test does: migration 0017's uploader exception is keyed on `status <> 'ready'`,
+    // so the document must not be `ready` while a model is deciding its labels. A client
+    // that did not know the status would report a filing document as settled.
+    expect([...IN_FLIGHT]).toEqual([
+      "pending",
+      "parsing",
+      "chunking",
+      "embedding",
+      "classifying",
+    ]);
     expect(IN_FLIGHT).not.toContain("processing");
     expect(IN_FLIGHT).not.toContain("ready");
     expect(IN_FLIGHT).not.toContain("failed");
@@ -59,5 +70,52 @@ describe("error handling", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("not json", { status: 502 })));
 
     await expect(tenantStatus("token")).rejects.toMatchObject({ code: "unknown" });
+  });
+});
+
+describe("what a failure says", () => {
+  it("shows the sentence this API's own errors carry", async () => {
+    globalThis.fetch = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ code: "conflict", detail: "Suspend it first" }), {
+          status: 409,
+        }),
+      ),
+    ) as unknown as typeof fetch;
+
+    await expect(request("/x", "t")).rejects.toThrow("Suspend it first");
+  });
+
+  it("turns FastAPI's validation array into readable text", async () => {
+    // A 422 answers with `[{loc, msg, type}]`, not a string. Rendered straight it put the
+    // literal `[object Object]` on screen where the reason should be — on every form in
+    // the product, not just the one that happened to find it.
+    globalThis.fetch = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            detail: [
+              { loc: ["body", "admin_email"], msg: "value is not a valid email address" },
+              { loc: ["body", "name"], msg: "String should have at least 1 character" },
+            ],
+          }),
+          { status: 422 },
+        ),
+      ),
+    ) as unknown as typeof fetch;
+
+    // Both, joined: a form can fail two fields at once, and hearing about one means
+    // submitting again to discover the other.
+    await expect(request("/x", "t")).rejects.toThrow(
+      "value is not a valid email address. String should have at least 1 character",
+    );
+  });
+
+  it("falls back to a sentence when the shape is unrecognisable", async () => {
+    globalThis.fetch = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify({ detail: { odd: true } }), { status: 500 })),
+    ) as unknown as typeof fetch;
+
+    await expect(request("/x", "t")).rejects.toThrow("The request failed.");
   });
 });

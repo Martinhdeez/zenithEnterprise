@@ -1,0 +1,1662 @@
+{
+  "generated_at": "2026-08-29T13:20:28+0000",
+  "took_s": 517.7,
+  "question": "`open` is a count, not a fraction. How must it grow with the corpus to hold the recall the free operating point in coarse.json reached, and what does that do to the fraction of passages the fine stage reads?",
+  "depth": 10,
+  "grouping": "chunks16/mean",
+  "questions_scored": 31,
+  "real_corpus": {
+    "passages": 13549,
+    "groups": 866,
+    "documents": 42,
+    "passages_per_document": 322.6,
+    "ram_factor": 15.6,
+    "d10": 0.2495,
+    "density_law": {
+      "points": [
+        {
+          "n": 3000,
+          "d10": 0.307
+        },
+        {
+          "n": 6000,
+          "d10": 0.2786
+        },
+        {
+          "n": 13549,
+          "d10": 0.2495
+        }
+      ],
+      "exponent": -0.1375,
+      "intercept_log10": -0.035,
+      "intrinsic_dimension": 7.3,
+      "fitted_over": [
+        3000,
+        13549
+      ]
+    },
+    "arms": [
+      {
+        "open": 2,
+        "recall_at_10": 0.4,
+        "worst_question": 0.1,
+        "questions_perfect": 0,
+        "passages_read": 31.3,
+        "io_fraction": 0.002309,
+        "group_fraction": 0.002309
+      },
+      {
+        "open": 4,
+        "recall_at_10": 0.5613,
+        "worst_question": 0.1,
+        "questions_perfect": 2,
+        "passages_read": 62.4,
+        "io_fraction": 0.004607,
+        "group_fraction": 0.004619
+      },
+      {
+        "open": 8,
+        "recall_at_10": 0.7194,
+        "worst_question": 0.2,
+        "questions_perfect": 8,
+        "passages_read": 124.5,
+        "io_fraction": 0.009185,
+        "group_fraction": 0.009238
+      },
+      {
+        "open": 16,
+        "recall_at_10": 0.8258,
+        "worst_question": 0.2,
+        "questions_perfect": 12,
+        "passages_read": 249.2,
+        "io_fraction": 0.018394,
+        "group_fraction": 0.018476
+      },
+      {
+        "open": 32,
+        "recall_at_10": 0.9355,
+        "worst_question": 0.7,
+        "questions_perfect": 21,
+        "passages_read": 498.7,
+        "io_fraction": 0.036805,
+        "group_fraction": 0.036952
+      },
+      {
+        "open": 64,
+        "recall_at_10": 0.9677,
+        "worst_question": 0.8,
+        "questions_perfect": 26,
+        "passages_read": 999.1,
+        "io_fraction": 0.07374,
+        "group_fraction": 0.073903
+      },
+      {
+        "open": 128,
+        "recall_at_10": 0.9839,
+        "worst_question": 0.8,
+        "questions_perfect": 27,
+        "passages_read": 2003.0,
+        "io_fraction": 0.147834,
+        "group_fraction": 0.147806
+      },
+      {
+        "open": 256,
+        "recall_at_10": 0.9903,
+        "worst_question": 0.8,
+        "questions_perfect": 29,
+        "passages_read": 4015.1,
+        "io_fraction": 0.296337,
+        "group_fraction": 0.295612
+      },
+      {
+        "open": 512,
+        "recall_at_10": 1.0,
+        "worst_question": 1.0,
+        "questions_perfect": 31,
+        "passages_read": 8034.2,
+        "io_fraction": 0.592976,
+        "group_fraction": 0.591224
+      }
+    ],
+    "required_open": {
+      "0.8000": {
+        "open": 16,
+        "recall_at_10": 0.8258,
+        "io_fraction": 0.018394,
+        "passages_read": 249.2
+      },
+      "0.9000": {
+        "open": 32,
+        "recall_at_10": 0.9355,
+        "io_fraction": 0.036805,
+        "passages_read": 498.7
+      },
+      "0.9355": {
+        "open": 32,
+        "recall_at_10": 0.9355,
+        "io_fraction": 0.036805,
+        "passages_read": 498.7
+      },
+      "0.9500": {
+        "open": 64,
+        "recall_at_10": 0.9677,
+        "io_fraction": 0.07374,
+        "passages_read": 999.1
+      },
+      "0.9900": {
+        "open": 256,
+        "recall_at_10": 0.9903,
+        "io_fraction": 0.296337,
+        "passages_read": 4015.1
+      }
+    },
+    "required_open_exact": {
+      "0.8000": {
+        "open": 12,
+        "recall_at_10": 0.8,
+        "io_fraction": 0.013778,
+        "passages_read": 186.7,
+        "group_fraction": 0.013857
+      },
+      "0.9000": {
+        "open": 25,
+        "recall_at_10": 0.9032,
+        "io_fraction": 0.028742,
+        "passages_read": 389.4,
+        "group_fraction": 0.028868
+      },
+      "0.9355": {
+        "open": 33,
+        "recall_at_10": 0.9387,
+        "io_fraction": 0.037986,
+        "passages_read": 514.7,
+        "group_fraction": 0.038106
+      },
+      "0.9500": {
+        "open": 36,
+        "recall_at_10": 0.9516,
+        "io_fraction": 0.041405,
+        "passages_read": 561.0,
+        "group_fraction": 0.04157
+      },
+      "0.9900": {
+        "open": 205,
+        "recall_at_10": 0.9903,
+        "io_fraction": 0.236992,
+        "passages_read": 3211.0,
+        "group_fraction": 0.236721
+      }
+    },
+    "worst_group_rank": {
+      "note": "Per question, the coarse rank of the worst-placed of its ten true neighbours: the smallest `open` at which that question loses nothing. Ladder-free, so it does not round up to the next rung.",
+      "median": 20,
+      "p75": 35,
+      "p90": 130,
+      "max": 329,
+      "median_rank_for_9_of_10": 12,
+      "median_rank_for_8_of_10": 9
+    }
+  },
+  "gate_real": {
+    "available": true,
+    "source": "coarse.json chunks16/mean",
+    "compared": [
+      {
+        "open": 2,
+        "coarse_json_recall": 0.4,
+        "this_run_recall": 0.4,
+        "delta": 0.0,
+        "coarse_json_worst": 0.1,
+        "this_run_worst": 0.1,
+        "coarse_json_io": 0.0023,
+        "this_run_io": 0.0023
+      },
+      {
+        "open": 4,
+        "coarse_json_recall": 0.5613,
+        "this_run_recall": 0.5613,
+        "delta": 0.0,
+        "coarse_json_worst": 0.1,
+        "this_run_worst": 0.1,
+        "coarse_json_io": 0.0046,
+        "this_run_io": 0.0046
+      },
+      {
+        "open": 8,
+        "coarse_json_recall": 0.7194,
+        "this_run_recall": 0.7194,
+        "delta": 0.0,
+        "coarse_json_worst": 0.2,
+        "this_run_worst": 0.2,
+        "coarse_json_io": 0.0092,
+        "this_run_io": 0.0092
+      },
+      {
+        "open": 16,
+        "coarse_json_recall": 0.8258,
+        "this_run_recall": 0.8258,
+        "delta": 0.0,
+        "coarse_json_worst": 0.2,
+        "this_run_worst": 0.2,
+        "coarse_json_io": 0.0184,
+        "this_run_io": 0.0184
+      },
+      {
+        "open": 32,
+        "coarse_json_recall": 0.9355,
+        "this_run_recall": 0.9355,
+        "delta": 0.0,
+        "coarse_json_worst": 0.7,
+        "this_run_worst": 0.7,
+        "coarse_json_io": 0.0368,
+        "this_run_io": 0.0368
+      },
+      {
+        "open": 64,
+        "coarse_json_recall": 0.9677,
+        "this_run_recall": 0.9677,
+        "delta": 0.0,
+        "coarse_json_worst": 0.8,
+        "this_run_worst": 0.8,
+        "coarse_json_io": 0.0737,
+        "this_run_io": 0.0737
+      },
+      {
+        "open": 128,
+        "coarse_json_recall": 0.9839,
+        "this_run_recall": 0.9839,
+        "delta": 0.0,
+        "coarse_json_worst": 0.8,
+        "this_run_worst": 0.8,
+        "coarse_json_io": 0.1478,
+        "this_run_io": 0.1478
+      }
+    ],
+    "worst_delta": 0.0,
+    "tolerance": 0.0001,
+    "reproduces": true
+  },
+  "synthetic": {
+    "generator": "eval/scale.py `_build`, called unchanged",
+    "corpus": {
+      "seed_vectors": 13549,
+      "pairs": 270980,
+      "generated": 1354900
+    },
+    "ladder": "By interpolant variant, not by md5 subset. A random subset keeps one member of each group of sixteen and destroys the structure under test; a variant selects one interpolant of every passage at once, so level V is 13,549 x V passages in 866 x V groups and every group is a displaced copy of a real chunks16 group.",
+    "verification": {
+      "sampled": 500,
+      "max_abs_difference": 5.96e-08,
+      "tolerance": 0.0001,
+      "matches": true
+    },
+    "rungs": [
+      {
+        "variants": 1,
+        "passages": 13549,
+        "groups": 866,
+        "ram_factor": 15.6,
+        "d10": 0.1821,
+        "equivalent_real_n": 133004,
+        "truth_groups_mean": 5.9,
+        "required_open": {
+          "0.8000": {
+            "open": 16,
+            "recall_at_10": 0.8548,
+            "io_fraction": 0.018206,
+            "passages_read": 246.7
+          },
+          "0.9000": {
+            "open": 32,
+            "recall_at_10": 0.9355,
+            "io_fraction": 0.036422,
+            "passages_read": 493.5
+          },
+          "0.9355": {
+            "open": 32,
+            "recall_at_10": 0.9355,
+            "io_fraction": 0.036422,
+            "passages_read": 493.5
+          },
+          "0.9500": {
+            "open": 64,
+            "recall_at_10": 0.9742,
+            "io_fraction": 0.073301,
+            "passages_read": 993.2
+          },
+          "0.9900": {
+            "open": 256,
+            "recall_at_10": 0.9903,
+            "io_fraction": 0.295484,
+            "passages_read": 4003.5
+          }
+        },
+        "required_open_exact": {
+          "0.8000": {
+            "open": 12,
+            "recall_at_10": 0.8097,
+            "io_fraction": 0.013652,
+            "passages_read": 185.0,
+            "group_fraction": 0.013857
+          },
+          "0.9000": {
+            "open": 24,
+            "recall_at_10": 0.9032,
+            "io_fraction": 0.027382,
+            "passages_read": 371.0,
+            "group_fraction": 0.027714
+          },
+          "0.9355": {
+            "open": 33,
+            "recall_at_10": 0.9387,
+            "io_fraction": 0.037603,
+            "passages_read": 509.5,
+            "group_fraction": 0.038106
+          },
+          "0.9500": {
+            "open": 37,
+            "recall_at_10": 0.9548,
+            "io_fraction": 0.042291,
+            "passages_read": 573.0,
+            "group_fraction": 0.042725
+          },
+          "0.9900": {
+            "open": 199,
+            "recall_at_10": 0.9903,
+            "io_fraction": 0.229294,
+            "passages_read": 3106.7,
+            "group_fraction": 0.229792
+          }
+        },
+        "worst_group_rank": {
+          "note": "Per question, the coarse rank of the worst-placed of its ten true neighbours: the smallest `open` at which that question loses nothing. Ladder-free, so it does not round up to the next rung.",
+          "median": 16,
+          "p75": 38,
+          "p90": 90,
+          "max": 347,
+          "median_rank_for_9_of_10": 12,
+          "median_rank_for_8_of_10": 8
+        },
+        "arms": [
+          {
+            "open": 2,
+            "recall_at_10": 0.4161,
+            "worst_question": 0.0,
+            "questions_perfect": 0,
+            "passages_read": 30.8,
+            "io_fraction": 0.002274,
+            "group_fraction": 0.002309
+          },
+          {
+            "open": 4,
+            "recall_at_10": 0.571,
+            "worst_question": 0.1,
+            "questions_perfect": 2,
+            "passages_read": 62.0,
+            "io_fraction": 0.004578,
+            "group_fraction": 0.004619
+          },
+          {
+            "open": 8,
+            "recall_at_10": 0.7194,
+            "worst_question": 0.2,
+            "questions_perfect": 10,
+            "passages_read": 122.6,
+            "io_fraction": 0.00905,
+            "group_fraction": 0.009238
+          },
+          {
+            "open": 16,
+            "recall_at_10": 0.8548,
+            "worst_question": 0.4,
+            "questions_perfect": 16,
+            "passages_read": 246.7,
+            "io_fraction": 0.018206,
+            "group_fraction": 0.018476
+          },
+          {
+            "open": 32,
+            "recall_at_10": 0.9355,
+            "worst_question": 0.6,
+            "questions_perfect": 20,
+            "passages_read": 493.5,
+            "io_fraction": 0.036422,
+            "group_fraction": 0.036952
+          },
+          {
+            "open": 64,
+            "recall_at_10": 0.9742,
+            "worst_question": 0.7,
+            "questions_perfect": 26,
+            "passages_read": 993.2,
+            "io_fraction": 0.073301,
+            "group_fraction": 0.073903
+          },
+          {
+            "open": 128,
+            "recall_at_10": 0.9839,
+            "worst_question": 0.7,
+            "questions_perfect": 28,
+            "passages_read": 1993.5,
+            "io_fraction": 0.147131,
+            "group_fraction": 0.147806
+          },
+          {
+            "open": 256,
+            "recall_at_10": 0.9903,
+            "worst_question": 0.9,
+            "questions_perfect": 28,
+            "passages_read": 4003.5,
+            "io_fraction": 0.295484,
+            "group_fraction": 0.295612
+          },
+          {
+            "open": 512,
+            "recall_at_10": 1.0,
+            "worst_question": 1.0,
+            "questions_perfect": 31,
+            "passages_read": 8021.8,
+            "io_fraction": 0.592061,
+            "group_fraction": 0.591224
+          }
+        ],
+        "took_s": 0.2
+      },
+      {
+        "variants": 3,
+        "passages": 40647,
+        "groups": 2598,
+        "ram_factor": 15.6,
+        "d10": 0.12,
+        "equivalent_real_n": 2761770,
+        "truth_groups_mean": 7.35,
+        "required_open": {
+          "0.8000": {
+            "open": 32,
+            "recall_at_10": 0.8161,
+            "io_fraction": 0.012095,
+            "passages_read": 491.6
+          },
+          "0.9000": {
+            "open": 64,
+            "recall_at_10": 0.9032,
+            "io_fraction": 0.024327,
+            "passages_read": 988.8
+          },
+          "0.9355": {
+            "open": 128,
+            "recall_at_10": 0.971,
+            "io_fraction": 0.048793,
+            "passages_read": 1983.3
+          },
+          "0.9500": {
+            "open": 128,
+            "recall_at_10": 0.971,
+            "io_fraction": 0.048793,
+            "passages_read": 1983.3
+          },
+          "0.9900": {
+            "open": 256,
+            "recall_at_10": 0.9903,
+            "io_fraction": 0.09789,
+            "passages_read": 3978.9
+          }
+        },
+        "required_open_exact": {
+          "0.8000": {
+            "open": 30,
+            "recall_at_10": 0.8065,
+            "io_fraction": 0.011316,
+            "passages_read": 460.0,
+            "group_fraction": 0.011547
+          },
+          "0.9000": {
+            "open": 62,
+            "recall_at_10": 0.9,
+            "io_fraction": 0.023562,
+            "passages_read": 957.7,
+            "group_fraction": 0.023865
+          },
+          "0.9355": {
+            "open": 84,
+            "recall_at_10": 0.9419,
+            "io_fraction": 0.031919,
+            "passages_read": 1297.4,
+            "group_fraction": 0.032333
+          },
+          "0.9500": {
+            "open": 90,
+            "recall_at_10": 0.9516,
+            "io_fraction": 0.034216,
+            "passages_read": 1390.8,
+            "group_fraction": 0.034642
+          },
+          "0.9900": {
+            "open": 236,
+            "recall_at_10": 0.9903,
+            "io_fraction": 0.090259,
+            "passages_read": 3668.8,
+            "group_fraction": 0.090839
+          }
+        },
+        "worst_group_rank": {
+          "note": "Per question, the coarse rank of the worst-placed of its ten true neighbours: the smallest `open` at which that question loses nothing. Ladder-free, so it does not round up to the next rung.",
+          "median": 30,
+          "p75": 53,
+          "p90": 111,
+          "max": 800,
+          "median_rank_for_9_of_10": 23,
+          "median_rank_for_8_of_10": 16
+        },
+        "arms": [
+          {
+            "open": 2,
+            "recall_at_10": 0.2161,
+            "worst_question": 0.0,
+            "questions_perfect": 0,
+            "passages_read": 31.2,
+            "io_fraction": 0.000767,
+            "group_fraction": 0.00077
+          },
+          {
+            "open": 4,
+            "recall_at_10": 0.3613,
+            "worst_question": 0.0,
+            "questions_perfect": 2,
+            "passages_read": 62.0,
+            "io_fraction": 0.001525,
+            "group_fraction": 0.00154
+          },
+          {
+            "open": 8,
+            "recall_at_10": 0.5032,
+            "worst_question": 0.0,
+            "questions_perfect": 4,
+            "passages_read": 123.6,
+            "io_fraction": 0.00304,
+            "group_fraction": 0.003079
+          },
+          {
+            "open": 16,
+            "recall_at_10": 0.7032,
+            "worst_question": 0.0,
+            "questions_perfect": 12,
+            "passages_read": 245.2,
+            "io_fraction": 0.006033,
+            "group_fraction": 0.006159
+          },
+          {
+            "open": 32,
+            "recall_at_10": 0.8161,
+            "worst_question": 0.2,
+            "questions_perfect": 16,
+            "passages_read": 491.6,
+            "io_fraction": 0.012095,
+            "group_fraction": 0.012317
+          },
+          {
+            "open": 64,
+            "recall_at_10": 0.9032,
+            "worst_question": 0.3,
+            "questions_perfect": 24,
+            "passages_read": 988.8,
+            "io_fraction": 0.024327,
+            "group_fraction": 0.024634
+          },
+          {
+            "open": 128,
+            "recall_at_10": 0.971,
+            "worst_question": 0.6,
+            "questions_perfect": 28,
+            "passages_read": 1983.3,
+            "io_fraction": 0.048793,
+            "group_fraction": 0.049269
+          },
+          {
+            "open": 256,
+            "recall_at_10": 0.9903,
+            "worst_question": 0.7,
+            "questions_perfect": 30,
+            "passages_read": 3978.9,
+            "io_fraction": 0.09789,
+            "group_fraction": 0.098537
+          },
+          {
+            "open": 512,
+            "recall_at_10": 0.9935,
+            "worst_question": 0.8,
+            "questions_perfect": 30,
+            "passages_read": 7985.9,
+            "io_fraction": 0.19647,
+            "group_fraction": 0.197075
+          },
+          {
+            "open": 1024,
+            "recall_at_10": 1.0,
+            "worst_question": 1.0,
+            "questions_perfect": 31,
+            "passages_read": 16034.8,
+            "io_fraction": 0.394489,
+            "group_fraction": 0.394149
+          },
+          {
+            "open": 2048,
+            "recall_at_10": 1.0,
+            "worst_question": 1.0,
+            "questions_perfect": 31,
+            "passages_read": 32095.7,
+            "io_fraction": 0.789621,
+            "group_fraction": 0.788299
+          }
+        ],
+        "took_s": 0.4
+      },
+      {
+        "variants": 11,
+        "passages": 149039,
+        "groups": 9526,
+        "ram_factor": 15.6,
+        "d10": 0.0391,
+        "equivalent_real_n": 9558651123,
+        "truth_groups_mean": 9.39,
+        "required_open": {
+          "0.8000": {
+            "open": 128,
+            "recall_at_10": 0.8258,
+            "io_fraction": 0.01319,
+            "passages_read": 1965.8
+          },
+          "0.9000": {
+            "open": 256,
+            "recall_at_10": 0.9,
+            "io_fraction": 0.026534,
+            "passages_read": 3954.6
+          },
+          "0.9355": {
+            "open": 512,
+            "recall_at_10": 0.9742,
+            "io_fraction": 0.053225,
+            "passages_read": 7932.6
+          },
+          "0.9500": {
+            "open": 512,
+            "recall_at_10": 0.9742,
+            "io_fraction": 0.053225,
+            "passages_read": 7932.6
+          },
+          "0.9900": {
+            "open": 1024,
+            "recall_at_10": 0.9903,
+            "io_fraction": 0.106926,
+            "passages_read": 15936.2
+          }
+        },
+        "required_open_exact": {
+          "0.8000": {
+            "open": 101,
+            "recall_at_10": 0.8032,
+            "io_fraction": 0.010402,
+            "passages_read": 1550.3,
+            "group_fraction": 0.010603
+          },
+          "0.9000": {
+            "open": 255,
+            "recall_at_10": 0.9,
+            "io_fraction": 0.026429,
+            "passages_read": 3939.0,
+            "group_fraction": 0.026769
+          },
+          "0.9355": {
+            "open": 300,
+            "recall_at_10": 0.9387,
+            "io_fraction": 0.031108,
+            "passages_read": 4636.4,
+            "group_fraction": 0.031493
+          },
+          "0.9500": {
+            "open": 328,
+            "recall_at_10": 0.9516,
+            "io_fraction": 0.034014,
+            "passages_read": 5069.4,
+            "group_fraction": 0.034432
+          },
+          "0.9900": {
+            "open": 912,
+            "recall_at_10": 0.9903,
+            "io_fraction": 0.095217,
+            "passages_read": 14191.0,
+            "group_fraction": 0.095738
+          }
+        },
+        "worst_group_rank": {
+          "note": "Per question, the coarse rank of the worst-placed of its ten true neighbours: the smallest `open` at which that question loses nothing. Ladder-free, so it does not round up to the next rung.",
+          "median": 82,
+          "p75": 143,
+          "p90": 510,
+          "max": 1111,
+          "median_rank_for_9_of_10": 52,
+          "median_rank_for_8_of_10": 42
+        },
+        "arms": [
+          {
+            "open": 2,
+            "recall_at_10": 0.0581,
+            "worst_question": 0.0,
+            "questions_perfect": 0,
+            "passages_read": 30.7,
+            "io_fraction": 0.000206,
+            "group_fraction": 0.00021
+          },
+          {
+            "open": 4,
+            "recall_at_10": 0.1323,
+            "worst_question": 0.0,
+            "questions_perfect": 0,
+            "passages_read": 61.8,
+            "io_fraction": 0.000414,
+            "group_fraction": 0.00042
+          },
+          {
+            "open": 8,
+            "recall_at_10": 0.2387,
+            "worst_question": 0.0,
+            "questions_perfect": 0,
+            "passages_read": 123.5,
+            "io_fraction": 0.000829,
+            "group_fraction": 0.00084
+          },
+          {
+            "open": 16,
+            "recall_at_10": 0.3742,
+            "worst_question": 0.0,
+            "questions_perfect": 1,
+            "passages_read": 245.4,
+            "io_fraction": 0.001647,
+            "group_fraction": 0.00168
+          },
+          {
+            "open": 32,
+            "recall_at_10": 0.5323,
+            "worst_question": 0.0,
+            "questions_perfect": 5,
+            "passages_read": 490.0,
+            "io_fraction": 0.003288,
+            "group_fraction": 0.003359
+          },
+          {
+            "open": 64,
+            "recall_at_10": 0.7161,
+            "worst_question": 0.0,
+            "questions_perfect": 15,
+            "passages_read": 982.1,
+            "io_fraction": 0.00659,
+            "group_fraction": 0.006718
+          },
+          {
+            "open": 128,
+            "recall_at_10": 0.8258,
+            "worst_question": 0.0,
+            "questions_perfect": 21,
+            "passages_read": 1965.8,
+            "io_fraction": 0.01319,
+            "group_fraction": 0.013437
+          },
+          {
+            "open": 256,
+            "recall_at_10": 0.9,
+            "worst_question": 0.1,
+            "questions_perfect": 24,
+            "passages_read": 3954.6,
+            "io_fraction": 0.026534,
+            "group_fraction": 0.026874
+          },
+          {
+            "open": 512,
+            "recall_at_10": 0.9742,
+            "worst_question": 0.4,
+            "questions_perfect": 28,
+            "passages_read": 7932.6,
+            "io_fraction": 0.053225,
+            "group_fraction": 0.053748
+          },
+          {
+            "open": 1024,
+            "recall_at_10": 0.9903,
+            "worst_question": 0.7,
+            "questions_perfect": 30,
+            "passages_read": 15936.2,
+            "io_fraction": 0.106926,
+            "group_fraction": 0.107495
+          },
+          {
+            "open": 2048,
+            "recall_at_10": 1.0,
+            "worst_question": 1.0,
+            "questions_perfect": 31,
+            "passages_read": 31973.9,
+            "io_fraction": 0.214534,
+            "group_fraction": 0.214991
+          },
+          {
+            "open": 4096,
+            "recall_at_10": 1.0,
+            "worst_question": 1.0,
+            "questions_perfect": 31,
+            "passages_read": 64157.0,
+            "io_fraction": 0.430471,
+            "group_fraction": 0.429981
+          },
+          {
+            "open": 8192,
+            "recall_at_10": 1.0,
+            "worst_question": 1.0,
+            "questions_perfect": 31,
+            "passages_read": 128325.6,
+            "io_fraction": 0.86102,
+            "group_fraction": 0.859962
+          }
+        ],
+        "took_s": 1.3
+      },
+      {
+        "variants": 33,
+        "passages": 447117,
+        "groups": 28578,
+        "ram_factor": 15.6,
+        "d10": 0.0276,
+        "equivalent_real_n": 122319433601,
+        "truth_groups_mean": 9.74,
+        "required_open": {
+          "0.8000": {
+            "open": 512,
+            "recall_at_10": 0.8,
+            "io_fraction": 0.017647,
+            "passages_read": 7890.3
+          },
+          "0.9000": {
+            "open": 2048,
+            "recall_at_10": 0.9419,
+            "io_fraction": 0.071189,
+            "passages_read": 31829.7
+          },
+          "0.9355": {
+            "open": 2048,
+            "recall_at_10": 0.9419,
+            "io_fraction": 0.071189,
+            "passages_read": 31829.7
+          },
+          "0.9500": {
+            "open": 4096,
+            "recall_at_10": 0.9774,
+            "io_fraction": 0.14281,
+            "passages_read": 63852.8
+          },
+          "0.9900": {
+            "open": 8192,
+            "recall_at_10": 1.0,
+            "io_fraction": 0.286428,
+            "passages_read": 128067.0
+          }
+        },
+        "required_open_exact": {
+          "0.8000": {
+            "open": 496,
+            "recall_at_10": 0.8,
+            "io_fraction": 0.017099,
+            "passages_read": 7645.0,
+            "group_fraction": 0.017356
+          },
+          "0.9000": {
+            "open": 1037,
+            "recall_at_10": 0.9,
+            "io_fraction": 0.035902,
+            "passages_read": 16052.4,
+            "group_fraction": 0.036287
+          },
+          "0.9355": {
+            "open": 1870,
+            "recall_at_10": 0.9387,
+            "io_fraction": 0.064978,
+            "passages_read": 29052.9,
+            "group_fraction": 0.065435
+          },
+          "0.9500": {
+            "open": 2154,
+            "recall_at_10": 0.9516,
+            "io_fraction": 0.074893,
+            "passages_read": 33486.1,
+            "group_fraction": 0.075373
+          },
+          "0.9900": {
+            "open": 5730,
+            "recall_at_10": 0.9903,
+            "io_fraction": 0.200016,
+            "passages_read": 89430.5,
+            "group_fraction": 0.200504
+          }
+        },
+        "worst_group_rank": {
+          "note": "Per question, the coarse rank of the worst-placed of its ten true neighbours: the smallest `open` at which that question loses nothing. Ladder-free, so it does not round up to the next rung.",
+          "median": 172,
+          "p75": 1114,
+          "p90": 2154,
+          "max": 6434,
+          "median_rank_for_9_of_10": 138,
+          "median_rank_for_8_of_10": 121
+        },
+        "arms": [
+          {
+            "open": 2,
+            "recall_at_10": 0.0161,
+            "worst_question": 0.0,
+            "questions_perfect": 0,
+            "passages_read": 30.7,
+            "io_fraction": 6.9e-05,
+            "group_fraction": 7e-05
+          },
+          {
+            "open": 4,
+            "recall_at_10": 0.0387,
+            "worst_question": 0.0,
+            "questions_perfect": 0,
+            "passages_read": 61.8,
+            "io_fraction": 0.000138,
+            "group_fraction": 0.00014
+          },
+          {
+            "open": 8,
+            "recall_at_10": 0.1161,
+            "worst_question": 0.0,
+            "questions_perfect": 0,
+            "passages_read": 123.9,
+            "io_fraction": 0.000277,
+            "group_fraction": 0.00028
+          },
+          {
+            "open": 16,
+            "recall_at_10": 0.1871,
+            "worst_question": 0.0,
+            "questions_perfect": 0,
+            "passages_read": 247.5,
+            "io_fraction": 0.000554,
+            "group_fraction": 0.00056
+          },
+          {
+            "open": 32,
+            "recall_at_10": 0.3032,
+            "worst_question": 0.0,
+            "questions_perfect": 3,
+            "passages_read": 497.4,
+            "io_fraction": 0.001112,
+            "group_fraction": 0.00112
+          },
+          {
+            "open": 64,
+            "recall_at_10": 0.4226,
+            "worst_question": 0.0,
+            "questions_perfect": 4,
+            "passages_read": 985.1,
+            "io_fraction": 0.002203,
+            "group_fraction": 0.002239
+          },
+          {
+            "open": 128,
+            "recall_at_10": 0.6032,
+            "worst_question": 0.0,
+            "questions_perfect": 11,
+            "passages_read": 1971.7,
+            "io_fraction": 0.00441,
+            "group_fraction": 0.004479
+          },
+          {
+            "open": 256,
+            "recall_at_10": 0.7323,
+            "worst_question": 0.0,
+            "questions_perfect": 18,
+            "passages_read": 3944.6,
+            "io_fraction": 0.008822,
+            "group_fraction": 0.008958
+          },
+          {
+            "open": 512,
+            "recall_at_10": 0.8,
+            "worst_question": 0.0,
+            "questions_perfect": 20,
+            "passages_read": 7890.3,
+            "io_fraction": 0.017647,
+            "group_fraction": 0.017916
+          },
+          {
+            "open": 1024,
+            "recall_at_10": 0.8935,
+            "worst_question": 0.1,
+            "questions_perfect": 22,
+            "passages_read": 15850.7,
+            "io_fraction": 0.035451,
+            "group_fraction": 0.035832
+          },
+          {
+            "open": 2048,
+            "recall_at_10": 0.9419,
+            "worst_question": 0.1,
+            "questions_perfect": 27,
+            "passages_read": 31829.7,
+            "io_fraction": 0.071189,
+            "group_fraction": 0.071664
+          },
+          {
+            "open": 4096,
+            "recall_at_10": 0.9774,
+            "worst_question": 0.6,
+            "questions_perfect": 28,
+            "passages_read": 63852.8,
+            "io_fraction": 0.14281,
+            "group_fraction": 0.143327
+          },
+          {
+            "open": 8192,
+            "recall_at_10": 1.0,
+            "worst_question": 1.0,
+            "questions_perfect": 31,
+            "passages_read": 128067.0,
+            "io_fraction": 0.286428,
+            "group_fraction": 0.286654
+          },
+          {
+            "open": 16384,
+            "recall_at_10": 1.0,
+            "worst_question": 1.0,
+            "questions_perfect": 31,
+            "passages_read": 256697.0,
+            "io_fraction": 0.574116,
+            "group_fraction": 0.573308
+          }
+        ],
+        "took_s": 4.2
+      },
+      {
+        "variants": 100,
+        "passages": 1354900,
+        "groups": 86600,
+        "ram_factor": 15.6,
+        "d10": 0.0238,
+        "equivalent_real_n": 355315613640,
+        "truth_groups_mean": 9.94,
+        "required_open": {
+          "0.8000": {
+            "open": 1024,
+            "recall_at_10": 0.8032,
+            "io_fraction": 0.011649,
+            "passages_read": 15783.3
+          },
+          "0.9000": {
+            "open": 4096,
+            "recall_at_10": 0.9323,
+            "io_fraction": 0.046835,
+            "passages_read": 63456.9
+          },
+          "0.9355": {
+            "open": 8192,
+            "recall_at_10": 0.9677,
+            "io_fraction": 0.093917,
+            "passages_read": 127248.6
+          },
+          "0.9500": {
+            "open": 8192,
+            "recall_at_10": 0.9677,
+            "io_fraction": 0.093917,
+            "passages_read": 127248.6
+          },
+          "0.9900": {
+            "open": 32768,
+            "recall_at_10": 0.9935,
+            "io_fraction": 0.378087,
+            "passages_read": 512270.7
+          }
+        },
+        "required_open_exact": {
+          "0.8000": {
+            "open": 1012,
+            "recall_at_10": 0.8,
+            "io_fraction": 0.011513,
+            "passages_read": 15599.3,
+            "group_fraction": 0.011686
+          },
+          "0.9000": {
+            "open": 2804,
+            "recall_at_10": 0.9,
+            "io_fraction": 0.032011,
+            "passages_read": 43372.0,
+            "group_fraction": 0.032379
+          },
+          "0.9355": {
+            "open": 4447,
+            "recall_at_10": 0.9387,
+            "io_fraction": 0.050877,
+            "passages_read": 68933.9,
+            "group_fraction": 0.051351
+          },
+          "0.9500": {
+            "open": 5581,
+            "recall_at_10": 0.9516,
+            "io_fraction": 0.063911,
+            "passages_read": 86592.8,
+            "group_fraction": 0.064446
+          },
+          "0.9900": {
+            "open": 29206,
+            "recall_at_10": 0.9903,
+            "io_fraction": 0.33677,
+            "passages_read": 456289.6,
+            "group_fraction": 0.337252
+          }
+        },
+        "worst_group_rank": {
+          "note": "Per question, the coarse rank of the worst-placed of its ten true neighbours: the smallest `open` at which that question loses nothing. Ladder-free, so it does not round up to the next rung.",
+          "median": 881,
+          "p75": 3024,
+          "p90": 7909,
+          "max": 51667,
+          "median_rank_for_9_of_10": 511,
+          "median_rank_for_8_of_10": 401
+        },
+        "arms": [
+          {
+            "open": 2,
+            "recall_at_10": 0.0032,
+            "worst_question": 0.0,
+            "questions_perfect": 0,
+            "passages_read": 30.9,
+            "io_fraction": 2.3e-05,
+            "group_fraction": 2.3e-05
+          },
+          {
+            "open": 4,
+            "recall_at_10": 0.0129,
+            "worst_question": 0.0,
+            "questions_perfect": 0,
+            "passages_read": 61.3,
+            "io_fraction": 4.5e-05,
+            "group_fraction": 4.6e-05
+          },
+          {
+            "open": 8,
+            "recall_at_10": 0.0387,
+            "worst_question": 0.0,
+            "questions_perfect": 0,
+            "passages_read": 123.3,
+            "io_fraction": 9.1e-05,
+            "group_fraction": 9.2e-05
+          },
+          {
+            "open": 16,
+            "recall_at_10": 0.0839,
+            "worst_question": 0.0,
+            "questions_perfect": 0,
+            "passages_read": 246.8,
+            "io_fraction": 0.000182,
+            "group_fraction": 0.000185
+          },
+          {
+            "open": 32,
+            "recall_at_10": 0.1226,
+            "worst_question": 0.0,
+            "questions_perfect": 0,
+            "passages_read": 494.1,
+            "io_fraction": 0.000365,
+            "group_fraction": 0.00037
+          },
+          {
+            "open": 64,
+            "recall_at_10": 0.2613,
+            "worst_question": 0.0,
+            "questions_perfect": 0,
+            "passages_read": 993.2,
+            "io_fraction": 0.000733,
+            "group_fraction": 0.000739
+          },
+          {
+            "open": 128,
+            "recall_at_10": 0.3839,
+            "worst_question": 0.0,
+            "questions_perfect": 2,
+            "passages_read": 1986.5,
+            "io_fraction": 0.001466,
+            "group_fraction": 0.001478
+          },
+          {
+            "open": 256,
+            "recall_at_10": 0.5516,
+            "worst_question": 0.0,
+            "questions_perfect": 3,
+            "passages_read": 3957.5,
+            "io_fraction": 0.002921,
+            "group_fraction": 0.002956
+          },
+          {
+            "open": 512,
+            "recall_at_10": 0.7226,
+            "worst_question": 0.0,
+            "questions_perfect": 12,
+            "passages_read": 7909.2,
+            "io_fraction": 0.005837,
+            "group_fraction": 0.005912
+          },
+          {
+            "open": 1024,
+            "recall_at_10": 0.8032,
+            "worst_question": 0.0,
+            "questions_perfect": 18,
+            "passages_read": 15783.3,
+            "io_fraction": 0.011649,
+            "group_fraction": 0.011824
+          },
+          {
+            "open": 2048,
+            "recall_at_10": 0.871,
+            "worst_question": 0.0,
+            "questions_perfect": 22,
+            "passages_read": 31594.9,
+            "io_fraction": 0.023319,
+            "group_fraction": 0.023649
+          },
+          {
+            "open": 4096,
+            "recall_at_10": 0.9323,
+            "worst_question": 0.3,
+            "questions_perfect": 24,
+            "passages_read": 63456.9,
+            "io_fraction": 0.046835,
+            "group_fraction": 0.047298
+          },
+          {
+            "open": 8192,
+            "recall_at_10": 0.9677,
+            "worst_question": 0.5,
+            "questions_perfect": 28,
+            "passages_read": 127248.6,
+            "io_fraction": 0.093917,
+            "group_fraction": 0.094596
+          },
+          {
+            "open": 16384,
+            "recall_at_10": 0.9677,
+            "worst_question": 0.5,
+            "questions_perfect": 28,
+            "passages_read": 255266.7,
+            "io_fraction": 0.188403,
+            "group_fraction": 0.189192
+          },
+          {
+            "open": 32768,
+            "recall_at_10": 0.9935,
+            "worst_question": 0.8,
+            "questions_perfect": 30,
+            "passages_read": 512270.7,
+            "io_fraction": 0.378087,
+            "group_fraction": 0.378383
+          }
+        ],
+        "took_s": 13.4
+      }
+    ]
+  },
+  "shape": {
+    "axis": "Row count. For binary quantisation `scale.py` argued the meaningful axis is density and the row count is only a proxy, because sign collisions are a local property. The mechanism here is different and the argument does not carry over: what a coarse stage competes against is the *number of group centroids*, which is the row count divided by the group size in the synthetic corpus exactly as it is in the real one. `by_density` below reads the same rungs the other way, and the two disagree \u2014 see the caveats.",
+    "0.8000": {
+      "points": [
+        {
+          "passages": 13549,
+          "open": 12
+        },
+        {
+          "passages": 40647,
+          "open": 30
+        },
+        {
+          "passages": 149039,
+          "open": 101
+        },
+        {
+          "passages": 447117,
+          "open": 496
+        },
+        {
+          "passages": 1354900,
+          "open": 1012
+        }
+      ],
+      "exponent": 1.006,
+      "intercept_log10": -3.116,
+      "by_density": {
+        "note": "The same required `open`, fitted against `equivalent_real_n` instead of the row count. `equivalent_real_n` is `scale.py`'s translation of a measured density into the real corpus size that would produce it, and beyond the decade the law was fitted over it is an ordering rather than a quantity \u2014 so this fit is a sanity check on the direction, not a second answer.",
+        "points": [
+          {
+            "equivalent_real_n": 133004,
+            "open": 12
+          },
+          {
+            "equivalent_real_n": 2761770,
+            "open": 30
+          },
+          {
+            "equivalent_real_n": 9558651123,
+            "open": 101
+          },
+          {
+            "equivalent_real_n": 122319433601,
+            "open": 496
+          },
+          {
+            "equivalent_real_n": 355315613640,
+            "open": 1012
+          }
+        ],
+        "exponent": 0.27,
+        "at_1m_documents": 92
+      },
+      "reading": "fixed fraction",
+      "projected": {
+        "100,000 documents": {
+          "passages": 32260000,
+          "open": 27238,
+          "passages_read": 426152,
+          "io_fraction": 0.01321
+        },
+        "1,000,000 documents": {
+          "passages": 322600000,
+          "open": 275994,
+          "passages_read": 4318071,
+          "io_fraction": 0.013385
+        }
+      }
+    },
+    "0.9000": {
+      "points": [
+        {
+          "passages": 13549,
+          "open": 24
+        },
+        {
+          "passages": 40647,
+          "open": 62
+        },
+        {
+          "passages": 149039,
+          "open": 255
+        },
+        {
+          "passages": 447117,
+          "open": 1037
+        },
+        {
+          "passages": 1354900,
+          "open": 2804
+        }
+      ],
+      "exponent": 1.063,
+      "intercept_log10": -3.056,
+      "by_density": {
+        "note": "The same required `open`, fitted against `equivalent_real_n` instead of the row count. `equivalent_real_n` is `scale.py`'s translation of a measured density into the real corpus size that would produce it, and beyond the decade the law was fitted over it is an ordering rather than a quantity \u2014 so this fit is a sanity check on the direction, not a second answer.",
+        "points": [
+          {
+            "equivalent_real_n": 133004,
+            "open": 24
+          },
+          {
+            "equivalent_real_n": 2761770,
+            "open": 62
+          },
+          {
+            "equivalent_real_n": 9558651123,
+            "open": 255
+          },
+          {
+            "equivalent_real_n": 122319433601,
+            "open": 1037
+          },
+          {
+            "equivalent_real_n": 355315613640,
+            "open": 2804
+          }
+        ],
+        "exponent": 0.285,
+        "at_1m_documents": 207
+      },
+      "reading": "fixed fraction",
+      "projected": {
+        "100,000 documents": {
+          "passages": 32260000,
+          "open": 84662,
+          "passages_read": 1324576,
+          "io_fraction": 0.041059
+        },
+        "1,000,000 documents": {
+          "passages": 322600000,
+          "open": 979287,
+          "passages_read": 15321427,
+          "io_fraction": 0.047494
+        }
+      }
+    },
+    "0.9355": {
+      "points": [
+        {
+          "passages": 13549,
+          "open": 33
+        },
+        {
+          "passages": 40647,
+          "open": 84
+        },
+        {
+          "passages": 149039,
+          "open": 300
+        },
+        {
+          "passages": 447117,
+          "open": 1870
+        },
+        {
+          "passages": 1354900,
+          "open": 4447
+        }
+      ],
+      "exponent": 1.112,
+      "intercept_log10": -3.144,
+      "by_density": {
+        "note": "The same required `open`, fitted against `equivalent_real_n` instead of the row count. `equivalent_real_n` is `scale.py`'s translation of a measured density into the real corpus size that would produce it, and beyond the decade the law was fitted over it is an ordering rather than a quantity \u2014 so this fit is a sanity check on the direction, not a second answer.",
+        "points": [
+          {
+            "equivalent_real_n": 133004,
+            "open": 33
+          },
+          {
+            "equivalent_real_n": 2761770,
+            "open": 84
+          },
+          {
+            "equivalent_real_n": 9558651123,
+            "open": 300
+          },
+          {
+            "equivalent_real_n": 122319433601,
+            "open": 1870
+          },
+          {
+            "equivalent_real_n": 355315613640,
+            "open": 4447
+          }
+        ],
+        "exponent": 0.296,
+        "at_1m_documents": 296
+      },
+      "reading": "fixed fraction",
+      "projected": {
+        "100,000 documents": {
+          "passages": 32260000,
+          "open": 159041,
+          "passages_read": 2488281,
+          "io_fraction": 0.077132
+        },
+        "1,000,000 documents": {
+          "passages": 322600000,
+          "open": 2055960,
+          "passages_read": 32166523,
+          "io_fraction": 0.09971
+        }
+      }
+    },
+    "0.9500": {
+      "points": [
+        {
+          "passages": 13549,
+          "open": 37
+        },
+        {
+          "passages": 40647,
+          "open": 90
+        },
+        {
+          "passages": 149039,
+          "open": 328
+        },
+        {
+          "passages": 447117,
+          "open": 2154
+        },
+        {
+          "passages": 1354900,
+          "open": 5581
+        }
+      ],
+      "exponent": 1.137,
+      "intercept_log10": -3.219,
+      "by_density": {
+        "note": "The same required `open`, fitted against `equivalent_real_n` instead of the row count. `equivalent_real_n` is `scale.py`'s translation of a measured density into the real corpus size that would produce it, and beyond the decade the law was fitted over it is an ordering rather than a quantity \u2014 so this fit is a sanity check on the direction, not a second answer.",
+        "points": [
+          {
+            "equivalent_real_n": 133004,
+            "open": 37
+          },
+          {
+            "equivalent_real_n": 2761770,
+            "open": 90
+          },
+          {
+            "equivalent_real_n": 9558651123,
+            "open": 328
+          },
+          {
+            "equivalent_real_n": 122319433601,
+            "open": 2154
+          },
+          {
+            "equivalent_real_n": 355315613640,
+            "open": 5581
+          }
+        ],
+        "exponent": 0.302,
+        "at_1m_documents": 335
+      },
+      "reading": "fixed fraction",
+      "projected": {
+        "100,000 documents": {
+          "passages": 32260000,
+          "open": 207701,
+          "passages_read": 3249587,
+          "io_fraction": 0.100731
+        },
+        "1,000,000 documents": {
+          "passages": 322600000,
+          "open": 2846869,
+          "passages_read": 44540678,
+          "io_fraction": 0.138068
+        }
+      }
+    },
+    "0.9900": {
+      "points": [
+        {
+          "passages": 13549,
+          "open": 199
+        },
+        {
+          "passages": 40647,
+          "open": 236
+        },
+        {
+          "passages": 149039,
+          "open": 912
+        },
+        {
+          "passages": 447117,
+          "open": 5730
+        },
+        {
+          "passages": 1354900,
+          "open": 29206
+        }
+      ],
+      "exponent": 1.132,
+      "intercept_log10": -2.647,
+      "by_density": {
+        "note": "The same required `open`, fitted against `equivalent_real_n` instead of the row count. `equivalent_real_n` is `scale.py`'s translation of a measured density into the real corpus size that would produce it, and beyond the decade the law was fitted over it is an ordering rather than a quantity \u2014 so this fit is a sanity check on the direction, not a second answer.",
+        "points": [
+          {
+            "equivalent_real_n": 133004,
+            "open": 199
+          },
+          {
+            "equivalent_real_n": 2761770,
+            "open": 236
+          },
+          {
+            "equivalent_real_n": 9558651123,
+            "open": 912
+          },
+          {
+            "equivalent_real_n": 122319433601,
+            "open": 5730
+          },
+          {
+            "equivalent_real_n": 355315613640,
+            "open": 29206
+          }
+        ],
+        "exponent": 0.293,
+        "at_1m_documents": 1188
+      },
+      "reading": "fixed fraction",
+      "projected": {
+        "100,000 documents": {
+          "passages": 32260000,
+          "open": 713409,
+          "passages_read": 11161644,
+          "io_fraction": 0.34599
+        },
+        "1,000,000 documents": {
+          "passages": 322600000,
+          "open": 9669511,
+          "passages_read": 151284293,
+          "io_fraction": 0.468953
+        }
+      }
+    }
+  },
+  "caveats": [
+    "The synthetic corpus is denser than a real corpus of the same row count (scale.json: 0.1689 against 0.2621 at 13,549), which is the point \u2014 row count is discarded and the measured density is translated through the real corpus's own law into `equivalent_real_n`. That law is fitted over 3,000 to 13,549 real vectors, so an equivalent far outside that decade is an ordering and not a quantity.",
+    "scale.json's calibration gate came back `mixed` rather than systematically biased. The synthetic corpus is therefore not known to lean either way on this measurement, which is weaker than a one-sided bound and is what there is.",
+    "Every synthetic point lies between two real passages, so this corpus grows denser without ever growing *broader*. A real archive a thousand times the size holds subjects this one does not, and those would spread the group centroids in a way this construction cannot show.",
+    "**This corpus can match a real one in row count or in density, never in both, and the two readings bracket the answer rather than agreeing on it.** At 1,354,900 rows its d10 is 0.0238 against the 0.0624 the fitted law gives a real corpus of 322 million passages, so it holds the right number of group centroids packed far too tightly: discrimination is harder than reality and the row-count reading is therefore the pessimistic end. Reading the same rungs by `equivalent_real_n` has the density right and far too few centroids, which is the optimistic end. They differ by orders of magnitude at a million documents. What both agree on, and what this run is entitled to conclude, is the sign: the required `open` is not a constant, so a fixed 32 is not the setting at any size but this one.",
+    "Index recall, not the page. coarse.json refuted the reasoning that dense-stage loss is absorbed downstream \u2014 chunks16/mean/open16 has better dense recall than binary_r20 and worse headline recall, because group pruning discards coherent regions and the lexical half tends to fail on the same questions. The end-to-end consequence of a dial position is measured on the real corpus in coarse.json and coarse-dims.json, and is not inferred from anything here.",
+    "31 questions at depth 10, so the finest difference this can resolve is one neighbour of one question: 0.0032.",
+    "No latency. This is numpy in a 7.75 GB VM; the product's cost is a Postgres scan over a table that does not fit in shared_buffers, and the two have nothing to say to each other. What transfers is the passage count, and that is reported."
+  ],
+  "hygiene": {
+    "own_schemas_left": [],
+    "other_scratch_schemas_seen": [],
+    "security_definer_in_public": 7,
+    "clean": true
+  }
+}

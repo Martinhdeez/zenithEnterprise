@@ -237,6 +237,47 @@ class LabelRepository(ScopedRepository[AccessLabel]):
     async def default(self) -> AccessLabel | None:
         return await self.session.scalar(select(AccessLabel).where(AccessLabel.is_default))
 
+    async def quarantine(self) -> AccessLabel | None:
+        """Where an upload waits for the classifier. See migration 0017.
+
+        No tenant filter, for the same reason `default` has none: RLS has already narrowed
+        `access_labels` to this tenant, and a `WHERE tenant_id = …` here would be the
+        application doing the isolation work that ADR 0001 puts in the database.
+        """
+        return await self.session.scalar(select(AccessLabel).where(AccessLabel.is_quarantine))
+
+    async def names_of(self, label_ids: list[UUID]) -> list[str]:
+        """The names behind a set of ids, for the audit trail.
+
+        `audit_events` already denormalises `actor_email` for a reason it states plainly: a row
+        that loses the actor when the actor leaves records nothing. A label id has the same
+        problem and worse odds — labels are renamed, merged and deleted far more often than
+        people leave — so an entry holding only ids is evidence of nothing by the time anybody
+        reads it.
+        """
+        if not label_ids:
+            return []
+        return sorted(
+            await self.session.scalars(
+                select(AccessLabel.name).where(AccessLabel.id.in_(label_ids))
+            )
+        )
+
+    async def reserved_among(self, label_ids: list[UUID]) -> list[AccessLabel]:
+        """Which of these are the product's rather than the tenant's.
+
+        One query for every caller that has to refuse them, so "what counts as reserved" is
+        answered in a single place. Today that is the quarantine label; the shape takes a
+        second without any caller changing.
+        """
+        if not label_ids:
+            return []
+        return list(
+            await self.session.scalars(
+                select(AccessLabel).where(AccessLabel.id.in_(label_ids), AccessLabel.is_quarantine)
+            )
+        )
+
     async def role_exists(self, role_id: UUID) -> bool:
         return await self.session.scalar(select(Role.id).where(Role.id == role_id)) is not None
 

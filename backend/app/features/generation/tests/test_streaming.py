@@ -13,7 +13,7 @@ whole marker present in one chunk would never match one.
 
 from collections.abc import AsyncIterator
 
-from app.features.generation.streaming import MAX_MARKER, MarkerFilter, filtered
+from app.features.generation.answering.streaming import MAX_MARKER, MarkerFilter, filtered
 
 VALID = frozenset({1, 2, 3})
 

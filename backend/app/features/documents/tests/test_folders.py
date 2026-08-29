@@ -126,3 +126,31 @@ async def test_the_default_label_sorts_first(account: Account) -> None:
     )
 
     assert computed.folders[0].is_default is True
+
+
+async def test_a_document_in_two_folders_is_one_document(account: Account) -> None:
+    """The corpus size is a count, not a sum of the folder counts.
+
+    Summing was correct only while a document had at most one label, and documents have
+    carried several since `label_ids` became a set of independent ids. A document filed
+    under both labels below appears in both folders — correctly — and summing them reported
+    a corpus twice the size of the real one. In the dev corpus that turned nine documents
+    into twenty-one on the first screen the user sees.
+    """
+    document_id = await document(account.tenant_id, account.default_label, name="both.pdf")
+    async with owner_session() as session:
+        await session.execute(
+            text("INSERT INTO document_labels (document_id, label_id) VALUES (:d, :l)"),
+            {"d": document_id, "l": account.finance_label},
+        )
+
+    computed = await tree(
+        TenantContext.for_tenant(account.tenant_id, [account.default_label, account.finance_label])
+    )
+    by_name = {folder.name: folder for folder in computed.folders}
+
+    # It is in both folders...
+    assert by_name["General"].documents == 1
+    assert by_name["Finance"].documents == 1
+    # ...and it is still one document.
+    assert computed.total_documents == 1

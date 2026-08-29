@@ -1,0 +1,1294 @@
+{
+  "bar": {
+    "sizing": "A value for max_locks_per_transaction counts as verified only if 20 request-shaped transactions hold their locks simultaneously at the stage-02 modulus with none raising OutOfMemory, AND the default 64 is shown to fail the same test on the same schema. A pass with no paired failure is indistinguishable from a measurement that never ran.",
+    "prepared_statements": "plan_cache_mode = auto may be left alone only if the generic plan, once adopted, executes within 1.5x the custom plan's settled median. Beyond that the mode has to be pinned, because the switch happens on the sixth execution of a connection that has already served five good ones and nothing in the product reports it.",
+    "set_before_the_run": true
+  },
+  "production_relations": {
+    "indexes": {
+      "chunks": [
+        {
+          "index": "ix_chunks_bm25",
+          "method": "bm25",
+          "definition": "CREATE INDEX ix_chunks_bm25 ON public.chunks USING bm25 (id, text, tenant_id, label_ids, unlabelled) WITH (key_field=id, text_fields='{\"text\": {\"tokenizer\": {\"type\": \"stem\", \"language\": \"Spanish\", \"lowercase\": true}}}')"
+        },
+        {
+          "index": "ix_chunks_label_ids",
+          "method": "gin",
+          "definition": "CREATE INDEX ix_chunks_label_ids ON public.chunks USING gin (label_ids)"
+        },
+        {
+          "index": "ix_chunks_tenant_id",
+          "method": "btree",
+          "definition": "CREATE INDEX ix_chunks_tenant_id ON public.chunks USING btree (tenant_id)"
+        },
+        {
+          "index": "ix_chunks_tsv",
+          "method": "gin",
+          "definition": "CREATE INDEX ix_chunks_tsv ON public.chunks USING gin (tsv)"
+        },
+        {
+          "index": "pk_chunks",
+          "method": "btree",
+          "definition": "CREATE UNIQUE INDEX pk_chunks ON public.chunks USING btree (id)"
+        }
+      ],
+      "chunk_embeddings": [
+        {
+          "index": "ix_chunk_embeddings_hnsw_half",
+          "method": "hnsw",
+          "definition": "CREATE INDEX ix_chunk_embeddings_hnsw_half ON public.chunk_embeddings USING hnsw (embedding_half halfvec_cosine_ops) WITH (m='16', ef_construction='64')"
+        },
+        {
+          "index": "pk_chunk_embeddings",
+          "method": "btree",
+          "definition": "CREATE UNIQUE INDEX pk_chunk_embeddings ON public.chunk_embeddings USING btree (chunk_id, embedding_model, embedding_version)"
+        }
+      ]
+    },
+    "relations_per_table": {
+      "chunks": 6,
+      "chunk_embeddings": 3
+    },
+    "relations_per_partition_pair_expected": 9,
+    "note": "Read from the running installation's catalogue, not written down here. The measured slope in `rungs` is what the lock table is actually charged; this is the schema's claim about what that should be."
+  },
+  "passes": {
+    "64": {
+      "generated_at": "2026-08-29T16:58:50+0000",
+      "server": {
+        "enable_partition_pruning": "on",
+        "enable_partitionwise_join": "off",
+        "max_connections": "100",
+        "max_locks_per_transaction": "64",
+        "max_pred_locks_per_transaction": "64",
+        "max_prepared_transactions": "0",
+        "plan_cache_mode": "auto",
+        "server_version": "17.5 (Debian 17.5-1.pgdg120+1)",
+        "shared_buffers": "16384",
+        "shared_memory_size": "143",
+        "work_mem": "4096",
+        "units": {
+          "shared_buffers": "8kB",
+          "shared_memory_size": "MB",
+          "work_mem": "kB"
+        },
+        "nominal_lock_slots": 6400,
+        "shmem_allocations_bytes": {
+          "PROCLOCK hash": 2896,
+          "Fast Path Strong Relation Lock Data": 4100,
+          "LOCK hash": 2896,
+          "<anonymous>": 6715648
+        },
+        "note": "max_locks_per_transaction * (max_connections + max_prepared_transactions) sizes one table the whole cluster draws from; it is not a per-transaction allowance. `LOCK hash` in pg_shmem_allocations is the hash header only \u2014 the entries are allocated out of the anonymous pool, which is why shared_memory_size is the figure that moves and the one quoted as the cost."
+      },
+      "rungs": {
+        "64": {
+          "partitions": 64,
+          "build_s": 11.9,
+          "relations_in_schema": 576,
+          "relations_per_partition_pair_in_catalogue": 9.0,
+          "planning_ms": 11.323,
+          "execution_ms": 1.569,
+          "subplans_removed": [
+            63,
+            63
+          ],
+          "appends": 2,
+          "scan_nodes": 2,
+          "index_ordered": false,
+          "leaf_scans": [
+            "Index Scan using e37_embedding_half_idx on e37 e_1 (actual rows=50 loops=1)",
+            "Index Scan using c37_pkey on c37 c_1 (actual rows=1 loops=50)"
+          ],
+          "locks_baseline": 2,
+          "locks_after_dense": 587,
+          "locks_after_lexical": 587,
+          "locks_after_hydrate": 587,
+          "locks_for_dense": 585,
+          "locks_added_by_lexical": 0,
+          "locks_added_by_hydrate": 0,
+          "locks_for_request": 585,
+          "returned": 50,
+          "median_ms": 3.28,
+          "p95_ms": 4.03,
+          "min_ms": 3.19
+        },
+        "256": {
+          "partitions": 256,
+          "build_s": 13.7,
+          "relations_in_schema": 2304,
+          "relations_per_partition_pair_in_catalogue": 9.0,
+          "planning_ms": 75.058,
+          "execution_ms": 3.687,
+          "subplans_removed": [
+            255,
+            255
+          ],
+          "appends": 2,
+          "scan_nodes": 2,
+          "index_ordered": false,
+          "leaf_scans": [
+            "Index Scan using e165_embedding_half_idx on e165 e_1 (actual rows=50 loops=1)",
+            "Seq Scan on c165 c_1 (actual rows=634 loops=1)"
+          ],
+          "locks_baseline": 2,
+          "locks_after_dense": 2315,
+          "locks_after_lexical": 2315,
+          "locks_after_hydrate": 2315,
+          "locks_for_dense": 2313,
+          "locks_added_by_lexical": 0,
+          "locks_added_by_hydrate": 0,
+          "locks_for_request": 2313,
+          "returned": 50,
+          "median_ms": 31.71,
+          "p95_ms": 34.22,
+          "min_ms": 29.43
+        }
+      },
+      "locks_per_partition_pair_measured": 9.0,
+      "measured_matches_schema": true,
+      "cluster_at_measurement": {
+        "other_scratch_schemas": [
+          "zenith_part02",
+          "zenith_unpruned"
+        ],
+        "other_backends": 10,
+        "other_backends_active": 2,
+        "locks_held_by_others": 11,
+        "note": "The lock table is one table for the whole cluster. Locks held by anything else come out of the same slots this sweep is measuring, so a non-trivial `locks_held_by_others` or a foreign scratch schema means the bracket below is a bracket for this database as it was, not for this sweep alone."
+      },
+      "concurrency_at_top_rung": {
+        "partitions": 256,
+        "ladder": [
+          {
+            "concurrent": 1,
+            "succeeded": 1,
+            "failed": 0,
+            "locks_each": 2313,
+            "locks_total_charged": 2313,
+            "first_error": null
+          },
+          {
+            "concurrent": 2,
+            "succeeded": 2,
+            "failed": 0,
+            "locks_each": 2313,
+            "locks_total_charged": 4626,
+            "first_error": null
+          },
+          {
+            "concurrent": 4,
+            "succeeded": 4,
+            "failed": 0,
+            "locks_each": 2313,
+            "locks_total_charged": 9252,
+            "first_error": null
+          },
+          {
+            "concurrent": 8,
+            "succeeded": 8,
+            "failed": 0,
+            "locks_each": 2313,
+            "locks_total_charged": 18504,
+            "first_error": null
+          },
+          {
+            "concurrent": 12,
+            "succeeded": 12,
+            "failed": 0,
+            "locks_each": 2313,
+            "locks_total_charged": 27756,
+            "first_error": null
+          },
+          {
+            "concurrent": 16,
+            "succeeded": 7,
+            "failed": 9,
+            "locks_each": 2313,
+            "locks_total_charged": 16191,
+            "first_error": "OperationalError: (psycopg.errors.OutOfMemory) out of shared memory"
+          },
+          {
+            "concurrent": 20,
+            "succeeded": 12,
+            "failed": 8,
+            "locks_each": 2313,
+            "locks_total_charged": 27756,
+            "first_error": "OperationalError: (psycopg.errors.OutOfMemory) out of shared memory"
+          },
+          {
+            "concurrent": 24,
+            "succeeded": 3,
+            "failed": 21,
+            "locks_each": 2313,
+            "locks_total_charged": 6939,
+            "first_error": "OperationalError: (psycopg.errors.OutOfMemory) out of shared memory"
+          },
+          {
+            "concurrent": 32,
+            "succeeded": 8,
+            "failed": 24,
+            "locks_each": 2313,
+            "locks_total_charged": 18504,
+            "first_error": "OperationalError: (psycopg.errors.OutOfMemory) out of shared memory"
+          }
+        ],
+        "highest_clean": 12,
+        "lowest_failure": 16,
+        "note": "A bracket, not a threshold. The lock hash table grows into unreserved shared memory, so the boundary moves with whatever else the cluster is doing; the highest rung seen clean is the number to plan against and the lowest seen to fail is the one that must never be reachable."
+      },
+      "prepared_partitioned": {
+        "auto": {
+          "planning_ms": [
+            31.33,
+            25.61,
+            25.018,
+            24.817,
+            24.591,
+            23.976,
+            0.028,
+            0.022
+          ],
+          "execution_ms": [
+            1.537,
+            1.184,
+            1.148,
+            1.099,
+            1.147,
+            3.693,
+            3.438,
+            3.517
+          ],
+          "subplans_removed": [
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "settled_planning_ms": 0.028,
+          "settled_execution_ms": 3.517,
+          "leaf_scans": [
+            "Index Scan using e165_embedding_half_idx on e165 e_1 (actual rows=50 loops=1)",
+            "Seq Scan on c165 c_1 (actual rows=634 loops=1)"
+          ],
+          "returned": 50
+        },
+        "force_custom_plan": {
+          "planning_ms": [
+            25.954,
+            26.873,
+            26.665,
+            26.018,
+            26.191,
+            25.703,
+            26.913,
+            47.906
+          ],
+          "execution_ms": [
+            1.25,
+            1.201,
+            1.189,
+            1.26,
+            1.522,
+            1.219,
+            3.799,
+            1.43
+          ],
+          "subplans_removed": [
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "settled_planning_ms": 26.913,
+          "settled_execution_ms": 1.43,
+          "leaf_scans": [
+            "Index Scan using e165_embedding_half_idx on e165 e_1 (actual rows=50 loops=1)",
+            "Seq Scan on c165 c_1 (actual rows=634 loops=1)"
+          ],
+          "returned": 50
+        },
+        "force_generic_plan": {
+          "planning_ms": [
+            50.41,
+            0.068,
+            0.037,
+            0.07,
+            0.033,
+            54.327,
+            0.044,
+            0.031
+          ],
+          "execution_ms": [
+            3.962,
+            3.982,
+            3.935,
+            3.922,
+            3.891,
+            4.483,
+            4.18,
+            4.001
+          ],
+          "subplans_removed": [
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "settled_planning_ms": 0.044,
+          "settled_execution_ms": 4.18,
+          "leaf_scans": [
+            "Index Scan using e165_embedding_half_idx on e165 e_1 (actual rows=50 loops=1)",
+            "Seq Scan on c165 c_1 (actual rows=634 loops=1)"
+          ],
+          "returned": 50
+        }
+      },
+      "prepared_partitioned_verdict": {
+        "measured": true,
+        "settled_custom_ms": 1.43,
+        "settled_auto_ms": 3.517,
+        "settled_generic_ms": 4.18,
+        "auto_over_custom": 2.46,
+        "generic_over_custom": 2.92,
+        "auto_appears_to_have_switched": true,
+        "tolerance": 1.5,
+        "passes_bar_2": false
+      },
+      "driver_partitioned": {
+        "rows_returned_per_execution": 50,
+        "executions": 16,
+        "prepared_statements_after_each_execution": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "cached_statements": [
+          {
+            "name": "_pg3_5",
+            "statement": "SELECT c.id, 1 - (e.embedding_half <=> CAST($1 AS halfvec(10",
+            "parameter_types": "{halfvec,text,text,smallint}",
+            "generic_plans": 0,
+            "custom_plans": 11
+          },
+          {
+            "name": "_pg3_6",
+            "statement": "SELECT count(*) FROM pg_prepared_statements",
+            "parameter_types": "{}",
+            "generic_plans": 11,
+            "custom_plans": 0
+          }
+        ],
+        "generic_plans_for_the_statement_under_test": 0,
+        "custom_plans_for_the_statement_under_test": 11,
+        "chose_a_generic_plan": false,
+        "reached_the_generic_decision": true,
+        "server_prepares": true,
+        "first_execution_that_prepared": 6,
+        "round_trip_ms": [
+          34.4,
+          56.31,
+          30.65,
+          40.16,
+          57.34,
+          35.21,
+          29.22,
+          30.11,
+          30.05,
+          32.67,
+          62.41,
+          30.55,
+          30.78,
+          32.31,
+          31.38,
+          30.55
+        ],
+        "median_first_five_ms": 40.16,
+        "median_last_five_ms": 30.78,
+        "ratio_last_over_first": 0.77,
+        "note": "Timed round trips through the application engine, so this is the product's own path rather than a PREPARE standing in for it. `round_trip_ms` includes the network and the driver. `chose_a_generic_plan` is Postgres 17's own counter and is the fact; the timings are the consequence and are quoted second. `reached_the_generic_decision` false means the run ended before Postgres had built the five custom plans it wants first, and the arm decided nothing."
+      }
+    },
+    "2560": {
+      "generated_at": "2026-08-29T16:53:24+0000",
+      "server": {
+        "enable_partition_pruning": "on",
+        "enable_partitionwise_join": "off",
+        "max_connections": "100",
+        "max_locks_per_transaction": "2560",
+        "max_pred_locks_per_transaction": "64",
+        "max_prepared_transactions": "0",
+        "plan_cache_mode": "auto",
+        "server_version": "17.5 (Debian 17.5-1.pgdg120+1)",
+        "shared_buffers": "16384",
+        "shared_memory_size": "262",
+        "work_mem": "4096",
+        "units": {
+          "shared_buffers": "8kB",
+          "shared_memory_size": "MB",
+          "work_mem": "kB"
+        },
+        "nominal_lock_slots": 256000,
+        "shmem_allocations_bytes": {
+          "PROCLOCK hash": 33616,
+          "Fast Path Strong Relation Lock Data": 4100,
+          "LOCK hash": 17232,
+          "<anonymous>": 61307136
+        },
+        "note": "max_locks_per_transaction * (max_connections + max_prepared_transactions) sizes one table the whole cluster draws from; it is not a per-transaction allowance. `LOCK hash` in pg_shmem_allocations is the hash header only \u2014 the entries are allocated out of the anonymous pool, which is why shared_memory_size is the figure that moves and the one quoted as the cost."
+      },
+      "rungs": {
+        "64": {
+          "partitions": 64,
+          "build_s": 12.2,
+          "relations_in_schema": 576,
+          "relations_per_partition_pair_in_catalogue": 9.0,
+          "planning_ms": 12.609,
+          "execution_ms": 1.382,
+          "subplans_removed": [
+            63,
+            63
+          ],
+          "appends": 2,
+          "scan_nodes": 2,
+          "index_ordered": false,
+          "leaf_scans": [
+            "Index Scan using e37_embedding_half_idx on e37 e_1 (actual rows=50 loops=1)",
+            "Index Scan using c37_pkey on c37 c_1 (actual rows=1 loops=50)"
+          ],
+          "locks_baseline": 2,
+          "locks_after_dense": 587,
+          "locks_after_lexical": 587,
+          "locks_after_hydrate": 587,
+          "locks_for_dense": 585,
+          "locks_added_by_lexical": 0,
+          "locks_added_by_hydrate": 0,
+          "locks_for_request": 585,
+          "returned": 50,
+          "median_ms": 3.07,
+          "p95_ms": 3.73,
+          "min_ms": 2.99
+        },
+        "256": {
+          "partitions": 256,
+          "build_s": 13.2,
+          "relations_in_schema": 2304,
+          "relations_per_partition_pair_in_catalogue": 9.0,
+          "planning_ms": 55.524,
+          "execution_ms": 1.897,
+          "subplans_removed": [
+            255,
+            255
+          ],
+          "appends": 2,
+          "scan_nodes": 2,
+          "index_ordered": false,
+          "leaf_scans": [
+            "Index Scan using e165_embedding_half_idx on e165 e_1 (actual rows=50 loops=1)",
+            "Seq Scan on c165 c_1 (actual rows=634 loops=1)"
+          ],
+          "locks_baseline": 2,
+          "locks_after_dense": 2315,
+          "locks_after_lexical": 2315,
+          "locks_after_hydrate": 2315,
+          "locks_for_dense": 2313,
+          "locks_added_by_lexical": 0,
+          "locks_added_by_hydrate": 0,
+          "locks_for_request": 2313,
+          "returned": 50,
+          "median_ms": 24.29,
+          "p95_ms": 25.3,
+          "min_ms": 23.17
+        }
+      },
+      "locks_per_partition_pair_measured": 9.0,
+      "measured_matches_schema": true,
+      "cluster_at_measurement": {
+        "other_scratch_schemas": [
+          "zenith_part02"
+        ],
+        "other_backends": 8,
+        "other_backends_active": 0,
+        "locks_held_by_others": 0,
+        "note": "The lock table is one table for the whole cluster. Locks held by anything else come out of the same slots this sweep is measuring, so a non-trivial `locks_held_by_others` or a foreign scratch schema means the bracket below is a bracket for this database as it was, not for this sweep alone."
+      },
+      "concurrency_at_top_rung": {
+        "partitions": 256,
+        "ladder": [
+          {
+            "concurrent": 1,
+            "succeeded": 1,
+            "failed": 0,
+            "locks_each": 2313,
+            "locks_total_charged": 2313,
+            "first_error": null
+          },
+          {
+            "concurrent": 2,
+            "succeeded": 2,
+            "failed": 0,
+            "locks_each": 2313,
+            "locks_total_charged": 4626,
+            "first_error": null
+          },
+          {
+            "concurrent": 4,
+            "succeeded": 4,
+            "failed": 0,
+            "locks_each": 2313,
+            "locks_total_charged": 9252,
+            "first_error": null
+          },
+          {
+            "concurrent": 8,
+            "succeeded": 8,
+            "failed": 0,
+            "locks_each": 2313,
+            "locks_total_charged": 18504,
+            "first_error": null
+          },
+          {
+            "concurrent": 12,
+            "succeeded": 12,
+            "failed": 0,
+            "locks_each": 2313,
+            "locks_total_charged": 27756,
+            "first_error": null
+          },
+          {
+            "concurrent": 16,
+            "succeeded": 16,
+            "failed": 0,
+            "locks_each": 2313,
+            "locks_total_charged": 37008,
+            "first_error": null
+          },
+          {
+            "concurrent": 20,
+            "succeeded": 20,
+            "failed": 0,
+            "locks_each": 2313,
+            "locks_total_charged": 46260,
+            "first_error": null
+          },
+          {
+            "concurrent": 24,
+            "succeeded": 24,
+            "failed": 0,
+            "locks_each": 2313,
+            "locks_total_charged": 55512,
+            "first_error": null
+          },
+          {
+            "concurrent": 32,
+            "succeeded": 32,
+            "failed": 0,
+            "locks_each": 2313,
+            "locks_total_charged": 74016,
+            "first_error": null
+          }
+        ],
+        "highest_clean": 32,
+        "lowest_failure": null,
+        "note": "A bracket, not a threshold. The lock hash table grows into unreserved shared memory, so the boundary moves with whatever else the cluster is doing; the highest rung seen clean is the number to plan against and the lowest seen to fail is the one that must never be reachable."
+      },
+      "prepared_partitioned": {
+        "auto": {
+          "planning_ms": [
+            31.425,
+            23.23,
+            22.441,
+            21.589,
+            22.686,
+            23.17,
+            0.023,
+            0.019
+          ],
+          "execution_ms": [
+            1.205,
+            1.168,
+            0.975,
+            1.022,
+            1.18,
+            3.699,
+            3.197,
+            3.206
+          ],
+          "subplans_removed": [
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "settled_planning_ms": 0.023,
+          "settled_execution_ms": 3.206,
+          "leaf_scans": [
+            "Index Scan using e165_embedding_half_idx on e165 e_1 (actual rows=50 loops=1)",
+            "Seq Scan on c165 c_1 (actual rows=634 loops=1)"
+          ],
+          "returned": 50
+        },
+        "force_custom_plan": {
+          "planning_ms": [
+            23.021,
+            22.537,
+            21.974,
+            22.035,
+            22.192,
+            22.017,
+            21.244,
+            21.265
+          ],
+          "execution_ms": [
+            1.082,
+            1.032,
+            1.034,
+            1.105,
+            1.056,
+            0.976,
+            1.004,
+            0.993
+          ],
+          "subplans_removed": [
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "settled_planning_ms": 21.265,
+          "settled_execution_ms": 0.993,
+          "leaf_scans": [
+            "Index Scan using e165_embedding_half_idx on e165 e_1 (actual rows=50 loops=1)",
+            "Seq Scan on c165 c_1 (actual rows=634 loops=1)"
+          ],
+          "returned": 50
+        },
+        "force_generic_plan": {
+          "planning_ms": [
+            22.157,
+            0.027,
+            0.023,
+            0.024,
+            0.021,
+            0.022,
+            0.019,
+            0.017
+          ],
+          "execution_ms": [
+            3.48,
+            3.238,
+            3.224,
+            3.222,
+            3.195,
+            3.189,
+            3.188,
+            3.172
+          ],
+          "subplans_removed": [
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ],
+            [
+              255,
+              255
+            ]
+          ],
+          "index_ordered": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "settled_planning_ms": 0.019,
+          "settled_execution_ms": 3.188,
+          "leaf_scans": [
+            "Index Scan using e165_embedding_half_idx on e165 e_1 (actual rows=50 loops=1)",
+            "Seq Scan on c165 c_1 (actual rows=634 loops=1)"
+          ],
+          "returned": 50
+        }
+      },
+      "prepared_partitioned_verdict": {
+        "measured": true,
+        "settled_custom_ms": 0.993,
+        "settled_auto_ms": 3.206,
+        "settled_generic_ms": 3.188,
+        "auto_over_custom": 3.23,
+        "generic_over_custom": 3.21,
+        "auto_appears_to_have_switched": true,
+        "tolerance": 1.5,
+        "passes_bar_2": false
+      },
+      "driver_partitioned": {
+        "rows_returned_per_execution": 50,
+        "executions": 16,
+        "prepared_statements_after_each_execution": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "cached_statements": [
+          {
+            "name": "_pg3_5",
+            "statement": "SELECT c.id, 1 - (e.embedding_half <=> CAST($1 AS halfvec(10",
+            "parameter_types": "{halfvec,text,text,smallint}",
+            "generic_plans": 0,
+            "custom_plans": 11
+          },
+          {
+            "name": "_pg3_6",
+            "statement": "SELECT count(*) FROM pg_prepared_statements",
+            "parameter_types": "{}",
+            "generic_plans": 11,
+            "custom_plans": 0
+          }
+        ],
+        "generic_plans_for_the_statement_under_test": 0,
+        "custom_plans_for_the_statement_under_test": 11,
+        "chose_a_generic_plan": false,
+        "reached_the_generic_decision": true,
+        "server_prepares": true,
+        "first_execution_that_prepared": 6,
+        "round_trip_ms": [
+          24.01,
+          22.9,
+          22.34,
+          21.71,
+          23.3,
+          23.7,
+          22.57,
+          20.96,
+          20.84,
+          20.7,
+          45.34,
+          21.93,
+          20.84,
+          22.09,
+          23.49,
+          22.46
+        ],
+        "median_first_five_ms": 22.9,
+        "median_last_five_ms": 22.09,
+        "ratio_last_over_first": 0.96,
+        "note": "Timed round trips through the application engine, so this is the product's own path rather than a PREPARE standing in for it. `round_trip_ms` includes the network and the driver. `chose_a_generic_plan` is Postgres 17's own counter and is the fact; the timings are the consequence and are quoted second. `reached_the_generic_decision` false means the run ended before Postgres had built the five custom plans it wants first, and the arm decided nothing."
+      }
+    }
+  },
+  "live_tenant": "55e60787-412f-4d4d-acc8-93b2b7482868",
+  "live_labels": "086ad660-8d11-4b7d-9523-f12c5193d71f,0bba9619-e08c-4f42-b92c-fbb4cadf31dd,2f0e08ed-6f9c-4f51-85fa-1b9f1e64c755,2f748796-8be5-4750-98c6-f133ce2e01b4,392cfc9c-de30-4eb5-b044-1cbf105ad937,49cf6387-de6c-4b23-acec-d0ecfe0c86a0,507f9993-6b46-4293-a0fd-9fa8d64ff825,6ac8d2dd-489d-41b3-9dd1-347b6fe97626,7c70d7bb-8905-46a3-ae9e-8476b8885b9c,83e695c8-e181-4897-9abc-b24e93d43224,8be37902-e26f-4dbd-8c9e-fc804acba871,a588b7f8-db38-4e11-a170-4ab7508f2b7e,a8da52fe-2bf3-4331-8d2e-17ddfedd3c34,b1b96b67-2f4d-4625-b4f4-d8678ff867b7,b74cf708-735b-4c1d-bab9-243f2046b529,bc74bdb3-13b8-4d03-8236-b156b418a5ab,be098894-86bd-4929-ad43-12055e36dfdd,d8d60075-3e5d-4cf6-8379-e8e827bb226b,e23f0838-1653-4197-b832-976769dd0778",
+  "driver_live": {
+    "rows_returned_per_execution": 50,
+    "executions": 16,
+    "prepared_statements_after_each_execution": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "cached_statements": [
+      {
+        "name": "_pg3_7",
+        "statement": "SELECT c.id, 1 - (e.embedding_half <=> CAST($1 AS halfvec(10",
+        "parameter_types": "{halfvec,text,text,smallint}",
+        "generic_plans": 0,
+        "custom_plans": 11
+      },
+      {
+        "name": "_pg3_8",
+        "statement": "SELECT count(*) FROM pg_prepared_statements",
+        "parameter_types": "{}",
+        "generic_plans": 11,
+        "custom_plans": 0
+      }
+    ],
+    "generic_plans_for_the_statement_under_test": 0,
+    "custom_plans_for_the_statement_under_test": 11,
+    "chose_a_generic_plan": false,
+    "reached_the_generic_decision": true,
+    "server_prepares": true,
+    "first_execution_that_prepared": 6,
+    "round_trip_ms": [
+      184.46,
+      9.08,
+      7.95,
+      8.76,
+      8.35,
+      8.76,
+      8.65,
+      8.86,
+      8.88,
+      8.3,
+      7.89,
+      7.64,
+      7.52,
+      7.33,
+      6.34,
+      7.58
+    ],
+    "median_first_five_ms": 8.76,
+    "median_last_five_ms": 7.52,
+    "ratio_last_over_first": 0.86,
+    "note": "Timed round trips through the application engine, so this is the product's own path rather than a PREPARE standing in for it. `round_trip_ms` includes the network and the driver. `chose_a_generic_plan` is Postgres 17's own counter and is the fact; the timings are the consequence and are quoted second. `reached_the_generic_decision` false means the run ended before Postgres had built the five custom plans it wants first, and the arm decided nothing."
+  },
+  "prepared_live": {
+    "auto": {
+      "planning_ms": [
+        0.285,
+        0.285,
+        0.331,
+        0.259,
+        0.313,
+        0.169,
+        0.005,
+        0.008
+      ],
+      "execution_ms": [
+        7.528,
+        7.74,
+        6.966,
+        7.129,
+        7.227,
+        12.876,
+        12.953,
+        13.635
+      ],
+      "subplans_removed": [
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        []
+      ],
+      "index_ordered": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "settled_planning_ms": 0.008,
+      "settled_execution_ms": 12.953,
+      "leaf_scans": [
+        "Index Scan using ix_chunk_embeddings_hnsw_half on chunk_embeddings e (actual rows=50 loops=1)",
+        "Index Scan using pk_chunks on chunks c (actual rows=1 loops=50)"
+      ],
+      "returned": 50
+    },
+    "force_custom_plan": {
+      "planning_ms": [
+        0.319,
+        0.278,
+        0.294,
+        0.332,
+        0.296,
+        0.356,
+        0.421,
+        0.322
+      ],
+      "execution_ms": [
+        8.274,
+        7.261,
+        9.364,
+        6.946,
+        7.086,
+        7.584,
+        6.884,
+        6.992
+      ],
+      "subplans_removed": [
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        []
+      ],
+      "index_ordered": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "settled_planning_ms": 0.356,
+      "settled_execution_ms": 6.992,
+      "leaf_scans": [
+        "Index Scan using ix_chunk_embeddings_hnsw_half on chunk_embeddings e (actual rows=50 loops=1)",
+        "Index Scan using pk_chunks on chunks c (actual rows=1 loops=50)"
+      ],
+      "returned": 50
+    },
+    "force_generic_plan": {
+      "planning_ms": [
+        0.169,
+        0.004,
+        0.004,
+        0.005,
+        0.006,
+        0.006,
+        0.007,
+        0.006
+      ],
+      "execution_ms": [
+        13.761,
+        12.867,
+        12.342,
+        12.758,
+        12.764,
+        13.671,
+        14.135,
+        15.165
+      ],
+      "subplans_removed": [
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        []
+      ],
+      "index_ordered": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "settled_planning_ms": 0.006,
+      "settled_execution_ms": 14.135,
+      "leaf_scans": [
+        "Index Scan using ix_chunk_embeddings_hnsw_half on chunk_embeddings e (actual rows=50 loops=1)",
+        "Index Scan using pk_chunks on chunks c (actual rows=1 loops=50)"
+      ],
+      "returned": 50
+    }
+  },
+  "prepared_live_verdict": {
+    "measured": true,
+    "settled_custom_ms": 6.992,
+    "settled_auto_ms": 12.953,
+    "settled_generic_ms": 14.135,
+    "auto_over_custom": 1.85,
+    "generic_over_custom": 2.02,
+    "auto_appears_to_have_switched": true,
+    "tolerance": 1.5,
+    "passes_bar_2": false
+  },
+  "prepared_statement_verdict": {
+    "decided_on": [
+      "driver_partitioned",
+      "driver_live"
+    ],
+    "the_driver_prepares": true,
+    "first_execution_that_prepared": 6,
+    "reached_the_generic_decision": true,
+    "product_chose_a_generic_plan": false,
+    "passes_bar_2": true,
+    "why_the_prepare_arms_disagree": "The `prepared_*` arms declare the query vector as a `text` parameter, so the cast to halfvec(1024) is real work a generic plan repeats per row. psycopg sends it untyped and the server infers halfvec from the cast context (pg_prepared_statements.parameter_types), so the product pays nothing for it. The proxy overstates and must not be quoted for the product.",
+    "what_is_not_saved": "The switch never happens, so the planning cost of a partitioned Append is paid on every execution rather than once per connection. That is the cost to carry into stage 02, and it is the opposite of the risk this arm was written to find."
+  },
+  "sizing": {
+    "relations_per_partition_pair_measured": 9,
+    "partitions": 256,
+    "locks_per_request_measured": 2313,
+    "locks_per_request_from_the_slope_alone": 2304,
+    "max_connections": 100,
+    "max_prepared_transactions": 0,
+    "pool_bounded": {
+      "concurrency": 20,
+      "max_locks_per_transaction": 463,
+      "derivation": "ceil(relations * partitions * concurrency / (max_connections + max_prepared_transactions))",
+      "holds_while": "api_pool_size + worker_pool_size + the owner and platform pools stay at or below the concurrency above. Raising a pool invalidates it silently."
+    },
+    "connection_bounded": {
+      "concurrency": 100,
+      "max_locks_per_transaction": 2313,
+      "derivation": "the measured locks per request. The max_connections term cancels: every backend may be running this query, and the slot table is sized per connection, so a value covering one backend covers all of them.",
+      "holds_while": "the partition count and the index set do not grow."
+    }
+  },
+  "verification": {
+    "scratch_schemas_left": 0,
+    "documents": 42,
+    "chunks": 13549,
+    "embeddings": 13549,
+    "alembic_revision": "0025",
+    "clean": true
+  },
+  "took_s": 32.0,
+  "generated_at": "2026-08-29T16:58:51+0000"
+}

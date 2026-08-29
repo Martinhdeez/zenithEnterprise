@@ -1,17 +1,49 @@
 <!doctype html>
 <!--
-  `dark` lives on `<html>`, not on a wrapper div inside the app: every current screen is
-  dark-themed and Radix (Select, Dialog, Sheet, Tooltip, DropdownMenu) portals its content
-  to `document.body` rather than into the component tree, so a `.dark` class scoped to a div
-  never reached it — the popover fell back to `:root`'s light `--popover` and rendered a
-  white dropdown under a dark app. `Login.tsx` and `App.tsx` still carry their own `dark`
-  class too; that's redundant now; not wrong, and it's what keeps this component working
-  correctly if it's ever rendered standalone again.
+  The theme class lives on `<html>`, not on a wrapper div inside the app: Radix (Select,
+  Dialog, Sheet, Tooltip, DropdownMenu) portals its content to `document.body` rather than
+  into the component tree, so a `.dark` class scoped to a div never reached it — the popover
+  fell back to `:root`'s light `--popover` and rendered a white dropdown under a dark app.
 -->
-<html lang="en" translate="no" class="dark">
+<html lang="en" translate="no">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      Applied before the bundle loads, and this has to be inline and blocking. React cannot
+      do it: the browser paints as soon as it has the document, so a theme applied from an
+      effect means every reload of a dark installation flashes white first. Six lines in the
+      head is the accepted price for that not happening.
+
+      Wrapped in try/catch because `localStorage` does not merely come back empty in a
+      private window or with site data blocked — reading it throws, and an exception here
+      would take the application down before it painted, over a preference.
+    -->
+    <script>
+      (function () {
+        var choice = "system";
+        try {
+          choice = localStorage.getItem("zenith.theme") || "system";
+        } catch (e) {}
+        var dark =
+          choice === "dark" ||
+          (choice !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+        if (dark) document.documentElement.classList.add("dark");
+
+        // The language, for the same reason and in the same place. `lang` was only ever set
+        // by the control, so a reload of a Spanish installation rendered Spanish text under
+        // `lang="en"` — invisible on screen and wrong in the one place it matters, since it
+        // is what a screen reader uses to choose a voice.
+        var lang = "en";
+        try {
+          lang = localStorage.getItem("zenith.language") || "";
+        } catch (e) {}
+        if (lang !== "es" && lang !== "en") {
+          lang = (navigator.language || "en").indexOf("es") === 0 ? "es" : "en";
+        }
+        document.documentElement.lang = lang;
+      })();
+    </script>
     <!-- The product name is a brand, and the interface text is the product. Chrome's
          auto-translation renders "Zenith" as "Cenit" and the navigation as Spanish, which
          is a different application than the one that was tested. -->

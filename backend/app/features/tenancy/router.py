@@ -2,7 +2,7 @@ from dataclasses import asdict
 
 from fastapi import APIRouter
 
-from app.features.auth.dependencies import CurrentProfile
+from app.features.auth.access.dependencies import CurrentProfile
 from app.features.tenancy.schemas import TenantStatusResponse
 from app.features.tenancy.status import status
 

@@ -29,15 +29,22 @@ import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/shared/i18n/useT";
 
 // Focus ring matches the Sign In button's own colour (--primary, "Indigo Electric") rather
 // than the cyan used for status/security indicators elsewhere on this screen — cyan means
 // "the system is healthy" here, and reusing it for focus would blur that meaning.
+// Tokens, not literals. This screen carries `dark` on its root, so `--input`,
+// `--secondary`, `--foreground` and `--muted-foreground` already resolve to the dark
+// palette here — the hex values these replaced were frozen copies of exactly those four,
+// and a copy is only ever right until the palette moves. It moved once already, on 26
+// August, and this screen kept the old field colours while every screen behind it changed.
 const FIELD =
-  "h-11 border-[#334155] bg-[#182238] text-[#f8fafc] placeholder:text-[#64748b] " +
+  "h-11 border-input bg-secondary text-foreground placeholder:text-muted-foreground " +
   "focus-visible:border-primary focus-visible:ring-primary/40";
 
 export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair) => void }) {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [visible, setVisible] = useState(false);
@@ -72,12 +79,24 @@ export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair
           {/* No wordmark: the mark carries the brand alone, and the name reappears once,
               small, as the lead word of the caption below rather than twice on the page. */}
           <div className="relative flex size-20 items-center justify-center">
+            {/* A soft glow behind the mark, and nothing more.
+
+                A liquid-goo treatment lived here briefly: three blobs drifting through an
+                SVG filter so they merged and pinched apart. It was doing what it was asked
+                to do and it was wrong for the surround — at this size the shape reads as a
+                stain on the logo rather than as atmosphere behind it, because the mark is
+                small enough that the blob competes with it instead of sitting under it.
+                An effect that has to be squinted past is decoration that stopped serving
+                anything.
+
+                The two brand colours, the same ones the goo used: the primary, and the
+                cyan that means "healthy" everywhere else in the product. */}
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 blur-xl"
               style={{
                 background:
-                  "radial-gradient(55% 55% at 50% 45%, rgba(99,102,241,0.45), transparent 70%), radial-gradient(45% 45% at 55% 70%, rgba(0,229,229,0.35), transparent 70%)",
+                  "radial-gradient(55% 55% at 50% 45%, color-mix(in oklab, var(--primary) 45%, transparent), transparent 70%), radial-gradient(45% 45% at 55% 70%, color-mix(in oklab, var(--zenith-cyan) 35%, transparent), transparent 70%)",
               }}
             />
             <img
@@ -91,9 +110,7 @@ export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair
           {/* A different typeface from the rest of the interface on purpose — the same
               treatment as the "RLS Security Enforced" badge below, so the caption reads as
               a designed detail rather than a plain paragraph of the UI's body font. */}
-          <p className="mt-5 font-mono text-xs tracking-wide text-balance text-muted-foreground">
-            Zenith Enterprise Document Intelligence Platform
-          </p>
+          <p className="mt-5 font-mono text-xs tracking-wide text-balance text-muted-foreground">{t("Zenith Enterprise Document Intelligence Platform")}</p>
         </header>
 
         <div className="w-full max-w-md">
@@ -115,7 +132,7 @@ export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair
                 try {
                   onAuthenticated(await login(email, password));
                 } catch (caught) {
-                  setError(caught instanceof ApiError ? caught.message : "Sign in failed.");
+                  setError(caught instanceof ApiError ? caught.message : t("Sign in failed."));
                 } finally {
                   setBusy(false);
                 }
@@ -123,9 +140,7 @@ export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair
               className="flex flex-col gap-5"
             >
               <div className="flex flex-col gap-2">
-                <Label htmlFor="email" className="text-sm text-foreground/80">
-                  Work email
-                </Label>
+                <Label htmlFor="email" className="text-sm text-foreground/80">{t("Work email")}</Label>
                 <div className="relative">
                   <Mail
                     aria-hidden="true"
@@ -146,9 +161,7 @@ export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label htmlFor="password" className="text-sm text-foreground/80">
-                  Password
-                </Label>
+                <Label htmlFor="password" className="text-sm text-foreground/80">{t("Password")}</Label>
                 <div className="relative">
                   <Lock
                     aria-hidden="true"
@@ -168,7 +181,7 @@ export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair
                   <button
                     type="button"
                     onClick={() => setVisible((shown) => !shown)}
-                    aria-label={visible ? "Hide password" : "Show password"}
+                    aria-label={visible ? t("Hide password") : t("Show password")}
                     aria-pressed={visible}
                     className="absolute top-1/2 right-2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
                   >
@@ -189,10 +202,16 @@ export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair
               <Button
                 type="submit"
                 disabled={busy}
-                style={{ background: "linear-gradient(to right, #6366f1, #4f46e5)" }}
-                className="group mt-1 h-12 w-full rounded-xl text-sm font-semibold tracking-wide text-white shadow-[0_8px_24px_-6px_rgba(99,102,241,0.7)] ring-1 ring-white/15 ring-inset transition-all hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_10px_30px_-4px_rgba(99,102,241,0.85)] active:translate-y-0 active:shadow-[0_4px_14px_-6px_rgba(99,102,241,0.7)] disabled:translate-y-0 disabled:opacity-60"
+                // The gradient was two hardcoded indigos from before the palette moved, so
+                // this button kept the old accent after everything around it changed. Built
+                // from `--primary` now, which is the point of having the token.
+                style={{
+                  background:
+                    "linear-gradient(to right, var(--primary), color-mix(in oklab, var(--primary) 80%, black))",
+                }}
+                className="group mt-1 h-12 w-full rounded-xl text-sm font-semibold tracking-wide text-white shadow-[0_8px_24px_-6px_color-mix(in_oklab,var(--primary)_70%,transparent)] ring-1 ring-white/15 ring-inset transition-all hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 disabled:translate-y-0 disabled:opacity-60"
               >
-                {busy ? "Signing in…" : "Sign In to Workspace"}
+                {busy ? t("Signing in…") : t("Sign In to Workspace")}
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
               </Button>
             </form>
@@ -200,21 +219,17 @@ export function Login({ onAuthenticated }: { onAuthenticated: (tokens: TokenPair
             {/* Both claims are true of this build: migration 0001 puts tenant isolation in
                 Postgres policies rather than in application code. */}
             <div className="mt-7 flex justify-center border-t border-white/5 pt-6">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#1e293b] bg-secondary/50 px-3 py-1.5 font-mono text-[11px] tracking-tight text-muted-foreground">
+              <div className="inline-flex items-center gap-2 rounded-full border border-input bg-secondary/50 px-3 py-1.5 font-mono text-[11px] tracking-tight text-muted-foreground">
                 <ShieldCheck className="size-3.5 text-zenith-cyan" />
                 <span className="flex items-center gap-1.5">
-                  <span className="size-1.5 rounded-full bg-zenith-cyan shadow-[0_0_6px_rgba(0,229,229,0.9)]" />
-                  RLS Security Enforced
-                </span>
+                  <span className="size-1.5 rounded-full bg-zenith-cyan shadow-[0_0_6px_rgba(0,229,229,0.9)]" />{t("RLS Security Enforced")}</span>
                 <span className="text-white/15">|</span>
-                <span>Multi-Tenant Isolated</span>
+                <span>{t("Multi-Tenant Isolated")}</span>
               </div>
             </div>
           </div>
 
-          <p className="mt-6 text-center text-xs text-muted-foreground">
-            No account? Your workspace administrator creates one for you.
-          </p>
+          <p className="mt-6 text-center text-xs text-muted-foreground">{t("No account? Your workspace administrator creates one for you.")}</p>
         </div>
       </div>
     </div>

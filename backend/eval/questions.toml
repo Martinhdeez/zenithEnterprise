@@ -341,6 +341,96 @@ document = "infrastructure-act"
 anchor = "23 U.S.C. 101"
 pages = [78, 104, 387]
 
+# --- negatives, by the way a question misses ---------------------------------------------
+#
+# Five was never enough to calibrate a boundary on; these widen the set along the three
+# shapes a real miss takes, because they are not equally hard.
+#
+#   far      — a different world entirely. The easiest to reject and the least informative:
+#              any threshold catches these, so passing them proves very little.
+#   near     — the corpus's own domain, and a fact it does not carry. This is where a
+#              threshold earns its place, and where a careless one starts hiding real
+#              answers.
+#   temporal — a fact that would be in a newer edition of a document that *is* loaded. The
+#              hardest, and the most realistic: every word of the question matches the
+#              corpus and the answer is still not in it.
+
+[[question]]
+id = "unanswerable-messi"
+type = "unanswerable"
+# Suggested from outside as the obvious sanity case, and it is: a corpus of Spanish
+# employment law and EU regulation still returns eight ranked passages for it today.
+question = "How many goals did Messi score in the 2012 calendar year?"
+documents = []
+miss = "far"
+
+[[question]]
+id = "unanswerable-messi-year"
+type = "unanswerable"
+# Written the way people type, and that is the point rather than an accident.
+#
+# The corpus holds US tax forms whose tables are nothing but numbers and years, so "2012"
+# matches them. But the year is not what moves the score — the punctuation is. Measured, the
+# same question three ways:
+#
+#   "¿Cuántos goles marcó Messi en 2012?"   0.0775   weak
+#   "Cuantos goles marco Messi en 2012?"    0.0678   weak
+#   "cuantos goles marco Messi en 2012"     0.3096   CONFIDENT
+#
+# A cross-encoder is trained on question-passage pairs. Strip the question mark and the input
+# reads as a keyword string, for which a table of numbers is a plausible match; put it back
+# and the model judges it as a question again, which a table does not answer. Accents make no
+# difference — `unaccent` is in front of the lexical index and the reranker reads the raw text.
+#
+# This is the realistic case: the demo runbook makes a point of typing without accents,
+# because that is how people search. Kept in that form so the harness measures the query
+# users actually send rather than the tidy one.
+question = "cuantos goles marco Messi en 2012"
+documents = []
+miss = "far"
+
+[[question]]
+id = "unanswerable-messi-bare"
+type = "unanswerable"
+# A single word, which is how people search when they are not writing a sentence. It is the
+# case that broke the reranker: 0.1841, *above* `What is Bank Rate` at 0.2335 — a question
+# this corpus answers. No score threshold separates those two. Zero lexical matches does.
+question = "Messi"
+documents = []
+miss = "far"
+
+[[question]]
+id = "unanswerable-recipe"
+type = "unanswerable"
+question = "What temperature should the oven be for a Spanish tortilla?"
+documents = []
+miss = "far"
+
+[[question]]
+id = "unanswerable-paternity-days"
+type = "unanswerable"
+# Employment law, in the register the corpus uses, about a benefit it does not enumerate.
+# The words all belong; the answer does not.
+question = "¿Cuántos días de permiso por paternidad reconoce el convenio colectivo de banca?"
+documents = []
+miss = "near"
+
+[[question]]
+id = "unanswerable-gdpr-fine-amount"
+type = "unanswerable"
+question = "What fine did the Spanish supervisory authority impose on Vodafone under the GDPR?"
+documents = []
+miss = "near"
+
+[[question]]
+id = "unanswerable-reform-2027"
+type = "unanswerable"
+# The Estatuto de los Trabajadores is loaded. This asks about a revision of it that the
+# loaded edition predates — every term matches, and the fact is absent.
+question = "¿Qué cambió la reforma del Estatuto de los Trabajadores de 2027 sobre la jornada?"
+documents = []
+miss = "temporal"
+
 [[question]]
 id = "unanswerable-pricing"
 type = "unanswerable"

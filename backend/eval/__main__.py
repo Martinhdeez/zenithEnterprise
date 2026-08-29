@@ -5,7 +5,10 @@ customers; this is laboratory tooling that only ever runs on a developer machine
 mixing them would put an evaluation command in a customer's `--help`.
 """
 
+import ast
 import sys
+from importlib import import_module
+from pathlib import Path
 
 import httpx
 
@@ -128,23 +131,109 @@ def answers() -> int:
     return 0
 
 
-COMMANDS = ("fetch", "layout", "grounding", "answers")
+def live() -> int:
+    """Recall of the running installation, over HTTP — the deployment, not the design."""
+    from eval.live import run
+
+    if "--token" not in sys.argv:
+        print("usage: python -m eval live --token <jwt> [--url http://localhost:8000]")
+        return 2
+    token = sys.argv[sys.argv.index("--token") + 1]
+    url = sys.argv[sys.argv.index("--url") + 1] if "--url" in sys.argv else "http://localhost:8000"
+    return run(url, token)
+
+
+def separation() -> int:
+    """Whether retrieval can tell an answerable question from one the corpus cannot answer.
+
+    Read-only and product-neutral: it runs searches and compares two score distributions.
+    Needs a token, because it goes over HTTP against the real corpus — synthetic data would
+    measure the wrong thing entirely.
+    """
+    from eval.separation import run
+
+    if "--token" not in sys.argv:
+        print("usage: python -m eval separation --token <jwt> [--url http://localhost:8000]")
+        return 2
+    token = sys.argv[sys.argv.index("--token") + 1]
+    url = sys.argv[sys.argv.index("--url") + 1] if "--url" in sys.argv else "http://localhost:8000"
+    return run(url, token)
+
+
+#: The commands implemented here, in the order the usage prints them. Sweeps are not in
+#: this tuple — see `discover`.
+BUILT_IN: tuple[tuple[str, str], ...] = (
+    ("fetch", "fetch [--record]"),
+    ("layout", "layout [--limit N]"),
+    ("grounding", "grounding"),
+    ("answers", "answers"),
+    ("live", "live --token <jwt> [--url http://localhost:8000]"),
+    ("separation", "separation --token <jwt> [--url http://localhost:8000]"),
+)
+
+
+def discover() -> dict[str, tuple[str, str]]:
+    """Every sweep under `eval/`, read out of the files rather than listed here.
+
+    A measurement used to announce itself in four places in this module: a wrapper, an
+    entry in a tuple, a line of usage text and a branch of the dispatch. Every branch that
+    added one therefore edited the same file in the same four places, and
+    `backend/eval/__main__.py` conflicted in six consecutive merges — always trivially,
+    always by hand. A file that every new feature must edit to exist is a conflict once per
+    branch for ever, and the fix is not discipline.
+
+    So a sweep declares `COMMAND` and `USAGE` beside its own `run`, and this finds it.
+    Adding a measurement is adding a file.
+
+    Parsed rather than imported: `ast` reads the two constants without executing the module,
+    which keeps the laziness the wrappers were written for — `python -m eval fetch` must not
+    pay for importing `torch` by way of a sweep it is not running.
+    """
+    found: dict[str, tuple[str, str]] = {}
+    for path in sorted(Path(__file__).parent.glob("*.py")):
+        if path.name.startswith("__"):
+            continue
+        constants: dict[str, str] = {}
+        for node in ast.parse(path.read_text(), path.name).body:
+            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant):
+                for target in node.targets:
+                    if (
+                        isinstance(target, ast.Name)
+                        and target.id in ("COMMAND", "USAGE")
+                        and isinstance(node.value.value, str)
+                    ):
+                        constants[target.id] = node.value.value
+        if "COMMAND" in constants:
+            found[constants["COMMAND"]] = (path.stem, constants.get("USAGE", constants["COMMAND"]))
+    return found
 
 
 def main() -> int:
-    if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
-        print(
-            "usage: python -m eval fetch [--record]\n"
-            "       python -m eval layout [--limit N]\n"
-            "       python -m eval grounding\n"
-            "       python -m eval answers"
-        )
+    sweeps = discover()
+    known = {name for name, _ in BUILT_IN} | set(sweeps)
+
+    if len(sys.argv) < 2 or sys.argv[1] not in known:
+        lines = [usage for _, usage in BUILT_IN] + [usage for _, usage in sweeps.values()]
+        print("usage: " + "\n       ".join(f"python -m eval {line}" for line in lines))
         return 2
-    if sys.argv[1] == "grounding":
+
+    command = sys.argv[1]
+    if command in sweeps:
+        # Imported only now, and only this one. `cli` where the sweep takes arguments,
+        # `run` where it takes none.
+        module = import_module(f"eval.{sweeps[command][0]}")
+        entry = getattr(module, "cli", None)
+        return int(entry(sys.argv[2:])) if entry else int(module.run())
+
+    if command == "separation":
+        return separation()
+    if command == "live":
+        return live()
+    if command == "grounding":
         return grounding()
-    if sys.argv[1] == "answers":
+    if command == "answers":
         return answers()
-    if sys.argv[1] == "layout":
+    if command == "layout":
         limit = None
         if "--limit" in sys.argv:
             limit = int(sys.argv[sys.argv.index("--limit") + 1])

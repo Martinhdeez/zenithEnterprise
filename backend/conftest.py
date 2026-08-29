@@ -14,6 +14,13 @@ os.environ.setdefault("ZENITH_JWT_SECRET", "test-secret-" + "x" * 32)
 # Ingestion is a background concern with its own tests. An upload test must not need a
 # worker process and a running embedding service to store a file.
 os.environ.setdefault("ZENITH_DISABLE_INGESTION_QUEUE", "1")
+# Storing a provider API key needs this, and without it `PUT /llm-config` answers 500.
+# Absent here, the only machines where the connector tests passed were the ones with a
+# developer's `backend/.env` — which is not in git, so CI had none and the suite was green
+# locally and red on the first push. A real Fernet key rather than a placeholder: the
+# library validates the length and the base64, so a stand-in fails at `Fernet(...)` with a
+# message about the key rather than about the test.
+os.environ.setdefault("ZENITH_ENCRYPTION_KEY", "emVuaXRoLXRlc3QtZW5jcnlwdGlvbi1rZXktMzJieXQ=")
 
 import subprocess  # noqa: E402
 from collections.abc import AsyncIterator, Iterator
@@ -29,6 +36,7 @@ from testcontainers.community.postgres import PostgresContainer
 BACKEND_DIR = Path(__file__).resolve().parent
 IMAGE = "paradedb/paradedb:0.15.26-pg17"
 APP_PASSWORD = "app-test"
+PLATFORM_PASSWORD = "platform-test"
 
 
 def _async_url(container: PostgresContainer, user: str, password: str) -> str:
@@ -37,10 +45,35 @@ def _async_url(container: PostgresContainer, user: str, password: str) -> str:
     return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{container.dbname}"
 
 
+#: What `docker/docker-compose.yml` gives the deployment, and therefore what the tests must
+#: run against. Migration 0026 partitions `chunks` and `chunk_embeddings` into
+#: `ZENITH_PARTITION_MODULUS` buckets each — 128 by default — and a query locks every
+#: partition and every index on it at *planning* time: `9P + 9` relations for one search,
+#: measured at every rung in `eval/modulus-cost.json`, and about six times that at the peak
+#: of 0026's `downgrade`. The default `max_locks_per_transaction = 64` sizes the cluster's
+#: whole lock table at 6,400 entries, which is two concurrent searches at 256 and four at
+#: 128.
+#:
+#: The value is `chore/partition-lock-budget`'s and that branch owns `docker-compose.yml`;
+#: it sized 2,560 from a lock-per-partition-pair slope rather than from arithmetic, and
+#: 2,560 covers 0026's floor with room at any modulus this suite is likely to run at.
+#: Repeated here because a test environment that quietly differs from the deployment is how
+#: a lock ceiling gets found in production instead of in CI — and 0026 refuses to run below
+#: `4 x modulus`, so a container without this fails the suite rather than the deployment.
+#:
+#: **Not derived from `settings.partition_modulus`, deliberately.** Making this follow the
+#: setting would make the suite pass at whatever modulus it is run with and prove nothing
+#: about the deployment's own lock table, which is the one thing this constant exists to
+#: keep honest.
+MAX_LOCKS_PER_TRANSACTION = 2560
+
+
 @pytest.fixture(scope="session")
 def postgres() -> Iterator[PostgresContainer]:
     """One container per session: starting it per test would multiply CI time."""
-    with PostgresContainer(IMAGE, driver="psycopg") as container:
+    with PostgresContainer(IMAGE, driver="psycopg").with_command(
+        f"postgres -c max_locks_per_transaction={MAX_LOCKS_PER_TRANSACTION}"
+    ) as container:
         yield container
 
 
@@ -72,6 +105,11 @@ def migrated(postgres: PostgresContainer, owner_url: str) -> str:
     async def _grant_credentials() -> None:
         async with engine.begin() as conn:
             await conn.execute(text(f"ALTER ROLE zenith_app LOGIN PASSWORD '{APP_PASSWORD}'"))
+            # Migration 0010 creates this one NOLOGIN too, for the same reason: the
+            # credential belongs to the installer, not the repository.
+            await conn.execute(
+                text(f"ALTER ROLE zenith_platform LOGIN PASSWORD '{PLATFORM_PASSWORD}'")
+            )
         await engine.dispose()
 
     asyncio.run(_grant_credentials())
@@ -100,18 +138,29 @@ async def seed_session(owner_engine: AsyncEngine) -> AsyncIterator[AsyncSession]
         yield session
 
 
+@pytest.fixture(scope="session")
+def platform_url(postgres: PostgresContainer, migrated: str) -> str:
+    """The role the system panel connects as: bypasses RLS, holds no DDL."""
+    return _async_url(postgres, "zenith_platform", PLATFORM_PASSWORD)
+
+
 @pytest.fixture
-def configured_engines(migrated: str, owner_url: str) -> Iterator[None]:
+def configured_engines(migrated: str, owner_url: str, platform_url: str) -> Iterator[None]:
     """Point the application's own engines at the test container.
 
     Anything exercising `tenant_session` or `owner_session` goes through the module
     level factories, so they have to be redirected or the test would talk to
     whatever `.env` happens to say.
     """
-    from app.core.database import configure_engine, configure_owner_engine
+    from app.core.database import (
+        configure_engine,
+        configure_owner_engine,
+        configure_platform_engine,
+    )
 
     configure_engine(migrated)
     configure_owner_engine(owner_url)
+    configure_platform_engine(platform_url)
     yield
 
 
@@ -225,9 +274,17 @@ class Account:
     member_id: UUID
     member_email: str
     finance_label: UUID
-    # Seeded by tenant provisioning, reachable by both system roles. Uploads with no
-    # label specified land here — see `labels/provisioning.py`.
+    # A second compartment reachable by `admin`. Two are needed wherever a test has to
+    # union real labels without either of them being the default, which since 0017 is not a
+    # choice but the thing that triggers quarantine.
+    hr_label: UUID
+    # Seeded by tenant provisioning, reachable by both system roles. Where the classifier
+    # files a document when it declines or is not configured — see `labels/provisioning.py`.
     default_label: UUID
+    # Also seeded by provisioning, but reachable by `admin` alone. An upload that named no
+    # compartment waits here until the classifier files it, so that "unfiled" does not mean
+    # "readable by the whole tenant" for the length of an ingestion. See migration 0017.
+    quarantine_label: UUID
 
 
 @pytest.fixture
@@ -244,7 +301,7 @@ async def account(configured_engines: None) -> Account:
     """
     from app.core.database import owner_session
     from app.features.auth.model import Role
-    from app.features.auth.provisioning import create_user
+    from app.features.auth.onboarding.provisioning import create_user
     from app.features.labels.model import AccessLabel, RoleLabel
     from app.features.tenancy.service import TenantService
 
@@ -260,10 +317,23 @@ async def account(configured_engines: None) -> Account:
         )
         assert default_label is not None, "provisioning must seed a default label"
 
+        quarantine_label = await session.scalar(
+            select(AccessLabel.id).where(
+                AccessLabel.tenant_id == tenant.id, AccessLabel.is_quarantine
+            )
+        )
+        assert quarantine_label is not None, "provisioning must seed a quarantine label"
+
         finance = AccessLabel(tenant_id=tenant.id, name="Finance")
-        session.add(finance)
+        hr = AccessLabel(tenant_id=tenant.id, name="HR")
+        session.add_all([finance, hr])
         await session.flush()
-        session.add(RoleLabel(role_id=roles["admin"].id, label_id=finance.id))
+        session.add_all(
+            [
+                RoleLabel(role_id=roles["admin"].id, label_id=finance.id),
+                RoleLabel(role_id=roles["admin"].id, label_id=hr.id),
+            ]
+        )
 
         admin_email = f"admin-{uuid4()}@example.com"
         member_email = f"member-{uuid4()}@example.com"
@@ -277,7 +347,9 @@ async def account(configured_engines: None) -> Account:
             member_id=member.id,
             member_email=member_email,
             finance_label=finance.id,
+            hr_label=hr.id,
             default_label=default_label,
+            quarantine_label=quarantine_label,
         )
 
     return account

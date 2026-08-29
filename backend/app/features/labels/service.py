@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.common.exceptions import ConflictError, NotFoundError, PermissionDeniedError
 from app.core.database import tenant_session
-from app.features.auth.permissions import CATALOGUE
+from app.features.auth.access.permissions import CATALOGUE
 from app.features.labels.model import AccessLabel
 from app.features.labels.pagination import DEFAULT_SORT, Key, LabelCursor, Sort, clamp
 from app.features.labels.repository import LabelRepository
@@ -45,7 +45,11 @@ class LabelService:
         self.context = context
 
     async def create(
-        self, name: str, is_default: bool = False, created_by: UUID | None = None
+        self,
+        name: str,
+        is_default: bool = False,
+        created_by: UUID | None = None,
+        priority_level: int = 0,
     ) -> AccessLabel:
         """Create a label, and give its creator's roles access to it.
 
@@ -72,13 +76,34 @@ class LabelService:
             labels = LabelRepository(session)
             if is_default:
                 await labels.clear_default()
-            label = AccessLabel(tenant_id=self.context.tenant_id, name=name, is_default=is_default)
+            label = AccessLabel(
+                tenant_id=self.context.tenant_id,
+                name=name,
+                is_default=is_default,
+                priority_level=priority_level,
+            )
             session.add(label)
             try:
                 await session.flush()
             except IntegrityError as exc:
                 raise ConflictError(f"a label named {name!r} already exists") from exc
             await labels.grant_to_creator(label.id, created_by)
+            await session.refresh(label)
+            return label
+
+    async def set_clearance(self, label_id: UUID, priority_level: int) -> AccessLabel:
+        """How much clearance this label demands of anyone reaching it through a group.
+
+        Zero means it demands none, which is not the same as being public: a label reachable
+        by no group and granted to no role is still reachable by nobody. Clearance narrows
+        the group route; it never opens anything on its own.
+        """
+        async with tenant_session(self.context) as session:
+            label = await session.get(AccessLabel, label_id)
+            if label is None:
+                raise NotFoundError(f"no label {label_id}")
+            label.priority_level = priority_level
+            await session.flush()
             await session.refresh(label)
             return label
 
@@ -163,6 +188,17 @@ class LabelService:
         thinking about. They are tidying up a duplicate tag; the effect is that documents
         change hands between roles.
         """
+        # Before anything else, and this was missed once. Renaming, deleting and granting the
+        # quarantine label are refused; **merging is the fourth door and it undoes more than
+        # any of them**. Folding it into the default moves every unclassified document to a
+        # label the whole tenant reaches *and* destroys the place uploads land; folding
+        # something into it hands those documents to administrators alone. Both look like
+        # tidying a duplicate tag, which is exactly what `merge`'s own docstring warns about
+        # one paragraph above.
+        async with tenant_session(self.context) as session:
+            for label in await LabelRepository(session).reserved_among([*sources, target]):
+                self._refuse_if_reserved(label, "merged")
+
         if target in set(sources):
             raise ConflictError("a label cannot be merged into itself")
 
@@ -204,6 +240,7 @@ class LabelService:
         async with tenant_session(self.context) as session:
             labels = LabelRepository(session)
             label = await self._require(labels, label_id)
+            self._refuse_if_reserved(label, "renamed")
             label.name = name
             try:
                 await session.flush()
@@ -215,6 +252,9 @@ class LabelService:
         async with tenant_session(self.context) as session:
             labels = LabelRepository(session)
             label = await self._require(labels, label_id)
+            # Promoting the quarantine label to default would collapse the two into one and
+            # put every unfiled upload back where the whole tenant can read it.
+            self._refuse_if_reserved(label, "made the default")
             # Cleared first: the partial unique index rejects a second default, and doing
             # both in one statement would depend on the order Postgres happens to process
             # the rows in.
@@ -239,6 +279,7 @@ class LabelService:
         async with tenant_session(self.context) as session:
             labels = LabelRepository(session)
             label = await self._require(labels, label_id)
+            self._refuse_if_reserved(label, "deleted")
             in_use = await labels.documents_using(label_id)
             if in_use:
                 raise ConflictError(
@@ -253,6 +294,11 @@ class LabelService:
             if not await labels.role_exists(role_id):
                 raise NotFoundError(f"no role {role_id}")
             await self._require_all(labels, label_ids)
+            # The grant that would undo 0017 completely: `Unclassified` reaching `member`
+            # again makes every unfiled upload tenant-wide for the length of its ingestion,
+            # which is the exact state the migration exists to prevent.
+            for label in await labels.reserved_among(label_ids):
+                self._refuse_if_reserved(label, "granted to a role")
             await labels.set_role_labels(role_id, label_ids)
 
     async def set_document_labels(self, document_id: UUID, label_ids: list[UUID]) -> None:
@@ -265,11 +311,36 @@ class LabelService:
             await self._require_all(labels, label_ids)
             await labels.set_document_labels(document_id, label_ids)
 
+    async def names_of(self, label_ids: list[UUID]) -> list[str]:
+        """The names behind a set of ids. See `LabelRepository.names_of`."""
+        async with tenant_session(self.context) as session:
+            return await LabelRepository(session).names_of(label_ids)
+
     async def _require(self, labels: LabelRepository, label_id: UUID) -> AccessLabel:
         label = await labels.get(label_id)
         if label is None:
             raise NotFoundError(f"no label {label_id}")
         return label
+
+    @staticmethod
+    def _refuse_if_reserved(label: AccessLabel, action: str) -> None:
+        """The quarantine label is the product's, not the tenant's.
+
+        `is_quarantine` was a database column and appeared on no schema, so every ordinary
+        label operation reached it. Each of them undoes migration 0017 in a different way:
+        granting it to `member` restores the leak it was written to close; deleting it removes
+        the place uploads land; renaming or merging it away does the same while looking like
+        housekeeping.
+
+        Refused rather than hidden. An administrator can see it — filing what waits there is
+        their job — and telling them why it will not move is more useful than a label that
+        silently ignores them.
+        """
+        if label.is_quarantine:
+            raise ConflictError(
+                f"{label.name!r} is where unfiled uploads wait to be classified and cannot "
+                f"be {action}. Create a label of your own instead."
+            )
 
     async def _require_all(self, labels: LabelRepository, label_ids: list[UUID]) -> None:
         found = await labels.label_ids_in_tenant(label_ids)

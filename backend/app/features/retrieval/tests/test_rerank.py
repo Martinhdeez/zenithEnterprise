@@ -7,6 +7,7 @@ import pytest
 
 from app.core.hardware import PROFILES
 from app.features.auth.service import AccessProfile
+from app.features.retrieval.degradation import RERANKING_UNAVAILABLE
 from app.features.retrieval.reranker import RerankerUnavailable, TeiReranker
 from app.features.retrieval.search import RRF_K, candidates, fuse
 from app.features.retrieval.service import SearchService
@@ -93,7 +94,7 @@ async def test_a_reranker_that_is_down_degrades_to_the_fused_order(account: Acco
 
     assert result.hits, "the search must still answer"
     assert result.degraded is True
-    assert "reranking unavailable" in (result.reason or "")
+    assert result.reason == RERANKING_UNAVAILABLE
 
 
 async def test_a_profile_with_the_reranker_off_is_not_degraded(account: Account) -> None:

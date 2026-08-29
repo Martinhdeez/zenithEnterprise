@@ -9,40 +9,56 @@
 
 import { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import {
+  ChevronLeft,
+  Building2,
+  Check,
+  Copy,
   Folder as FolderIcon,
   History as HistoryIcon,
   Maximize2,
   MessageSquare,
   Minimize2,
+  Monitor,
+  Moon,
   PanelLeftClose,
   PanelLeftOpen,
   Search as SearchIcon,
   Settings,
+  Sun,
   Upload as UploadIcon,
   X,
 } from "lucide-react";
 
+import { setLanguage, useLanguage, useT, type T } from "@/shared/i18n/useT";
+import { apply as applyTheme, remember, stored, type Theme } from "@/shared/lib/theme";
 import { Admin } from "@/features/admin";
 import {
   Login,
+  SetPassword,
   Profile,
   profile as fetchMyProfile,
   refreshTokens,
   type UserProfile,
 } from "@/features/auth";
 import { Chat, type Citation } from "@/features/chat";
+import { System } from "@/features/system";
+import { Ingesting, inFlight } from "@/features/documents";
 import { History } from "@/features/history";
+import { lazyChunk } from "@/shared/lib/lazyChunk";
 import {
   Folders,
   StatusBadge,
   Upload,
+  folders,
   type FolderSelection,
 } from "@/features/documents";
 import { Search } from "@/features/search";
 import { tenantStatus, type TenantStatus } from "@/shared/api/tenant";
-import { Section } from "@/shared/components/Section";
+import { CommandPalette } from "@/shared/ui/CommandPalette";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
+import { forget, read, write } from "@/shared/lib/storage";
+import { copy } from "@/shared/lib/clipboard";
 
 // Lazily loaded, and for a measured reason: `pdf.js` is roughly 1.4 MB of worker plus its
 // own runtime, and none of it is needed until someone clicks a citation. F11 made
@@ -55,8 +71,22 @@ import { Button } from "@/components/ui/button";
 // chunk and leaves nothing behind the `lazy` boundary to split. The rule is "features are
 // imported through their public surface"; a code-splitting boundary is the exception, and
 // the build output is where it shows: `PdfViewer-*.js` has to stay its own chunk.
-const PdfViewer = lazy(() =>
-  import("@/features/documents/PdfViewer").then((module) => ({ default: module.PdfViewer })),
+const PdfViewer = lazy(
+  lazyChunk(() =>
+    import("@/features/documents/viewer/PdfViewer").then((module) => ({
+      default: module.PdfViewer,
+    })),
+  ),
+);
+// Its own chunk, and a much smaller one: this viewer is a `<pre>` and a `<mark>`, while the
+// PDF viewer drags pdf.js and its worker behind it. Splitting them means a reader who only
+// ever opens Markdown never downloads a PDF engine.
+const TextViewer = lazy(
+  lazyChunk(() =>
+    import("@/features/documents/viewer/TextViewer").then((module) => ({
+      default: module.TextViewer,
+    })),
+  ),
 );
 
 // Session storage rather than local storage: it keeps both tokens out of other tabs and out
@@ -80,11 +110,228 @@ function capitalise(name: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
+/**
+ * A view's name in the reader's language.
+ *
+ * The navigation used to render the view id with `capitalize` in CSS, which works for
+ * exactly one language and silently stops working for the next: "upload" is a verb in
+ * English and "Subir" in Spanish, and no amount of capitalising gets from one to the other.
+ * The id stays the id; this is what a person reads.
+ */
+function viewLabel(view: string, t: T): string {
+  switch (view) {
+    case "search": return t("Search");
+    case "folders": return t("Folders");
+    case "upload": return t("Upload");
+    case "history": return t("History");
+    case "admin": return t("Admin");
+    case "system": return t("System");
+    case "profile": return t("Profile");
+    default: return capitalise(view);
+  }
+}
+
+/**
+ * The one path that must work before anybody is signed in.
+ *
+ * Read from `location` rather than routed, because this app has no router: the shell is a
+ * `view` union and every screen inside it assumes a token. Adding one for a single public
+ * page would be a dependency bought to serve one screen.
+ */
+function setPasswordToken(): string | null {
+  const match = window.location.pathname.match(/^\/set-password\/(.+)$/);
+  return match?.[1] ?? null;
+}
+
+/**
+ * How wide a screen is allowed to get. Whole class strings, never built by interpolation:
+ * Tailwind scans this file as text, and `max-w-${n}xl` would produce a class that exists in
+ * the markup and in no stylesheet.
+ */
+/**
+ * Three settings, not a switch. "System" is what everybody has before they touch anything,
+ * and a two-state toggle destroys it on the first click with no way back — somebody who
+ * works in a light room by day and a dark one at night would have to flip the application
+ * by hand forever after.
+ *
+ * The choice is applied to `<html>` and the browser is asked again whenever it changes, so
+ * a machine that switches at sunset takes the app with it while "System" is selected.
+ */
+/**
+ * Two languages, one control, and no "Auto".
+ *
+ * The theme has an Auto because a machine has a light-and-dark preference worth following.
+ * A browser's `navigator.language` is used once here, to pick the first default, and then
+ * the choice is the person's — an interface that silently re-translated itself because
+ * somebody opened it on a different machine would be a bug, not a courtesy.
+ */
+function LanguageControl({ collapsed }: { collapsed: boolean }) {
+  const t = useT();
+  const language = useLanguage();
+  const other = language === "en" ? "es" : "en";
+  const NAME = { en: "English", es: "Español" } as const;
+
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setLanguage(other)}
+        title={NAME[other]}
+        aria-label={NAME[other]}
+        className="flex items-center justify-center rounded-lg p-1.5 text-[11px] font-semibold text-muted-foreground uppercase transition-colors hover:bg-secondary/50 hover:text-foreground"
+      >
+        {language}
+      </button>
+    );
+  }
+
+  // Codes rather than names, and the same two characters the collapsed rail already shows.
+  // "English"/"Español" spelled out needed a row of its own, which is what made the foot of
+  // this bar three stacked bands; at two letters the control fits beside the profile and
+  // the row disappears. The full name stays in the tooltip and in the accessible name, so
+  // nothing is lost to anyone who needs it spelled out.
+  return (
+    <div role="group" aria-label={t("Language")} className="flex gap-0.5 rounded-full bg-background p-0.5">
+      {(["en", "es"] as const).map((value) => (
+        <button
+          key={value}
+          type="button"
+          onClick={() => setLanguage(value)}
+          aria-pressed={language === value}
+          title={NAME[value]}
+          aria-label={NAME[value]}
+          className={`flex items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase transition-colors ${
+            language === value
+              ? "bg-primary/15 text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {value}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ThemeControl({ collapsed }: { collapsed: boolean }) {
+  const t = useT();
+  const [theme, setTheme] = useState<Theme>(stored);
+
+  useEffect(() => {
+    applyTheme(theme);
+    if (theme !== "system" || typeof matchMedia !== "function") return;
+    const media = matchMedia("(prefers-color-scheme: dark)");
+    const follow = () => applyTheme("system");
+    media.addEventListener("change", follow);
+    return () => media.removeEventListener("change", follow);
+  }, [theme]);
+
+  const choose = (next: Theme) => {
+    setTheme(next);
+    remember(next);
+  };
+
+  // Records rather than an array indexed by position: `noUncheckedIndexedAccess` is on, and
+  // `options[(at + 1) % options.length]` is only provably defined to a human.
+  const NEXT: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
+  const ICON: Record<Theme, typeof Sun> = { system: Monitor, light: Sun, dark: Moon };
+  // "Auto", not "System". `/system` is the system-administration panel and it sits in this
+  // same sidebar: two controls a few pixels apart, both reading "System", meaning entirely
+  // different things. `App.test.tsx` caught it by asking for a button named System and
+  // finding the wrong one, which is exactly what a user would have done.
+  const LABEL: Record<Theme, string> = { system: t("Auto"), light: t("Light"), dark: t("Dark") };
+  const ORDER: readonly Theme[] = ["system", "light", "dark"];
+
+  // Collapsed, there is no room for three: it cycles instead, and the tooltip names what
+  // pressing it will do rather than what is currently on — a control should say what it
+  // does, not what it is.
+  if (collapsed) {
+    const next = NEXT[theme];
+    const Icon = ICON[theme];
+    return (
+      <button
+        type="button"
+        onClick={() => choose(next)}
+        title={t("Switch to {theme}", { theme: LABEL[next].toLowerCase() })}
+        aria-label={t("Switch to {theme}", { theme: LABEL[next].toLowerCase() })}
+        className="flex items-center justify-center rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground"
+      >
+        <Icon className="size-4" />
+      </button>
+    );
+  }
+
+  return (
+    <div role="group" aria-label={t("Theme")} className="flex gap-0.5 rounded-full bg-background p-0.5">
+      {ORDER.map((value) => {
+        const Icon = ICON[value];
+        return (
+        <button
+          key={value}
+          type="button"
+          onClick={() => choose(value)}
+          aria-pressed={theme === value}
+          title={LABEL[value]}
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-1 text-xs transition-colors ${
+            theme === value
+              ? "bg-primary/15 text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Icon className="size-3.5" />
+          {LABEL[value]}
+        </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function measure(view: string): string {
+  switch (view) {
+    // A form. Wider only makes the label travel further from its field.
+    case "profile":
+      return "max-w-2xl";
+    // Tables. They were the worst served by a single cap and gain the most from losing it.
+    case "admin":
+    case "system":
+    case "folders":
+      return "max-w-6xl 2xl:max-w-7xl";
+    // A result, an upload row and a past question are all a name plus a fragment of text.
+    //
+    // 4xl, not 5xl. 5xl was tried and it used the screen at the cost of looking uncentred:
+    // the search bar stretched the full width of the column while the empty state under it
+    // stayed a centred block, so the eye got a hard left edge at one width and centred text
+    // at another, and read the whole page as shoved left. The gap on each side is what tells
+    // you a column is centred, and at 5xl there was not enough of it left to say so.
+    default:
+      return "max-w-4xl 2xl:max-w-5xl";
+  }
+}
+
 export function App() {
-  const [token, setToken] = useState<string | null>(() => sessionStorage.getItem(TOKEN_KEY));
+  const t = useT();
+  const [token, setToken] = useState<string | null>(() => read("session", TOKEN_KEY));
   const [status, setStatus] = useState<TenantStatus | null>(null);
   const [me, setMe] = useState<UserProfile | null>(null);
   const [citation, setCitation] = useState<Citation | null>(null);
+  // The question that opened the citation, and whether its conversation is showing.
+  //
+  // Held beside the citation rather than inside it: `Citation` is the shape the server
+  // sends for a passage, and the question is something this client knows and the server
+  // never said. A document opened from the command palette has no question, which is why
+  // this is nullable and why the button that starts a conversation is disabled without it.
+  const [askQuestion, setAskQuestion] = useState<string | null>(null);
+  // Two facts, not one. `started` is whether a conversation exists for this document;
+  // `panel` is which of the two the user is looking at. Collapsing them into one boolean
+  // would unmount the conversation every time somebody stepped back to the results through
+  // the breadcrumb — and a remounted conversation re-asks, which spends a generation the
+  // user did not request and replaces the thread they were reading.
+  const [started, setStarted] = useState(false);
+  // Two seconds of "Copied", then back. A copy button with no acknowledgement leaves the
+  // user to test it by pasting somewhere, which defeats the point of the shortcut.
+  const [copied, setCopied] = useState(false);
+  const [panel, setPanel] = useState<"results" | "conversation">("results");
   // A plain union rather than a router. Four screens with no deep links and no back-button
   // expectations do not need one, and a router would be the largest dependency in the
   // bundle for a product whose first screen must render fast on a busy box.
@@ -97,7 +344,7 @@ export function App() {
   // Search is the landing screen, not Chat: it is the one screen that shows what the
   // retrieval mechanism actually did, and that is the more useful first thing to see than
   // an empty ask box — Chat is one click away in the same nav, never removed.
-  const [view, setView] = useState<"chat" | "search" | "folders" | "upload" | "history" | "admin" | "profile">(
+  const [view, setView] = useState<"search" | "folders" | "upload" | "history" | "admin" | "system" | "profile">(
     "search",
   );
   // Owned here, not inside `Folders`, so the breadcrumb in the main header can show *and*
@@ -119,28 +366,80 @@ export function App() {
   // Remembered across reloads: someone who collapsed the bar to get room back does not
   // want it handed to them again on every refresh. `localStorage` rather than session,
   // because unlike the tokens beside it this is a preference and discloses nothing.
-  const [collapsed, setCollapsed] = useState(
-    () => localStorage.getItem(SIDEBAR_KEY) === "true",
-  );
+  //
+  // **Guarded on both sides, and here that is not a nicety.** `localStorage` is absent or
+  // throws in Safari's private browsing and under enterprise policies that block site data,
+  // and this call sits in the render path of the whole application: unguarded, a blocked
+  // preference store took down the entire product rather than one sidebar setting. `Search`
+  // learned the same lesson where it cost a search result; this is the version that costs
+  // everything.
+  const [collapsed, setCollapsed] = useState(() => read("local", SIDEBAR_KEY) === "true");
 
   useEffect(() => {
-    localStorage.setItem(SIDEBAR_KEY, String(collapsed));
+    write("local", SIDEBAR_KEY, String(collapsed));
   }, [collapsed]);
 
   // Changing section closes whatever document was open. The preview belongs to the screen
   // that opened it — a PDF left hanging beside the admin panel is a third of the viewport
   // showing something nothing on screen refers to any more.
-  const open = useCallback((next: typeof view) => {
+  // `ask` is the one caller that wants a query carried across: History repeating a past
+  // question, and the palette. Everybody else is plain navigation and gets a clean screen.
+  const open = useCallback((next: typeof view, ask?: string) => {
     setView(next);
     setCitation(null);
     setPdfExpanded(false);
+    // The anchored conversation ends with the document it was about.
+    //
+    // This cleared the citation and left `panel`, `started` and `askQuestion` behind, which
+    // put the shell in a state neither half could render: `Search` is hidden while
+    // `panel === "conversation"`, and the thread needs the citation that had just been
+    // dropped. Both branches false, and the main panel came up blank — reproducibly, by
+    // being in a conversation and then pressing Search.
+    //
+    // Reset rather than preserved, and that is the behaviour rather than an implementation
+    // detail: pressing Search is asking for the search screen, not for whatever was on it
+    // last time. A thread about a document that is no longer open has nothing to be about.
+    setPanel("results");
+    setStarted(false);
+    // **The last question stopped following the reader around.**
+    //
+    // `Search` is unmounted by the `view === "search"` guard, so leaving the screen already
+    // dropped its query and its results. What survived was `prefill`, up here — and a
+    // freshly mounted `Search` runs its prefill effect on mount, so coming back re-ran the
+    // search somebody had left behind minutes and three screens ago. Pressing Search is
+    // asking for the search screen, not for the last thing that happened on it.
+    //
+    // Set rather than cleared, because the two callers that *do* want a query carried —
+    // History repeating a question, and the palette — go through this same function, and
+    // clearing unconditionally would batch their `setPrefill` into oblivion.
+    setPrefill(ask ? { text: ask, nonce: Date.now() } : null);
+    setAskQuestion(null);
   }, []);
 
   const signOut = useCallback(() => {
-    sessionStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(REFRESH_KEY);
+    forget("session", TOKEN_KEY);
+    forget("session", REFRESH_KEY);
     setToken(null);
   }, []);
+
+  // A tag chip anywhere — a document row, a search result — narrows the workspace to that
+  // label. Resolved by name against the folder tree the server already computes, so a chip
+  // for a label this caller cannot reach has nothing to select and does nothing.
+  const selectTag = useCallback(
+    (name: string) => {
+      // Declared above the point where `token` is narrowed by the login guard below, so
+      // the check is here rather than in the type.
+      if (!token) return;
+      void folders(token).then((computed) => {
+        const match = computed.folders.find((entry) => entry.name === name);
+        if (!match) return;
+        setFolderSelection({ name: match.name, filter: { labelId: match.label_id } });
+        open("folders");
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [token],
+  );
 
   const refresh = useCallback(async () => {
     if (!token) return;
@@ -175,38 +474,51 @@ export function App() {
     // Thirty seconds is slow enough to be invisible on the network and fast enough that a
     // finished upload appears before anyone reaches for a reload.
     if (!token) return;
-    const timer = setInterval(() => void refresh(), 30_000);
+    // Adaptive, because the two states want opposite things. Idle, this is a background
+    // heartbeat and thirty seconds is already more often than anything changes. Mid-batch
+    // it is the only thing telling somebody their thousand files are moving, and half a
+    // minute between updates makes a working system look stalled.
+    const busy = inFlight(status) > 0;
+    const timer = setInterval(() => void refresh(), busy ? 5_000 : 30_000);
     return () => clearInterval(timer);
-  }, [token, refresh]);
+  }, [token, refresh, status]);
 
   useEffect(() => {
     if (!token) return;
     const timer = setInterval(() => {
-      const held = sessionStorage.getItem(REFRESH_KEY);
+      const held = read("session", REFRESH_KEY);
       if (!held) return;
       void refreshTokens(held)
         .then((pair) => {
-          sessionStorage.setItem(TOKEN_KEY, pair.access_token);
-          sessionStorage.setItem(REFRESH_KEY, pair.refresh_token);
+          write("session", TOKEN_KEY, pair.access_token);
+          write("session", REFRESH_KEY, pair.refresh_token);
           setToken(pair.access_token);
         })
         .catch(() => {
           // The refresh token itself is gone or revoked — nothing left to do but ask the
           // user to sign in again, same as if the access token had simply run out.
-          sessionStorage.removeItem(TOKEN_KEY);
-          sessionStorage.removeItem(REFRESH_KEY);
+          forget("session", TOKEN_KEY);
+          forget("session", REFRESH_KEY);
           setToken(null);
         });
     }, REFRESH_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [token]);
 
+  // Checked before the token, and that order is the whole point: the people who need this
+  // page either have no account yet or cannot get into the one they have. Rendering Login
+  // first would send them to a form they cannot complete.
+  const invitation = setPasswordToken();
+  if (invitation) {
+    return <SetPassword token={invitation} />;
+  }
+
   if (!token) {
     return (
       <Login
         onAuthenticated={(issued) => {
-          sessionStorage.setItem(TOKEN_KEY, issued.access_token);
-          sessionStorage.setItem(REFRESH_KEY, issued.refresh_token);
+          write("session", TOKEN_KEY, issued.access_token);
+          write("session", REFRESH_KEY, issued.refresh_token);
           setToken(issued.access_token);
         }}
       />
@@ -217,6 +529,41 @@ export function App() {
   // Zenith mark — sitting in an avatar, which reads as a fact about the user and was a
   // fact about the logo. Falls back to the email when no name is set, and to a dash while
   // the profile is still loading rather than to a letter that would be wrong.
+  // One renderer for every nav row, because the bar has two groups in it and two copies of
+  // this markup would answer a hover differently within a week.
+  const navRow = (name: typeof view, Icon: typeof SearchIcon, extra = "", small = false) => (
+    <button
+      key={name}
+      type="button"
+      onClick={() => open(name)}
+      // `title` and `aria-label` carry the name once the label is gone: an icon alone is a
+      // guess for anyone who has not memorised this bar yet, and a screen reader would
+      // otherwise hear an unnamed button.
+      title={collapsed ? viewLabel(name, t) : undefined}
+      aria-label={collapsed ? viewLabel(name, t) : undefined}
+      className={`flex items-center rounded-lg text-left transition-colors ${
+        collapsed ? "justify-center px-0 py-3" : "gap-3 px-3 py-2"
+      } ${
+        // A neutral fill and a full-contrast label, with the accent spent on the icon alone.
+        // Selection is a state, not an emphasis: the row you are on should be the most
+        // *legible*, and the colour is better spent on one small thing than spread across
+        // the whole item.
+        view === name
+          ? "bg-secondary font-medium text-foreground"
+          : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
+      } ${extra}`}
+    >
+      {/* Larger when collapsed: at this size the icon is the only thing carrying the
+          meaning, so it gets the room the label gave up. */}
+      <Icon
+        className={`shrink-0 ${collapsed ? "size-6" : small ? "size-4" : "size-[18px]"} ${
+          view === name ? "text-primary" : ""
+        }`}
+      />
+      {!collapsed && viewLabel(name, t)}
+    </button>
+  );
+
   const initial = (me?.name ?? me?.email ?? "").trim().charAt(0).toUpperCase() || "–";
 
   return (
@@ -224,7 +571,40 @@ export function App() {
     // bordered card — the sidebar, the workspace and the preview are three surfaces, not
     // one shell with internal dividers, which is the difference between this and the flat
     // edge-to-edge layout it replaced.
-    <div className="dark flex h-screen gap-3 bg-background p-3 text-foreground">
+    <div className="relative isolate flex h-screen overflow-hidden gap-6 bg-background p-6 text-foreground">
+      {/* The backdrop, and the same drawing in both themes — only the tints are restated,
+          in `--art-0` through `--art-5`. A photograph lived here for one afternoon and was
+          the wrong register: it depicted something, and chrome that depicts something puts a
+          buyer's attention on a decision somebody made rather than on the product. It also
+          made the two themes read as two different applications, one abstract and one scenic.
+
+          Flat bands in tints of the two brand hues, drawn here rather than shipped as a file:
+          a few kilobytes of markup instead of four hundred, it is ours so no licence travels
+          with it, and `fill` reads the same tokens as everything else, so it cannot drift
+          from the palette.
+
+          Only the frame and the gutter of it are ever visible, so the bands are wide and
+          smooth on purpose — what shows is which colour an edge happens to cross, and detail
+          finer than that would be work nobody can see. `slice` rather than `meet` so it
+          always covers, whatever the window is doing. */}
+      <svg
+        aria-hidden="true"
+        className="app-art"
+        viewBox="0 0 1600 1000"
+        preserveAspectRatio="xMidYMid slice"
+      >
+          {/* The ground the bands sit on. Without it the top strip was the page's own
+              white, which put no colour at all along the edge that frames the header —
+              the one place the eye starts. It is the most saturated of the six on
+              purpose, so the composition runs strong at the top into pale and then into
+              the greens, rather than fading out at both ends. */}
+          <rect x="-200" y="-400" width="2000" height="1800" fill="var(--art-0)" />
+          <path d="M-200 1400 L-200 140 L0 140 Q0 140 25 160 Q50 179 75 195 Q100 210 125 219 Q150 227 175 228 Q200 228 225 222 Q250 215 275 204 Q300 193 325 181 Q350 170 375 160 Q400 150 425 143 Q450 137 475 134 Q500 130 525 129 Q550 127 575 125 Q600 123 625 119 Q650 115 675 108 Q700 101 725 93 Q750 84 775 77 Q800 69 825 66 Q850 63 875 65 Q900 68 925 79 Q950 89 975 105 Q1000 121 1025 141 Q1050 161 1075 179 Q1100 198 1125 212 Q1150 226 1175 232 Q1200 238 1225 235 Q1250 232 1275 222 Q1300 212 1325 198 Q1350 184 1375 169 Q1400 155 1425 142 Q1450 130 1475 122 Q1500 115 1525 111 Q1550 108 1575 107 L1800 107 L1800 1400 Z" fill="var(--art-1)" />
+          <path d="M-200 1400 L-200 387 L0 387 Q0 387 25 374 Q50 361 75 349 Q100 337 125 328 Q150 319 175 312 Q200 306 225 303 Q250 300 275 299 Q300 298 325 297 Q350 297 375 296 Q400 295 425 292 Q450 290 475 286 Q500 282 525 276 Q550 271 575 265 Q600 259 625 255 Q650 251 675 250 Q700 248 725 251 Q750 254 775 262 Q800 270 825 283 Q850 296 875 312 Q900 328 925 346 Q950 364 975 381 Q1000 399 1025 413 Q1050 428 1075 437 Q1100 446 1125 449 Q1150 452 1175 449 Q1200 445 1225 436 Q1250 427 1275 413 Q1300 399 1325 384 Q1350 368 1375 352 Q1400 337 1425 323 Q1450 310 1475 300 Q1500 290 1525 284 Q1550 278 1575 276 L1800 274 L1800 1400 Z" fill="var(--art-2)" />
+          <path d="M-200 1400 L-200 480 L0 480 Q0 480 25 481 Q50 481 75 480 Q100 478 125 474 Q150 470 175 466 Q200 462 225 461 Q250 459 275 464 Q300 468 325 480 Q350 491 375 509 Q400 527 425 547 Q450 568 475 586 Q500 604 525 614 Q550 625 575 626 Q600 627 625 617 Q650 607 675 590 Q700 572 725 552 Q750 531 775 513 Q800 494 825 482 Q850 469 875 464 Q900 459 925 460 Q950 460 975 465 Q1000 469 1025 473 Q1050 477 1075 479 Q1100 481 1125 481 Q1150 481 1175 480 Q1200 479 1225 481 Q1250 483 1275 489 Q1300 496 1325 508 Q1350 521 1375 538 Q1400 554 1425 572 Q1450 589 1475 603 Q1500 616 1525 621 Q1550 626 1575 621 L1800 615 L1800 1400 Z" fill="var(--art-3)" />
+          <path d="M-200 1400 L-200 820 L0 820 Q0 820 25 817 Q50 814 75 807 Q100 799 125 789 Q150 778 175 766 Q200 754 225 742 Q250 730 275 720 Q300 710 325 702 Q350 693 375 688 Q400 683 425 680 Q450 677 475 675 Q500 674 525 673 Q550 672 575 671 Q600 669 625 667 Q650 664 675 660 Q700 655 725 649 Q750 644 775 637 Q800 631 825 625 Q850 618 875 614 Q900 610 925 609 Q950 608 975 611 Q1000 614 1025 622 Q1050 629 1075 642 Q1100 654 1125 669 Q1150 685 1175 703 Q1200 720 1225 738 Q1250 756 1275 772 Q1300 788 1325 800 Q1350 812 1375 819 Q1400 825 1425 827 Q1450 828 1475 823 Q1500 818 1525 809 Q1550 799 1575 786 L1800 773 L1800 1400 Z" fill="var(--art-4)" />
+          <path d="M-200 1400 L-200 842 L0 842 Q0 842 25 840 Q50 838 75 838 Q100 839 125 837 Q150 836 175 832 Q200 827 225 822 Q250 817 275 815 Q300 814 325 820 Q350 826 375 841 Q400 856 425 876 Q450 897 475 917 Q500 937 525 949 Q550 961 575 961 Q600 961 625 949 Q650 937 675 917 Q700 898 725 879 Q750 859 775 845 Q800 832 825 826 Q850 821 875 822 Q900 823 925 827 Q950 830 975 833 Q1000 835 1025 834 Q1050 834 1075 832 Q1100 831 1125 833 Q1150 834 1175 843 Q1200 851 1225 866 Q1250 882 1275 900 Q1300 919 1325 935 Q1350 950 1375 957 Q1400 963 1425 957 Q1450 950 1475 933 Q1500 916 1525 894 Q1550 872 1575 852 L1800 832 L1800 1400 Z" fill="var(--art-5)" />
+      </svg>
       {/* Layout, not a workspace: Folders and Upload used to live here as their own
           sections, each with its own scroll, competing with navigation for the same
           narrow column. Both are full screens in the main panel now, reached the same way
@@ -254,8 +634,8 @@ export function App() {
             <button
               type="button"
               onClick={() => setCollapsed(false)}
-              aria-label="Expand sidebar"
-              title="Expand sidebar"
+              aria-label={t("Expand sidebar")}
+              title={t("Expand sidebar")}
               className="group grid size-8 place-items-center rounded-md transition-colors hover:bg-secondary/60"
             >
               <img
@@ -281,13 +661,13 @@ export function App() {
               />
               <div className="min-w-0 flex-1">
                 <p className="text-sm leading-tight font-semibold text-foreground">Zenith</p>
-                <p className="text-xs leading-tight text-muted-foreground">Ask your documents</p>
+                <p className="text-xs leading-tight text-muted-foreground">{t("Ask your documents")}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setCollapsed(true)}
-                aria-label="Collapse sidebar"
-                title="Collapse sidebar"
+                aria-label={t("Collapse sidebar")}
+                title={t("Collapse sidebar")}
                 className="shrink-0 rounded-md p-1.5 text-muted-foreground/60 transition-colors hover:bg-secondary/60 hover:text-foreground"
               >
                 {/* Matches the collapsed rail's toggle rather than the caption-sized icon
@@ -300,53 +680,73 @@ export function App() {
         </div>
 
         <div className="scrollbar-none flex flex-1 flex-col overflow-y-auto">
-          <div className="flex flex-col gap-0.5 px-2 py-3">
-            {(
-              [
-                { name: "search", icon: SearchIcon },
-                { name: "chat", icon: MessageSquare },
-                { name: "folders", icon: FolderIcon },
-                { name: "upload", icon: UploadIcon },
-                { name: "history", icon: HistoryIcon },
-                { name: "admin", icon: Settings },
-              ] as const
-            ).map(({ name, icon: Icon }) => (
-              <button
-                key={name}
-                type="button"
-                onClick={() => open(name)}
-                // `title` and `aria-label` carry the name once the label is gone: an icon
-                // alone is a guess for anyone who has not memorised this bar yet, and a
-                // screen reader would otherwise hear an unnamed button.
-                title={collapsed ? capitalise(name) : undefined}
-                aria-label={collapsed ? capitalise(name) : undefined}
-                className={`flex items-center rounded-lg text-left text-[15px] capitalize transition-colors ${
-                  collapsed ? "justify-center px-0 py-3" : "gap-3 px-3 py-2"
-                } ${
-                  view === name
-                    ? "bg-primary/10 font-medium text-primary"
-                    : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
-                }`}
-              >
-                {/* Larger when collapsed: at this size the icon is the only thing carrying
-                    the meaning, so it gets the room the label gave up. */}
-                <Icon className={collapsed ? "size-6 shrink-0" : "size-[18px] shrink-0"} />
-                {!collapsed && name}
-              </button>
-            ))}
+          {/* **One application and five things you add to it.**
+              
+              The bar presented six peers, and Search is not a peer: it is the screen the
+              product exists to be, and the other five are things you do to the corpus it
+              searches. Three attempts to say that with colour failed on screen — a wash read
+              as a hover, a fill read as loud, a field above the list read as clutter —
+              because emphasis inside a list of identical rows is read as a *state* of the
+              others rather than as a rank among them.
+              
+              So the hierarchy is built by demoting the rest rather than promoting one: the
+              five sit under a heading at 14px with 16px icons, and Search stays at 16px with
+              an 18px icon above them. Two steps of one scale, and no colour anywhere.
+              
+              The heading is a real `h2` rather than a styled `p`, because screen readers
+              navigate by headings — the group has to exist for someone who cannot see the
+              gap that makes it. */}
+          <div className="px-2 py-3">
+            {navRow("search", SearchIcon, "w-full text-base font-medium py-2.5")}
+            {!collapsed && (
+              <h2 className="mt-5 mb-1 px-3 text-[11px] font-semibold tracking-wider text-muted-foreground/60 uppercase">
+                {t("Manage")}
+              </h2>
+            )}
+            <div className="flex flex-col gap-0.5">
+              {(
+                [
+                  { name: "folders", icon: FolderIcon },
+                  { name: "upload", icon: UploadIcon },
+                  { name: "history", icon: HistoryIcon },
+                  { name: "admin", icon: Settings },
+                  // Above every tenant, so it is above every tenant's nav too: drawn only
+                  // for the handful of people who hold it. Hiding it is courtesy rather than
+                  // security — `/system/*` refuses everyone else on its own — but a nav item
+                  // that always 403s is a worse product than one that is not there.
+                  { name: "system", icon: Building2 },
+                ] as const
+              )
+                .filter(({ name }) => name !== "system" || me?.is_system_admin)
+                .map(({ name, icon }) => navRow(name, icon, "text-sm py-1.5", true))}
+            </div>
           </div>
 
           {/* Below the navigation, not above it: this is the answer to "is anything ready
               to search", which is worth glancing at and never the reason you came to this
               bar. Dropped entirely when collapsed — it is prose and a set of numbers, and
               there is no honest way to render either in 64 pixels. */}
-          {!collapsed && (
-            <div className="mt-auto">
-              <Section label="Status">
-                <StatusBadge status={status} />
-              </Section>
-            </div>
-          )}
+          {/* Above the status panel and outside the `!collapsed` guard: ingestion is the
+              one thing here worth seeing from a narrow sidebar, because it is the only
+              number that changes while you are looking at another screen. */}
+          <div className="mt-auto">
+            {collapsed ? (
+              <Ingesting status={status} collapsed />
+            ) : (
+              <>
+                {/* The ingestion detail only while there is ingestion. The bar inside
+                    `StatusBadge` is drawn at every count and already says "nothing is
+                    moving" by being wholly one colour, so the prose version below it is
+                    the progress figure and the warning about slower searches — both of
+                    which have nothing to report when the queue is empty. */}
+                <div className="px-4 py-3">
+                  <StatusBadge status={status}>
+                    {inFlight(status) > 0 ? <Ingesting status={status} collapsed={false} /> : null}
+                  </StatusBadge>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Just the profile now. Signing out moved onto that screen, next to "sign out
@@ -354,17 +754,30 @@ export function App() {
             what makes the difference between them legible. It also stops a destructive
             action sitting permanently one stray click from the navigation. */}
         <div
-          className={`panel-accent flex shrink-0 flex-col gap-1 border-t border-border py-2 ${
+          // `rounded-b-xl` mirrors the `rounded-t-xl` on the brand header at the other end
+          // of this column. Both are `panel-accent`, which paints a gradient rather than
+          // inheriting the sidebar's fill, so a square corner here does not just fail to
+          // curve — it paints over the curve, and the sidebar reads as having one rounded
+          // corner and one blunt one.
+          className={`panel-accent flex shrink-0 flex-col gap-1 rounded-b-xl border-t border-border py-2 ${
             collapsed ? "items-center px-2" : "px-2"
           }`}
         >
+          {collapsed && <LanguageControl collapsed />}
+          <ThemeControl collapsed={collapsed} />
+          {/* Two rows where there were three. The theme keeps a row to itself because it
+              keeps its three words: "Auto" and "Claro" say what they do and an icon does
+              not, and a three-way choice is the one control here that is not obvious from
+              its shape. The language pair is two characters wide, so it rides on the
+              profile row instead of claiming a band of its own. */}
+          <div className={collapsed ? "contents" : "flex items-center gap-2"}>
           <button
             type="button"
             onClick={() => open("profile")}
-            title={collapsed ? "Profile" : undefined}
-            aria-label={collapsed ? "Profile" : undefined}
+            title={collapsed ? t("Profile") : undefined}
+            aria-label={collapsed ? t("Profile") : undefined}
             className={`flex items-center rounded-lg transition-colors ${
-              collapsed ? "justify-center p-1.5" : "w-full gap-2.5 px-2 py-1.5"
+              collapsed ? "justify-center p-1.5" : "min-w-0 gap-2.5 px-2 py-1.5"
             } ${
               view === "profile"
                 ? "bg-primary/10 text-primary"
@@ -374,14 +787,51 @@ export function App() {
             <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-medium text-muted-foreground">
               {initial}
             </span>
-            {!collapsed && <span className="truncate text-sm">Profile</span>}
+            {!collapsed && <span className="truncate text-sm">{t("Profile")}</span>}
           </button>
+          {!collapsed && (
+            <div className="ml-auto">
+              <LanguageControl collapsed={false} />
+            </div>
+          )}
+          </div>
         </div>
       </nav>
 
       {/* Every size below is a string on purpose: this library reads a bare number as
           pixels, not percent — `defaultSize={65}` is a 65-pixel-wide panel on a 1440px
           screen, which is the bug that made the preview panel render as a sliver. */}
+      {/* Global, and mounted once: the shortcut is registered on the window, so it works
+          from every screen without each of them knowing about it. */}
+      <CommandPalette
+        token={token}
+        actions={{
+          go: (next) => open(next as typeof view),
+          openDocument: (document) => {
+            // The viewer wants a citation; a document opened from the palette has no
+            // passage behind it, so page one with no highlights is the honest shape —
+            // rather than inventing bounding boxes that point at nothing.
+            setCitation({
+              marker: 0,
+              chunk_id: "",
+              document_id: document.id,
+              filename: document.filename,
+              media_type: document.media_type,
+              // Opened from the library rather than from an answer, so there is no cited
+              // passage: the first page and no highlight for a PDF, the top of the file
+              // and an empty range for a text document. Inventing either would point the
+              // reader at something the corpus never said.
+              page_num: document.media_type.startsWith("text/") ? null : 1,
+              char_start: 0,
+              char_end: 0,
+              text: "",
+              bboxes: [],
+            });
+          },
+          ask: (question) => open("search", question),
+        }}
+      />
+
       <ResizablePanelGroup orientation="horizontal" className="min-w-0 flex-1 gap-3">
         <ResizablePanel
           // Only meaningful while the preview is mounted; with nothing beside it this
@@ -408,22 +858,54 @@ export function App() {
                       : "font-medium text-foreground"
                   }
                 >
-                  Folders
+                  {t("Folders")}
                 </button>
                 {folderSelection && (
                   <>
                     <span className="text-muted-foreground/50">/</span>
-                    <span className="font-medium text-foreground">{folderSelection.name}</span>
+                    <span className="font-medium text-foreground">
+                      {/* Only the one name this application owns. Every other value here is
+                          a label the customer created, and translating those would rename
+                          their own filing in front of them. */}
+                      {folderSelection.name === "All documents"
+                        ? t("All documents")
+                        : folderSelection.name}
+                    </span>
                   </>
                 )}
               </>
             ) : (
-              <span className="font-medium text-foreground capitalize">{view}</span>
+              // The page's actual title, so it is the page's `h1`. It was a `span`, and the
+              // whole application had zero `h1` elements — no outline for a screen reader,
+              // and nowhere for a typographic hierarchy to attach. One cause, one fix.
+              // Three segments while a conversation is open, one otherwise. The same
+              // grammar the folder path above uses — clickable segment, muted separator,
+              // current segment in `font-medium` — rather than a second breadcrumb with its
+              // own rules sitting on the same bar.
+              started && panel === "conversation" && view === "search" ? (
+                <>
+                  {/* `Zenith /` is already rendered above, unconditionally, for every view.
+                      This branch used to print it a second time, so the path read
+                      `Zenith / Zenith / Search / Chat`. It contributes only the segments
+                      this view adds. */}
+                  <button
+                    type="button"
+                    onClick={() => setPanel("results")}
+                    className="text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    {t("Search")}
+                  </button>
+                  <span className="text-muted-foreground/50">/</span>
+                  <h1 className="text-[15px] font-medium text-foreground">{t("Chat")}</h1>
+                </>
+              ) : (
+                <h1 className="text-[15px] font-medium text-foreground">{viewLabel(view, t)}</h1>
+              )
             )}
             {/* Only Chat and Search actually read `folder` — shown only there, so a filter
                 picked up in Folders doesn't look like it's still following you into Admin
                 or History, where it does nothing. */}
-            {folder && (view === "chat" || view === "search") && (
+            {folder && view === "search" && (
               <button
                 type="button"
                 onClick={() => setFolderSelection(null)}
@@ -439,41 +921,131 @@ export function App() {
               input pinned below it, the way every chat interface this is modelled on does
               — so it gets the bare `overflow-hidden` box that layout requires and none of
               the padding or scrolling every other view here still wants from `main`. */}
-          {view === "chat" ? (
-            <div className="flex-1 overflow-hidden rounded-b-xl bg-card">
-              <Chat
-                token={token}
-                onCitation={setCitation}
-                searchable={status?.searchable ?? true}
-                labels={folder ? [folder] : undefined}
-                prefill={prefill}
-              />
-            </div>
-          ) : (
-            <main className="flex-1 overflow-auto rounded-b-xl bg-card">
+          {(
+            <main className="flex-1 overflow-auto rounded-b-xl bg-background">
             {/* Every screen is centred and capped here rather than each one setting its own
                 width. They used to carry a `max-w-*` and no `mx-auto`, which pinned them to
                 the left edge — barely noticeable while the preview panel took a third of the
-                row, and obviously wrong the moment that space came back. Capped rather than
-                full-bleed because a line of prose spanning a 27" display is unreadable; the
-                cap widens one step on very large screens so the extra room is used without
-                the measure running away. */}
-            <div className="mx-auto w-full max-w-3xl p-6 2xl:max-w-4xl">
+                row, and obviously wrong the moment that space came back.
+
+                The cap is per view, which it was not: one value of `max-w-3xl` covered a
+                form, a list of results and a table alike, and 768px of a 1114px panel leaves
+                31% of the working area empty on an ordinary laptop. Capped rather than
+                full-bleed still, because the reason for a cap is real — a line of prose
+                across a 27" display is unreadable — but that reason is about prose, and only
+                two of these screens are prose. A table is the opposite: it wants every pixel
+                it can have, and cramming one into a reading measure is what produces the
+                columns nobody can read. */}
+            {/* `min-h-full` and a column here offer the panel's full height to whichever
+                screen wants it; nothing is centred by this alone, because a screen only
+                receives that height by claiming it with `flex-1`. Search is the one that
+                does, for its landing state. The rest stay top-aligned, which is what a
+                list or a form should be. */}
+            <div className={`mx-auto flex min-h-full w-full flex-col p-6 ${measure(view)}`}>
+            {/* Kept mounted, not unmounted, while its conversation is showing.
+                `Search` owns its results, its query and its resolved filenames in its own
+                state, so `{view === "search" && <Search/>}` destroyed all of it the moment
+                the panel switched — and the breadcrumb above promises the opposite: that
+                going back lands on the results you had, ready to pick a different passage.
+                Hiding costs a subtree that stays rendered; for fifty passages that is not a
+                cost worth designing around. Lifting the state into this component instead
+                would move five pieces of state and their effects into the largest file in
+                the tree. */}
             {view === "search" && (
+              <div className={panel === "conversation" ? "hidden" : "flex flex-1 flex-col"}>
               <Search
                 token={token}
-                onCitation={setCitation}
+                onCitation={(next, question) => {
+                  setCitation(next);
+                  setAskQuestion(question);
+                  // A new document ends the previous conversation rather than silently
+                  // re-pointing it: the thread that was on screen was about a different
+                  // file, and carrying it over would attribute its answers to this one.
+                  setStarted(false);
+                  setPanel("results");
+                }}
+                // Which result the viewer is showing, so the list can mark it. Read from
+                // the citation rather than tracked inside `Search`: closing the viewer sets
+                // this to null, and a copy kept in the list would stay lit over a panel
+                // that is no longer open.
+                openChunkId={citation?.chunk_id ?? null}
                 searchable={status?.searchable ?? true}
                 labels={folder ? [folder] : undefined}
+                onSelectTag={selectTag}
+                // The empty result is where a forgotten folder filter finally becomes
+                // visible, so it gets both the name and the way out.
+                filterName={folderSelection?.name ?? null}
+                onClearFilter={() => setFolderSelection(null)}
+                prefill={prefill}
               />
+              </div>
+            )}
+            {/* Mounted from the moment the conversation is started and hidden — never
+                unmounted — for the same reason `Search` is: it holds the thread, and the
+                breadcrumb is a way to look away from it, not a way to end it. */}
+            {/* The same `Chat` the product has always had — composer, stop control, thread,
+                empty states — given a document to be about. A second chat interface built
+                beside it would drift from this one on the first change to either. */}
+            {view === "search" && started && citation && askQuestion !== null && (
+              <div className={panel === "conversation" ? undefined : "hidden"}>
+                {/* Below the bar, not on it. The breadcrumb above says *where you are*; this
+                    says *how to leave*, and they are different jobs — one is read, the other
+                    is reached for without reading. Sitting them side by side on the same
+                    line made two controls that looked like one navigational gesture split in
+                    half. Here it sits at the head of the thread it closes, which is where a
+                    hand already is.
+                    
+                    A chevron, not an arrow. `<` is the mark for "back one step" and it does
+                    not promise the longer journey an arrow does. */}
+                {/* Rendered conditionally although its parent is only *hidden*. The thread
+                    stays mounted so looking away does not end it, but this control is chrome
+                    rather than state: left in the tree it stayed reachable by keyboard and
+                    by a screen reader from a screen it does not belong to, which is what
+                    `App.test.tsx` catches by asking for it after the second press. */}
+                {panel === "conversation" && (
+                  // The mark alone, at a size that carries it. A chevron this large in a
+                  // circle of its own is unambiguous without a word beside it, and the words
+                  // were doing the arrow's job twice.
+                  //
+                  // A neutral surface, not the accent. The one accented object on this
+                  // screen is the control that opened the conversation, and a second bright
+                  // shape would put "go back" and "ask" at the same rank. This is
+                  // navigation: it needs to be found instantly and to lose to the thing it
+                  // sits above.
+                  //
+                  // The name lives in `aria-label` and in the tooltip. An icon-only control
+                  // is only silent to people who can see it.
+                  <button
+                    type="button"
+                    onClick={() => setPanel("results")}
+                    aria-label={t("Back to the results")}
+                    title={t("Back to the results")}
+                    className="mx-6 mt-4 flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground shadow-sm transition-colors hover:border-primary/40 hover:bg-secondary/70 hover:text-foreground"
+                  >
+                    <ChevronLeft className="size-5" />
+                  </button>
+                )}
+                <Chat
+                  token={token}
+                  onCitation={setCitation}
+                  searchable={status?.searchable ?? true}
+                  anchor={{
+                    documentId: citation.document_id,
+                    filename: citation.filename,
+                    question: askQuestion,
+                  }}
+                />
+              </div>
             )}
             {view === "folders" && (
               <Folders
                 token={token}
                 onCitation={setCitation}
                 refreshKey={uploads}
+                permissions={me?.permissions}
                 selection={folderSelection}
                 onSelect={setFolderSelection}
+                onSelectTag={selectTag}
               />
             )}
             {view === "upload" && (
@@ -492,13 +1064,11 @@ export function App() {
             {view === "history" && (
               <History
                 token={token}
-                onAsk={(question) => {
-                  setPrefill({ text: question, nonce: Date.now() });
-                  open("chat");
-                }}
+                onAsk={(question) => open("search", question)}
               />
             )}
             {view === "admin" && <Admin token={token} />}
+            {view === "system" && <System token={token} />}
             {view === "profile" && (
               <Profile token={token} onSignedOut={signOut} onProfile={setMe} />
             )}
@@ -541,13 +1111,118 @@ export function App() {
                 name and page directly below this one, and putting it here too showed it
                 twice, stacked. This bar is the panel's chrome — what it is and how to get
                 rid of it — and the document identifies itself. */}
-            Document preview
+            <span className="flex min-w-0 items-center gap-2.5">
+            {/* **The one control on this bar that is not chrome, and it is not filed with
+                the chrome either.**
+
+                The header is `panel-accent` — the darker ledge, deliberately recessive,
+                because a title bar that competes with the document under it is a title bar
+                in the way. The demand that this stand out and the surface it sits on are in
+                real tension, and there were three ways out: lift this button off the ledge,
+                lift the whole ledge, or take the prominence from shape and position instead
+                of contrast.
+
+                This is the third. It is a solid accent disc, and it sits at the *left* of
+                the bar, beside the panel's name — with the whole width of the header between
+                it and the three quiet controls at the other end. Prominence here is not a
+                louder version of a ghost icon; it is being a different kind of object, in a
+                different place. Filed among the other three it read as a fourth window
+                control no matter what colour it was.
+
+                The position also states the grouping the bar always had: this acts on the
+                *document*, the three on the right act on the *panel*. Separation across the
+                bar says that more plainly than a rule between them did.
+
+                No word. The disc, the accent and the isolation carry it, and the owner's own
+                mark is still to come — a label would have to be unlearned when it lands. The
+                name travels in `aria-label` and in the tooltip, where a screen reader and a
+                hesitating cursor both find it.
+
+                Disabled rather than hidden when there is no question to ask (a document
+                opened from the palette or the library): a control that appears and
+                disappears is harder to learn than one that is visibly unavailable, and the
+                reason travels in its title. Disabled it drops to the panel's own fill —
+                same shape, no longer an invitation. */}
+            <button
+              type="button"
+              disabled={askQuestion === null}
+              aria-pressed={panel === "conversation"}
+              aria-label={t("Ask about this document")}
+              title={
+                askQuestion === null
+                  ? t("Open a document from a search to ask about it")
+                  : t("Ask about this document")
+              }
+              onClick={() => {
+                // A toggle, not a one-way door. Pressing it again is the shortest way back
+                // to the results, and a control that only ever does half a thing is one the
+                // reader has to remember the other half of.
+                if (panel === "conversation") {
+                  setPanel("results");
+                  return;
+                }
+                setStarted(true);
+                setPanel("conversation");
+                // `setView`, never `open`. `open` closes the preview — correct for the nav,
+                // where a PDF left beside the admin panel refers to nothing on screen, and
+                // exactly wrong here: this conversation is *about* the open document, and
+                // the whole screen is the answer next to its source. Using `open` closed the
+                // document in the same click that started talking about it, which left the
+                // panel with nothing to render at all.
+                setView("search");
+              }}
+              className={`flex size-7 shrink-0 items-center justify-center rounded-full transition-all ${
+                askQuestion === null
+                  ? "cursor-not-allowed bg-secondary text-muted-foreground/70"
+                  : panel === "conversation"
+                    // **On is louder than off, not quieter.** The first version of this
+                    // inverted the fill to a tint on activation, which is the usual way to
+                    // draw a pressed toggle and exactly wrong for this one: the moment the
+                    // conversation is open is the moment the control matters most, and it
+                    // was receding just as the reader needed to find it again. It keeps the
+                    // fill and gains a halo — the same object, turned up — and the mark
+                    // becomes the way back, because nothing else on screen says the return
+                    // is this button pressed a second time.
+                    ? "glow-accent bg-primary text-primary-foreground hover:brightness-110"
+                    : "bg-primary text-primary-foreground shadow-sm hover:brightness-110"
+              }`}
+            >
+              <MessageSquare className="size-4" />
+            </button>
+              <span className="truncate">{t("Document preview")}</span>
+            </span>
             <span className="flex shrink-0 items-center">
+              {/* The passage, not the page. `citation.text` is exactly the span the viewer
+                  highlights, so this is the sentence somebody just read and wants to quote —
+                  and getting it out of a PDF by hand is a selection across a text layer that
+                  fights back. */}
               <Button
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                aria-label={pdfExpanded ? "Exit fullscreen" : "Fullscreen"}
+                disabled={!citation?.text}
+                aria-label={copied ? t("Copied") : t("Copy the highlighted passage")}
+                title={copied ? t("Copied") : t("Copy the highlighted passage")}
+                onClick={() => {
+                  if (!citation?.text) return;
+                  void copy(citation.text).then((ok) => {
+                    // Only on success. Saying "Copied" when the clipboard refused is the
+                    // failure this button exists to make impossible.
+                    if (!ok) return;
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  });
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={pdfExpanded ? t("Exit fullscreen") : t("Fullscreen")}
                 onClick={() => setPdfExpanded((expanded) => !expanded)}
                 className="text-muted-foreground hover:text-foreground"
               >
@@ -557,10 +1232,15 @@ export function App() {
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Close document preview"
+                aria-label={t("Close document preview")}
                 onClick={() => {
                   setCitation(null);
                   setPdfExpanded(false);
+                  // The conversation was about the document being closed. Leaving it on
+                  // screen would leave answers with no source beside them to check.
+                  setStarted(false);
+                  setPanel("results");
+                  setAskQuestion(null);
                 }}
                 className="text-muted-foreground hover:text-foreground"
               >
@@ -570,9 +1250,16 @@ export function App() {
           </header>
           <div className="flex-1 overflow-auto rounded-b-xl">
             <Suspense
-              fallback={<p className="p-6 text-sm text-muted-foreground">Opening the document…</p>}
+              fallback={<p className="p-6 text-sm text-muted-foreground">{t("Opening the document…")}</p>}
             >
-              <PdfViewer citation={citation} token={token} />
+              {/* Chosen from the document's stored media type, never from its filename.
+                  A `.txt` opened in the PDF frame is the mixed-list problem this feature
+                  was careful to avoid: a broken PDF sitting beside real ones. */}
+              {citation && citation.media_type.startsWith("text/") ? (
+                <TextViewer citation={citation} token={token} />
+              ) : (
+                <PdfViewer citation={citation} token={token} />
+              )}
             </Suspense>
           </div>
         </ResizablePanel>
