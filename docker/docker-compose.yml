@@ -72,6 +72,13 @@ services:
     # passages never reach a parallel plan. It becomes reachable at the corpus sizes this
     # product is being aimed at, and it arrives as a 500 on an ordinary search.
     shm_size: 1gb
+    # **Change it here, or through the variable above. Never with `ALTER SYSTEM`.** A
+    # command-line flag outranks both `postgresql.conf` and the `postgresql.auto.conf` that
+    # `ALTER SYSTEM` writes — verified on this image, `pg_settings.source` reads `command
+    # line` — so a value set on a live installation is shadowed the next time the container
+    # is recreated, silently and with no error anywhere. It is also invisible to this
+    # repository and lost on a volume restore. `zenith diagnose` reports the value that is
+    # actually in force, which is the only way to tell the two apart.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zenith}"]
       interval: 5s
