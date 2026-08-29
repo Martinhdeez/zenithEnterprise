@@ -126,13 +126,23 @@ class Chunk(Base):
         ),
         Index("ix_chunks_label_ids", "label_ids", postgresql_using="gin"),
         Index("ix_chunks_tenant_id", "tenant_id"),
+        # Migration 0026. Declared here as well as there so the drift test compares two
+        # descriptions of the same table rather than one description and a blank.
+        {"postgresql_partition_by": "HASH (tenant_id)"},
     )
 
     id: Mapped[uuid_pk]
     document_id: Mapped[uuid_col] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"))
     # Denormalised on purpose: the tenant filter must apply inside the vector query,
     # and a JOIN there penalises the HNSW index.
-    tenant_id: Mapped[uuid_col] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
+    #
+    # Part of the primary key since migration 0026, and not because a chunk needed a wider
+    # identity: Postgres requires the partition key in every unique constraint on a
+    # partitioned table. The consequence is that `id` alone no longer identifies a chunk,
+    # which is why both foreign keys into this table are composite.
+    tenant_id: Mapped[uuid_col] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), primary_key=True
+    )
     # Copy of the document's labels, for the same reason as `tenant_id`.
     label_ids: Mapped[list[Any]] = mapped_column(ARRAY(PgUUID(as_uuid=True)), server_default="{}")
     #: `None` for a document that has no pages — a `.txt` or `.md`. Not `1`: a column

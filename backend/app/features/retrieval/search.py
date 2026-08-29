@@ -221,7 +221,14 @@ async def dense(
             "FROM chunk_embeddings e "
             # Not decoration: `chunk_embeddings` is filtered by tenant only, so this join is
             # where label isolation is enforced for the dense half.
-            "JOIN chunks c ON c.id = e.chunk_id "
+            #
+            # Composite since migration 0026, and it is the foreign key rather than an
+            # optimisation: `chunks` is partitioned by `tenant_id`, its primary key is
+            # `(id, tenant_id)` and `chunk_id` alone no longer identifies a row. This is not
+            # a tenant filter in application code — there is no tenant in it, only an
+            # equality between two columns — and both sides are still pruned by their own
+            # policies, which is what `eval/partition-swap.json` records.
+            "JOIN chunks c ON c.id = e.chunk_id AND c.tenant_id = e.tenant_id "
             f"{scoped(space, documents)} "
             "ORDER BY e.embedding_half <=> CAST(:embedding AS halfvec(1024)) LIMIT :limit"
         ),

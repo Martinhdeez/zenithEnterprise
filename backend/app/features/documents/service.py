@@ -339,7 +339,11 @@ class DocumentService:
             answers = await session.scalar(
                 text(
                     "SELECT count(DISTINCT c.query_id) FROM query_citations c "
-                    "JOIN chunks ch ON ch.id = c.chunk_id WHERE ch.document_id = :d"
+                    # Composite since 0026: `chunks` is partitioned and `id` alone no longer
+                    # identifies a row. Two columns rather than one, and the second is
+                    # also what lets the planner prune every partition but the tenant's.
+                    "JOIN chunks ch ON ch.id = c.chunk_id AND ch.tenant_id = c.tenant_id "
+                    "WHERE ch.document_id = :d"
                 ),
                 {"d": document_id},
             )

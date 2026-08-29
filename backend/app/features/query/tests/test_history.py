@@ -47,7 +47,8 @@ async def log(tenant_id: UUID, user_id: UUID, question: str, citations: int = 0)
             if chunk_id:
                 await session.execute(
                     text(
-                        "INSERT INTO query_citations (query_id, chunk_id, rank) VALUES (:q, :c, 1)"
+                        "INSERT INTO query_citations (query_id, tenant_id, chunk_id, rank) "
+                        "SELECT :q, q.tenant_id, :c, 1 FROM queries q WHERE q.id = :q"
                     ),
                     {"q": query_id, "c": chunk_id},
                 )

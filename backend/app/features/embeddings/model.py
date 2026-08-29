@@ -1,5 +1,5 @@
 from pgvector.sqlalchemy import HALFVEC, Vector
-from sqlalchemy import CheckConstraint, Computed, ForeignKey, Index
+from sqlalchemy import CheckConstraint, Computed, ForeignKey, ForeignKeyConstraint, Index
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base, created_at, uuid_col
@@ -42,15 +42,30 @@ class ChunkEmbedding(Base):
             postgresql_ops={"embedding_half": "halfvec_cosine_ops"},
             postgresql_with={"m": 16, "ef_construction": 64},
         ),
+        # Composite since migration 0026: `chunks` is partitioned by `tenant_id`, so its
+        # primary key is `(id, tenant_id)` and nothing can reference `chunks.id` alone. The
+        # column was already here for the policy, so this costs no storage — and it buys a
+        # guarantee that did not exist before, that an embedding cannot reference a chunk
+        # belonging to a different tenant.
+        ForeignKeyConstraint(
+            ["chunk_id", "tenant_id"],
+            ["chunks.id", "chunks.tenant_id"],
+            name="fk_chunk_embeddings_chunk_id",
+            ondelete="CASCADE",
+        ),
+        {"postgresql_partition_by": "HASH (tenant_id)"},
     )
 
-    chunk_id: Mapped[uuid_col] = mapped_column(
-        ForeignKey("chunks.id", ondelete="CASCADE"), primary_key=True
-    )
+    chunk_id: Mapped[uuid_col] = mapped_column(primary_key=True)
     # Denormalised so the RLS policy is an equality rather than an EXISTS against
     # `chunks`. This table sits on the hot path of vector search: a per-row subquery
     # here is paid on every single query.
-    tenant_id: Mapped[uuid_col] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
+    #
+    # In the primary key since 0026, for the same reason as `Chunk.tenant_id`: the partition
+    # key has to be in every unique constraint on a partitioned table.
+    tenant_id: Mapped[uuid_col] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), primary_key=True
+    )
     embedding_model: Mapped[str] = mapped_column(primary_key=True)
     embedding_version: Mapped[str] = mapped_column(primary_key=True)
     embedding: Mapped[list[float]] = mapped_column(Vector(EMBEDDING_DIM))

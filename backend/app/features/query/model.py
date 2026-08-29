@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Index, text
+from sqlalchemy import ForeignKey, ForeignKeyConstraint, Index, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base, created_at, uuid_col, uuid_pk
@@ -45,13 +45,33 @@ class QueryCitation(Base):
     """
 
     __tablename__ = "query_citations"
+    __table_args__ = (
+        # Composite since migration 0026, because `chunks` is partitioned by `tenant_id` and
+        # its primary key is `(id, tenant_id)`. The alternative on the table was to drop this
+        # key rather than widen it, and 0026's docstring says why that was refused: the
+        # `ON DELETE CASCADE` is what makes a citation disappear when its passage does.
+        ForeignKeyConstraint(
+            ["chunk_id", "tenant_id"],
+            ["chunks.id", "chunks.tenant_id"],
+            name="fk_query_citations_chunk_id",
+            ondelete="CASCADE",
+        ),
+    )
 
     query_id: Mapped[uuid_col] = mapped_column(
         ForeignKey("queries.id", ondelete="CASCADE"), primary_key=True
     )
-    chunk_id: Mapped[uuid_col] = mapped_column(
-        ForeignKey("chunks.id", ondelete="CASCADE"), primary_key=True
-    )
+    chunk_id: Mapped[uuid_col] = mapped_column(primary_key=True)
+    #: A foreign-key carrier, and deliberately not an access control.
+    #:
+    #: **This table's policy stays derived.** `EXISTS (SELECT 1 FROM queries q WHERE ...)`
+    #: applies the policy on `queries`, which since migration 0005 is per *user* and not per
+    #: tenant, because the questions people ask are more revealing than the documents they
+    #: read. Rewriting it as `tenant_id = zenith_current_tenant()` now that the column exists
+    #: would let anyone in the organisation see which passages a colleague's question pulled
+    #: back — the substance of a question they may not read. That is the whole reason 0005
+    #: left this table alone.
+    tenant_id: Mapped[uuid_col] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
     rank: Mapped[int]
     score_bm25: Mapped[float | None]
     score_vector: Mapped[float | None]
