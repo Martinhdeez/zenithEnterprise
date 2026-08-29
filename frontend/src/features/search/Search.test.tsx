@@ -374,7 +374,7 @@ describe("when the corpus has little or nothing to say", () => {
   it("says the match is poor and still shows the passages", async () => {
     await ask({ hits: [hit("one", "handbook.pdf")], relevance: "weak" });
 
-    expect(await screen.findByText(/Nothing here matches closely/)).toBeTruthy();
+    expect(await screen.findByText(/Nothing matches this closely/)).toBeTruthy();
     // Still on screen. The notice qualifies them; it does not replace them.
     expect(screen.getByText(/handbook\.pdf/)).toBeTruthy();
   });

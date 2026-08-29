@@ -426,8 +426,10 @@ export const es: Catalogue = {
   "Ask about this document": "Preguntar sobre este documento",
   "Back to the results": "Volver a los resultados",
   "{count} passage": { one: "{count} pasaje", other: "{count} pasajes" },
-  "Nothing here matches closely. These are the nearest passages.":
-    "Nada coincide con claridad. Éstos son los pasajes más cercanos.",
+  "Nothing matches this closely": "Nada coincide con claridad",
+  "What follows is the nearest thing in your documents, not an answer.":
+    "Lo que sigue es lo más parecido que hay en tus documentos, no una respuesta.",
+  "Closest passages": "Lo más cercano",
   "Nothing in your documents is about “{query}”.":
     "Ninguno de tus documentos trata sobre «{query}».",
   "This is not a wording problem — rephrasing will not help. The corpus does not cover this subject.":
