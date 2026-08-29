@@ -1,0 +1,2797 @@
+{
+  "corpus": {
+    "documents": 42,
+    "chunks": 13549,
+    "vectors_indexed": 13549,
+    "passages_per_document": 322.6,
+    "production_index_bytes": 36986880,
+    "production_bytes_per_vector": 2729.9,
+    "production_note": "`production_bytes_per_vector` is the live halfvec(1024) index, which carries ingestion churn and therefore reads larger per vector than the freshly built `identity_1024` arm below. Every ratio in this report is taken against that fresh arm, so it is fresh-against-fresh."
+  },
+  "questions": {
+    "answerable_scored": 30,
+    "unanswerable_scored": 12,
+    "excluded_document_absent": [
+      "identifier-usc-citation"
+    ],
+    "split_note": "The headline is the answerable set. An unanswerable question has no correct passage, so its exact top ten is an arbitrary set of ten distant passages; those are easy for any projection to reproduce, they score high, and averaging them in inflates the result. They are measured and reported because a reduced index that scrambles them is still a signal, not because they belong in the number."
+  },
+  "method": {
+    "model": "BAAI/bge-m3",
+    "version": "1",
+    "source_dimension": 1024,
+    "stored_as": "halfvec(k)",
+    "targets": [
+      512,
+      384,
+      256,
+      192,
+      128
+    ],
+    "seed": 20260829,
+    "repeats": 3,
+    "hnsw": {
+      "m": 16,
+      "ef_construction": 64,
+      "ef_search": 100
+    },
+    "profile": "cpu",
+    "numpy": "2.5.2",
+    "truth": "Exact fp32 cosine at 1024 dimensions over chunk_embeddings, with enable_indexscan and enable_bitmapscan off. Ground truth for every arm, including identity_1024.",
+    "truth_plan": "Limit | ->  Sort | Sort Key: ((embedding <=> '[-0.03880393,0.0044705714,-0.0315 | ->  Seq Scan on chunk_embeddings | Filter: (((embedding_model)::text = 'BAAI/bge-m3'::text) AND",
+    "truth_is_sequential": true,
+    "fit": "Fitted on this corpus's own passage embeddings. `svd` is the eigenbasis of the uncentred second moment X'X/n; `pca` is the eigenbasis of the covariance Xc'Xc/(n-1), which is the same thing after subtracting the corpus mean. `random` is an orthonormalised Gaussian basis at a fixed seed, uncentred. Every basis is nested, so svd_256 is the first 256 columns of the same fit as svd_512. The same transform \u2014 mean where the family centres, basis always \u2014 is applied to the query vectors.",
+    "families": {
+      "identity": "the stored vector, unchanged: what the installation indexes",
+      "svd": "uncentred projection onto the corpus's top singular directions",
+      "pca": "the same, after subtracting the corpus mean",
+      "random": "uncentred projection onto a random orthonormal subspace"
+    }
+  },
+  "explained_variance_ratio": {
+    "note": "Fraction of the family's own spectrum kept at each width: `svd` is the uncentred second moment, `pca` the covariance. It is the information argument for a width, and it is reported beside recall precisely because the two do not have to agree \u2014 variance retained is not neighbours retained, and only the second one is the product.",
+    "svd": {
+      "512": 0.991,
+      "384": 0.978,
+      "256": 0.9426,
+      "192": 0.9111,
+      "128": 0.8629,
+      "1024": 1.0
+    },
+    "pca": {
+      "512": 0.9829,
+      "384": 0.9584,
+      "256": 0.8913,
+      "192": 0.8316,
+      "128": 0.7403,
+      "1024": 1.0
+    }
+  },
+  "arms": {
+    "identity_1024": {
+      "dim": 1024,
+      "method": "identity",
+      "index_bytes": 36986880,
+      "bytes_per_vector": 2729.9,
+      "build_ms": 3089,
+      "answerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_identity_1024 on arm_identity_10 | Order By: (e <=> '[-0.03881836,0.004470825,-0.031585693,-0.0",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.9667,
+        "index_recall_at_50": 0.9707,
+        "worst_question_at_10": 0.5,
+        "worst_question_at_50": 0.7,
+        "worst_question_id": "identifier-omb-number",
+        "questions_scored": 30,
+        "questions_perfect_at_10": 27,
+        "questions_below_0_9_at_10": 3,
+        "questions_below_0_5_at_10": 0,
+        "top1_preserved": 0.9333,
+        "five_worst_at_10": [
+          [
+            "identifier-omb-number",
+            0.5
+          ],
+          [
+            "identifier-oj-page",
+            0.7
+          ],
+          [
+            "dsa-trusted-flaggers",
+            0.8
+          ],
+          [
+            "gdpr-breach-deadline",
+            1.0
+          ],
+          [
+            "gdpr-right-to-erasure",
+            1.0
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "gdpr-breach-deadline": 1.0,
+          "gdpr-right-to-erasure": 1.0,
+          "gdpr-personal-data-definition": 1.0,
+          "gdpr-data-portability": 1.0,
+          "gdpr-dpo": 1.0,
+          "aiact-social-scoring": 1.0,
+          "aiact-prohibited-practices": 1.0,
+          "dsa-trusted-flaggers": 0.8,
+          "attention-optimizer": 1.0,
+          "attention-multihead": 1.0,
+          "bert-pretraining": 1.0,
+          "rag-knowledge-source": 1.0,
+          "rag-retriever": 1.0,
+          "irs-social-security-rate": 1.0,
+          "boe-bank-rate": 1.0,
+          "cross-eu-extraterritorial": 1.0,
+          "cross-transformer-lineage": 1.0,
+          "cross-retrieval-vs-pretraining": 1.0,
+          "cross-platform-obligations": 1.0,
+          "cross-payroll-and-return": 1.0,
+          "table-attention-bleu": 1.0,
+          "table-attention-training-cost": 1.0,
+          "table-irs-medicare": 1.0,
+          "table-boe-cpi": 1.0,
+          "table-form-1040-status": 1.0,
+          "identifier-catalog-number": 1.0,
+          "identifier-omb-number": 0.5,
+          "identifier-regulation-2016-679": 1.0,
+          "identifier-regulation-2022-2065": 1.0,
+          "identifier-oj-page": 0.7
+        },
+        "median_ms": 0.576,
+        "p95_ms": 0.759
+      },
+      "unanswerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_identity_1024 on arm_identity_10 | Order By: (e <=> '[-0.031829834,-0.0031051636,-0.040863037,0",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.95,
+        "index_recall_at_50": 0.8883,
+        "worst_question_at_10": 0.5,
+        "worst_question_at_50": 0.34,
+        "worst_question_id": "unanswerable-pricing",
+        "questions_scored": 12,
+        "questions_perfect_at_10": 10,
+        "questions_below_0_9_at_10": 1,
+        "questions_below_0_5_at_10": 0,
+        "top1_preserved": 1.0,
+        "five_worst_at_10": [
+          [
+            "unanswerable-pricing",
+            0.5
+          ],
+          [
+            "unanswerable-recipe",
+            0.9
+          ],
+          [
+            "unanswerable-messi",
+            1.0
+          ],
+          [
+            "unanswerable-messi-year",
+            1.0
+          ],
+          [
+            "unanswerable-messi-bare",
+            1.0
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "unanswerable-messi": 1.0,
+          "unanswerable-messi-year": 1.0,
+          "unanswerable-messi-bare": 1.0,
+          "unanswerable-recipe": 0.9,
+          "unanswerable-paternity-days": 1.0,
+          "unanswerable-gdpr-fine-amount": 1.0,
+          "unanswerable-reform-2027": 1.0,
+          "unanswerable-pricing": 0.5,
+          "unanswerable-future-rate": 1.0,
+          "unanswerable-quantum": 1.0,
+          "unanswerable-tungsten": 1.0,
+          "unanswerable-headcount": 1.0
+        },
+        "median_ms": 0.627,
+        "p95_ms": 0.728
+      },
+      "all_questions_recall_at_10": 0.9619,
+      "versus_identity": {
+        "mean_delta_at_10": 0.0,
+        "questions_worse": 0,
+        "questions_worse_by_more_than_0_1": 0,
+        "questions_better": 0,
+        "largest_single_loss": 0.0,
+        "largest_single_loss_question": "gdpr-breach-deadline"
+      }
+    },
+    "svd_1024": {
+      "dim": 1024,
+      "method": "svd",
+      "index_bytes": 36986880,
+      "bytes_per_vector": 2729.9,
+      "build_ms": 2967,
+      "answerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_svd_1024 on arm_svd_1024 | Order By: (e <=> '[0.58984375,-0.08666992,0.023345947,0.1406",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.9667,
+        "index_recall_at_50": 0.9713,
+        "worst_question_at_10": 0.5,
+        "worst_question_at_50": 0.7,
+        "worst_question_id": "identifier-omb-number",
+        "questions_scored": 30,
+        "questions_perfect_at_10": 27,
+        "questions_below_0_9_at_10": 3,
+        "questions_below_0_5_at_10": 0,
+        "top1_preserved": 0.9333,
+        "five_worst_at_10": [
+          [
+            "identifier-omb-number",
+            0.5
+          ],
+          [
+            "identifier-oj-page",
+            0.7
+          ],
+          [
+            "dsa-trusted-flaggers",
+            0.8
+          ],
+          [
+            "gdpr-breach-deadline",
+            1.0
+          ],
+          [
+            "gdpr-right-to-erasure",
+            1.0
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "gdpr-breach-deadline": 1.0,
+          "gdpr-right-to-erasure": 1.0,
+          "gdpr-personal-data-definition": 1.0,
+          "gdpr-data-portability": 1.0,
+          "gdpr-dpo": 1.0,
+          "aiact-social-scoring": 1.0,
+          "aiact-prohibited-practices": 1.0,
+          "dsa-trusted-flaggers": 0.8,
+          "attention-optimizer": 1.0,
+          "attention-multihead": 1.0,
+          "bert-pretraining": 1.0,
+          "rag-knowledge-source": 1.0,
+          "rag-retriever": 1.0,
+          "irs-social-security-rate": 1.0,
+          "boe-bank-rate": 1.0,
+          "cross-eu-extraterritorial": 1.0,
+          "cross-transformer-lineage": 1.0,
+          "cross-retrieval-vs-pretraining": 1.0,
+          "cross-platform-obligations": 1.0,
+          "cross-payroll-and-return": 1.0,
+          "table-attention-bleu": 1.0,
+          "table-attention-training-cost": 1.0,
+          "table-irs-medicare": 1.0,
+          "table-boe-cpi": 1.0,
+          "table-form-1040-status": 1.0,
+          "identifier-catalog-number": 1.0,
+          "identifier-omb-number": 0.5,
+          "identifier-regulation-2016-679": 1.0,
+          "identifier-regulation-2022-2065": 1.0,
+          "identifier-oj-page": 0.7
+        },
+        "median_ms": 0.635,
+        "p95_ms": 1.348
+      },
+      "unanswerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_svd_1024 on arm_svd_1024 | Order By: (e <=> '[0.3383789,0.024246216,-0.18688965,-0.0093",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.8667,
+        "index_recall_at_50": 0.825,
+        "worst_question_at_10": 0.0,
+        "worst_question_at_50": 0.2,
+        "worst_question_id": "unanswerable-headcount",
+        "questions_scored": 12,
+        "questions_perfect_at_10": 9,
+        "questions_below_0_9_at_10": 2,
+        "questions_below_0_5_at_10": 1,
+        "top1_preserved": 0.9167,
+        "five_worst_at_10": [
+          [
+            "unanswerable-headcount",
+            0.0
+          ],
+          [
+            "unanswerable-pricing",
+            0.5
+          ],
+          [
+            "unanswerable-recipe",
+            0.9
+          ],
+          [
+            "unanswerable-messi",
+            1.0
+          ],
+          [
+            "unanswerable-messi-year",
+            1.0
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "unanswerable-messi": 1.0,
+          "unanswerable-messi-year": 1.0,
+          "unanswerable-messi-bare": 1.0,
+          "unanswerable-recipe": 0.9,
+          "unanswerable-paternity-days": 1.0,
+          "unanswerable-gdpr-fine-amount": 1.0,
+          "unanswerable-reform-2027": 1.0,
+          "unanswerable-pricing": 0.5,
+          "unanswerable-future-rate": 1.0,
+          "unanswerable-quantum": 1.0,
+          "unanswerable-tungsten": 1.0,
+          "unanswerable-headcount": 0.0
+        },
+        "median_ms": 0.667,
+        "p95_ms": 0.794
+      },
+      "all_questions_recall_at_10": 0.9381,
+      "versus_identity": {
+        "mean_delta_at_10": 0.0,
+        "questions_worse": 0,
+        "questions_worse_by_more_than_0_1": 0,
+        "questions_better": 0,
+        "largest_single_loss": 0.0,
+        "largest_single_loss_question": "gdpr-breach-deadline"
+      }
+    },
+    "pca_1024": {
+      "dim": 1024,
+      "method": "pca",
+      "index_bytes": 36986880,
+      "bytes_per_vector": 2729.9,
+      "build_ms": 2812,
+      "answerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_pca_1024 on arm_pca_1024 | Order By: (e <=> '[-0.08105469,0.004550934,0.13452148,0.0921",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.78,
+        "index_recall_at_50": 0.7853,
+        "worst_question_at_10": 0.2,
+        "worst_question_at_50": 0.26,
+        "worst_question_id": "identifier-oj-page",
+        "questions_scored": 30,
+        "questions_perfect_at_10": 3,
+        "questions_below_0_9_at_10": 15,
+        "questions_below_0_5_at_10": 3,
+        "top1_preserved": 0.6667,
+        "five_worst_at_10": [
+          [
+            "identifier-oj-page",
+            0.2
+          ],
+          [
+            "identifier-catalog-number",
+            0.3
+          ],
+          [
+            "identifier-omb-number",
+            0.3
+          ],
+          [
+            "gdpr-data-portability",
+            0.6
+          ],
+          [
+            "dsa-trusted-flaggers",
+            0.6
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "gdpr-breach-deadline": 0.8,
+          "gdpr-right-to-erasure": 0.8,
+          "gdpr-personal-data-definition": 0.7,
+          "gdpr-data-portability": 0.6,
+          "gdpr-dpo": 0.8,
+          "aiact-social-scoring": 0.8,
+          "aiact-prohibited-practices": 0.9,
+          "dsa-trusted-flaggers": 0.6,
+          "attention-optimizer": 0.9,
+          "attention-multihead": 0.9,
+          "bert-pretraining": 1.0,
+          "rag-knowledge-source": 0.9,
+          "rag-retriever": 0.9,
+          "irs-social-security-rate": 0.9,
+          "boe-bank-rate": 0.9,
+          "cross-eu-extraterritorial": 0.8,
+          "cross-transformer-lineage": 1.0,
+          "cross-retrieval-vs-pretraining": 0.9,
+          "cross-platform-obligations": 0.8,
+          "cross-payroll-and-return": 0.7,
+          "table-attention-bleu": 0.9,
+          "table-attention-training-cost": 0.9,
+          "table-irs-medicare": 1.0,
+          "table-boe-cpi": 0.9,
+          "table-form-1040-status": 0.7,
+          "identifier-catalog-number": 0.3,
+          "identifier-omb-number": 0.3,
+          "identifier-regulation-2016-679": 0.9,
+          "identifier-regulation-2022-2065": 0.7,
+          "identifier-oj-page": 0.2
+        },
+        "median_ms": 0.553,
+        "p95_ms": 0.786
+      },
+      "unanswerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_pca_1024 on arm_pca_1024 | Order By: (e <=> '[0.06793213,-0.26367188,-0.02268982,-0.040",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.6917,
+        "index_recall_at_50": 0.74,
+        "worst_question_at_10": 0.5,
+        "worst_question_at_50": 0.52,
+        "worst_question_id": "unanswerable-messi-bare",
+        "questions_scored": 12,
+        "questions_perfect_at_10": 0,
+        "questions_below_0_9_at_10": 11,
+        "questions_below_0_5_at_10": 0,
+        "top1_preserved": 0.75,
+        "five_worst_at_10": [
+          [
+            "unanswerable-messi-bare",
+            0.5
+          ],
+          [
+            "unanswerable-pricing",
+            0.5
+          ],
+          [
+            "unanswerable-recipe",
+            0.6
+          ],
+          [
+            "unanswerable-gdpr-fine-amount",
+            0.6
+          ],
+          [
+            "unanswerable-reform-2027",
+            0.6
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "unanswerable-messi": 0.9,
+          "unanswerable-messi-year": 0.8,
+          "unanswerable-messi-bare": 0.5,
+          "unanswerable-recipe": 0.6,
+          "unanswerable-paternity-days": 0.8,
+          "unanswerable-gdpr-fine-amount": 0.6,
+          "unanswerable-reform-2027": 0.6,
+          "unanswerable-pricing": 0.5,
+          "unanswerable-future-rate": 0.8,
+          "unanswerable-quantum": 0.7,
+          "unanswerable-tungsten": 0.8,
+          "unanswerable-headcount": 0.7
+        },
+        "median_ms": 0.527,
+        "p95_ms": 0.918
+      },
+      "all_questions_recall_at_10": 0.7548,
+      "versus_identity": {
+        "mean_delta_at_10": -0.1867,
+        "questions_worse": 27,
+        "questions_worse_by_more_than_0_1": 15,
+        "questions_better": 0,
+        "largest_single_loss": -0.7,
+        "largest_single_loss_question": "identifier-catalog-number"
+      }
+    },
+    "svd_512": {
+      "dim": 512,
+      "method": "svd",
+      "index_bytes": 18505728,
+      "bytes_per_vector": 1365.8,
+      "build_ms": 935,
+      "answerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_svd_512 on arm_svd_512 | Order By: (e <=> '[0.58984375,-0.08666992,0.023345947,0.1406",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.9467,
+        "index_recall_at_50": 0.9573,
+        "worst_question_at_10": 0.5,
+        "worst_question_at_50": 0.7,
+        "worst_question_id": "identifier-omb-number",
+        "questions_scored": 30,
+        "questions_perfect_at_10": 21,
+        "questions_below_0_9_at_10": 3,
+        "questions_below_0_5_at_10": 0,
+        "top1_preserved": 0.9,
+        "five_worst_at_10": [
+          [
+            "identifier-omb-number",
+            0.5
+          ],
+          [
+            "identifier-oj-page",
+            0.7
+          ],
+          [
+            "dsa-trusted-flaggers",
+            0.8
+          ],
+          [
+            "gdpr-right-to-erasure",
+            0.9
+          ],
+          [
+            "attention-multihead",
+            0.9
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "gdpr-breach-deadline": 1.0,
+          "gdpr-right-to-erasure": 0.9,
+          "gdpr-personal-data-definition": 1.0,
+          "gdpr-data-portability": 1.0,
+          "gdpr-dpo": 1.0,
+          "aiact-social-scoring": 1.0,
+          "aiact-prohibited-practices": 1.0,
+          "dsa-trusted-flaggers": 0.8,
+          "attention-optimizer": 1.0,
+          "attention-multihead": 0.9,
+          "bert-pretraining": 1.0,
+          "rag-knowledge-source": 1.0,
+          "rag-retriever": 0.9,
+          "irs-social-security-rate": 1.0,
+          "boe-bank-rate": 1.0,
+          "cross-eu-extraterritorial": 1.0,
+          "cross-transformer-lineage": 1.0,
+          "cross-retrieval-vs-pretraining": 1.0,
+          "cross-platform-obligations": 1.0,
+          "cross-payroll-and-return": 1.0,
+          "table-attention-bleu": 0.9,
+          "table-attention-training-cost": 1.0,
+          "table-irs-medicare": 1.0,
+          "table-boe-cpi": 0.9,
+          "table-form-1040-status": 0.9,
+          "identifier-catalog-number": 1.0,
+          "identifier-omb-number": 0.5,
+          "identifier-regulation-2016-679": 1.0,
+          "identifier-regulation-2022-2065": 1.0,
+          "identifier-oj-page": 0.7
+        },
+        "median_ms": 0.465,
+        "p95_ms": 1.276
+      },
+      "unanswerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_svd_512 on arm_svd_512 | Order By: (e <=> '[0.3383789,0.024246216,-0.18688965,-0.0093",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.9417,
+        "index_recall_at_50": 0.8817,
+        "worst_question_at_10": 0.5,
+        "worst_question_at_50": 0.34,
+        "worst_question_id": "unanswerable-pricing",
+        "questions_scored": 12,
+        "questions_perfect_at_10": 9,
+        "questions_below_0_9_at_10": 1,
+        "questions_below_0_5_at_10": 0,
+        "top1_preserved": 1.0,
+        "five_worst_at_10": [
+          [
+            "unanswerable-pricing",
+            0.5
+          ],
+          [
+            "unanswerable-messi-bare",
+            0.9
+          ],
+          [
+            "unanswerable-quantum",
+            0.9
+          ],
+          [
+            "unanswerable-messi",
+            1.0
+          ],
+          [
+            "unanswerable-messi-year",
+            1.0
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "unanswerable-messi": 1.0,
+          "unanswerable-messi-year": 1.0,
+          "unanswerable-messi-bare": 0.9,
+          "unanswerable-recipe": 1.0,
+          "unanswerable-paternity-days": 1.0,
+          "unanswerable-gdpr-fine-amount": 1.0,
+          "unanswerable-reform-2027": 1.0,
+          "unanswerable-pricing": 0.5,
+          "unanswerable-future-rate": 1.0,
+          "unanswerable-quantum": 0.9,
+          "unanswerable-tungsten": 1.0,
+          "unanswerable-headcount": 1.0
+        },
+        "median_ms": 0.588,
+        "p95_ms": 0.999
+      },
+      "all_questions_recall_at_10": 0.9452,
+      "versus_identity": {
+        "mean_delta_at_10": -0.02,
+        "questions_worse": 6,
+        "questions_worse_by_more_than_0_1": 0,
+        "questions_better": 0,
+        "largest_single_loss": -0.1,
+        "largest_single_loss_question": "gdpr-right-to-erasure"
+      }
+    },
+    "svd_384": {
+      "dim": 384,
+      "method": "svd",
+      "index_bytes": 15859712,
+      "bytes_per_vector": 1170.5,
+      "build_ms": 678,
+      "answerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_svd_384 on arm_svd_384 | Order By: (e <=> '[0.58984375,-0.08666992,0.023345947,0.1406",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.9167,
+        "index_recall_at_50": 0.9387,
+        "worst_question_at_10": 0.5,
+        "worst_question_at_50": 0.68,
+        "worst_question_id": "identifier-omb-number",
+        "questions_scored": 30,
+        "questions_perfect_at_10": 13,
+        "questions_below_0_9_at_10": 4,
+        "questions_below_0_5_at_10": 0,
+        "top1_preserved": 0.8333,
+        "five_worst_at_10": [
+          [
+            "identifier-omb-number",
+            0.5
+          ],
+          [
+            "identifier-oj-page",
+            0.7
+          ],
+          [
+            "dsa-trusted-flaggers",
+            0.8
+          ],
+          [
+            "rag-retriever",
+            0.8
+          ],
+          [
+            "gdpr-right-to-erasure",
+            0.9
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "gdpr-breach-deadline": 1.0,
+          "gdpr-right-to-erasure": 0.9,
+          "gdpr-personal-data-definition": 1.0,
+          "gdpr-data-portability": 1.0,
+          "gdpr-dpo": 1.0,
+          "aiact-social-scoring": 1.0,
+          "aiact-prohibited-practices": 0.9,
+          "dsa-trusted-flaggers": 0.8,
+          "attention-optimizer": 0.9,
+          "attention-multihead": 0.9,
+          "bert-pretraining": 1.0,
+          "rag-knowledge-source": 0.9,
+          "rag-retriever": 0.8,
+          "irs-social-security-rate": 0.9,
+          "boe-bank-rate": 1.0,
+          "cross-eu-extraterritorial": 0.9,
+          "cross-transformer-lineage": 1.0,
+          "cross-retrieval-vs-pretraining": 0.9,
+          "cross-platform-obligations": 1.0,
+          "cross-payroll-and-return": 1.0,
+          "table-attention-bleu": 0.9,
+          "table-attention-training-cost": 1.0,
+          "table-irs-medicare": 1.0,
+          "table-boe-cpi": 0.9,
+          "table-form-1040-status": 0.9,
+          "identifier-catalog-number": 1.0,
+          "identifier-omb-number": 0.5,
+          "identifier-regulation-2016-679": 0.9,
+          "identifier-regulation-2022-2065": 0.9,
+          "identifier-oj-page": 0.7
+        },
+        "median_ms": 0.444,
+        "p95_ms": 1.295
+      },
+      "unanswerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_svd_384 on arm_svd_384 | Order By: (e <=> '[0.3383789,0.024246216,-0.18688965,-0.0093",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.9,
+        "index_recall_at_50": 0.8733,
+        "worst_question_at_10": 0.5,
+        "worst_question_at_50": 0.54,
+        "worst_question_id": "unanswerable-pricing",
+        "questions_scored": 12,
+        "questions_perfect_at_10": 5,
+        "questions_below_0_9_at_10": 2,
+        "questions_below_0_5_at_10": 0,
+        "top1_preserved": 0.8333,
+        "five_worst_at_10": [
+          [
+            "unanswerable-pricing",
+            0.5
+          ],
+          [
+            "unanswerable-quantum",
+            0.8
+          ],
+          [
+            "unanswerable-messi",
+            0.9
+          ],
+          [
+            "unanswerable-messi-year",
+            0.9
+          ],
+          [
+            "unanswerable-messi-bare",
+            0.9
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "unanswerable-messi": 0.9,
+          "unanswerable-messi-year": 0.9,
+          "unanswerable-messi-bare": 0.9,
+          "unanswerable-recipe": 0.9,
+          "unanswerable-paternity-days": 1.0,
+          "unanswerable-gdpr-fine-amount": 1.0,
+          "unanswerable-reform-2027": 1.0,
+          "unanswerable-pricing": 0.5,
+          "unanswerable-future-rate": 1.0,
+          "unanswerable-quantum": 0.8,
+          "unanswerable-tungsten": 1.0,
+          "unanswerable-headcount": 0.9
+        },
+        "median_ms": 0.454,
+        "p95_ms": 0.506
+      },
+      "all_questions_recall_at_10": 0.9119,
+      "versus_identity": {
+        "mean_delta_at_10": -0.05,
+        "questions_worse": 14,
+        "questions_worse_by_more_than_0_1": 1,
+        "questions_better": 0,
+        "largest_single_loss": -0.2,
+        "largest_single_loss_question": "rag-retriever"
+      }
+    },
+    "svd_256": {
+      "dim": 256,
+      "method": "svd",
+      "index_bytes": 11288576,
+      "bytes_per_vector": 833.2,
+      "build_ms": 1348,
+      "answerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_svd_256 on arm_svd_256 | Order By: (e <=> '[0.58984375,-0.08666992,0.023345947,0.1406",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.8733,
+        "index_recall_at_50": 0.89,
+        "worst_question_at_10": 0.5,
+        "worst_question_at_50": 0.58,
+        "worst_question_id": "identifier-omb-number",
+        "questions_scored": 30,
+        "questions_perfect_at_10": 5,
+        "questions_below_0_9_at_10": 9,
+        "questions_below_0_5_at_10": 0,
+        "top1_preserved": 0.6667,
+        "five_worst_at_10": [
+          [
+            "identifier-omb-number",
+            0.5
+          ],
+          [
+            "identifier-oj-page",
+            0.7
+          ],
+          [
+            "gdpr-personal-data-definition",
+            0.8
+          ],
+          [
+            "gdpr-data-portability",
+            0.8
+          ],
+          [
+            "aiact-social-scoring",
+            0.8
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "gdpr-breach-deadline": 0.9,
+          "gdpr-right-to-erasure": 0.9,
+          "gdpr-personal-data-definition": 0.8,
+          "gdpr-data-portability": 0.8,
+          "gdpr-dpo": 1.0,
+          "aiact-social-scoring": 0.8,
+          "aiact-prohibited-practices": 0.9,
+          "dsa-trusted-flaggers": 0.8,
+          "attention-optimizer": 0.9,
+          "attention-multihead": 0.9,
+          "bert-pretraining": 1.0,
+          "rag-knowledge-source": 0.9,
+          "rag-retriever": 0.8,
+          "irs-social-security-rate": 0.9,
+          "boe-bank-rate": 1.0,
+          "cross-eu-extraterritorial": 0.9,
+          "cross-transformer-lineage": 1.0,
+          "cross-retrieval-vs-pretraining": 0.9,
+          "cross-platform-obligations": 0.9,
+          "cross-payroll-and-return": 0.9,
+          "table-attention-bleu": 0.9,
+          "table-attention-training-cost": 0.9,
+          "table-irs-medicare": 1.0,
+          "table-boe-cpi": 0.9,
+          "table-form-1040-status": 0.9,
+          "identifier-catalog-number": 0.8,
+          "identifier-omb-number": 0.5,
+          "identifier-regulation-2016-679": 0.9,
+          "identifier-regulation-2022-2065": 0.8,
+          "identifier-oj-page": 0.7
+        },
+        "median_ms": 0.393,
+        "p95_ms": 1.104
+      },
+      "unanswerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_svd_256 on arm_svd_256 | Order By: (e <=> '[0.3383789,0.024246216,-0.18688965,-0.0093",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.7167,
+        "index_recall_at_50": 0.7717,
+        "worst_question_at_10": 0.1,
+        "worst_question_at_50": 0.16,
+        "worst_question_id": "unanswerable-recipe",
+        "questions_scored": 12,
+        "questions_perfect_at_10": 1,
+        "questions_below_0_9_at_10": 6,
+        "questions_below_0_5_at_10": 1,
+        "top1_preserved": 0.6667,
+        "five_worst_at_10": [
+          [
+            "unanswerable-recipe",
+            0.1
+          ],
+          [
+            "unanswerable-messi-bare",
+            0.5
+          ],
+          [
+            "unanswerable-pricing",
+            0.5
+          ],
+          [
+            "unanswerable-headcount",
+            0.6
+          ],
+          [
+            "unanswerable-messi",
+            0.7
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "unanswerable-messi": 0.7,
+          "unanswerable-messi-year": 0.9,
+          "unanswerable-messi-bare": 0.5,
+          "unanswerable-recipe": 0.1,
+          "unanswerable-paternity-days": 1.0,
+          "unanswerable-gdpr-fine-amount": 0.9,
+          "unanswerable-reform-2027": 0.9,
+          "unanswerable-pricing": 0.5,
+          "unanswerable-future-rate": 0.9,
+          "unanswerable-quantum": 0.7,
+          "unanswerable-tungsten": 0.9,
+          "unanswerable-headcount": 0.6
+        },
+        "median_ms": 0.4,
+        "p95_ms": 0.48
+      },
+      "all_questions_recall_at_10": 0.8286,
+      "versus_identity": {
+        "mean_delta_at_10": -0.0934,
+        "questions_worse": 22,
+        "questions_worse_by_more_than_0_1": 6,
+        "questions_better": 0,
+        "largest_single_loss": -0.2,
+        "largest_single_loss_question": "gdpr-personal-data-definition"
+      }
+    },
+    "svd_192": {
+      "dim": 192,
+      "method": "svd",
+      "index_bytes": 9396224,
+      "bytes_per_vector": 693.5,
+      "build_ms": 1253,
+      "answerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_svd_192 on arm_svd_192 | Order By: (e <=> '[0.58984375,-0.08666992,0.023345947,0.1406",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.8,
+        "index_recall_at_50": 0.8407,
+        "worst_question_at_10": 0.4,
+        "worst_question_at_50": 0.48,
+        "worst_question_id": "identifier-omb-number",
+        "questions_scored": 30,
+        "questions_perfect_at_10": 3,
+        "questions_below_0_9_at_10": 17,
+        "questions_below_0_5_at_10": 1,
+        "top1_preserved": 0.5,
+        "five_worst_at_10": [
+          [
+            "identifier-omb-number",
+            0.4
+          ],
+          [
+            "table-form-1040-status",
+            0.5
+          ],
+          [
+            "identifier-catalog-number",
+            0.5
+          ],
+          [
+            "identifier-oj-page",
+            0.5
+          ],
+          [
+            "gdpr-personal-data-definition",
+            0.7
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "gdpr-breach-deadline": 0.8,
+          "gdpr-right-to-erasure": 0.9,
+          "gdpr-personal-data-definition": 0.7,
+          "gdpr-data-portability": 0.8,
+          "gdpr-dpo": 0.9,
+          "aiact-social-scoring": 0.7,
+          "aiact-prohibited-practices": 0.9,
+          "dsa-trusted-flaggers": 0.9,
+          "attention-optimizer": 0.7,
+          "attention-multihead": 0.9,
+          "bert-pretraining": 1.0,
+          "rag-knowledge-source": 0.8,
+          "rag-retriever": 0.8,
+          "irs-social-security-rate": 0.9,
+          "boe-bank-rate": 0.9,
+          "cross-eu-extraterritorial": 0.8,
+          "cross-transformer-lineage": 1.0,
+          "cross-retrieval-vs-pretraining": 0.8,
+          "cross-platform-obligations": 0.8,
+          "cross-payroll-and-return": 0.8,
+          "table-attention-bleu": 0.9,
+          "table-attention-training-cost": 0.9,
+          "table-irs-medicare": 1.0,
+          "table-boe-cpi": 0.9,
+          "table-form-1040-status": 0.5,
+          "identifier-catalog-number": 0.5,
+          "identifier-omb-number": 0.4,
+          "identifier-regulation-2016-679": 0.8,
+          "identifier-regulation-2022-2065": 0.8,
+          "identifier-oj-page": 0.5
+        },
+        "median_ms": 0.392,
+        "p95_ms": 0.472
+      },
+      "unanswerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_svd_192 on arm_svd_192 | Order By: (e <=> '[0.3383789,0.024246216,-0.18688965,-0.0093",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.725,
+        "index_recall_at_50": 0.7717,
+        "worst_question_at_10": 0.3,
+        "worst_question_at_50": 0.52,
+        "worst_question_id": "unanswerable-messi-bare",
+        "questions_scored": 12,
+        "questions_perfect_at_10": 1,
+        "questions_below_0_9_at_10": 7,
+        "questions_below_0_5_at_10": 1,
+        "top1_preserved": 0.4167,
+        "five_worst_at_10": [
+          [
+            "unanswerable-messi-bare",
+            0.3
+          ],
+          [
+            "unanswerable-pricing",
+            0.5
+          ],
+          [
+            "unanswerable-recipe",
+            0.6
+          ],
+          [
+            "unanswerable-headcount",
+            0.6
+          ],
+          [
+            "unanswerable-messi",
+            0.7
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "unanswerable-messi": 0.7,
+          "unanswerable-messi-year": 0.7,
+          "unanswerable-messi-bare": 0.3,
+          "unanswerable-recipe": 0.6,
+          "unanswerable-paternity-days": 1.0,
+          "unanswerable-gdpr-fine-amount": 0.9,
+          "unanswerable-reform-2027": 0.9,
+          "unanswerable-pricing": 0.5,
+          "unanswerable-future-rate": 0.9,
+          "unanswerable-quantum": 0.7,
+          "unanswerable-tungsten": 0.9,
+          "unanswerable-headcount": 0.6
+        },
+        "median_ms": 0.393,
+        "p95_ms": 0.462
+      },
+      "all_questions_recall_at_10": 0.7786,
+      "versus_identity": {
+        "mean_delta_at_10": -0.1667,
+        "questions_worse": 26,
+        "questions_worse_by_more_than_0_1": 16,
+        "questions_better": 1,
+        "largest_single_loss": -0.5,
+        "largest_single_loss_question": "table-form-1040-status"
+      }
+    },
+    "svd_128": {
+      "dim": 128,
+      "method": "svd",
+      "index_bytes": 7716864,
+      "bytes_per_vector": 569.6,
+      "build_ms": 1181,
+      "answerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_svd_128 on arm_svd_128 | Order By: (e <=> '[0.58984375,-0.08666992,0.023345947,0.1406",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.6833,
+        "index_recall_at_50": 0.762,
+        "worst_question_at_10": 0.1,
+        "worst_question_at_50": 0.36,
+        "worst_question_id": "table-form-1040-status",
+        "questions_scored": 30,
+        "questions_perfect_at_10": 1,
+        "questions_below_0_9_at_10": 23,
+        "questions_below_0_5_at_10": 4,
+        "top1_preserved": 0.3333,
+        "five_worst_at_10": [
+          [
+            "table-form-1040-status",
+            0.1
+          ],
+          [
+            "identifier-omb-number",
+            0.2
+          ],
+          [
+            "identifier-oj-page",
+            0.3
+          ],
+          [
+            "identifier-catalog-number",
+            0.4
+          ],
+          [
+            "gdpr-personal-data-definition",
+            0.6
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "gdpr-breach-deadline": 0.7,
+          "gdpr-right-to-erasure": 0.9,
+          "gdpr-personal-data-definition": 0.6,
+          "gdpr-data-portability": 0.7,
+          "gdpr-dpo": 1.0,
+          "aiact-social-scoring": 0.9,
+          "aiact-prohibited-practices": 0.8,
+          "dsa-trusted-flaggers": 0.6,
+          "attention-optimizer": 0.6,
+          "attention-multihead": 0.9,
+          "bert-pretraining": 0.9,
+          "rag-knowledge-source": 0.8,
+          "rag-retriever": 0.8,
+          "irs-social-security-rate": 0.7,
+          "boe-bank-rate": 0.7,
+          "cross-eu-extraterritorial": 0.7,
+          "cross-transformer-lineage": 0.9,
+          "cross-retrieval-vs-pretraining": 0.6,
+          "cross-platform-obligations": 0.7,
+          "cross-payroll-and-return": 0.6,
+          "table-attention-bleu": 0.8,
+          "table-attention-training-cost": 0.8,
+          "table-irs-medicare": 0.9,
+          "table-boe-cpi": 0.7,
+          "table-form-1040-status": 0.1,
+          "identifier-catalog-number": 0.4,
+          "identifier-omb-number": 0.2,
+          "identifier-regulation-2016-679": 0.6,
+          "identifier-regulation-2022-2065": 0.6,
+          "identifier-oj-page": 0.3
+        },
+        "median_ms": 0.392,
+        "p95_ms": 0.487
+      },
+      "unanswerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_svd_128 on arm_svd_128 | Order By: (e <=> '[0.3383789,0.024246216,-0.18688965,-0.0093",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.5583,
+        "index_recall_at_50": 0.6583,
+        "worst_question_at_10": 0.3,
+        "worst_question_at_50": 0.4,
+        "worst_question_id": "unanswerable-messi",
+        "questions_scored": 12,
+        "questions_perfect_at_10": 0,
+        "questions_below_0_9_at_10": 12,
+        "questions_below_0_5_at_10": 4,
+        "top1_preserved": 0.25,
+        "five_worst_at_10": [
+          [
+            "unanswerable-messi",
+            0.3
+          ],
+          [
+            "unanswerable-messi-bare",
+            0.3
+          ],
+          [
+            "unanswerable-messi-year",
+            0.4
+          ],
+          [
+            "unanswerable-pricing",
+            0.4
+          ],
+          [
+            "unanswerable-recipe",
+            0.5
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "unanswerable-messi": 0.3,
+          "unanswerable-messi-year": 0.4,
+          "unanswerable-messi-bare": 0.3,
+          "unanswerable-recipe": 0.5,
+          "unanswerable-paternity-days": 0.7,
+          "unanswerable-gdpr-fine-amount": 0.7,
+          "unanswerable-reform-2027": 0.7,
+          "unanswerable-pricing": 0.4,
+          "unanswerable-future-rate": 0.8,
+          "unanswerable-quantum": 0.6,
+          "unanswerable-tungsten": 0.8,
+          "unanswerable-headcount": 0.5
+        },
+        "median_ms": 0.423,
+        "p95_ms": 0.46
+      },
+      "all_questions_recall_at_10": 0.6476,
+      "versus_identity": {
+        "mean_delta_at_10": -0.2834,
+        "questions_worse": 29,
+        "questions_worse_by_more_than_0_1": 23,
+        "questions_better": 0,
+        "largest_single_loss": -0.9,
+        "largest_single_loss_question": "table-form-1040-status"
+      }
+    },
+    "pca_512": {
+      "dim": 512,
+      "method": "pca",
+      "index_bytes": 18505728,
+      "bytes_per_vector": 1365.8,
+      "build_ms": 717,
+      "answerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_pca_512 on arm_pca_512 | Order By: (e <=> '[-0.08105469,0.004550934,0.13452148,0.0921",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.79,
+        "index_recall_at_50": 0.7833,
+        "worst_question_at_10": 0.3,
+        "worst_question_at_50": 0.26,
+        "worst_question_id": "identifier-catalog-number",
+        "questions_scored": 30,
+        "questions_perfect_at_10": 4,
+        "questions_below_0_9_at_10": 14,
+        "questions_below_0_5_at_10": 3,
+        "top1_preserved": 0.7,
+        "five_worst_at_10": [
+          [
+            "identifier-catalog-number",
+            0.3
+          ],
+          [
+            "identifier-omb-number",
+            0.3
+          ],
+          [
+            "identifier-oj-page",
+            0.4
+          ],
+          [
+            "gdpr-personal-data-definition",
+            0.6
+          ],
+          [
+            "gdpr-data-portability",
+            0.6
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "gdpr-breach-deadline": 0.8,
+          "gdpr-right-to-erasure": 0.8,
+          "gdpr-personal-data-definition": 0.6,
+          "gdpr-data-portability": 0.6,
+          "gdpr-dpo": 0.8,
+          "aiact-social-scoring": 0.7,
+          "aiact-prohibited-practices": 0.9,
+          "dsa-trusted-flaggers": 0.6,
+          "attention-optimizer": 0.9,
+          "attention-multihead": 0.9,
+          "bert-pretraining": 1.0,
+          "rag-knowledge-source": 0.9,
+          "rag-retriever": 0.9,
+          "irs-social-security-rate": 0.9,
+          "boe-bank-rate": 1.0,
+          "cross-eu-extraterritorial": 0.9,
+          "cross-transformer-lineage": 1.0,
+          "cross-retrieval-vs-pretraining": 0.9,
+          "cross-platform-obligations": 0.8,
+          "cross-payroll-and-return": 0.8,
+          "table-attention-bleu": 0.9,
+          "table-attention-training-cost": 0.9,
+          "table-irs-medicare": 1.0,
+          "table-boe-cpi": 0.9,
+          "table-form-1040-status": 0.7,
+          "identifier-catalog-number": 0.3,
+          "identifier-omb-number": 0.3,
+          "identifier-regulation-2016-679": 0.9,
+          "identifier-regulation-2022-2065": 0.7,
+          "identifier-oj-page": 0.4
+        },
+        "median_ms": 0.433,
+        "p95_ms": 1.485
+      },
+      "unanswerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_pca_512 on arm_pca_512 | Order By: (e <=> '[0.06793213,-0.26367188,-0.02268982,-0.040",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.675,
+        "index_recall_at_50": 0.7367,
+        "worst_question_at_10": 0.4,
+        "worst_question_at_50": 0.52,
+        "worst_question_id": "unanswerable-messi-bare",
+        "questions_scored": 12,
+        "questions_perfect_at_10": 0,
+        "questions_below_0_9_at_10": 11,
+        "questions_below_0_5_at_10": 1,
+        "top1_preserved": 0.75,
+        "five_worst_at_10": [
+          [
+            "unanswerable-messi-bare",
+            0.4
+          ],
+          [
+            "unanswerable-pricing",
+            0.5
+          ],
+          [
+            "unanswerable-recipe",
+            0.6
+          ],
+          [
+            "unanswerable-gdpr-fine-amount",
+            0.6
+          ],
+          [
+            "unanswerable-reform-2027",
+            0.6
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "unanswerable-messi": 0.9,
+          "unanswerable-messi-year": 0.8,
+          "unanswerable-messi-bare": 0.4,
+          "unanswerable-recipe": 0.6,
+          "unanswerable-paternity-days": 0.8,
+          "unanswerable-gdpr-fine-amount": 0.6,
+          "unanswerable-reform-2027": 0.6,
+          "unanswerable-pricing": 0.5,
+          "unanswerable-future-rate": 0.8,
+          "unanswerable-quantum": 0.6,
+          "unanswerable-tungsten": 0.8,
+          "unanswerable-headcount": 0.7
+        },
+        "median_ms": 0.437,
+        "p95_ms": 0.558
+      },
+      "all_questions_recall_at_10": 0.7571,
+      "versus_identity": {
+        "mean_delta_at_10": -0.1767,
+        "questions_worse": 26,
+        "questions_worse_by_more_than_0_1": 14,
+        "questions_better": 0,
+        "largest_single_loss": -0.7,
+        "largest_single_loss_question": "identifier-catalog-number"
+      }
+    },
+    "pca_384": {
+      "dim": 384,
+      "method": "pca",
+      "index_bytes": 15859712,
+      "bytes_per_vector": 1170.5,
+      "build_ms": 627,
+      "answerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_pca_384 on arm_pca_384 | Order By: (e <=> '[-0.08105469,0.004550934,0.13452148,0.0921",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.7833,
+        "index_recall_at_50": 0.7853,
+        "worst_question_at_10": 0.3,
+        "worst_question_at_50": 0.28,
+        "worst_question_id": "identifier-catalog-number",
+        "questions_scored": 30,
+        "questions_perfect_at_10": 5,
+        "questions_below_0_9_at_10": 17,
+        "questions_below_0_5_at_10": 3,
+        "top1_preserved": 0.7,
+        "five_worst_at_10": [
+          [
+            "identifier-catalog-number",
+            0.3
+          ],
+          [
+            "identifier-omb-number",
+            0.3
+          ],
+          [
+            "identifier-oj-page",
+            0.4
+          ],
+          [
+            "gdpr-personal-data-definition",
+            0.6
+          ],
+          [
+            "gdpr-data-portability",
+            0.6
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "gdpr-breach-deadline": 0.8,
+          "gdpr-right-to-erasure": 0.8,
+          "gdpr-personal-data-definition": 0.6,
+          "gdpr-data-portability": 0.6,
+          "gdpr-dpo": 0.8,
+          "aiact-social-scoring": 0.7,
+          "aiact-prohibited-practices": 0.9,
+          "dsa-trusted-flaggers": 0.6,
+          "attention-optimizer": 0.9,
+          "attention-multihead": 0.9,
+          "bert-pretraining": 1.0,
+          "rag-knowledge-source": 0.9,
+          "rag-retriever": 0.8,
+          "irs-social-security-rate": 0.9,
+          "boe-bank-rate": 1.0,
+          "cross-eu-extraterritorial": 0.8,
+          "cross-transformer-lineage": 1.0,
+          "cross-retrieval-vs-pretraining": 0.9,
+          "cross-platform-obligations": 0.8,
+          "cross-payroll-and-return": 0.7,
+          "table-attention-bleu": 0.9,
+          "table-attention-training-cost": 1.0,
+          "table-irs-medicare": 1.0,
+          "table-boe-cpi": 0.9,
+          "table-form-1040-status": 0.7,
+          "identifier-catalog-number": 0.3,
+          "identifier-omb-number": 0.3,
+          "identifier-regulation-2016-679": 0.8,
+          "identifier-regulation-2022-2065": 0.8,
+          "identifier-oj-page": 0.4
+        },
+        "median_ms": 0.421,
+        "p95_ms": 1.18
+      },
+      "unanswerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_pca_384 on arm_pca_384 | Order By: (e <=> '[0.06793213,-0.26367188,-0.02268982,-0.040",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.6917,
+        "index_recall_at_50": 0.7433,
+        "worst_question_at_10": 0.4,
+        "worst_question_at_50": 0.54,
+        "worst_question_id": "unanswerable-messi-bare",
+        "questions_scored": 12,
+        "questions_perfect_at_10": 0,
+        "questions_below_0_9_at_10": 11,
+        "questions_below_0_5_at_10": 1,
+        "top1_preserved": 0.75,
+        "five_worst_at_10": [
+          [
+            "unanswerable-messi-bare",
+            0.4
+          ],
+          [
+            "unanswerable-gdpr-fine-amount",
+            0.5
+          ],
+          [
+            "unanswerable-reform-2027",
+            0.6
+          ],
+          [
+            "unanswerable-headcount",
+            0.6
+          ],
+          [
+            "unanswerable-recipe",
+            0.7
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "unanswerable-messi": 0.8,
+          "unanswerable-messi-year": 0.8,
+          "unanswerable-messi-bare": 0.4,
+          "unanswerable-recipe": 0.7,
+          "unanswerable-paternity-days": 0.9,
+          "unanswerable-gdpr-fine-amount": 0.5,
+          "unanswerable-reform-2027": 0.6,
+          "unanswerable-pricing": 0.7,
+          "unanswerable-future-rate": 0.8,
+          "unanswerable-quantum": 0.7,
+          "unanswerable-tungsten": 0.8,
+          "unanswerable-headcount": 0.6
+        },
+        "median_ms": 0.453,
+        "p95_ms": 1.244
+      },
+      "all_questions_recall_at_10": 0.7571,
+      "versus_identity": {
+        "mean_delta_at_10": -0.1834,
+        "questions_worse": 25,
+        "questions_worse_by_more_than_0_1": 17,
+        "questions_better": 0,
+        "largest_single_loss": -0.7,
+        "largest_single_loss_question": "identifier-catalog-number"
+      }
+    },
+    "pca_256": {
+      "dim": 256,
+      "method": "pca",
+      "index_bytes": 11288576,
+      "bytes_per_vector": 833.2,
+      "build_ms": 1351,
+      "answerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_pca_256 on arm_pca_256 | Order By: (e <=> '[-0.08105469,0.004550934,0.13452148,0.0921",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.7533,
+        "index_recall_at_50": 0.7647,
+        "worst_question_at_10": 0.3,
+        "worst_question_at_50": 0.24,
+        "worst_question_id": "identifier-omb-number",
+        "questions_scored": 30,
+        "questions_perfect_at_10": 3,
+        "questions_below_0_9_at_10": 20,
+        "questions_below_0_5_at_10": 2,
+        "top1_preserved": 0.7,
+        "five_worst_at_10": [
+          [
+            "identifier-omb-number",
+            0.3
+          ],
+          [
+            "identifier-catalog-number",
+            0.4
+          ],
+          [
+            "gdpr-personal-data-definition",
+            0.5
+          ],
+          [
+            "gdpr-data-portability",
+            0.5
+          ],
+          [
+            "identifier-oj-page",
+            0.5
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "gdpr-breach-deadline": 0.7,
+          "gdpr-right-to-erasure": 0.8,
+          "gdpr-personal-data-definition": 0.5,
+          "gdpr-data-portability": 0.5,
+          "gdpr-dpo": 0.8,
+          "aiact-social-scoring": 0.6,
+          "aiact-prohibited-practices": 0.9,
+          "dsa-trusted-flaggers": 0.6,
+          "attention-optimizer": 0.8,
+          "attention-multihead": 0.9,
+          "bert-pretraining": 1.0,
+          "rag-knowledge-source": 0.9,
+          "rag-retriever": 0.8,
+          "irs-social-security-rate": 0.9,
+          "boe-bank-rate": 0.9,
+          "cross-eu-extraterritorial": 0.8,
+          "cross-transformer-lineage": 1.0,
+          "cross-retrieval-vs-pretraining": 0.8,
+          "cross-platform-obligations": 0.8,
+          "cross-payroll-and-return": 0.7,
+          "table-attention-bleu": 0.9,
+          "table-attention-training-cost": 0.9,
+          "table-irs-medicare": 1.0,
+          "table-boe-cpi": 0.8,
+          "table-form-1040-status": 0.7,
+          "identifier-catalog-number": 0.4,
+          "identifier-omb-number": 0.3,
+          "identifier-regulation-2016-679": 0.7,
+          "identifier-regulation-2022-2065": 0.7,
+          "identifier-oj-page": 0.5
+        },
+        "median_ms": 0.39,
+        "p95_ms": 1.066
+      },
+      "unanswerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_pca_256 on arm_pca_256 | Order By: (e <=> '[0.06793213,-0.26367188,-0.02268982,-0.040",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.6,
+        "index_recall_at_50": 0.7183,
+        "worst_question_at_10": 0.2,
+        "worst_question_at_50": 0.46,
+        "worst_question_id": "unanswerable-messi-bare",
+        "questions_scored": 12,
+        "questions_perfect_at_10": 0,
+        "questions_below_0_9_at_10": 12,
+        "questions_below_0_5_at_10": 1,
+        "top1_preserved": 0.5,
+        "five_worst_at_10": [
+          [
+            "unanswerable-messi-bare",
+            0.2
+          ],
+          [
+            "unanswerable-recipe",
+            0.5
+          ],
+          [
+            "unanswerable-headcount",
+            0.5
+          ],
+          [
+            "unanswerable-messi",
+            0.6
+          ],
+          [
+            "unanswerable-gdpr-fine-amount",
+            0.6
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "unanswerable-messi": 0.6,
+          "unanswerable-messi-year": 0.7,
+          "unanswerable-messi-bare": 0.2,
+          "unanswerable-recipe": 0.5,
+          "unanswerable-paternity-days": 0.8,
+          "unanswerable-gdpr-fine-amount": 0.6,
+          "unanswerable-reform-2027": 0.6,
+          "unanswerable-pricing": 0.6,
+          "unanswerable-future-rate": 0.8,
+          "unanswerable-quantum": 0.6,
+          "unanswerable-tungsten": 0.7,
+          "unanswerable-headcount": 0.5
+        },
+        "median_ms": 0.43,
+        "p95_ms": 1.307
+      },
+      "all_questions_recall_at_10": 0.7095,
+      "versus_identity": {
+        "mean_delta_at_10": -0.2134,
+        "questions_worse": 27,
+        "questions_worse_by_more_than_0_1": 20,
+        "questions_better": 0,
+        "largest_single_loss": -0.6,
+        "largest_single_loss_question": "identifier-catalog-number"
+      }
+    },
+    "pca_192": {
+      "dim": 192,
+      "method": "pca",
+      "index_bytes": 9404416,
+      "bytes_per_vector": 694.1,
+      "build_ms": 1268,
+      "answerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_pca_192 on arm_pca_192 | Order By: (e <=> '[-0.08105469,0.004550934,0.13452148,0.0921",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.7067,
+        "index_recall_at_50": 0.7513,
+        "worst_question_at_10": 0.2,
+        "worst_question_at_50": 0.22,
+        "worst_question_id": "identifier-omb-number",
+        "questions_scored": 30,
+        "questions_perfect_at_10": 1,
+        "questions_below_0_9_at_10": 23,
+        "questions_below_0_5_at_10": 3,
+        "top1_preserved": 0.5667,
+        "five_worst_at_10": [
+          [
+            "identifier-omb-number",
+            0.2
+          ],
+          [
+            "identifier-oj-page",
+            0.2
+          ],
+          [
+            "identifier-catalog-number",
+            0.3
+          ],
+          [
+            "gdpr-personal-data-definition",
+            0.5
+          ],
+          [
+            "dsa-trusted-flaggers",
+            0.5
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "gdpr-breach-deadline": 0.7,
+          "gdpr-right-to-erasure": 0.8,
+          "gdpr-personal-data-definition": 0.5,
+          "gdpr-data-portability": 0.6,
+          "gdpr-dpo": 0.8,
+          "aiact-social-scoring": 0.6,
+          "aiact-prohibited-practices": 0.8,
+          "dsa-trusted-flaggers": 0.5,
+          "attention-optimizer": 0.7,
+          "attention-multihead": 0.9,
+          "bert-pretraining": 1.0,
+          "rag-knowledge-source": 0.9,
+          "rag-retriever": 0.8,
+          "irs-social-security-rate": 0.7,
+          "boe-bank-rate": 0.9,
+          "cross-eu-extraterritorial": 0.7,
+          "cross-transformer-lineage": 0.9,
+          "cross-retrieval-vs-pretraining": 0.8,
+          "cross-platform-obligations": 0.8,
+          "cross-payroll-and-return": 0.7,
+          "table-attention-bleu": 0.8,
+          "table-attention-training-cost": 0.9,
+          "table-irs-medicare": 0.9,
+          "table-boe-cpi": 0.8,
+          "table-form-1040-status": 0.6,
+          "identifier-catalog-number": 0.3,
+          "identifier-omb-number": 0.2,
+          "identifier-regulation-2016-679": 0.6,
+          "identifier-regulation-2022-2065": 0.8,
+          "identifier-oj-page": 0.2
+        },
+        "median_ms": 0.408,
+        "p95_ms": 0.544
+      },
+      "unanswerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_pca_192 on arm_pca_192 | Order By: (e <=> '[0.06793213,-0.26367188,-0.02268982,-0.040",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.55,
+        "index_recall_at_50": 0.6667,
+        "worst_question_at_10": 0.2,
+        "worst_question_at_50": 0.42,
+        "worst_question_id": "unanswerable-messi-bare",
+        "questions_scored": 12,
+        "questions_perfect_at_10": 0,
+        "questions_below_0_9_at_10": 12,
+        "questions_below_0_5_at_10": 2,
+        "top1_preserved": 0.4167,
+        "five_worst_at_10": [
+          [
+            "unanswerable-messi-bare",
+            0.2
+          ],
+          [
+            "unanswerable-recipe",
+            0.3
+          ],
+          [
+            "unanswerable-messi",
+            0.5
+          ],
+          [
+            "unanswerable-reform-2027",
+            0.5
+          ],
+          [
+            "unanswerable-headcount",
+            0.5
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "unanswerable-messi": 0.5,
+          "unanswerable-messi-year": 0.6,
+          "unanswerable-messi-bare": 0.2,
+          "unanswerable-recipe": 0.3,
+          "unanswerable-paternity-days": 0.7,
+          "unanswerable-gdpr-fine-amount": 0.6,
+          "unanswerable-reform-2027": 0.5,
+          "unanswerable-pricing": 0.6,
+          "unanswerable-future-rate": 0.8,
+          "unanswerable-quantum": 0.6,
+          "unanswerable-tungsten": 0.7,
+          "unanswerable-headcount": 0.5
+        },
+        "median_ms": 0.441,
+        "p95_ms": 0.625
+      },
+      "all_questions_recall_at_10": 0.6619,
+      "versus_identity": {
+        "mean_delta_at_10": -0.26,
+        "questions_worse": 29,
+        "questions_worse_by_more_than_0_1": 23,
+        "questions_better": 0,
+        "largest_single_loss": -0.7,
+        "largest_single_loss_question": "identifier-catalog-number"
+      }
+    },
+    "pca_128": {
+      "dim": 128,
+      "method": "pca",
+      "index_bytes": 7733248,
+      "bytes_per_vector": 570.8,
+      "build_ms": 1178,
+      "answerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_pca_128 on arm_pca_128 | Order By: (e <=> '[-0.08105469,0.004550934,0.13452148,0.0921",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.63,
+        "index_recall_at_50": 0.6987,
+        "worst_question_at_10": 0.2,
+        "worst_question_at_50": 0.16,
+        "worst_question_id": "identifier-omb-number",
+        "questions_scored": 30,
+        "questions_perfect_at_10": 0,
+        "questions_below_0_9_at_10": 27,
+        "questions_below_0_5_at_10": 5,
+        "top1_preserved": 0.3667,
+        "five_worst_at_10": [
+          [
+            "identifier-omb-number",
+            0.2
+          ],
+          [
+            "identifier-oj-page",
+            0.2
+          ],
+          [
+            "identifier-catalog-number",
+            0.3
+          ],
+          [
+            "cross-payroll-and-return",
+            0.4
+          ],
+          [
+            "table-form-1040-status",
+            0.4
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "gdpr-breach-deadline": 0.7,
+          "gdpr-right-to-erasure": 0.7,
+          "gdpr-personal-data-definition": 0.5,
+          "gdpr-data-portability": 0.5,
+          "gdpr-dpo": 0.8,
+          "aiact-social-scoring": 0.6,
+          "aiact-prohibited-practices": 0.8,
+          "dsa-trusted-flaggers": 0.5,
+          "attention-optimizer": 0.7,
+          "attention-multihead": 0.9,
+          "bert-pretraining": 0.8,
+          "rag-knowledge-source": 0.8,
+          "rag-retriever": 0.7,
+          "irs-social-security-rate": 0.7,
+          "boe-bank-rate": 0.8,
+          "cross-eu-extraterritorial": 0.6,
+          "cross-transformer-lineage": 0.9,
+          "cross-retrieval-vs-pretraining": 0.5,
+          "cross-platform-obligations": 0.7,
+          "cross-payroll-and-return": 0.4,
+          "table-attention-bleu": 0.7,
+          "table-attention-training-cost": 0.8,
+          "table-irs-medicare": 0.9,
+          "table-boe-cpi": 0.8,
+          "table-form-1040-status": 0.4,
+          "identifier-catalog-number": 0.3,
+          "identifier-omb-number": 0.2,
+          "identifier-regulation-2016-679": 0.5,
+          "identifier-regulation-2022-2065": 0.5,
+          "identifier-oj-page": 0.2
+        },
+        "median_ms": 0.416,
+        "p95_ms": 0.755
+      },
+      "unanswerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_pca_128 on arm_pca_128 | Order By: (e <=> '[0.06793213,-0.26367188,-0.02268982,-0.040",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.4417,
+        "index_recall_at_50": 0.5883,
+        "worst_question_at_10": 0.1,
+        "worst_question_at_50": 0.3,
+        "worst_question_id": "unanswerable-recipe",
+        "questions_scored": 12,
+        "questions_perfect_at_10": 0,
+        "questions_below_0_9_at_10": 12,
+        "questions_below_0_5_at_10": 8,
+        "top1_preserved": 0.3333,
+        "five_worst_at_10": [
+          [
+            "unanswerable-recipe",
+            0.1
+          ],
+          [
+            "unanswerable-messi-bare",
+            0.3
+          ],
+          [
+            "unanswerable-reform-2027",
+            0.3
+          ],
+          [
+            "unanswerable-messi",
+            0.4
+          ],
+          [
+            "unanswerable-messi-year",
+            0.4
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "unanswerable-messi": 0.4,
+          "unanswerable-messi-year": 0.4,
+          "unanswerable-messi-bare": 0.3,
+          "unanswerable-recipe": 0.1,
+          "unanswerable-paternity-days": 0.7,
+          "unanswerable-gdpr-fine-amount": 0.4,
+          "unanswerable-reform-2027": 0.3,
+          "unanswerable-pricing": 0.6,
+          "unanswerable-future-rate": 0.8,
+          "unanswerable-quantum": 0.4,
+          "unanswerable-tungsten": 0.5,
+          "unanswerable-headcount": 0.4
+        },
+        "median_ms": 0.429,
+        "p95_ms": 0.486
+      },
+      "all_questions_recall_at_10": 0.5762,
+      "versus_identity": {
+        "mean_delta_at_10": -0.3367,
+        "questions_worse": 30,
+        "questions_worse_by_more_than_0_1": 27,
+        "questions_better": 0,
+        "largest_single_loss": -0.7,
+        "largest_single_loss_question": "identifier-catalog-number"
+      }
+    },
+    "random_512": {
+      "dim": 512,
+      "method": "random",
+      "index_bytes": 18505728,
+      "bytes_per_vector": 1365.8,
+      "build_ms": 720,
+      "answerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_random_512 on arm_random_512 | Order By: (e <=> '[-0.027175903,0.008880615,0.0013084412,-0.",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.73,
+        "index_recall_at_50": 0.7687,
+        "worst_question_at_10": 0.3,
+        "worst_question_at_50": 0.48,
+        "worst_question_id": "identifier-catalog-number",
+        "questions_scored": 30,
+        "questions_perfect_at_10": 2,
+        "questions_below_0_9_at_10": 24,
+        "questions_below_0_5_at_10": 3,
+        "top1_preserved": 0.6667,
+        "five_worst_at_10": [
+          [
+            "identifier-catalog-number",
+            0.3
+          ],
+          [
+            "identifier-oj-page",
+            0.3
+          ],
+          [
+            "identifier-omb-number",
+            0.4
+          ],
+          [
+            "dsa-trusted-flaggers",
+            0.5
+          ],
+          [
+            "gdpr-data-portability",
+            0.6
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "gdpr-breach-deadline": 0.8,
+          "gdpr-right-to-erasure": 0.8,
+          "gdpr-personal-data-definition": 0.8,
+          "gdpr-data-portability": 0.6,
+          "gdpr-dpo": 0.6,
+          "aiact-social-scoring": 0.7,
+          "aiact-prohibited-practices": 0.8,
+          "dsa-trusted-flaggers": 0.5,
+          "attention-optimizer": 0.8,
+          "attention-multihead": 0.9,
+          "bert-pretraining": 1.0,
+          "rag-knowledge-source": 0.8,
+          "rag-retriever": 0.6,
+          "irs-social-security-rate": 0.8,
+          "boe-bank-rate": 0.9,
+          "cross-eu-extraterritorial": 0.6,
+          "cross-transformer-lineage": 0.9,
+          "cross-retrieval-vs-pretraining": 0.8,
+          "cross-platform-obligations": 1.0,
+          "cross-payroll-and-return": 0.6,
+          "table-attention-bleu": 0.9,
+          "table-attention-training-cost": 0.8,
+          "table-irs-medicare": 0.8,
+          "table-boe-cpi": 0.8,
+          "table-form-1040-status": 0.7,
+          "identifier-catalog-number": 0.3,
+          "identifier-omb-number": 0.4,
+          "identifier-regulation-2016-679": 0.8,
+          "identifier-regulation-2022-2065": 0.8,
+          "identifier-oj-page": 0.3
+        },
+        "median_ms": 0.494,
+        "p95_ms": 1.443
+      },
+      "unanswerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_random_512 on arm_random_512 | Order By: (e <=> '[0.03643799,0.012580872,-0.004989624,-0.00",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.6667,
+        "index_recall_at_50": 0.6517,
+        "worst_question_at_10": 0.4,
+        "worst_question_at_50": 0.36,
+        "worst_question_id": "unanswerable-messi",
+        "questions_scored": 12,
+        "questions_perfect_at_10": 0,
+        "questions_below_0_9_at_10": 12,
+        "questions_below_0_5_at_10": 2,
+        "top1_preserved": 0.6667,
+        "five_worst_at_10": [
+          [
+            "unanswerable-messi",
+            0.4
+          ],
+          [
+            "unanswerable-messi-bare",
+            0.4
+          ],
+          [
+            "unanswerable-messi-year",
+            0.6
+          ],
+          [
+            "unanswerable-pricing",
+            0.6
+          ],
+          [
+            "unanswerable-recipe",
+            0.7
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "unanswerable-messi": 0.4,
+          "unanswerable-messi-year": 0.6,
+          "unanswerable-messi-bare": 0.4,
+          "unanswerable-recipe": 0.7,
+          "unanswerable-paternity-days": 0.7,
+          "unanswerable-gdpr-fine-amount": 0.8,
+          "unanswerable-reform-2027": 0.7,
+          "unanswerable-pricing": 0.6,
+          "unanswerable-future-rate": 0.8,
+          "unanswerable-quantum": 0.8,
+          "unanswerable-tungsten": 0.8,
+          "unanswerable-headcount": 0.7
+        },
+        "median_ms": 0.523,
+        "p95_ms": 0.636
+      },
+      "all_questions_recall_at_10": 0.7119,
+      "versus_identity": {
+        "mean_delta_at_10": -0.2367,
+        "questions_worse": 28,
+        "questions_worse_by_more_than_0_1": 23,
+        "questions_better": 0,
+        "largest_single_loss": -0.7,
+        "largest_single_loss_question": "identifier-catalog-number"
+      }
+    },
+    "random_384": {
+      "dim": 384,
+      "method": "random",
+      "index_bytes": 15859712,
+      "bytes_per_vector": 1170.5,
+      "build_ms": 634,
+      "answerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_random_384 on arm_random_384 | Order By: (e <=> '[-0.027175903,0.008880615,0.0013084412,-0.",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.7033,
+        "index_recall_at_50": 0.7133,
+        "worst_question_at_10": 0.3,
+        "worst_question_at_50": 0.44,
+        "worst_question_id": "identifier-omb-number",
+        "questions_scored": 30,
+        "questions_perfect_at_10": 0,
+        "questions_below_0_9_at_10": 24,
+        "questions_below_0_5_at_10": 3,
+        "top1_preserved": 0.5667,
+        "five_worst_at_10": [
+          [
+            "identifier-omb-number",
+            0.3
+          ],
+          [
+            "identifier-catalog-number",
+            0.4
+          ],
+          [
+            "identifier-oj-page",
+            0.4
+          ],
+          [
+            "gdpr-data-portability",
+            0.5
+          ],
+          [
+            "rag-retriever",
+            0.5
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "gdpr-breach-deadline": 0.8,
+          "gdpr-right-to-erasure": 0.9,
+          "gdpr-personal-data-definition": 0.6,
+          "gdpr-data-portability": 0.5,
+          "gdpr-dpo": 0.7,
+          "aiact-social-scoring": 0.6,
+          "aiact-prohibited-practices": 0.8,
+          "dsa-trusted-flaggers": 0.6,
+          "attention-optimizer": 0.8,
+          "attention-multihead": 0.9,
+          "bert-pretraining": 0.9,
+          "rag-knowledge-source": 0.8,
+          "rag-retriever": 0.5,
+          "irs-social-security-rate": 0.9,
+          "boe-bank-rate": 0.8,
+          "cross-eu-extraterritorial": 0.6,
+          "cross-transformer-lineage": 0.9,
+          "cross-retrieval-vs-pretraining": 0.7,
+          "cross-platform-obligations": 0.8,
+          "cross-payroll-and-return": 0.5,
+          "table-attention-bleu": 0.8,
+          "table-attention-training-cost": 0.8,
+          "table-irs-medicare": 0.8,
+          "table-boe-cpi": 0.9,
+          "table-form-1040-status": 0.6,
+          "identifier-catalog-number": 0.4,
+          "identifier-omb-number": 0.3,
+          "identifier-regulation-2016-679": 0.7,
+          "identifier-regulation-2022-2065": 0.8,
+          "identifier-oj-page": 0.4
+        },
+        "median_ms": 0.461,
+        "p95_ms": 1.252
+      },
+      "unanswerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_random_384 on arm_random_384 | Order By: (e <=> '[0.03643799,0.012580872,-0.004989624,-0.00",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.625,
+        "index_recall_at_50": 0.58,
+        "worst_question_at_10": 0.4,
+        "worst_question_at_50": 0.32,
+        "worst_question_id": "unanswerable-messi",
+        "questions_scored": 12,
+        "questions_perfect_at_10": 0,
+        "questions_below_0_9_at_10": 12,
+        "questions_below_0_5_at_10": 1,
+        "top1_preserved": 0.75,
+        "five_worst_at_10": [
+          [
+            "unanswerable-messi",
+            0.4
+          ],
+          [
+            "unanswerable-messi-year",
+            0.5
+          ],
+          [
+            "unanswerable-messi-bare",
+            0.5
+          ],
+          [
+            "unanswerable-recipe",
+            0.5
+          ],
+          [
+            "unanswerable-reform-2027",
+            0.6
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "unanswerable-messi": 0.4,
+          "unanswerable-messi-year": 0.5,
+          "unanswerable-messi-bare": 0.5,
+          "unanswerable-recipe": 0.5,
+          "unanswerable-paternity-days": 0.7,
+          "unanswerable-gdpr-fine-amount": 0.7,
+          "unanswerable-reform-2027": 0.6,
+          "unanswerable-pricing": 0.6,
+          "unanswerable-future-rate": 0.7,
+          "unanswerable-quantum": 0.7,
+          "unanswerable-tungsten": 0.8,
+          "unanswerable-headcount": 0.8
+        },
+        "median_ms": 0.509,
+        "p95_ms": 1.428
+      },
+      "all_questions_recall_at_10": 0.681,
+      "versus_identity": {
+        "mean_delta_at_10": -0.2634,
+        "questions_worse": 30,
+        "questions_worse_by_more_than_0_1": 24,
+        "questions_better": 0,
+        "largest_single_loss": -0.6,
+        "largest_single_loss_question": "identifier-catalog-number"
+      }
+    },
+    "random_256": {
+      "dim": 256,
+      "method": "random",
+      "index_bytes": 11255808,
+      "bytes_per_vector": 830.7,
+      "build_ms": 1371,
+      "answerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_random_256 on arm_random_256 | Order By: (e <=> '[-0.027175903,0.008880615,0.0013084412,-0.",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.63,
+        "index_recall_at_50": 0.6067,
+        "worst_question_at_10": 0.1,
+        "worst_question_at_50": 0.1,
+        "worst_question_id": "dsa-trusted-flaggers",
+        "questions_scored": 30,
+        "questions_perfect_at_10": 0,
+        "questions_below_0_9_at_10": 24,
+        "questions_below_0_5_at_10": 5,
+        "top1_preserved": 0.4333,
+        "five_worst_at_10": [
+          [
+            "dsa-trusted-flaggers",
+            0.1
+          ],
+          [
+            "identifier-omb-number",
+            0.1
+          ],
+          [
+            "identifier-catalog-number",
+            0.3
+          ],
+          [
+            "cross-eu-extraterritorial",
+            0.4
+          ],
+          [
+            "identifier-oj-page",
+            0.4
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "gdpr-breach-deadline": 0.7,
+          "gdpr-right-to-erasure": 0.6,
+          "gdpr-personal-data-definition": 0.5,
+          "gdpr-data-portability": 0.5,
+          "gdpr-dpo": 0.7,
+          "aiact-social-scoring": 0.5,
+          "aiact-prohibited-practices": 0.9,
+          "dsa-trusted-flaggers": 0.1,
+          "attention-optimizer": 0.7,
+          "attention-multihead": 0.9,
+          "bert-pretraining": 0.7,
+          "rag-knowledge-source": 0.7,
+          "rag-retriever": 0.7,
+          "irs-social-security-rate": 0.8,
+          "boe-bank-rate": 0.7,
+          "cross-eu-extraterritorial": 0.4,
+          "cross-transformer-lineage": 0.9,
+          "cross-retrieval-vs-pretraining": 0.6,
+          "cross-platform-obligations": 0.6,
+          "cross-payroll-and-return": 0.5,
+          "table-attention-bleu": 0.9,
+          "table-attention-training-cost": 0.8,
+          "table-irs-medicare": 0.9,
+          "table-boe-cpi": 0.9,
+          "table-form-1040-status": 0.6,
+          "identifier-catalog-number": 0.3,
+          "identifier-omb-number": 0.1,
+          "identifier-regulation-2016-679": 0.6,
+          "identifier-regulation-2022-2065": 0.7,
+          "identifier-oj-page": 0.4
+        },
+        "median_ms": 0.412,
+        "p95_ms": 1.273
+      },
+      "unanswerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_random_256 on arm_random_256 | Order By: (e <=> '[0.03643799,0.012580872,-0.004989624,-0.00",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.3417,
+        "index_recall_at_50": 0.3817,
+        "worst_question_at_10": 0.1,
+        "worst_question_at_50": 0.16,
+        "worst_question_id": "unanswerable-messi",
+        "questions_scored": 12,
+        "questions_perfect_at_10": 0,
+        "questions_below_0_9_at_10": 12,
+        "questions_below_0_5_at_10": 8,
+        "top1_preserved": 0.5,
+        "five_worst_at_10": [
+          [
+            "unanswerable-messi",
+            0.1
+          ],
+          [
+            "unanswerable-messi-year",
+            0.1
+          ],
+          [
+            "unanswerable-messi-bare",
+            0.1
+          ],
+          [
+            "unanswerable-recipe",
+            0.1
+          ],
+          [
+            "unanswerable-paternity-days",
+            0.3
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "unanswerable-messi": 0.1,
+          "unanswerable-messi-year": 0.1,
+          "unanswerable-messi-bare": 0.1,
+          "unanswerable-recipe": 0.1,
+          "unanswerable-paternity-days": 0.3,
+          "unanswerable-gdpr-fine-amount": 0.6,
+          "unanswerable-reform-2027": 0.3,
+          "unanswerable-pricing": 0.4,
+          "unanswerable-future-rate": 0.7,
+          "unanswerable-quantum": 0.3,
+          "unanswerable-tungsten": 0.6,
+          "unanswerable-headcount": 0.5
+        },
+        "median_ms": 0.45,
+        "p95_ms": 0.652
+      },
+      "all_questions_recall_at_10": 0.5476,
+      "versus_identity": {
+        "mean_delta_at_10": -0.3367,
+        "questions_worse": 30,
+        "questions_worse_by_more_than_0_1": 24,
+        "questions_better": 0,
+        "largest_single_loss": -0.7,
+        "largest_single_loss_question": "dsa-trusted-flaggers"
+      }
+    },
+    "random_192": {
+      "dim": 192,
+      "method": "random",
+      "index_bytes": 9412608,
+      "bytes_per_vector": 694.7,
+      "build_ms": 1310,
+      "answerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_random_192 on arm_random_192 | Order By: (e <=> '[-0.027175903,0.008880615,0.0013084412,-0.",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.5667,
+        "index_recall_at_50": 0.5333,
+        "worst_question_at_10": 0.0,
+        "worst_question_at_50": 0.0,
+        "worst_question_id": "dsa-trusted-flaggers",
+        "questions_scored": 30,
+        "questions_perfect_at_10": 0,
+        "questions_below_0_9_at_10": 29,
+        "questions_below_0_5_at_10": 7,
+        "top1_preserved": 0.5,
+        "five_worst_at_10": [
+          [
+            "dsa-trusted-flaggers",
+            0.0
+          ],
+          [
+            "identifier-omb-number",
+            0.1
+          ],
+          [
+            "cross-payroll-and-return",
+            0.3
+          ],
+          [
+            "aiact-social-scoring",
+            0.4
+          ],
+          [
+            "cross-eu-extraterritorial",
+            0.4
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "gdpr-breach-deadline": 0.7,
+          "gdpr-right-to-erasure": 0.5,
+          "gdpr-personal-data-definition": 0.5,
+          "gdpr-data-portability": 0.5,
+          "gdpr-dpo": 0.5,
+          "aiact-social-scoring": 0.4,
+          "aiact-prohibited-practices": 0.8,
+          "dsa-trusted-flaggers": 0.0,
+          "attention-optimizer": 0.8,
+          "attention-multihead": 0.9,
+          "bert-pretraining": 0.7,
+          "rag-knowledge-source": 0.8,
+          "rag-retriever": 0.6,
+          "irs-social-security-rate": 0.8,
+          "boe-bank-rate": 0.8,
+          "cross-eu-extraterritorial": 0.4,
+          "cross-transformer-lineage": 0.6,
+          "cross-retrieval-vs-pretraining": 0.5,
+          "cross-platform-obligations": 0.5,
+          "cross-payroll-and-return": 0.3,
+          "table-attention-bleu": 0.7,
+          "table-attention-training-cost": 0.7,
+          "table-irs-medicare": 0.8,
+          "table-boe-cpi": 0.8,
+          "table-form-1040-status": 0.4,
+          "identifier-catalog-number": 0.5,
+          "identifier-omb-number": 0.1,
+          "identifier-regulation-2016-679": 0.5,
+          "identifier-regulation-2022-2065": 0.5,
+          "identifier-oj-page": 0.4
+        },
+        "median_ms": 0.441,
+        "p95_ms": 0.502
+      },
+      "unanswerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_random_192 on arm_random_192 | Order By: (e <=> '[0.03643799,0.012580872,-0.004989624,-0.00",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.3583,
+        "index_recall_at_50": 0.3517,
+        "worst_question_at_10": 0.1,
+        "worst_question_at_50": 0.16,
+        "worst_question_id": "unanswerable-quantum",
+        "questions_scored": 12,
+        "questions_perfect_at_10": 0,
+        "questions_below_0_9_at_10": 12,
+        "questions_below_0_5_at_10": 9,
+        "top1_preserved": 0.4167,
+        "five_worst_at_10": [
+          [
+            "unanswerable-quantum",
+            0.1
+          ],
+          [
+            "unanswerable-pricing",
+            0.2
+          ],
+          [
+            "unanswerable-messi",
+            0.3
+          ],
+          [
+            "unanswerable-messi-year",
+            0.3
+          ],
+          [
+            "unanswerable-messi-bare",
+            0.3
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "unanswerable-messi": 0.3,
+          "unanswerable-messi-year": 0.3,
+          "unanswerable-messi-bare": 0.3,
+          "unanswerable-recipe": 0.3,
+          "unanswerable-paternity-days": 0.4,
+          "unanswerable-gdpr-fine-amount": 0.5,
+          "unanswerable-reform-2027": 0.4,
+          "unanswerable-pricing": 0.2,
+          "unanswerable-future-rate": 0.6,
+          "unanswerable-quantum": 0.1,
+          "unanswerable-tungsten": 0.6,
+          "unanswerable-headcount": 0.3
+        },
+        "median_ms": 0.456,
+        "p95_ms": 0.561
+      },
+      "all_questions_recall_at_10": 0.5071,
+      "versus_identity": {
+        "mean_delta_at_10": -0.4,
+        "questions_worse": 30,
+        "questions_worse_by_more_than_0_1": 29,
+        "questions_better": 0,
+        "largest_single_loss": -0.8,
+        "largest_single_loss_question": "dsa-trusted-flaggers"
+      }
+    },
+    "random_128": {
+      "dim": 128,
+      "method": "random",
+      "index_bytes": 7725056,
+      "bytes_per_vector": 570.2,
+      "build_ms": 1248,
+      "answerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_random_128 on arm_random_128 | Order By: (e <=> '[-0.027175903,0.008880615,0.0013084412,-0.",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.44,
+        "index_recall_at_50": 0.4373,
+        "worst_question_at_10": 0.1,
+        "worst_question_at_50": 0.1,
+        "worst_question_id": "dsa-trusted-flaggers",
+        "questions_scored": 30,
+        "questions_perfect_at_10": 0,
+        "questions_below_0_9_at_10": 30,
+        "questions_below_0_5_at_10": 16,
+        "top1_preserved": 0.3,
+        "five_worst_at_10": [
+          [
+            "dsa-trusted-flaggers",
+            0.1
+          ],
+          [
+            "cross-retrieval-vs-pretraining",
+            0.1
+          ],
+          [
+            "identifier-catalog-number",
+            0.1
+          ],
+          [
+            "identifier-omb-number",
+            0.1
+          ],
+          [
+            "gdpr-personal-data-definition",
+            0.2
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "gdpr-breach-deadline": 0.4,
+          "gdpr-right-to-erasure": 0.3,
+          "gdpr-personal-data-definition": 0.2,
+          "gdpr-data-portability": 0.6,
+          "gdpr-dpo": 0.4,
+          "aiact-social-scoring": 0.3,
+          "aiact-prohibited-practices": 0.5,
+          "dsa-trusted-flaggers": 0.1,
+          "attention-optimizer": 0.5,
+          "attention-multihead": 0.7,
+          "bert-pretraining": 0.7,
+          "rag-knowledge-source": 0.6,
+          "rag-retriever": 0.5,
+          "irs-social-security-rate": 0.8,
+          "boe-bank-rate": 0.7,
+          "cross-eu-extraterritorial": 0.3,
+          "cross-transformer-lineage": 0.6,
+          "cross-retrieval-vs-pretraining": 0.1,
+          "cross-platform-obligations": 0.4,
+          "cross-payroll-and-return": 0.2,
+          "table-attention-bleu": 0.8,
+          "table-attention-training-cost": 0.5,
+          "table-irs-medicare": 0.7,
+          "table-boe-cpi": 0.8,
+          "table-form-1040-status": 0.4,
+          "identifier-catalog-number": 0.1,
+          "identifier-omb-number": 0.1,
+          "identifier-regulation-2016-679": 0.4,
+          "identifier-regulation-2022-2065": 0.3,
+          "identifier-oj-page": 0.2
+        },
+        "median_ms": 0.461,
+        "p95_ms": 0.547
+      },
+      "unanswerable": {
+        "plan": "Limit | ->  Index Scan using ix_arm_random_128 on arm_random_128 | Order By: (e <=> '[0.03643799,0.012580872,-0.004989624,-0.00",
+        "plan_uses_index": true,
+        "index_recall_at_10": 0.1833,
+        "index_recall_at_50": 0.2133,
+        "worst_question_at_10": 0.0,
+        "worst_question_at_50": 0.0,
+        "worst_question_id": "unanswerable-messi",
+        "questions_scored": 12,
+        "questions_perfect_at_10": 0,
+        "questions_below_0_9_at_10": 12,
+        "questions_below_0_5_at_10": 10,
+        "top1_preserved": 0.0833,
+        "five_worst_at_10": [
+          [
+            "unanswerable-messi",
+            0.0
+          ],
+          [
+            "unanswerable-messi-year",
+            0.0
+          ],
+          [
+            "unanswerable-messi-bare",
+            0.0
+          ],
+          [
+            "unanswerable-paternity-days",
+            0.0
+          ],
+          [
+            "unanswerable-recipe",
+            0.1
+          ]
+        ],
+        "recall_at_10_by_question": {
+          "unanswerable-messi": 0.0,
+          "unanswerable-messi-year": 0.0,
+          "unanswerable-messi-bare": 0.0,
+          "unanswerable-recipe": 0.1,
+          "unanswerable-paternity-days": 0.0,
+          "unanswerable-gdpr-fine-amount": 0.5,
+          "unanswerable-reform-2027": 0.2,
+          "unanswerable-pricing": 0.1,
+          "unanswerable-future-rate": 0.4,
+          "unanswerable-quantum": 0.1,
+          "unanswerable-tungsten": 0.6,
+          "unanswerable-headcount": 0.2
+        },
+        "median_ms": 0.475,
+        "p95_ms": 0.52
+      },
+      "all_questions_recall_at_10": 0.3667,
+      "versus_identity": {
+        "mean_delta_at_10": -0.5267,
+        "questions_worse": 30,
+        "questions_worse_by_more_than_0_1": 30,
+        "questions_better": 0,
+        "largest_single_loss": -0.9,
+        "largest_single_loss_question": "cross-retrieval-vs-pretraining"
+      }
+    }
+  },
+  "bytes_per_vector": {
+    "identity_1024": 2729.9,
+    "svd_1024": 2729.9,
+    "pca_1024": 2729.9,
+    "svd_512": 1365.8,
+    "svd_384": 1170.5,
+    "svd_256": 833.2,
+    "svd_192": 693.5,
+    "svd_128": 569.6,
+    "pca_512": 1365.8,
+    "pca_384": 1170.5,
+    "pca_256": 833.2,
+    "pca_192": 694.1,
+    "pca_128": 570.8,
+    "random_512": 1365.8,
+    "random_384": 1170.5,
+    "random_256": 830.7,
+    "random_192": 694.7,
+    "random_128": 570.2
+  },
+  "smaller_than_identity_1024": {
+    "identity_1024": 1.0,
+    "svd_1024": 1.0,
+    "pca_1024": 1.0,
+    "svd_512": 2.0,
+    "svd_384": 2.33,
+    "svd_256": 3.28,
+    "svd_192": 3.94,
+    "svd_128": 4.79,
+    "pca_512": 2.0,
+    "pca_384": 2.33,
+    "pca_256": 3.28,
+    "pca_192": 3.93,
+    "pca_128": 4.78,
+    "random_512": 2.0,
+    "random_384": 2.33,
+    "random_256": 3.29,
+    "random_192": 3.93,
+    "random_128": 4.79
+  },
+  "resident_index_gib": {
+    "note": "GiB of HNSW index at each document count, from the measured bytes per vector. The passages-per-document assumption is stated in each block because it is what a reader would otherwise quote a footprint without.",
+    "this_corpus": {
+      "passages_per_document": 322.6,
+      "by_arm": {
+        "identity_1024": {
+          "100000": "82.0",
+          "1000000": "820.2",
+          "10000000": "8201.8"
+        },
+        "svd_1024": {
+          "100000": "82.0",
+          "1000000": "820.2",
+          "10000000": "8201.8"
+        },
+        "pca_1024": {
+          "100000": "82.0",
+          "1000000": "820.2",
+          "10000000": "8201.8"
+        },
+        "svd_512": {
+          "100000": "41.0",
+          "1000000": "410.3",
+          "10000000": "4103.5"
+        },
+        "svd_384": {
+          "100000": "35.2",
+          "1000000": "351.7",
+          "10000000": "3516.7"
+        },
+        "svd_256": {
+          "100000": "25.0",
+          "1000000": "250.3",
+          "10000000": "2503.3"
+        },
+        "svd_192": {
+          "100000": "20.8",
+          "1000000": "208.4",
+          "10000000": "2083.6"
+        },
+        "svd_128": {
+          "100000": "17.1",
+          "1000000": "171.1",
+          "10000000": "1711.3"
+        },
+        "pca_512": {
+          "100000": "41.0",
+          "1000000": "410.3",
+          "10000000": "4103.5"
+        },
+        "pca_384": {
+          "100000": "35.2",
+          "1000000": "351.7",
+          "10000000": "3516.7"
+        },
+        "pca_256": {
+          "100000": "25.0",
+          "1000000": "250.3",
+          "10000000": "2503.3"
+        },
+        "pca_192": {
+          "100000": "20.9",
+          "1000000": "208.5",
+          "10000000": "2085.4"
+        },
+        "pca_128": {
+          "100000": "17.1",
+          "1000000": "171.5",
+          "10000000": "1714.9"
+        },
+        "random_512": {
+          "100000": "41.0",
+          "1000000": "410.3",
+          "10000000": "4103.5"
+        },
+        "random_384": {
+          "100000": "35.2",
+          "1000000": "351.7",
+          "10000000": "3516.7"
+        },
+        "random_256": {
+          "100000": "25.0",
+          "1000000": "249.6",
+          "10000000": "2495.8"
+        },
+        "random_192": {
+          "100000": "20.9",
+          "1000000": "208.7",
+          "10000000": "2087.2"
+        },
+        "random_128": {
+          "100000": "17.1",
+          "1000000": "171.3",
+          "10000000": "1713.1"
+        }
+      }
+    },
+    "corporate_mix": {
+      "passages_per_document": 80.0,
+      "by_arm": {
+        "identity_1024": {
+          "100000": "20.3",
+          "1000000": "203.4",
+          "10000000": "2033.9"
+        },
+        "svd_1024": {
+          "100000": "20.3",
+          "1000000": "203.4",
+          "10000000": "2033.9"
+        },
+        "pca_1024": {
+          "100000": "20.3",
+          "1000000": "203.4",
+          "10000000": "2033.9"
+        },
+        "svd_512": {
+          "100000": "10.2",
+          "1000000": "101.8",
+          "10000000": "1017.6"
+        },
+        "svd_384": {
+          "100000": "8.7",
+          "1000000": "87.2",
+          "10000000": "872.1"
+        },
+        "svd_256": {
+          "100000": "6.2",
+          "1000000": "62.1",
+          "10000000": "620.8"
+        },
+        "svd_192": {
+          "100000": "5.2",
+          "1000000": "51.7",
+          "10000000": "516.7"
+        },
+        "svd_128": {
+          "100000": "4.2",
+          "1000000": "42.4",
+          "10000000": "424.4"
+        },
+        "pca_512": {
+          "100000": "10.2",
+          "1000000": "101.8",
+          "10000000": "1017.6"
+        },
+        "pca_384": {
+          "100000": "8.7",
+          "1000000": "87.2",
+          "10000000": "872.1"
+        },
+        "pca_256": {
+          "100000": "6.2",
+          "1000000": "62.1",
+          "10000000": "620.8"
+        },
+        "pca_192": {
+          "100000": "5.2",
+          "1000000": "51.7",
+          "10000000": "517.1"
+        },
+        "pca_128": {
+          "100000": "4.3",
+          "1000000": "42.5",
+          "10000000": "425.3"
+        },
+        "random_512": {
+          "100000": "10.2",
+          "1000000": "101.8",
+          "10000000": "1017.6"
+        },
+        "random_384": {
+          "100000": "8.7",
+          "1000000": "87.2",
+          "10000000": "872.1"
+        },
+        "random_256": {
+          "100000": "6.2",
+          "1000000": "61.9",
+          "10000000": "618.9"
+        },
+        "random_192": {
+          "100000": "5.2",
+          "1000000": "51.8",
+          "10000000": "517.6"
+        },
+        "random_128": {
+          "100000": "4.2",
+          "1000000": "42.5",
+          "10000000": "424.8"
+        }
+      }
+    }
+  },
+  "caveats": [
+    "Index recall, not end-to-end recall. Fusion with the lexical half and the cross-encoder sit downstream and can repair or fail to repair what the index lost, so a number here is an upper bound on the damage rather than the damage. A width that survives here is what quantisation.py's end_to_end should be pointed at next.",
+    "The headline is scored over a few dozen questions, so it cannot resolve a difference finer than one question at one rank. Read 'unchanged' as 'not changed by more than that', not as equality.",
+    "Latencies were taken while two other sweeps were building indexes against this database. Recall is immune to a contended machine; latency is not, and these figures should be read as an ordering at best.",
+    "The scratch tables carry no RLS policy and no join to chunks, so latencies here are not comparable to latency.json or ef-search.json.",
+    "13,549 vectors is not the regime the 1M-document projection describes. The byte projection is linear and sound; the recall figures are a statement about this corpus's structure at this size, and a PCA basis fitted on 42 documents may not be the basis a thousand tenants' documents would give.",
+    "The PCA basis is data the index depends on. Shipping this would mean storing a 1024xk matrix, applying it in the ingestion path and in the query path, and deciding what happens when the corpus drifts far enough that the fit is stale. None of that is measured here; this sweep only says what the recall would be if it were done."
+  ]
+}
