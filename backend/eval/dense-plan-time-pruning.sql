@@ -324,6 +324,32 @@ WHERE e.tenant_id = zenith_current_tenant()
   AND e.embedding_model = $2 AND e.embedding_version = $3
 ORDER BY e.embedding_half <=> $1 LIMIT $4;
 
+-- What `search.dense()` actually sends when a document scope is passed: `scoped()` appends
+-- `AND c.document_id = ANY(:documents)` to the `WHERE` unconditionally -- there is no NULL
+-- guard in the Python because Python only writes the clause when a scope exists. This is the
+-- as-shipped comparator for section 5f, not a new arm: it carries no tenant qualifier, exactly
+-- like `shipped_plan`, and prunes at executor startup exactly like `shipped_plan`.
+PREPARE shipped_scoped_plan(halfvec(1024), text, text, int, uuid[]) AS
+SELECT c.id, 1 - (e.embedding_half <=> $1) AS score
+FROM zenith_denseplan_iso.emb e
+JOIN zenith_denseplan_iso.chk c ON c.id = e.chunk_id AND c.tenant_id = e.tenant_id
+WHERE e.embedding_model = $2 AND e.embedding_version = $3
+  AND c.document_id = ANY($5)
+ORDER BY e.embedding_half <=> $1 LIMIT $4;
+
+-- `candidate_scoped`'s body, exhibited through PREPARE for the same reason `candidate_plan`
+-- is: EXPLAIN on a call does not descend into plpgsql. The `docs IS NULL OR ...` guard is
+-- exactly what a migration would have to ship, because a plpgsql signature cannot be built
+-- by string concatenation the way `scoped()` builds the Python query.
+PREPARE candidate_scoped_plan(uuid, halfvec(1024), text, text, int, uuid[]) AS
+SELECT c.id, 1 - (e.embedding_half <=> $2) AS score
+FROM zenith_denseplan_iso.emb e
+JOIN zenith_denseplan_iso.chk c ON c.id = e.chunk_id AND c.tenant_id = e.tenant_id
+WHERE e.tenant_id = $1
+  AND e.embedding_model = $3 AND e.embedding_version = $4
+  AND ($6 IS NULL OR c.document_id = ANY($6))
+ORDER BY e.embedding_half <=> $2 LIMIT $5;
+
 \echo ''
 \echo '=== 1. as shipped: what the planner opens (one Index Scan line per partition) ==='
 EXPLAIN (ANALYZE, COSTS OFF, TIMING OFF, SUMMARY ON)
@@ -508,6 +534,135 @@ SELECT count(*) FROM zenith_denseplan_iso.candidate(:'vec', :'mdl', :'ver', 50);
 SELECT 'candidate, after' AS state, count(*) AS locks
 FROM pg_locks WHERE pid = pg_backend_pid();
 COMMIT;
+
+\echo ''
+\echo '=== 5f. the gap: search.dense() takes an optional document scope ==='
+\echo '(A plpgsql signature cannot be built by string concatenation the way scoped() builds'
+\echo ' the Python query, so candidate_scoped carries the filter unconditionally behind a NULL'
+\echo ' guard -- docs IS NULL OR c.document_id = ANY(docs). An OR is exactly the kind of thing'
+\echo ' that quietly stops an index being used. Three documents belonging to the session'
+\echo ' tenant, chosen by chunk count, are the scope below; wide enough to still fill 50 rows,'
+\echo ' narrow enough to be a real restriction -- 1,700 chunks on the tenant, the chosen'
+\echo ' documents holding well under that.)'
+SELECT (SELECT array_agg(document_id) FROM (
+          SELECT document_id, count(*) AS n
+          FROM zenith_denseplan_iso.chk
+          WHERE tenant_id = '00000000-0000-0000-0000-000000000003'
+          GROUP BY document_id ORDER BY n DESC, document_id LIMIT 3
+        ) top) AS docs_arr,
+       (SELECT count(*) FROM zenith_denseplan_iso.chk c JOIN (
+          SELECT document_id, count(*) AS n
+          FROM zenith_denseplan_iso.chk
+          WHERE tenant_id = '00000000-0000-0000-0000-000000000003'
+          GROUP BY document_id ORDER BY n DESC, document_id LIMIT 3
+        ) top ON top.document_id = c.document_id
+        WHERE c.tenant_id = '00000000-0000-0000-0000-000000000003') AS chunks_in_scope
+\gset
+
+\echo ''
+\echo '--- 5f-1. as shipped, with a document scope: still executor-startup pruning ---'
+\echo '(This is the baseline the candidate is measured against for the scoped case -- the'
+\echo ' Append and Subplans Removed the unscoped shipped arm already pays, now with the extra'
+\echo ' filter Python actually sends. Section 1 is the same query with no scope at all.)'
+EXPLAIN (ANALYZE, COSTS OFF, TIMING OFF, SUMMARY ON)
+EXECUTE shipped_scoped_plan(:'vec', :'mdl', :'ver', 50, :'docs_arr');
+
+\echo ''
+\echo '--- 5f-2. candidate_scoped, with a document scope: does the OR survive Bar 1 ---'
+\echo '(One partition per relation, no Append, no Subplans Removed, and the HNSW index still'
+\echo ' named in the Index Scan line is the bar. A Bitmap Heap Scan or a Seq Scan on chk here'
+\echo ' would be the OR quietly costing the index, and the technique would not survive it.)'
+EXPLAIN (ANALYZE, COSTS OFF, TIMING OFF, SUMMARY ON)
+EXECUTE candidate_scoped_plan(
+  '00000000-0000-0000-0000-000000000003', :'vec', :'mdl', :'ver', 50, :'docs_arr');
+
+\echo ''
+\echo '--- 5f-3. candidate_scoped, with NULL docs: the guard must cost nothing when unused ---'
+EXPLAIN (ANALYZE, COSTS OFF, TIMING OFF, SUMMARY ON)
+EXECUTE candidate_scoped_plan(
+  '00000000-0000-0000-0000-000000000003', :'vec', :'mdl', :'ver', 50, NULL);
+
+\echo ''
+\echo '--- 5f-4. Bar 2 for the scoped arm: same chunk ids, same ranks, same scores ---'
+\echo '(Run against the literal statements EXPLAIN already exhibited above in 5f-1 and 5f-2 --'
+\echo ' shipped_scoped_plan is what search.dense() actually sends when scoped, so this is the'
+\echo ' comparison that matters, not a hand-filtered reading of the unscoped as_shipped.'
+\echo ' in_both must equal both row counts, max_score_delta exactly 0.)'
+WITH shipped AS (
+  SELECT c.id AS chunk_id, (1 - (e.embedding_half <=> :'vec'::halfvec(1024))) AS score,
+         row_number() OVER (ORDER BY 1 - (e.embedding_half <=> :'vec'::halfvec(1024)) DESC, c.id)
+           AS rank
+  FROM zenith_denseplan_iso.emb e
+  JOIN zenith_denseplan_iso.chk c ON c.id = e.chunk_id AND c.tenant_id = e.tenant_id
+  WHERE e.embedding_model = :'mdl' AND e.embedding_version = :'ver'
+    AND c.document_id = ANY(:'docs_arr'::uuid[])
+  ORDER BY score DESC LIMIT 50
+), cand AS (
+  SELECT chunk_id, score, row_number() OVER (ORDER BY score DESC, chunk_id) AS rank
+  FROM zenith_denseplan_iso.candidate_scoped(:'vec', :'mdl', :'ver', 50, :'docs_arr'::uuid[])
+)
+SELECT (SELECT count(*) FROM shipped) AS shipped_rows,
+       (SELECT count(*) FROM cand) AS candidate_rows,
+       count(*) AS in_both,
+       max(abs(s.score - c.score)) AS max_score_delta,
+       count(*) FILTER (WHERE s.rank <> c.rank) AS rows_at_a_different_rank
+FROM shipped s JOIN cand c ON c.chunk_id = s.chunk_id;
+
+\echo ''
+\echo '--- 5f-5. locks, scoped ---'
+BEGIN;
+SELECT set_config('zenith.tenant_id', '00000000-0000-0000-0000-000000000003', true);
+SELECT 'shipped_scoped, before' AS state, count(*) AS locks
+FROM pg_locks WHERE pid = pg_backend_pid();
+EXECUTE shipped_scoped_plan(:'vec', :'mdl', :'ver', 50, :'docs_arr');
+SELECT 'shipped_scoped, after' AS state, count(*) AS locks
+FROM pg_locks WHERE pid = pg_backend_pid();
+COMMIT;
+
+BEGIN;
+SELECT set_config('zenith.tenant_id', '00000000-0000-0000-0000-000000000003', true);
+SELECT 'candidate_scoped, before' AS state, count(*) AS locks
+FROM pg_locks WHERE pid = pg_backend_pid();
+SELECT count(*) FROM zenith_denseplan_iso.candidate_scoped(
+  :'vec', :'mdl', :'ver', 50, :'docs_arr'::uuid[]);
+SELECT 'candidate_scoped, after' AS state, count(*) AS locks
+FROM pg_locks WHERE pid = pg_backend_pid();
+COMMIT;
+
+\echo ''
+\echo '--- 5f-6. candidate_scoped, scoped, under a forced generic plan ---'
+\echo '(Section 5b already shows the *unscoped* candidate falling back to executor-startup'
+\echo ' pruning once the tenant is unknown at plan time -- Subplans Removed reappears, the'
+\echo ' One-Time Filter goes away, but the HNSW index is still what the Index Scan lines name.'
+\echo ' The question the OR adds on top of that: does a document scope unknown at plan time'
+\echo ' also cost the HNSW index, or only the partition pruning that was already conceded?)'
+SET plan_cache_mode = force_generic_plan;
+EXPLAIN (ANALYZE, COSTS OFF, TIMING OFF, SUMMARY ON)
+EXECUTE candidate_scoped_plan(
+  '00000000-0000-0000-0000-000000000003', :'vec', :'mdl', :'ver', 50, :'docs_arr');
+RESET plan_cache_mode;
+
+\echo ''
+\echo '--- 5f-7. the control for 5f-6: same tenant, same partition, generic plan, NULL docs ---'
+\echo '(Isolates whether 5f-6''s loss of the HNSW index is the OR''s doing or an artefact of'
+\echo ' which tenant/partition happened to be asked. Same tenant 3, same partition e5, only'
+\echo ' the document scope differs from 5f-6.)'
+SET plan_cache_mode = force_generic_plan;
+EXPLAIN (ANALYZE, COSTS OFF, TIMING OFF, SUMMARY ON)
+EXECUTE candidate_scoped_plan(
+  '00000000-0000-0000-0000-000000000003', :'vec', :'mdl', :'ver', 50, NULL);
+RESET plan_cache_mode;
+
+\echo ''
+\echo '--- 5f-8. the other control: candidate_plan (no OR at all) at the same tenant, generic ---'
+\echo '(candidate_plan has no document-scope machinery whatsoever -- the true zero point. If'
+\echo ' this one keeps the ordered Index Scan that 5f-6 and 5f-7 both lose, the loss is the'
+\echo ' extra disjunct existing in the statement''s shape, not anything about tenant 3 or'
+\echo ' partition e5 in particular.)'
+SET plan_cache_mode = force_generic_plan;
+EXPLAIN (ANALYZE, COSTS OFF, TIMING OFF, SUMMARY ON)
+EXECUTE candidate_plan('00000000-0000-0000-0000-000000000003', :'vec', :'mdl', :'ver', 50);
+RESET plan_cache_mode;
 
 RESET ROLE;
 
