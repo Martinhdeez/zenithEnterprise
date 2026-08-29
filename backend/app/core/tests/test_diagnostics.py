@@ -6,6 +6,7 @@ that is absent exactly when it is needed.
 """
 
 import json
+import re
 from pathlib import Path
 from uuid import uuid4
 
@@ -366,20 +367,71 @@ async def test_a_clean_installation_reports_its_bypass_surface(configured_engine
     assert checks["bypass surface"].status == "ok", checks["bypass surface"].detail
 
 
+# --- the lock budget ---------------------------------------------------------------------
+
+#: The three numbers the lock-budget detail opens with, read back out of it.
+#:
+#: Read from the message rather than by asking the database the same question a second time,
+#: and that is the point rather than a convenience: a helper that recounted the partitions
+#: itself would agree with a check that had stopped counting. What an operator acts on is this
+#: sentence, so this sentence is what is asserted.
+_SHAPE = re.compile(r"(\d+) partition\(s\) of (\d+) table\(s\) = (\d+) locks/txn")
+
+
+def _partition_shape(detail: str) -> tuple[int, int, int]:
+    """`(partitions, partitioned tables, relations)`, or a failure naming what it was given.
+
+    An unparseable detail is a failure rather than a zero. The `no partitioned tables` branch
+    produces one, and reading it as `(0, 0, 0)` would let this file's other tests pass against
+    a check that had quietly stopped finding anything.
+    """
+    match = _SHAPE.search(detail)
+    assert match, f"the lock budget did not report a partition shape: {detail!r}"
+    return int(match[1]), int(match[2]), int(match[3])
+
+
 @pytest.mark.asyncio
 async def test_an_unpartitioned_installation_has_nothing_to_size_for(
-    configured_engines: None,
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Nothing is partitioned yet, so the honest answer is that the setting is not load-bearing.
+    """On an installation with nothing partitioned, the setting is not load-bearing — and the
+    report has to say that rather than pass over it.
 
-    Reported as `ok` and *said*, rather than passed over. The number this check exists for
-    appears on its own the day something is partitioned, and an operator reading the report
-    today should be able to tell "there is nothing to size for" from "nobody looked".
+    The distinction this exists for is unchanged: an operator reading the report must be able
+    to tell "there is nothing to size for" from "nobody looked". What changed is the
+    installation. Until 0026 the test database *was* unpartitioned, so this ran against the
+    default and asserted the branch by accident of the schema. Since 0026 `public` holds 512
+    partitions, and the way to keep asserting the same branch was either to loosen it into
+    something a partitioned schema also satisfies — which would test nothing — or to give it a
+    schema that is genuinely empty. This gives it one.
+
+    An empty schema rather than a stub: the count comes back as zero from a real query against
+    a real database, which is exactly what an installation that has not run 0026 produces. Not
+    a hypothetical installation either — on-premise customers upgrade when they schedule it,
+    so this branch is what `zenith diagnose` prints on every one of them until they do.
     """
-    checks = {check.name: check for check in await run_diagnostics()}
+    from app.core.database import get_owner_session_factory
 
-    assert checks["lock budget"].status == "ok", checks["lock budget"].detail
-    assert "no partitioned tables" in checks["lock budget"].detail
+    async with get_owner_session_factory()() as session:
+        await session.execute(text("CREATE SCHEMA nothing_partitioned"))
+        await session.commit()
+
+    try:
+        monkeypatch.setattr(diagnostics, "PARTITION_SCHEMA", "nothing_partitioned")
+        checks = {check.name: check for check in await run_diagnostics()}
+
+        detail = checks["lock budget"].detail
+        assert checks["lock budget"].status == "ok", detail
+        assert "no partitioned tables" in detail, detail
+        # The setting and the slot count are still reported. Without them the message says
+        # only that the check declined to answer, which is the half an operator cannot tell
+        # from a check that did not run.
+        assert "max_locks_per_transaction=" in detail, detail
+        assert "slots" in detail, detail
+    finally:
+        async with get_owner_session_factory()() as session:
+            await session.execute(text("DROP SCHEMA IF EXISTS nothing_partitioned CASCADE"))
+            await session.commit()
 
 
 @pytest.mark.asyncio
@@ -393,11 +445,41 @@ async def test_partitions_are_counted_out_of_the_live_schema(
     slope at 9.00 locks per partition-pair against a schema declaring nine relations, which is
     the equality this check depends on. The detail must then name the partitions it found.
 
+    **Asserted as a difference, because the probe is no longer alone in `public`.** Until 0026
+    it was, so the totals the check reported *were* the probe's and could be matched against a
+    literal. Since 0026 the schema carries 512 partitions of its own and that literal is
+    wrong — not because the check drifted, but because the check deliberately sums over every
+    partitioned table in the schema rather than over the ones a search happens to touch. So
+    the run is taken twice and the probe's contribution is what is asserted, which is the
+    quantity the old literal was standing in for. Matching the new total instead would have
+    been a number that rots on the next migration to add a partitioned table, and this test is
+    named for refusing exactly that.
+
+    The baseline is asserted too, and it is the stronger half: reading 512 partitions of two
+    tables before the probe exists is what proves the count comes out of the live schema. A
+    check hard-coded to zero, or one that had stopped looking, would still pass a
+    difference-only assertion.
+
     Dropped in a `finally`: this runs against the shared testcontainers database, and a
     partitioned table left in `public` would be picked up by `test_partition_rls_guard.py`
     as a partition carrying no policy.
     """
     from app.core.database import get_owner_session_factory
+
+    baseline = {check.name: check for check in await run_diagnostics()}
+    before = _partition_shape(baseline["lock budget"].detail)
+    # `chunks` and `chunk_embeddings`, at 0026's modulus of 256 each, carrying nine relations
+    # per partition-pair. Named rather than tolerated: the point of the check is that it reads
+    # the schema, and a baseline of zero here would mean it had stopped.
+    #
+    # This *is* the constant the check itself refuses to be, and that is the right way round.
+    # The check computes the number so that it is never wrong; this asserts it so that it is
+    # never changed silently. A migration adding one index to either table moves the lock
+    # budget by 512 relations, which is a fifth of what a search already holds, and the
+    # measured claim in `_PARTITION_RELATIONS`' comment — nine relations per pair, 2,313 at
+    # modulus 256 — stops being true at the same moment. Both should be re-derived together,
+    # and a red test here is what makes that happen.
+    assert before == (512, 2, 2313), before
 
     async with get_owner_session_factory()() as session:
         await session.execute(
@@ -416,8 +498,14 @@ async def test_partitions_are_counted_out_of_the_live_schema(
     try:
         checks = {check.name: check for check in await run_diagnostics()}
         detail = checks["lock budget"].detail
-        # Four partitions and their four indexes, plus the parent and its partitioned index.
-        assert "4 partition(s) of 1 table(s) = 10 locks" in detail, detail
+        after = _partition_shape(detail)
+        # Four partitions, one more partitioned table, and ten more relations: the four
+        # partitions and their four indexes, plus the parent and its partitioned index.
+        assert (
+            after[0] - before[0],
+            after[1] - before[1],
+            after[2] - before[2],
+        ) == (4, 1, 10), f"{before} -> {after}"
         assert checks["lock budget"].status == "ok", detail
     finally:
         async with get_owner_session_factory()() as session:

@@ -377,16 +377,27 @@ LOCK_BUDGET_HEADROOM: Final = 1.25
 # 9 x 256 for the partitions plus nine for the two parents and their seven partitioned
 # indexes.
 #
-# Summed over every partitioned table in `public`, which is the ceiling for any transaction
+# Summed over every partitioned table in the schema, which is the ceiling for any transaction
 # rather than the cost of one particular query. Naming the tables a search touches would be
 # a list to keep in step with the schema, and this file exists because those rot.
+
+#: The schema this counts partitions in. `public` is the only one this project creates
+#: objects in, exactly as `SECURITY_DEFINER_SCHEMA` above says of the bypass surface, and it
+#: is a constant here for the same reason that one is: the check has two readers asking about
+#: two different databases. The installation this runs against has been partitioned since
+#: 0026, so `public` can no longer exhibit the unpartitioned branch, and
+#: `test_an_unpartitioned_installation_has_nothing_to_size_for` points this at a schema
+#: holding nothing rather than asserting that branch's message against a schema that cannot
+#: produce it. Production reads the constant and is unchanged.
+PARTITION_SCHEMA = "public"
+
 _PARTITION_RELATIONS = """
 SELECT count(*) AS relations,
        count(*) FILTER (WHERE c.relkind = 'p') AS partitioned_tables,
        count(*) FILTER (WHERE c.relispartition AND c.relkind = 'r') AS partitions
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
-WHERE n.nspname = 'public'
+WHERE n.nspname = :schema
   AND (c.relispartition OR c.relkind IN ('p', 'I'))
 """
 
@@ -407,10 +418,15 @@ async def _lock_budget() -> tuple[Status, str]:
 
     Returns `ok` on an installation with no partitioned tables. That is not a pass by
     omission — there is genuinely nothing to size for until something is partitioned, and
-    saying so is what makes the number appear on its own the day stage 02 lands.
+    saying so is what lets an operator tell that from a check that did not run. That branch
+    stopped being the development default when 0026 landed and did *not* stop mattering: any
+    installation that has not yet run 0026 reaches it on every `zenith diagnose`, and the
+    on-premise ones are upgraded when the customer schedules it rather than when we ship.
     """
     async with get_owner_session_factory()() as session:
-        row = (await session.execute(text(_PARTITION_RELATIONS))).one()
+        row = (
+            await session.execute(text(_PARTITION_RELATIONS), {"schema": PARTITION_SCHEMA})
+        ).one()
         rows = await session.execute(
             text(
                 "SELECT name, setting FROM pg_settings WHERE name IN "
