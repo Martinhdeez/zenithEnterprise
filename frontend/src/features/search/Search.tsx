@@ -14,7 +14,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { search, type Relevance, type SearchHit } from "./api";
 import { ApiError } from "@/shared/api/http";
 import type { Citation } from "@/features/chat";
-import { Clock, Search as SearchIcon } from "lucide-react";
+import { Clock, Search as SearchIcon, SearchX } from "lucide-react";
 
 import { TagChips, labels as fetchLabels } from "@/features/labels";
 
@@ -432,14 +432,49 @@ export function Search({
             )}
           </div>
 
-          {/* Shown above the results, not instead of them. The passages stay legible and
-              keep their normal weight: a notice that made them hard to read would turn a
-              cheap false positive — two paragraphs the reader dismisses — into the
-              expensive false negative this whole feature is shaped to avoid. */}
+          {/* **The notice has to be read before the results, and grey lost that race.**
+              
+              It was a muted line in a dashed box, and it was reported from the screen by
+              somebody who already knew it existed: they read eight passages, wondered why
+              none of them answered the question, and only then found the sentence saying so.
+              A warning that is discovered after the thing it warns about is not a warning.
+              
+              **Keyed to the accent, not to amber, and that is a correctness constraint
+              rather than a preference.** `degraded` — a missing component, an installation
+              fault the runbook tells you to go and fix — already renders in
+              `text-zenith-amber` a few lines above this. `weak` is not a fault: retrieval
+              worked exactly as designed and the corpus simply does not cover the question.
+              Rendering both in one colour would send an operator hunting for a broken
+              service and let a customer read their own archive's silence as our software
+              failing. They are different claims and they cannot look alike.
+              
+              Not red either, for the same reason twice over: red is the colour this product
+              spends on destruction, and nothing here is broken or lost.
+              
+              Icon and sentence carry it as well as the colour, so it survives being read by
+              somebody who cannot separate these hues — and `role="status"` announces it when
+              it appears, which is the only way it exists at all for a screen reader.
+              
+              **The passages below keep their full weight.** Dimming them is the obvious next
+              move and it is the wrong one: it would turn a cheap false positive — two
+              paragraphs a reader glances at and dismisses — into the expensive false
+              negative this entire feature exists to prevent. They are pushed down and
+              labelled instead. */}
           {state.relevance === "weak" && state.hits.length > 0 && (
-            <p className="rounded-lg border border-dashed border-border bg-secondary/40 px-4 py-3 text-sm text-muted-foreground">
-              {t("Nothing here matches closely. These are the nearest passages.")}
-            </p>
+            <div
+              role="status"
+              className="flex items-start gap-3 rounded-xl border border-primary/35 bg-primary/[0.08] px-4 py-3.5"
+            >
+              <SearchX aria-hidden className="mt-0.5 size-5 shrink-0 text-primary" />
+              <div className="space-y-1">
+                <p className="text-[15px] leading-snug font-semibold text-foreground">
+                  {t("Nothing matches this closely")}
+                </p>
+                <p className="text-sm leading-snug text-muted-foreground">
+                  {t("What follows is the nearest thing in your documents, not an answer.")}
+                </p>
+              </div>
+            </div>
           )}
 
           {state.hits.length === 0 &&
@@ -453,6 +488,15 @@ export function Search({
               two lines of the passage and a row of scores — running text, where a hairline
               rule gives the eye nothing to tell it where one result stops and the next
               starts. */}
+          {/* Named rather than dimmed. The list stops being "your results" and becomes "the
+              closest we have", which is the demotion the notice above is asking for — done
+              with a word instead of with opacity. */}
+          {state.relevance === "weak" && state.hits.length > 0 && (
+            <h2 className="pt-1 text-[11px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
+              {t("Closest passages")}
+            </h2>
+          )}
+
           <ul className="space-y-2">
             {state.hits.map((hit, index) => {
               const open = hit.chunk_id === openChunkId;
@@ -599,11 +643,20 @@ function Ranking({ hit }: { hit: SearchHit }) {
 function NotInTheCorpus({ query }: { query: string }) {
   const t = useT();
   return (
-    <div className="space-y-3 rounded-lg border border-dashed border-border p-8 text-center text-sm">
-      <p className="text-foreground">
+    // Nothing else is on this screen, so the sentence gets the room a headline needs. The
+    // same accent and the same icon as the `weak` notice: they are two strengths of one
+    // finding — nothing matched — and a reader who has met one should recognise the other.
+    <div
+      role="status"
+      className="flex flex-col items-center gap-4 rounded-xl border border-primary/35 bg-primary/[0.06] p-10 text-center"
+    >
+      <span className="flex size-12 items-center justify-center rounded-full bg-primary/12 text-primary">
+        <SearchX aria-hidden className="size-6" />
+      </span>
+      <p className="max-w-md text-xl leading-snug font-semibold tracking-tight text-balance text-foreground">
         {t("Nothing in your documents is about “{query}”.", { query })}
       </p>
-      <p className="mx-auto max-w-sm text-xs text-muted-foreground">
+      <p className="mx-auto max-w-sm text-sm text-muted-foreground">
         {/* eslint-disable-next-line -- one line on purpose: the catalogue scanner in
             `es.test.ts` stops at the first newline inside a `t(` call, so a key wrapped
             onto its own line is invisible to the guard that has to see it. */}
