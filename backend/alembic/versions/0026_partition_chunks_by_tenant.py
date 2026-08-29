@@ -622,6 +622,25 @@ def _trigger_and_grants() -> None:
 #: prevent.
 _PRUNING_QUAL = "c.tenant_id = v_tenant AND "
 
+#: The `DECLARE` block the pruning form needs, and the empty string the downgrade needs.
+#:
+#: Parameterised rather than left in both forms, so `downgrade()` restores 0022's body
+#: statement for statement — verified by reading `prosrc` back off the installation after a
+#: rollback and diffing the code against migration 0022's literal. Only indentation and the
+#: wrapping of the comments differ, because 0026 writes the body from a literal of its own.
+#:
+#: A local that no statement prunes on is harmless and identical in behaviour, which is
+#: exactly why leaving it would have been wrong: a downgrade whose result differs from what
+#: it was handed, in a way nothing can observe, is a downgrade nobody can check by reading.
+#: The first draft left it, and only the `prosrc` read found it.
+_DECLARE = """DECLARE
+    -- A local, and never an argument of this function. A local becomes a parameter of the
+    -- statement below, which is what lets the planner prune at plan time rather than at
+    -- executor startup; an argument would prune identically and would let a caller name
+    -- somebody else's tenant, in a function that runs as the owner with no policy over it.
+    v_tenant uuid := zenith_current_tenant();
+"""
+
 _LEXICAL_SEARCH = """
 CREATE OR REPLACE FUNCTION zenith_lexical_search(query_string text, want integer)
 RETURNS TABLE(chunk_id uuid, score real)
@@ -632,13 +651,7 @@ SET search_path = public, paradedb
 -- The one place the custom scan is allowed. Off everywhere else; see migration 0022.
 SET paradedb.enable_custom_scan = on
 AS $$
-DECLARE
-    -- A local, and never an argument of this function. A local becomes a parameter of the
-    -- statement below, which is what lets the planner prune at plan time rather than at
-    -- executor startup; an argument would prune identically and would let a caller name
-    -- somebody else's tenant, in a function that runs as the owner with no policy over it.
-    v_tenant uuid := zenith_current_tenant();
-BEGIN
+%(declare)sBEGIN
     -- No context, no rows. Deliberately the same closed failure every policy in this
     -- schema has, rather than an error: the argument for this function is that it
     -- expresses the policy's rule in a form the index can use, and a different failure
@@ -646,7 +659,7 @@ BEGIN
     --
     -- Without this guard `paradedb.term` raises `no value provided to term query` on a
     -- NULL tenant, which is also closed but is not what a policy does.
-    IF v_tenant IS NULL THEN
+    IF %(tenant)s IS NULL THEN
         RETURN;
     END IF;
 
@@ -662,7 +675,7 @@ BEGIN
             -- `match`, not `parse`: the field's own analyser tokenises the string, so
             -- identifiers survive and there is no query syntax to inject.
             paradedb.match('text', query_string),
-            paradedb.term('tenant_id', v_tenant),
+            paradedb.term('tenant_id', %(tenant)s),
             -- Nested on purpose: a `should` beside a `must` is optional in Tantivy and
             -- would ignore labels entirely. Inside a `must` it means "at least one of
             -- these", which is what the policy says.
@@ -681,7 +694,14 @@ $$
 
 
 def _lexical_search(pruning: bool) -> None:
-    op.execute(_LEXICAL_SEARCH % {"pruning": _PRUNING_QUAL if pruning else ""})
+    op.execute(
+        _LEXICAL_SEARCH
+        % {
+            "declare": _DECLARE if pruning else "",
+            "tenant": "v_tenant" if pruning else "zenith_current_tenant()",
+            "pruning": _PRUNING_QUAL if pruning else "",
+        }
+    )
 
 
 #: The other unpruned write, and the general rule behind both.
@@ -754,10 +774,10 @@ def downgrade() -> None:
     op.execute("SET LOCAL statement_timeout = 0")
     op.execute("SET LOCAL maintenance_work_mem = '512MB'")
 
-    # First, because it names `chunks` and there is no reason for it to be pointing at a
-    # table mid-swap. Restores 0024's body exactly — the pruning qual is dead weight on an
-    # unpartitioned table, not a bug, but a downgrade that leaves a line behind is a
-    # downgrade nobody can check by reading.
+    # First, because they name `chunks` and there is no reason for either to be pointing at
+    # a table mid-swap. Both go back to the bodies 0022 and 0003 wrote: the pruning
+    # qualifiers are dead weight on an unpartitioned table rather than a bug, but a
+    # downgrade that leaves a line behind is a downgrade nobody can check by reading.
     _lexical_search(pruning=False)
     _sync_chunk_labels(pruning=False)
 
