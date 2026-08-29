@@ -112,7 +112,7 @@ export function UserGroups({ token }: { token: string }) {
 
   if (groups.length === 0) {
     return (
-      <p className="rounded-md border border-input bg-input/60 p-4 text-sm text-muted-foreground">{t("No groups yet. Create one above, then come back to put people in it.")}</p>
+      <p className="rounded-md border border-input bg-card p-4 text-sm text-muted-foreground">{t("No groups yet. Create one above, then come back to put people in it.")}</p>
     );
   }
 
@@ -197,7 +197,7 @@ export function UserGroups({ token }: { token: string }) {
                     className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
                       inGroup
                         ? "border-primary/50 bg-primary/10 text-foreground"
-                        : "border-input bg-input/60 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                        : "border-input bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
                     }`}
                   >
                     {group.name}

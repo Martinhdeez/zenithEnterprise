@@ -571,7 +571,40 @@ export function App() {
     // bordered card — the sidebar, the workspace and the preview are three surfaces, not
     // one shell with internal dividers, which is the difference between this and the flat
     // edge-to-edge layout it replaced.
-    <div className="flex h-screen overflow-hidden gap-3 bg-background p-3 text-foreground">
+    <div className="relative isolate flex h-screen overflow-hidden gap-6 bg-background p-6 text-foreground">
+      {/* The backdrop, and the same drawing in both themes — only the tints are restated,
+          in `--art-0` through `--art-5`. A photograph lived here for one afternoon and was
+          the wrong register: it depicted something, and chrome that depicts something puts a
+          buyer's attention on a decision somebody made rather than on the product. It also
+          made the two themes read as two different applications, one abstract and one scenic.
+
+          Flat bands in tints of the two brand hues, drawn here rather than shipped as a file:
+          a few kilobytes of markup instead of four hundred, it is ours so no licence travels
+          with it, and `fill` reads the same tokens as everything else, so it cannot drift
+          from the palette.
+
+          Only the frame and the gutter of it are ever visible, so the bands are wide and
+          smooth on purpose — what shows is which colour an edge happens to cross, and detail
+          finer than that would be work nobody can see. `slice` rather than `meet` so it
+          always covers, whatever the window is doing. */}
+      <svg
+        aria-hidden="true"
+        className="app-art"
+        viewBox="0 0 1600 1000"
+        preserveAspectRatio="xMidYMid slice"
+      >
+          {/* The ground the bands sit on. Without it the top strip was the page's own
+              white, which put no colour at all along the edge that frames the header —
+              the one place the eye starts. It is the most saturated of the six on
+              purpose, so the composition runs strong at the top into pale and then into
+              the greens, rather than fading out at both ends. */}
+          <rect x="-200" y="-400" width="2000" height="1800" fill="var(--art-0)" />
+          <path d="M-200 1400 L-200 140 L0 140 Q0 140 25 160 Q50 179 75 195 Q100 210 125 219 Q150 227 175 228 Q200 228 225 222 Q250 215 275 204 Q300 193 325 181 Q350 170 375 160 Q400 150 425 143 Q450 137 475 134 Q500 130 525 129 Q550 127 575 125 Q600 123 625 119 Q650 115 675 108 Q700 101 725 93 Q750 84 775 77 Q800 69 825 66 Q850 63 875 65 Q900 68 925 79 Q950 89 975 105 Q1000 121 1025 141 Q1050 161 1075 179 Q1100 198 1125 212 Q1150 226 1175 232 Q1200 238 1225 235 Q1250 232 1275 222 Q1300 212 1325 198 Q1350 184 1375 169 Q1400 155 1425 142 Q1450 130 1475 122 Q1500 115 1525 111 Q1550 108 1575 107 L1800 107 L1800 1400 Z" fill="var(--art-1)" />
+          <path d="M-200 1400 L-200 387 L0 387 Q0 387 25 374 Q50 361 75 349 Q100 337 125 328 Q150 319 175 312 Q200 306 225 303 Q250 300 275 299 Q300 298 325 297 Q350 297 375 296 Q400 295 425 292 Q450 290 475 286 Q500 282 525 276 Q550 271 575 265 Q600 259 625 255 Q650 251 675 250 Q700 248 725 251 Q750 254 775 262 Q800 270 825 283 Q850 296 875 312 Q900 328 925 346 Q950 364 975 381 Q1000 399 1025 413 Q1050 428 1075 437 Q1100 446 1125 449 Q1150 452 1175 449 Q1200 445 1225 436 Q1250 427 1275 413 Q1300 399 1325 384 Q1350 368 1375 352 Q1400 337 1425 323 Q1450 310 1475 300 Q1500 290 1525 284 Q1550 278 1575 276 L1800 274 L1800 1400 Z" fill="var(--art-2)" />
+          <path d="M-200 1400 L-200 480 L0 480 Q0 480 25 481 Q50 481 75 480 Q100 478 125 474 Q150 470 175 466 Q200 462 225 461 Q250 459 275 464 Q300 468 325 480 Q350 491 375 509 Q400 527 425 547 Q450 568 475 586 Q500 604 525 614 Q550 625 575 626 Q600 627 625 617 Q650 607 675 590 Q700 572 725 552 Q750 531 775 513 Q800 494 825 482 Q850 469 875 464 Q900 459 925 460 Q950 460 975 465 Q1000 469 1025 473 Q1050 477 1075 479 Q1100 481 1125 481 Q1150 481 1175 480 Q1200 479 1225 481 Q1250 483 1275 489 Q1300 496 1325 508 Q1350 521 1375 538 Q1400 554 1425 572 Q1450 589 1475 603 Q1500 616 1525 621 Q1550 626 1575 621 L1800 615 L1800 1400 Z" fill="var(--art-3)" />
+          <path d="M-200 1400 L-200 820 L0 820 Q0 820 25 817 Q50 814 75 807 Q100 799 125 789 Q150 778 175 766 Q200 754 225 742 Q250 730 275 720 Q300 710 325 702 Q350 693 375 688 Q400 683 425 680 Q450 677 475 675 Q500 674 525 673 Q550 672 575 671 Q600 669 625 667 Q650 664 675 660 Q700 655 725 649 Q750 644 775 637 Q800 631 825 625 Q850 618 875 614 Q900 610 925 609 Q950 608 975 611 Q1000 614 1025 622 Q1050 629 1075 642 Q1100 654 1125 669 Q1150 685 1175 703 Q1200 720 1225 738 Q1250 756 1275 772 Q1300 788 1325 800 Q1350 812 1375 819 Q1400 825 1425 827 Q1450 828 1475 823 Q1500 818 1525 809 Q1550 799 1575 786 L1800 773 L1800 1400 Z" fill="var(--art-4)" />
+          <path d="M-200 1400 L-200 842 L0 842 Q0 842 25 840 Q50 838 75 838 Q100 839 125 837 Q150 836 175 832 Q200 827 225 822 Q250 817 275 815 Q300 814 325 820 Q350 826 375 841 Q400 856 425 876 Q450 897 475 917 Q500 937 525 949 Q550 961 575 961 Q600 961 625 949 Q650 937 675 917 Q700 898 725 879 Q750 859 775 845 Q800 832 825 826 Q850 821 875 822 Q900 823 925 827 Q950 830 975 833 Q1000 835 1025 834 Q1050 834 1075 832 Q1100 831 1125 833 Q1150 834 1175 843 Q1200 851 1225 866 Q1250 882 1275 900 Q1300 919 1325 935 Q1350 950 1375 957 Q1400 963 1425 957 Q1450 950 1475 933 Q1500 916 1525 894 Q1550 872 1575 852 L1800 832 L1800 1400 Z" fill="var(--art-5)" />
+      </svg>
       {/* Layout, not a workspace: Folders and Upload used to live here as their own
           sections, each with its own scroll, competing with navigation for the same
           narrow column. Both are full screens in the main panel now, reached the same way
@@ -889,7 +922,7 @@ export function App() {
               — so it gets the bare `overflow-hidden` box that layout requires and none of
               the padding or scrolling every other view here still wants from `main`. */}
           {(
-            <main className="flex-1 overflow-auto rounded-b-xl bg-card">
+            <main className="flex-1 overflow-auto rounded-b-xl bg-background">
             {/* Every screen is centred and capped here rather than each one setting its own
                 width. They used to carry a `max-w-*` and no `mx-auto`, which pinned them to
                 the left edge — barely noticeable while the preview panel took a third of the
@@ -903,7 +936,12 @@ export function App() {
                 two of these screens are prose. A table is the opposite: it wants every pixel
                 it can have, and cramming one into a reading measure is what produces the
                 columns nobody can read. */}
-            <div className={`mx-auto w-full p-6 ${measure(view)}`}>
+            {/* `min-h-full` and a column here offer the panel's full height to whichever
+                screen wants it; nothing is centred by this alone, because a screen only
+                receives that height by claiming it with `flex-1`. Search is the one that
+                does, for its landing state. The rest stay top-aligned, which is what a
+                list or a form should be. */}
+            <div className={`mx-auto flex min-h-full w-full flex-col p-6 ${measure(view)}`}>
             {/* Kept mounted, not unmounted, while its conversation is showing.
                 `Search` owns its results, its query and its resolved filenames in its own
                 state, so `{view === "search" && <Search/>}` destroyed all of it the moment
@@ -914,7 +952,7 @@ export function App() {
                 would move five pieces of state and their effects into the largest file in
                 the tree. */}
             {view === "search" && (
-              <div className={panel === "conversation" ? "hidden" : undefined}>
+              <div className={panel === "conversation" ? "hidden" : "flex flex-1 flex-col"}>
               <Search
                 token={token}
                 onCitation={(next, question) => {

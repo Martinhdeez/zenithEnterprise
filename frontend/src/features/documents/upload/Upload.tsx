@@ -337,13 +337,12 @@ export function Upload({ token, onUploaded }: Props) {
       />
 
       {staged ? (
-        // `bg-card` would be invisible here: the page's own `<main>` wrapper is already
-        // `bg-card` (App.tsx), so this panel needs a genuinely different tone — `bg-secondary`
-        // — plus `border-input` rather than `border-border`, which reads a shade too close to
-        // both to register as an edge on its own.
-        <div className="space-y-5 rounded-md border border-input bg-secondary p-6">
+        // `bg-card`: the working surface under it is `--background` now, so a panel lifts by
+        // being the lighter thing rather than by sinking. `border-input` stays — it is the
+        // stronger of the two edges, and this panel is the page's one job.
+        <div className="space-y-5 rounded-md border border-input bg-card p-6">
           <div className="flex items-start gap-3.5">
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-md border border-input bg-input/50 text-primary">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-md border border-input bg-card text-primary">
               <FileText className="size-5" />
             </div>
             <div className="min-w-0 flex-1 space-y-0.5 pt-0.5">
@@ -356,7 +355,7 @@ export function Upload({ token, onUploaded }: Props) {
               type="button"
               aria-label={t("Cancel")}
               onClick={() => setStaged(null)}
-              className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-input/60 hover:text-foreground"
+              className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-card hover:text-foreground"
             >
               <X className="size-4" />
             </button>
@@ -396,9 +395,9 @@ export function Upload({ token, onUploaded }: Props) {
       ) : (
         // The dropzone is the page's one job, so it leads: a plain-bordered, higher-contrast
         // panel rather than a dashed outline floating on the same background as everything
-        // else around it. `bg-secondary` + `border-input`, not `bg-card`/`border-border` —
-        // the page's own `<main>` wrapper is already `bg-card` with a `border-border` frame
-        // one level up, so those two tokens read as "the page", not "a panel on the page".
+        // else around it. `bg-card` + `border-input`: the fill lifts it off the working
+        // surface and the stronger edge holds it, which is what makes it read as "a panel on
+        // the page" rather than as the page.
         <div
           onDragOver={(event) => {
             event.preventDefault();
@@ -411,7 +410,7 @@ export function Upload({ token, onUploaded }: Props) {
             choose(event.dataTransfer.files);
           }}
           className={`rounded-md border p-12 text-center transition-colors ${
-            over ? "border-primary bg-primary/5" : "border-input bg-secondary hover:bg-secondary/80"
+            over ? "border-primary bg-primary/5" : "border-input bg-card hover:bg-secondary/40"
           }`}
         >
           <label className="flex cursor-pointer flex-col items-center gap-3">
@@ -428,7 +427,7 @@ export function Upload({ token, onUploaded }: Props) {
               }}
               disabled={busy}
             />
-            <div className="flex size-12 items-center justify-center rounded-2xl border border-input bg-input/60 dark:bg-input">
+            <div className="flex size-12 items-center justify-center rounded-2xl border border-input bg-card dark:bg-input">
               <UploadCloud className="size-6 text-muted-foreground" />
             </div>
             {/* Plural, because the control is. The singular copy this replaced ("Choose a
@@ -503,7 +502,7 @@ export function Upload({ token, onUploaded }: Props) {
           {recent.map((document_) => (
             <li
               key={document_.id}
-              className="flex items-center justify-between gap-2 rounded-md border border-border bg-secondary px-3 py-2"
+              className="flex items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2"
             >
               <span className="truncate text-foreground">{document_.filename}</span>
               <span className="shrink-0 text-xs text-muted-foreground">{document_.status}</span>

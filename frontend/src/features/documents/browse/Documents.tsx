@@ -176,7 +176,7 @@ export function Documents({
         {items.map((document_) => (
           <li
             key={document_.id}
-            className="overflow-hidden rounded-lg border border-border bg-secondary shadow-sm transition-colors hover:bg-secondary/70"
+            className="overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-colors hover:bg-secondary/40"
           >
             <div className="flex items-center gap-3 px-4 py-3">
               <button

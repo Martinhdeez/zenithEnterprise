@@ -103,7 +103,7 @@ export function Folders({
         <button
           type="button"
           onClick={() => onSelect({ name: "All documents", filter: null })}
-          className="flex flex-col items-start gap-3 rounded-xl border border-border bg-secondary p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-secondary/70"
+          className="flex flex-col items-start gap-3 rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-secondary/40"
         >
           <FileStack className="size-5 text-muted-foreground" />
           <div>
@@ -129,7 +129,7 @@ export function Folders({
             key={folder.label_id ?? "unlabelled"}
             type="button"
             onClick={() => onSelect({ name: folder.name, filter: { labelId: folder.label_id } })}
-            className={`flex flex-col items-start gap-3 rounded-xl border bg-secondary p-4 text-left shadow-sm transition-colors hover:bg-secondary/70 ${tone.edge}`}
+            className={`flex flex-col items-start gap-3 rounded-xl border bg-card p-4 text-left shadow-sm transition-colors hover:bg-secondary/40 ${tone.edge}`}
           >
             <FolderIcon className={`size-5 ${tone.icon}`} />
             <div className="w-full">

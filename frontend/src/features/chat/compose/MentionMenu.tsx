@@ -30,7 +30,7 @@ export function MentionMenu({
   const t = useT();
   if (documents.length === 0) {
     return (
-      <div className="mb-2 rounded-xl border border-input bg-input/60 p-3 text-sm text-muted-foreground shadow-lg">{t("No documents match that.")}</div>
+      <div className="mb-2 rounded-xl border border-input bg-card p-3 text-sm text-muted-foreground shadow-lg">{t("No documents match that.")}</div>
     );
   }
 
@@ -38,7 +38,7 @@ export function MentionMenu({
     <ul
       role="listbox"
       aria-label={t("Documents")}
-      className="mb-2 max-h-64 overflow-y-auto rounded-xl border border-input bg-input/60 py-1 shadow-lg"
+      className="mb-2 max-h-64 overflow-y-auto rounded-xl border border-input bg-card py-1 shadow-lg"
     >
       {documents.map((document, index) => (
         <li key={document.id}>

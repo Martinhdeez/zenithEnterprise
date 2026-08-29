@@ -147,7 +147,7 @@ export function History({
             <button
               type="button"
               onClick={() => onAsk(entry.question)}
-              className="w-full rounded-lg border border-border bg-secondary px-4 py-3.5 text-left transition-colors hover:bg-secondary/70"
+              className="w-full rounded-lg border border-border bg-card px-4 py-3.5 text-left transition-colors hover:bg-secondary/40"
             >
               <p className="font-medium text-foreground">{entry.question}</p>
               {entry.answer && (
@@ -200,7 +200,7 @@ function Chip({
       className={`rounded-full border px-3 py-1 text-xs transition-colors ${
         active
           ? "border-primary/50 bg-primary/10 text-foreground"
-          : "border-input bg-input/60 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+          : "border-input bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
       }`}
     >
       {children}

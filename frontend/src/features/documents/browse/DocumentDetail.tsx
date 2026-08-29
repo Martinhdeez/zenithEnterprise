@@ -78,7 +78,7 @@ export function DocumentDetail({
   const caution = !failed && document.status === "ready" ? document.status_detail : null;
 
   return (
-    <div className="space-y-4 rounded-lg border border-input bg-secondary p-4">
+    <div className="space-y-4 rounded-lg border border-input bg-card p-4">
       <div className="space-y-1">
         <p className="truncate text-sm font-medium text-foreground">{document.filename}</p>
         {document.description && (

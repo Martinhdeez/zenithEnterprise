@@ -110,7 +110,7 @@ export function Profile({ token, onSignedOut, onProfile }: Props) {
               {me.permissions.map((permission) => (
                 <code
                   key={permission}
-                  className="rounded border border-input bg-input/60 px-1.5 py-0.5 font-mono text-xs text-muted-foreground"
+                  className="rounded border border-input bg-card px-1.5 py-0.5 font-mono text-xs text-muted-foreground"
                 >
                   {permission}
                 </code>
@@ -372,14 +372,14 @@ function Sessions({ token, onSignedOut }: { token: string; onSignedOut: () => vo
   );
 }
 
-/** `bg-secondary`, not `bg-card`: the page's own `<main>` is already `bg-card`, so a panel
-    painted the same navy is invisible but for its hairline. The palette has three steps and
-    a panel is the third — the same frame the administration screens use, so the two read as
-    one product rather than two screens built by different hands. */
+/** The same frame the administration screens use, so the two read as one product rather
+    than two screens built by different hands — including the correction: the body is
+    `bg-card` and lifts off the working surface, and the header takes the page's own tone so
+    it recedes below its own body. It was inverted while the working surface was white. */
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-lg border border-border bg-secondary shadow-sm">
-      <h2 className="flex items-center gap-2 rounded-t-lg border-b border-border bg-card px-5 py-3.5 text-sm font-semibold text-foreground">
+    <section className="rounded-lg border border-border bg-card shadow-sm">
+      <h2 className="flex items-center gap-2 rounded-t-lg border-b border-border bg-background px-5 py-3.5 text-sm font-semibold text-foreground">
         {title === "Access" && <ShieldCheck className="size-4 text-primary" />}
         {title}
       </h2>
