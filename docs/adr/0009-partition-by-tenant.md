@@ -165,14 +165,37 @@ prerequisite and the helper is only the convenience.
 
 ### What is verified
 
-**Runtime pruning works.** This was the unknown that could have ended the idea outright: the
-partition key does not arrive as a literal, it arrives from `zenith_current_tenant()`, which
-reads a GUC and is `STABLE` rather than `IMMUTABLE`, and plan-time pruning needs a constant.
+**Runtime pruning works, including under the shape that ships.** This was the unknown that
+could have ended the idea outright: the partition key does not arrive as a literal, it
+arrives from `zenith_current_tenant()`, which reads a GUC and is `STABLE` rather than
+`IMMUTABLE`, and plan-time pruning needs a constant.
+
 `backend/eval/partition-pruning.sql` — eight list partitions over the real 13,549 vectors, on
-the live database — gives `Subplans Removed: 7` of 8, in three shapes: the direct query, a
+the live database — gives `Subplans Removed: 7` of 8 in three shapes: the direct query, a
 `PREPARE`/`EXECUTE` pair (where a generic plan could have defeated it), and the same query
-with the vector `ORDER BY` on top. The recorded plan output lives in
-`.artifacts/in-progress/2026-08-28-ceilings-2-and-3.md`; the probe reproduces it.
+with the vector `ORDER BY` on top. It is honest about its scope: owner role, a bare equality,
+no policy.
+
+`backend/eval/partition-rls-policy-pruning.sql` closes the gap that leaves, and it is the one
+to read, because four things separate the narrow probe from what will actually run and each
+could plausibly have defeated pruning. The predicate is a **conjunction**, not an equality —
+a planner that could not see past `label_ids = '{}' OR label_ids && zenith_current_labels()`
+to the tenant clause would prune nothing. It arrives **injected by a policy** rather than
+written by the query author, and the probe's `SELECT` carries no `WHERE` at all, so the
+predicate is entirely the policy's. It runs as **`zenith_app`**, the role the policy applies
+to — as the owner the policy is never consulted, so the earlier probe never exercised the
+path. And **every partition carries its own copy of the policy**, which is only possible
+since stage 0 and is the arrangement that will be deployed. Same result: `Subplans Removed: 7`
+of 8, appearing twice — once for the InitPlan and once for the scan the `ORDER BY` drives —
+with the full conjunction visible in the filter of the one partition that survives.
+
+It loads real vectors from `chunk_embeddings` rather than random ones, because the `ORDER BY`
+has to produce a plan the planner would actually choose and a column of noise gets a
+different one.
+
+Both probes are reproducible against a live database and drop their own schemas. The
+narrower one's recorded plan output also survives in
+`.artifacts/in-progress/2026-08-28-ceilings-2-and-3.md`.
 
 **Tenant creation stays inside the existing bypass surface.** It becomes a DDL operation, but
 it already runs in `owner_session()`, which invariant 2 lists for tenancy provisioning. The
@@ -259,8 +282,8 @@ Every figure above comes from a run written to disk under `backend/eval/`, and e
 them was measured on **the same 42-document, 13,549-passage corpus** unless it says otherwise.
 Files cited: `quantisation.json`, `dimensions.json`, `index-shape.json`, `tenant-scale.json`,
 `coarse.json`, `coarse-scale.json`, `coarse-dims.json`, `scale.json`, `latency.json`,
-`live-recall.json`, and the two structural probes `partition-pruning.sql` and
-`partition-rls.sql`.
+`live-recall.json`, and the three structural probes `partition-pruning.sql`,
+`partition-rls-policy-pruning.sql` and `partition-rls.sql`.
 
 ### A correction happened, and several numbers moved
 
@@ -303,16 +326,6 @@ Both docstrings now say so.
 Stated so that the next person can check rather than trust, in the manner of ADR 0002's
 superseded section:
 
-- **The pruning claim** fails if `Subplans Removed` is absent from a plan under the *full*
-  shipped policy — including the `label_ids` array overlap — executed as `zenith_app` rather
-  than as the owner. `partition-pruning.sql` tests the tenant equality with the `ORDER BY`
-  on top; it does not `SET ROLE` and it does not exercise the label clause. Those two shapes
-  are reported to have been run and to have pruned, but the probe was **not saved**, which is
-  this repository's own rule broken in the way it is usually broken: a number nobody can
-  re-derive is a number nobody can check. A probe carrying both is pending as
-  `backend/eval/partition-rls-policy-pruning.sql`; until it is on the base, this record
-  claims only the three shapes `partition-pruning.sql` supports, and the gap is stage 1's to
-  close.
 - **The recall claim** fails if a partitioned installation at a real size does not show the
   gap shrinking with N. It rests entirely on a fit spanning less than one decade. One
   measurement at 1M passages in a single partition, against exact retrieval, would settle it
