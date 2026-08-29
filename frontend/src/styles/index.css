@@ -307,9 +307,15 @@
 
      So the working surface drops to `--background` and the things on it keep `--card`. That
      costs a step of separation between the page and its chips, which is why `--secondary`
-     drops too: the gaps are 0.035 either side of the page now, where they were 0.012 and
-     0.028 the wrong way round. */
-  --background: oklch(0.9700 0.0060 273.8);
+     drops with it.
+
+     The size of the step was then set by the dark theme rather than by taste. Dark separates
+     the sidebar from the working surface by 0.062 of lightness and reads as two distinct
+     regions; light was doing the same job with 0.030 and read as one white field with a
+     hairline through it. It is 0.045 now, with `--secondary` a further 0.040 below, so the
+     two themes describe the same three surfaces with comparable force instead of one of them
+     whispering. */
+  --background: oklch(0.9550 0.0075 273.8);
   /* The six fields of the light backdrop: a ground, then five bands. Mixed towards white rather
      than given their own values, so they stay tints of the palette instead of becoming a
      sixth and seventh colour the product has to explain. */
@@ -326,11 +332,11 @@
   --popover-foreground: oklch(0.2000 0.0300 273.8);
   --primary: oklch(0.5000 0.1911 273.8);
   --primary-foreground: oklch(0.9850 0.0040 273.8);
-  --secondary: oklch(0.9350 0.0090 273.8);
+  --secondary: oklch(0.9150 0.0105 273.8);
   --secondary-foreground: oklch(0.2400 0.0300 273.8);
-  --muted: oklch(0.9350 0.0090 273.8);
+  --muted: oklch(0.9150 0.0105 273.8);
   --muted-foreground: oklch(0.4900 0.0250 273.8);
-  --accent: oklch(0.9350 0.0090 273.8);
+  --accent: oklch(0.9150 0.0105 273.8);
   --accent-foreground: oklch(0.2400 0.0300 273.8);
   --destructive: oklch(0.5500 0.2000 27);
   --destructive-foreground: oklch(0.9850 0.0040 273.8);
