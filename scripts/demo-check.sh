@@ -242,6 +242,27 @@ case "${RERANKER}" in
   *)              warn "the diagnostic report said nothing usable about the reranker" ;;
 esac
 
+# The lock budget, which is the one failure in this script that is *not* a degradation. A
+# partitioned installation whose `max_locks_per_transaction` is too small does not answer
+# worse: Postgres raises `OutOfMemory` while planning and the search is a 500. It arrives at
+# whatever concurrency the room produces, so the first person to ask a question sees it work
+# and the fourth does not — which is the worst possible order for it to happen in.
+#
+# Read from the diagnostic rather than asked here, because the number it compares against is
+# computed from the live schema: partitions times relations per partition. A copy of that
+# arithmetic in this file would be a second place to update the day the index set changes.
+#
+# `max_locks_per_transaction` needs a restart, so a failure here is not something to fix
+# between slides. It is a failure and not a warning for exactly that reason.
+LOCKS="$(report_check "lock budget")"
+case "${LOCKS}" in
+  UNREADABLE\ *)  warn "${LOCKS#UNREADABLE }" ;;
+  FAIL\ *)        bad  "${LOCKS#* }" ;;
+  WARN\ *)        warn "${LOCKS#* }" ;;
+  OK\ *)          ok   "${LOCKS#* }" ;;
+  *)              warn "the diagnostic report said nothing usable about the lock budget" ;;
+esac
+
 # --- what the system panel will show ------------------------------------------------------
 #
 # Everything above asks whether the product works. This asks what a buyer reads, which is a
