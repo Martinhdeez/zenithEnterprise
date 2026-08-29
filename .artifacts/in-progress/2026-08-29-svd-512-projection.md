@@ -145,3 +145,73 @@ itself a second time.
 6. A test that proves the mixing gate *fails loudly*, against a real mismatch it constructs.
 
 A failed bar stays in this file.
+
+---
+
+## Outcome — 2026-08-30
+
+Every bar above was met. Three of them moved from "declared" to "measured" and two claims in
+the plan turned out to be wrong; both corrections are below rather than edited away.
+
+### The gates
+
+| gate | outcome |
+|---|---|
+| `make check` on the branch, exit code captured directly | **EXIT=0** (after two real failures, below) |
+| `make check` on the merge with `integration/scaling` | **EXIT=0** |
+| `alembic upgrade head` → `downgrade -1` → `upgrade head` | **all three exit 0**, 13,549 embeddings / 13,549 chunks / 42 documents intact at every step, column types flipping `vector(1024)` ↔ `vector` and back, 129 HNSW relations throughout |
+| `live-recall.json` must not fall | **held.** Recall@8 **0.9000**, Recall@1 **0.6667** on all three arms |
+| worst single question | **unchanged.** The same three questions miss in every arm: `boe-bank-rate`, `cross-platform-obligations`, `table-form-1040-status` |
+| answerable scored apart from unanswerable | `dimensions.json`'s 30/12 split, quoted and not re-derived; `live.py` scores its own 20 headline questions separately from the 30 |
+
+### The three live arms
+
+Measured over HTTP through a real deployment. The first is the installation; the other two are
+a scratch copy of it at 0027 served by an api built from this branch, which is what separates
+*the mechanism* from *the projection*.
+
+| arm | Recall@8 | Recall@1 | mean rank | median / p95 |
+|---|---|---|---|---|
+| the real installation, 0026, identity 1024 | 0.9000 | 0.6667 | 1.37 | 839 / 1090 ms |
+| this branch, 0027, identity 1024 still active | 0.9000 | 0.6667 | 1.37 | 872 / 1247 ms |
+| **this branch, 0027, `svd_512` active** | **0.9000** | **0.6667** | **1.37** | **861 / 1160 ms** |
+
+Identical, including which questions miss. **An identical number is also what a measurement
+that did not happen looks like**, so it is not the evidence — this is: across five real HTTP
+searches with the statistics reset before and force-flushed after, `svd_512`'s partition
+indexes took **5 index scans on exactly 1 partition, reading 250 tuples** (`CANDIDATES` 50 × 5,
+so the dense half got every candidate it asked for), and the retired 1024 index took **0**. The
+live path goes through the projected index, prunes to one partition, and never ranks across
+both spaces.
+
+### Two corrections to the plan above
+
+**1. There is no `zenith fit-basis` command, and there cannot be one yet.** The plan promised
+it. Fitting is an eigendecomposition of a 1024×1024 matrix and needs numpy, which is
+deliberately absent from the shipped image — the same constraint that forced the projection
+into SQL forbids the fit from living in the CLI. *Applying* a basis needs nothing but
+Postgres; *fitting* one does not. `eval/svd_512.py` is the whole of the tooling today, and
+migration 0027's docstring now names the gap instead of pointing at a command that does not
+exist. Making it shippable means deciding where numpy lives, and that decision is not taken
+here.
+
+**2. The factor is 1.90×, not 2.00×.** `dimensions.json`'s 2,729.9 → 1,365.8 was measured on
+unpartitioned arms. On the real corpus at 128 partitions it is **2,883.4 → 1,518.8 = 1.90×**
+(`svd-512.json`): both widths pay 128 sets of page overhead and the smaller one pays
+proportionally more. 1.90× is the figure a partitioned installation should be sized on.
+
+### Three failures worth keeping
+
+`make check` returned **EXIT=2 twice** before it returned 0 — once on `format-check`, once on
+`web-types` with `tsc: command not found`, which was this worktree never having had `npm ci`
+run in it. Neither would have been visible through a `tail`.
+
+The sweep's first run failed two of its four bars, and **both failures were in the harness and
+both looked exactly like product regressions**: the plan check had no `enable_seqscan`/
+`enable_sort` off and read `Limit → Sort` at a size where the planner is right to sort; and
+the 512 index's partition copies were never renamed, so the footprint read 0 bytes per vector
+and the plan verdict matched against a name the index did not have.
+
+And the first attempt to prove index use slept two seconds, read zeros from
+`pg_stat_user_indexes`, and looked precisely like the silent sequential-scan regression this
+stage had to avoid. It was the statistics collector not having flushed.

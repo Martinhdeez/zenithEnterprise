@@ -97,7 +97,7 @@ class EmbeddingSpaceAxis(Base):
 
     No RLS, for the reason `EmbeddingSpace` has none: it describes a model, not content.
     `zenith_app` is granted `SELECT` and nothing else — a basis is written by
-    `zenith fit-basis`, through the CLI's owning connection.
+    `eval/svd_512.py`, through an owning connection.
 
     That last sentence names the factory obliquely on purpose. `tests/integration/
     test_unpruned_query_audit.py` flags any module that mentions a bypass factory *and* names
@@ -146,7 +146,13 @@ class ChunkEmbedding(Base):
         # the index is what has to stay resident: 2,729.9 bytes per vector against 8,188.4,
         # at index recall 1.0000 against exact at both depths on the full corpus, measured in
         # `eval/quantisation.json`. At 512 dimensions it is 1,365.8, measured in
-        # `eval/dimensions.json` — the 2.00x this stage is worth.
+        # `eval/dimensions.json`.
+        #
+        # Those two are unpartitioned arms and their ratio is 2.00x. On the real corpus at
+        # 128 partitions it is **1.90x** — 2,883.4 bytes per vector against 1,518.8,
+        # `eval/svd-512.json` — because the index is 128 separate graphs with 128 sets of
+        # page overhead, which both widths pay and the smaller one pays proportionally more.
+        # 1.90x is the figure to quote for a partitioned installation.
         #
         # Declared here and not only in the migration so the drift test can check that
         # database and models say the same thing.

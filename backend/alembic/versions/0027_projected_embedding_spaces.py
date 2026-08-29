@@ -39,7 +39,7 @@ returns different neighbours at *full width*.
 Textbook PCA would have charged that loss to the dimensions and reported that reduction is
 expensive. It is not. The subtraction is. Anything that later re-fits this basis has to fit
 the eigenbasis of the uncentred second moment `X'X / n`, which is what `eval/dimensions.py`
-does and what `zenith fit-basis` writes.
+and `eval/svd_512.py` both do.
 
 Random projection is a further 24 points worse than SVD at 256 and is not the simpler thing
 to ship.
@@ -79,11 +79,11 @@ mistake returns an error, never a plausible answer.
 vectors and stored vectors are projected by the same rows of the same table. There is no
 matrix in Python, in a file, or in this migration's body to drift out of step with the data.
 
-It is also the only option. `backend/pyproject.toml` keeps numpy in the `eval` dependency
-group deliberately, because `Dockerfile.backend` builds with `uv sync --no-dev` and the
-shipped image is not to grow for a measurement sweep; numpy is confirmed absent from the api
-container. Measured in `eval/svd-basis.sql`: **0.79-0.87 ms** to project one query vector
-warm, against a live search median of 941 ms.
+It is also the only option for the *query* path. `backend/pyproject.toml` keeps numpy in the
+`eval` dependency group deliberately, because `Dockerfile.backend` builds with
+`uv sync --no-dev` and the shipped image is not to grow for a measurement sweep; numpy is
+confirmed absent from the api container. Measured in `eval/svd-basis.sql`: **0.79-0.87 ms** to
+project one query vector warm, against a live search median of 854 ms.
 
 `STABLE` and not `IMMUTABLE`, because it reads a table. That is correct and it is also why
 the projection is done in its own round trip rather than inline in the `ORDER BY` — a
@@ -97,8 +97,19 @@ untouched, because a migration that silently reindexed a corpus would be an outa
 as an upgrade — and because the projection is per tenant, interruptible, and a **write**,
 which on a partitioned table is the operation that does not prune (`docs/partitioning-
 unpruned-surface.md`: 19 locks against 2,059 for the identical statement, differing only in
-whether the tenant is a bound parameter). `zenith fit-basis` and `zenith reproject` are the
-path, and `downgrade` therefore has a corpus to go back to.
+whether the tenant is a bound parameter). `downgrade` therefore has a corpus to go back to.
+
+**And there is no `zenith fit-basis` command, which is a gap this migration names rather than
+hides.** Fitting is an eigendecomposition of a 1024x1024 matrix: seconds of BLAS, days of pure
+Python, and numpy is deliberately not in the shipped image. So *applying* a basis needs
+nothing but Postgres — that is what `zenith_project` is for — while *fitting* one needs a
+dependency the api container does not have. `eval/svd_512.py` fits, installs, reprojects and
+measures, from the repository where numpy exists, and that is the whole of the tooling today.
+
+Turning it into a shipped command means deciding where numpy lives — an optional extra
+installed only where a basis is fitted is the obvious answer and it is not this migration's to
+take. Recording the gap is: an operator reading this needs to know the reindex path exists and
+is not yet a supported command.
 """
 
 from alembic import op
@@ -248,8 +259,8 @@ def _describe_the_projection() -> None:
         """
     )
     # `zenith_app` reads the basis on every search and never writes it. A basis is changed by
-    # `zenith fit-basis`, which runs on `owner_session` -- the factory CLAUDE.md already
-    # names for CLI and provisioning.
+    # `eval/svd_512.py`, which connects as the owner. See the note on tooling at the end
+    # of this file's docstring: fitting needs numpy and the shipped image does not have it.
     op.execute("GRANT SELECT ON embedding_space_axes TO zenith_app")
     op.execute("GRANT SELECT ON embedding_space_axes TO zenith_platform")
 
@@ -357,8 +368,8 @@ def downgrade() -> None:
     somebody's index, and this refuses.
 
     Reaching 0026 from a projected installation therefore means retiring the projected space
-    first -- `zenith reproject --back` -- which is a decision an operator takes, in daylight,
-    rather than a side effect of a rollback. The 1024 space is still there to go back to
+    first -- deleting its rows and its space -- which is a decision an operator takes, in
+    daylight, rather than a side effect of a rollback. The 1024 space is still there to go back to
     precisely because `upgrade` does not touch it.
     """
     op.execute(

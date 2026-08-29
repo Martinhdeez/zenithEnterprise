@@ -79,5 +79,77 @@
       "error": "expected 512 dimensions, not 1024"
     }
   ],
-  "all_bars_met": true
+  "all_bars_met": true,
+  "live": {
+    "note": "The stage's deciding gate, over HTTP through a real deployment, as a user would experience it. Three arms. The first is the installation itself and is the number that must not fall; the other two run against a scratch copy of it at migration 0027, served by an api built from this branch, so the mechanism and the projection are separated from each other.",
+    "before_real_installation_0026": {
+      "what": "the running installation, migration 0026, 128 partitions, identity 1024",
+      "headline_recall_at_8": 0.9,
+      "recall_at_1_all": 0.6667,
+      "recall_at_8_all": 0.9,
+      "document_recall_at_8": 1.0,
+      "mean_rank": 1.37,
+      "median_ms": 839,
+      "p95_ms": 1090,
+      "degraded": 0,
+      "missed": [
+        "boe-bank-rate",
+        "cross-platform-obligations",
+        "table-form-1040-status"
+      ],
+      "scored": 30
+    },
+    "arm_a_this_branch_identity_1024": {
+      "what": "scratch copy at 0027, this branch's code, the 1024 space still active",
+      "isolates": "whether the code change alone moves recall. It does not.",
+      "headline_recall_at_8": 0.9,
+      "recall_at_1_all": 0.6667,
+      "recall_at_8_all": 0.9,
+      "document_recall_at_8": 1.0,
+      "mean_rank": 1.37,
+      "median_ms": 872,
+      "p95_ms": 1247,
+      "degraded": 0,
+      "missed": [
+        "boe-bank-rate",
+        "cross-platform-obligations",
+        "table-form-1040-status"
+      ],
+      "scored": 30
+    },
+    "arm_b_this_branch_svd_512": {
+      "what": "scratch copy at 0027, this branch's code, the svd_512 space active",
+      "isolates": "what the projection costs end to end.",
+      "headline_recall_at_8": 0.9,
+      "recall_at_1_all": 0.6667,
+      "recall_at_8_all": 0.9,
+      "document_recall_at_8": 1.0,
+      "mean_rank": 1.37,
+      "median_ms": 861,
+      "p95_ms": 1160,
+      "degraded": 0,
+      "missed": [
+        "boe-bank-rate",
+        "cross-platform-obligations",
+        "table-form-1040-status"
+      ],
+      "scored": 30
+    },
+    "index_actually_used": {
+      "note": "An identical recall number is exactly what a measurement that did not happen looks like, so this counts index scans across five real HTTP searches rather than trusting the recall. Statistics reset before, flushed with pg_stat_force_next_flush() after -- a first attempt slept two seconds, read zeros and looked like the silent sequential-scan regression this stage exists to avoid. It was the collector, not the plan.",
+      "requests": 5,
+      "svd_512": {
+        "partitions_scanned": 1,
+        "idx_scan": 5,
+        "tuples_read": 250,
+        "reading": "One partition per request, which is RLS pruning. 250 tuples is exactly CANDIDATES=50 x 5 requests, so the dense half got every candidate it asked for rather than losing rows to a post-filter."
+      },
+      "identity_1024": {
+        "partitions_scanned": 0,
+        "idx_scan": 0,
+        "tuples_read": 0,
+        "reading": "The retired space is never touched. No query ranks across both."
+      }
+    }
+  }
 }
