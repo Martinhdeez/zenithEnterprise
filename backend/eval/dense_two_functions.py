@@ -1,8 +1,17 @@
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false
 # pyright: reportUnknownArgumentType=false, reportMissingTypeStubs=false
+# pyright: reportPrivateUsage=false
 #
 # Laboratory code, suppressed once per file as elsewhere under `eval/`. Nothing under
 # `app/` relaxes strictness.
+#
+# `reportPrivateUsage` is the one suppression here that is not boilerplate. This file reuses
+# `dense_plan_time`'s schema builder, tenants, index set, plan reader and engines rather than
+# copying them, and every one of those is spelled with a leading underscore because that module
+# was written as a sweep rather than as a library. Copying a schema builder that has already been
+# debugged twice to satisfy a naming convention would be the more expensive mistake — a second
+# copy diverging from the first is exactly the risk Bar 6 exists to measure elsewhere in this
+# file. The suppression is the cheaper honesty.
 
 """If the disjunct is what breaks it, do not write a disjunct: two functions instead of one.
 
@@ -734,6 +743,7 @@ async def _isolation(
     grid: list[dict[str, object]] = []
     on_diagonal = 0
     off_diagonal = 0
+    foreign_total = 0
 
     async with app.connect() as conn:
         for context in tenants:
@@ -742,8 +752,8 @@ async def _isolation(
                 row = (
                     await conn.execute(
                         text(
-                            "SELECT count(*) AS n, "
-                            "  count(*) FILTER (WHERE a.tenant_id <> CAST(:ctx AS uuid)) AS foreign_rows "
+                            "SELECT count(*) AS n, count(*) FILTER "
+                            "  (WHERE a.tenant_id <> CAST(:ctx AS uuid)) AS foreign_rows "
                             f"FROM {SCHEMA}.f_forced_scoped(CAST(:r AS uuid), "
                             "       CAST(:v AS halfvec(1024)), :m, :s, :w, CAST(:d AS uuid[])) f "
                             f"JOIN {SCHEMA}.assign a ON a.chunk_id = f.chunk_id"
@@ -767,6 +777,7 @@ async def _isolation(
                         "foreign_rows": int(row.foreign_rows),
                     }
                 )
+                foreign_total += int(row.foreign_rows)
                 if context == requested:
                     on_diagonal += int(row.n)
                 else:
@@ -849,7 +860,7 @@ async def _isolation(
         "cells": len(grid),
         "rows_on_the_diagonal": on_diagonal,
         "rows_off_the_diagonal": off_diagonal,
-        "foreign_rows": sum(int(cell["foreign_rows"]) for cell in grid),
+        "foreign_rows": foreign_total,
         "another_tenants_documents_in_scope": foreign_scope,
         "plan_cache": cache,
         "grid": grid,
@@ -1087,7 +1098,7 @@ def _bars(rungs: list[dict[str, Any]]) -> dict[str, object]:
         modulus = int(rung["modulus"])
         plans: dict[str, Any] = rung["plans"]
 
-        def arm(name: str) -> dict[str, Any]:
+        def arm(name: str, plans: dict[str, Any] = plans) -> dict[str, Any]:
             return plans.get(name) or {}
 
         # Bar 1 — the controls reproduce.
@@ -1264,7 +1275,7 @@ def _verdict(rungs: list[dict[str, Any]]) -> list[dict[str, object]]:
         plans: dict[str, Any] = rung.get("plans") or {}
         promotion: dict[str, Any] = rung.get("promotion") or {}
 
-        def hnsw(name: str) -> object:
+        def hnsw(name: str, plans: dict[str, Any] = plans) -> object:
             return (plans.get(name) or {}).get("hnsw_index_in_plan")
 
         out.append(
@@ -1276,8 +1287,7 @@ def _verdict(rungs: list[dict[str, Any]]) -> list[dict[str, object]]:
                 "scoped_bare_generic_keeps_hnsw": hnsw("scoped_bare_forced_generic"),
                 "scoped_or_generic_keeps_hnsw": hnsw("scoped_or_forced_generic"),
                 "generic_plan_ever_reached_unforced": {
-                    name: entry.get("hnsw_lost_at_execution")
-                    for name, entry in promotion.items()
+                    name: entry.get("hnsw_lost_at_execution") for name, entry in promotion.items()
                 },
             }
         )

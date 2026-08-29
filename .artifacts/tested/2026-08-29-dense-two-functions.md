@@ -3,7 +3,9 @@
 Measurement: `backend/eval/dense_two_functions.py`, report `backend/eval/dense-two-functions.json`.
 Premise: `backend/eval/dense-plan-time-pruning.sql` section 5f, `backend/eval/dense-plan-time.json`.
 Every figure below comes from that report. Three rungs — 32, 128, 256 partitions — over the real
-13,549 passages and eight synthetic tenants, reproduced identically in three consecutive runs.
+13,549 passages and eight synthetic tenants. **Four consecutive runs produced an identical
+verdict table**, so the readings below are reproductions rather than one draw; the timings move a
+few hundredths of a millisecond between runs and the plans do not move at all.
 
 **Installation these readings come from:** Postgres 17.5, migration **0026**,
 `public.chunks` partitioned into 128, `max_locks_per_transaction` 2,560 over 100 connections —
@@ -82,7 +84,7 @@ different moduli in both directions.
 generic plan unforced. Forty unforced executions of each arm on one backend, the plan read every
 time, at all three rungs: **the HNSW index is present in all forty, on every arm.**
 `hnsw_lost_at_execution` is `null` everywhere. The spike is still there —
-`local` at 128: `0.264, 0.194, 0.176, 0.196, 0.226, 9.600, 0.193, 0.202, 0.145, …` — and it is
+`local` at 128: `0.168, 0.261, 0.184, 0.207, 0.158, 8.595, 0.242, 0.169, 0.153, …` — and it is
 Postgres *building* a candidate generic plan and pricing it, then going on planning custom. It
 builds one; it does not use one.
 
@@ -94,14 +96,14 @@ At modulus 128, custom plan, as `zenith_app` with the policies in force:
 
 | arm | partitions in plan | `Subplans Removed` | planning | execution | locks |
 |---|---|---|---|---|---|
-| `today` (shipped, unscoped) | 2 | `[127, 127]` | 8.381 ms | 2.255 ms | 1,161 |
-| `local` (unscoped candidate) | 2 | none | **0.177 ms** | 0.888 ms | **18** |
-| `shipped_scoped` | 2 | `[127, 127]` | 8.698 ms | 3.285 ms | 1,161 |
-| `scoped_bare` | 2 | none | **0.175 ms** | 1.615 ms | **18** |
+| `today` (shipped, unscoped) | 2 | `[127, 127]` | 8.417 ms | 2.143 ms | 1,161 |
+| `local` (unscoped candidate) | 2 | none | **0.195 ms** | 0.869 ms | **18** |
+| `shipped_scoped` | 2 | `[127, 127]` | 9.364 ms | 3.409 ms | 1,161 |
+| `scoped_bare` | 2 | none | **0.165 ms** | 1.555 ms | **18** |
 
 Both candidates fold the policy into a `One-Time Filter`, name the HNSW index, and carry no
 `Append` at all — plan-time pruning, not executor-startup pruning. At 256 the same comparison is
-27.4 ms → 0.199 ms and 2,313 locks → 18.
+23.1 ms → 0.134 ms and 2,313 locks → 18.
 
 ## The correctness bars, at all three rungs
 
