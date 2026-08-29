@@ -472,18 +472,58 @@ async def _extensions() -> tuple[Status, str]:
     return "ok", ", ".join(sorted(required))
 
 
+#: Tables small enough, and unpartitioned enough, to count exactly.
+_COUNTED_EXACTLY = ("tenants", "users", "documents")
+
+#: The two tables ADR 0009 partitions, counted from the planner's own statistics instead.
+#:
+#: `SELECT count(*)` over a table partitioned into 256 opens all 256 and reads all of them:
+#: 1,542 locks of this installation's 6,400, measured in `eval/unpruned-queries.json`. It is
+#: not slow — 4.6 ms there — and slowness was never the objection. The objection is that a
+#: diagnostic an operator runs *while the installation is serving* should not take a quarter
+#: of the cluster's lock table to answer a question nobody needs to the row.
+#:
+#: The estimate scans nothing at any modulus and takes 7 locks. It is an estimate, and the
+#: `~` in the output says so rather than the reader having to know.
+_ESTIMATED = ("chunks", "chunk_embeddings")
+
+#: Summed over the partition tree, because after partitioning the parent's own `reltuples` is
+#: zero and a reader of that number would conclude the corpus had been lost. Recursive rather
+#: than one level down, so it still holds if a partition is ever itself partitioned.
+_ESTIMATE = """
+WITH RECURSIVE tree AS (
+    SELECT to_regclass(:table)::oid AS oid
+    UNION ALL
+    SELECT i.inhrelid FROM pg_inherits i JOIN tree t ON i.inhparent = t.oid
+)
+SELECT coalesce(sum(c.reltuples), 0)::bigint
+FROM tree JOIN pg_class c ON c.oid = tree.oid
+WHERE c.relkind = 'r'
+"""
+
+
 async def _content() -> tuple[Status, str]:
     """Row counts through the owner connection.
 
     Deliberately the owner: this is an operator asking about their own installation, and
     under RLS with no context the answer would be zero for everything, which reads as data
     loss rather than as an empty context.
+
+    The two partitioned tables are estimated rather than counted — see `_ESTIMATED`. A
+    `reltuples` figure is as stale as the last `ANALYZE`, which on a busy installation is a
+    real difference and on this one was zero at every rung of
+    `eval/unpruned-queries.json`'s ladder. `-1` means the table has never been analysed at
+    all, and it is reported as unknown rather than shown to an operator as a negative corpus.
     """
-    tables = ("tenants", "users", "documents", "chunks", "chunk_embeddings")
     counts: list[str] = []
     async with get_owner_session_factory()() as session:
-        for table in tables:
+        for table in _COUNTED_EXACTLY:
             counts.append(f"{table}={await session.scalar(text(f'SELECT count(*) FROM {table}'))}")
+        for table in _ESTIMATED:
+            estimate = await session.scalar(text(_ESTIMATE), {"table": table})
+            counts.append(
+                f"{table}={'unknown' if estimate is None or estimate < 0 else f'~{estimate}'}"
+            )
     return "ok", "  ".join(counts)
 
 
