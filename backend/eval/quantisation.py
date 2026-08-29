@@ -7,10 +7,15 @@
 """What the vector index costs per passage, and what shrinking it costs in recall.
 
 The HNSW index is the structural ceiling on how much corpus one installation can hold.
-Measured here rather than assumed: `ix_chunk_embeddings_hnsw` is ~8,940 bytes per vector for
+Measured here rather than assumed: the production index was ~8,940 bytes per vector for
 `vector(1024)` at `m=16, ef_construction=64`, and HNSW wants to be resident. At this corpus's
 measured passages-per-document that is thousands of gigabytes at a million documents, which
 is the number that decides whether the product runs on an enterprise server or does not.
+
+**This sweep is what migration 0025 was decided on, and it still runs after it.** The
+installation's index is now `halfvec_cosine_ops` on `embedding_half`, so the `fp16` row below
+is the deployed representation and `fp32` is the baseline it replaced. The fp32 and binary
+arms are still built here, on scratch copies, because the comparison is the report.
 
 pgvector 0.8 offers two smaller representations, and this sweeps both against the fp32 index
 they would replace:
@@ -62,6 +67,7 @@ import asyncio
 import json
 import statistics
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -362,13 +368,23 @@ async def _index_recall(
     return measured
 
 
-async def _end_to_end(
+#: What an alternative dense half has to look like to be measured end to end: given a
+#: scratch connection and a query embedding, return the candidate chunk ids it proposes.
+DenseStage = Callable[[AsyncConnection, list[float]], Awaitable[list[UUID]]]
+
+
+async def end_to_end(
     where: Installation,
-    size: int,
-    variant: Variant,
+    dense_stage: DenseStage,
     ef_search: int,
 ) -> dict[str, object]:
-    """The real pipeline with only the dense half swapped for the quantised one.
+    """The real pipeline with only the dense half swapped for the one under test.
+
+    Parameterised by the dense stage rather than by a quantisation variant, because
+    `eval/coarse.py` substitutes a two-stage coarse-then-fine retrieval that is not a variant
+    of anything here. Two copies of this function would be two credit rules, two orderings
+    and two definitions of what reached the page — and a number from one could not be read
+    beside a number from the other, which is the only use either has.
 
     `lexical`, `exact`, `candidates`, `fuse`, `hydrate` and the cross-encoder are the
     product's own functions, called in the product's order. Reimplementing them to measure
@@ -400,9 +416,7 @@ async def _end_to_end(
 
                 embedding = await embedder.embed_query(question.question)
                 dense_started = time.perf_counter()
-                dense_ids, _, _ = await _probe(
-                    scratch, _table(size), variant, embedding, CANDIDATES
-                )
+                dense_ids = await dense_stage(scratch, embedding)
                 dense_times.append((time.perf_counter() - dense_started) * 1000)
 
                 async with tenant_session(where.profile.context) as session:
@@ -570,9 +584,20 @@ async def _run(subsets: tuple[int, ...]) -> int:
                 await conn.execute(text("SELECT count(DISTINCT document_id), count(*) FROM chunks"))
             ).one()
             documents, chunks = int(counted[0]), int(counted[1])
+            # `to_regclass` rather than a bare name: the production index is
+            # `ix_chunk_embeddings_hnsw_half` from migration 0025 and was
+            # `ix_chunk_embeddings_hnsw` before it, and this sweep has to run either side of
+            # that migration — it is what decides whether to apply it. A hard-coded name
+            # would make the report fail on exactly the installation it is measuring.
             production_index_bytes = int(
                 (
-                    await conn.execute(text("SELECT pg_relation_size('ix_chunk_embeddings_hnsw')"))
+                    await conn.execute(
+                        text(
+                            "SELECT coalesce(pg_relation_size(to_regclass("
+                            "'ix_chunk_embeddings_hnsw_half')), "
+                            "pg_relation_size(to_regclass('ix_chunk_embeddings_hnsw')), 0)"
+                        )
+                    )
                 ).scalar_one()
             )
 
@@ -587,7 +612,17 @@ async def _run(subsets: tuple[int, ...]) -> int:
         print("\n  end to end, scored as live.py scores, at the full corpus:")
         reached: dict[str, object] = {}
         for variant in VARIANTS:
-            measured = await _end_to_end(where, full, variant, ef_search)
+
+            def probe_variant(
+                scratch: AsyncConnection, embedding: list[float], v: Variant = variant
+            ) -> Awaitable[list[UUID]]:
+                async def _go() -> list[UUID]:
+                    ids, _, _ = await _probe(scratch, _table(full), v, embedding, CANDIDATES)
+                    return ids
+
+                return _go()
+
+            measured = await end_to_end(where, probe_variant, ef_search)
             reached[variant.key] = measured
             print(f"    {variant.key:<12} {json.dumps(measured)}", flush=True)
 
@@ -607,10 +642,13 @@ async def _run(subsets: tuple[int, ...]) -> int:
                 "production_index_bytes": production_index_bytes,
                 "production_bytes_per_vector": round(production_index_bytes / chunks, 1),
                 "freshly_built_bytes_per_vector": baseline,
-                "production_bloat_note": (
-                    "The live index is larger per vector than a freshly built one of the "
-                    "same parameters. The difference is ingestion churn, not representation, "
-                    "and every ratio below is fresh-against-fresh."
+                "production_note": (
+                    "`production_bytes_per_vector` is the live index, which is fp16 since "
+                    "migration 0025 and therefore comparable to the `fp16` arm below rather "
+                    "than to `freshly_built_bytes_per_vector` — that is the fp32 baseline "
+                    "every ratio here is taken against. A live index carrying ingestion "
+                    "churn reads larger per vector than a freshly built one of the same "
+                    "representation, which is why every ratio below is fresh-against-fresh."
                 ),
             },
             "bytes_per_vector": bytes_per_vector,
