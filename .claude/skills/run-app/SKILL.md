@@ -63,13 +63,63 @@ to know if it's needed again (e.g. after `docker compose down -v`).
    docker compose exec api uv run python -m app.cli grant-system-admin you@example.com
    ```
 
+## Which directory compose runs from decides everything
+
+**A relative path in a compose file is resolved against the *project directory*, not against
+the file.** `docker/docker-compose.yml` is built almost entirely out of relative paths —
+`build.context: ..` on `api`, `worker` and `frontend`, `env_file: [../.env]`, and
+`../backend/.data/documents:/data/documents` on `api` and `worker` — so that one fact decides
+the code you build, the documents you mount and the settings you get. The project directory
+defaults to the directory holding the first `-f` file; `--project-directory` overrides it for
+all of them at once.
+
+Three failures in one day came out of that sentence, and none of them named it:
+
+- Compose run from a worktree mounts *that worktree's* `backend/.data/documents`, which is
+  empty. Everything starts, every row is still there, and **every PDF 404s**. Not a storage
+  bug. This has happened twice.
+- Compose run from a checkout on an older branch uses *that* file, so a recreate left
+  `max_locks_per_transaction` at Postgres's default (below).
+- `--project-directory` pointing at one checkout while `-f` points at another builds **the
+  first one's source**, whatever `-f` says, because `build.context` is a relative path like
+  every other. That produced images without migration 0026 against a database that had it,
+  and `alembic upgrade head` answered `Can't locate revision identified by '0026'`.
+
+`docker compose config` prints every path fully resolved and starts nothing. When in doubt,
+run it and read `context:` and `source:`.
+
 ## Start it
+
+If the checkout you want to run is also the one holding `backend/.data/documents` and `.env`
+— the usual case — there is nothing to decide:
 
 ```bash
 open -a Docker  # if the daemon isn't already up
 cd docker
 docker compose up -d --build db tei-embed tei-rerank api worker frontend
 ```
+
+When they are **different** checkouts — a worktree's code against the main checkout's
+documents — building and running need two invocations, because no single project directory is
+right for both:
+
+```bash
+CODE=/path/to/the/checkout/whose/code/you/want
+DATA=/path/to/zenithEnterprise   # the one holding backend/.data/documents and .env
+
+# Build with no --project-directory, so `build.context: ..` resolves against $CODE.
+(cd "$CODE/docker" && docker compose -p zenith build api worker frontend)
+
+# Run with the file from $CODE and every relative path from $DATA. --no-build, because the
+# images exist and building here would build the other checkout's source.
+RUN="docker compose -p zenith -f $CODE/docker/docker-compose.yml --project-directory $DATA/docker"
+$RUN up -d --no-build --force-recreate db
+$RUN up -d --no-build tei-embed tei-rerank api worker frontend
+```
+
+`-p zenith` on **both**. The image names compose derives — `zenith-api`, `zenith-worker`,
+`zenith-frontend` — come from the project name, and it is what makes the build and the run
+mean the same images.
 
 `tei-rerank` is in that list on purpose, and it did not use to be. It is optional in the
 sense that `SearchService` catches its absence and answers anyway from the fused order,
@@ -84,6 +134,35 @@ Genuinely excluded: any local LLM service — none is defined in this compose fi
 because chat generation goes through whatever provider is configured in Admin → LLM
 connector, e.g. Gemini.
 
+## `max_locks_per_transaction`, and why `db` is recreated rather than restarted
+
+`chunks` and `chunk_embeddings` have been partitioned since migration 0026 — `HASH
+(tenant_id)`, `ZENITH_PARTITION_MODULUS` buckets each, 128 by default. The planner takes an
+`AccessShareLock` on every relation of every partition **before** runtime pruning removes
+anything, so one dense search takes `9 x 128 + 9` = **1,161 locks** (nine measured per
+partition-pair, `eval/lock-budget.json`).
+
+`max_locks_per_transaction` does not cap a transaction. It sizes one table of
+`max_locks_per_transaction x (max_connections + max_prepared_transactions)` slots that the
+whole cluster draws from, so what it bounds is *concurrency*. At Postgres's default of 64
+that is 6,400 slots — five concurrent searches — and past it
+`psycopg.errors.OutOfMemory: out of shared memory` is raised **during planning**. The query
+never runs, so an ordinary search is an HTTP 500 rather than a slow answer. (The measured
+bracket sits higher than the nominal one, because the lock hash table grows into shared
+memory nobody reserved; that surplus is transient and shared with every other backend, so the
+nominal number is the one to size against.) `docker/docker-compose.yml` sets it to 2,560.
+
+**It is a start-up flag on the container's `command:`, so it takes effect only when `db` is
+RECREATED.** `docker compose restart db` restarts the container that already exists, with the
+value it already had, and reports nothing wrong. That happened today.
+
+```bash
+docker compose up -d --force-recreate --no-build db
+```
+
+`zenith diagnose` reports the value actually in force, which is the only way to tell a correct
+value in the repository from a correct value in the running database.
+
 ## Verify it's actually up
 
 ```bash
@@ -92,7 +171,15 @@ curl -s http://localhost:5173/ -o /dev/null -w "frontend: %{http_code}\n"
 curl -s http://localhost:8081/health -o /dev/null -w "tei-embed: %{http_code}\n"
 docker compose logs api --tail=20   # look for "Application startup complete", not a
                                      # RuntimeError traceback
+docker compose exec api zenith diagnose
 ```
+
+**`make check` says the code is correct; `zenith diagnose` says the *installation* is
+correct.** They are different questions and the second is the one that has failed in front of
+people. It is the fastest way to see whether a running stack is sane: it reads the migration
+state, the lock budget above, whether the installed modulus fits *this* corpus, the
+`SECURITY DEFINER` bypass surface and the reranker off the running database rather than off
+the repository, and exits 1 if anything failed.
 
 Open http://localhost:5173 in a browser — that's the real app, nginx-proxying
 `/auth|labels|documents|search|query|tenant|roles|llm-config|users` through to `api:8000`
@@ -131,10 +218,30 @@ docker compose up -d --build api worker
 a new Procrastinate task registered in `ingestion/tasks.py` exists only in the image that was
 rebuilt. A stale worker accepts the job and fails it with `Task was not found` — which reads
 like a queue problem and is a build problem.
-And if the change added an Alembic migration, apply it the same way as initial setup:
+And if the change added an Alembic migration, **the order matters, and 0026 is why.** It makes
+`query_citations.tenant_id` `NOT NULL`, so a pre-0026 application image writing a citation
+against a post-0026 database fails on the first one: migrating before rebuilding gets you a
+stack that starts and then breaks on the first write. Settings, then code, then schema, then
+statistics:
+
 ```bash
+docker compose up -d --force-recreate --no-build db   # only if the compose file changed
+docker compose up -d --build api worker frontend
 docker compose exec api alembic upgrade head
+docker compose exec db psql -U zenith -d zenith -c "ANALYZE chunks; ANALYZE chunk_embeddings;"
 ```
+
+**The `ANALYZE` is part of the migration, not hygiene after it.** 0026 does not analyse the
+partitions it creates, so until autovacuum has reached all 128 of each the planner's row
+estimates cover a fraction of the corpus. `zenith diagnose` warns until it is run, and says
+why: a modulus sized on part of the corpus is worse than none.
+
+**Migration 0027 adds the schema for a projected 512-dimensional space and does not install
+one.** It creates `embedding_space_axes` and the `source_dimension`/`basis_digest` columns and
+inserts no space, because fitting a basis needs numpy and numpy is deliberately kept out of
+the shipped image — `eval/svd_512.py` fits one from a checkout where it exists, and there is
+no `zenith fit-basis` command. An installation at head with no projected space searches the
+1024-dimensional space and is entirely correct. There is no missing step to hunt for.
 
 **`make check` passing does not mean the dev stack is migrated, and this has already
 bitten once.** `pytest` builds a throwaway Postgres per run and migrates it from zero, so
@@ -145,6 +252,21 @@ create a label by hand. After adding a migration, check the dev database itself:
 ```bash
 docker compose exec api alembic current   # must equal `head`, not just "no errors"
 ```
+
+## Symptoms that point somewhere other than where they seem
+
+| What you see | What it actually is |
+|---|---|
+| **Every PDF 404s** | The container's document store is empty — compose ran with the wrong project directory, not a storage bug |
+| **A search 500s under light concurrent load** | The lock table, not the query — `max_locks_per_transaction`, and `db` needs *recreating* |
+| `Can't locate revision identified by '0026'` | The image was built from a checkout that does not have the migration the database has |
+| "That document is no longer available." | Rows pointing at files the container cannot see — the mount root, not the renderer |
+| "The document could not be rendered." | The `.mjs` MIME type in `nginx.frontend.conf`; hard-reload afterwards |
+| Uploads answer 201 and stay `pending` for ever | `zenith install-queue` was never run |
+| `Task was not found` | A stale `worker` image — rebuild it too, not only `api` |
+
+`zenith diagnose` reports the first two directly — an empty store makes every document row
+report its file as missing, and the lock budget is a check of its own.
 
 ## Ports
 

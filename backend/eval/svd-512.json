@@ -1,0 +1,155 @@
+{
+  "database": "zenith_svd",
+  "bars": {
+    "1_plan_uses_index_at_both_widths": true,
+    "2_every_mix_raises": true,
+    "3_basis_is_a_rotation": true,
+    "4_footprint_about_halves": true
+  },
+  "corpus": {
+    "vectors": 13549,
+    "source_dimension": 1024,
+    "documents": 42
+  },
+  "fit": {
+    "method": "uncentred SVD: eigenbasis of X'X / n",
+    "centred": false,
+    "ms": 87.8,
+    "explained_variance_ratio_at_512": 0.991,
+    "expected_from_dimensions_json": 0.991,
+    "orthonormal": {
+      "norm_before": 1.0,
+      "norm_after_full_rotation": 1.0,
+      "max_off_diagonal": 1e-06
+    },
+    "basis_digest": "45d0dfd9eb4272f78ad8dacfc13b8c141845216c15b693c693c387c5dca5e2c8"
+  },
+  "reproject": {
+    "tenants": 2,
+    "vectors_projected": 13549,
+    "ms": 15416.1,
+    "ms_per_vector": 1.1378
+  },
+  "index": {
+    "build_ms": 1367.1
+  },
+  "footprint": {
+    "identity_1024": {
+      "dimension": 1024,
+      "vectors": 13549,
+      "index_bytes": 39067648,
+      "bytes_per_vector": 2883.4
+    },
+    "svd_512": {
+      "dimension": 512,
+      "vectors": 13549,
+      "index_bytes": 20578304,
+      "bytes_per_vector": 1518.8
+    }
+  },
+  "footprint_ratio": 1.9,
+  "plans": {
+    "identity_1024": {
+      "index_wanted": "ix_chunk_embeddings_hnsw_half",
+      "plan_uses_index": true,
+      "plan": "Limit | ->  Nested Loop | ->  Merge Append | Sort Key: (((e.embedding_half)::halfvec(1024) <=> '[-0.038513184,-0.012077332,-0.017074585,-0.015388489,-0.018035889,-0.013801575,0.031982422,-0.004234314,0.027297974,0.035247803,-0.030059814,0.0043296814,-0.02178955,0.0040512085,-0.0019931793,0.021194458,-0.011154175,-0.03866577,0.020385742,-0.035125732,-0.0042915344,0.0019741058,0.020599365,-0.0321350"
+    },
+    "svd_512": {
+      "index_wanted": "ix_chunk_embeddings_hnsw_half_2",
+      "plan_uses_index": true,
+      "plan": "Limit | ->  Nested Loop | ->  Merge Append | Sort Key: (((e.embedding_half)::halfvec(512) <=> '[0.6689453,-0.16955566,-0.109069824,-0.049957275,-0.028335571,0.16467285,-0.075683594,-0.0770874,0.21118164,0.040100098,-0.061431885,0.01751709,0.049743652,-0.06756592,-0.20568848,0.08905029,-0.10491943,0.04119873,0.011138916,0.10784912,-0.024139404,0.012588501,-0.037902832,-0.03491211,0.0440979,-0.04833"
+    }
+  },
+  "one_query_overlap_at_10": 1.0,
+  "one_query_top1_preserved": true,
+  "gate": [
+    {
+      "mix": "unprojected 1024-d query aimed at the 512 space",
+      "raised": true,
+      "error": "expected 512 dimensions, not 1024"
+    },
+    {
+      "mix": "projected 512-d query aimed at the 1024 space",
+      "raised": true,
+      "error": "expected 1024 dimensions, not 512"
+    },
+    {
+      "mix": "correctly sized query, wrong space in the filter",
+      "raised": true,
+      "error": "expected 512 dimensions, not 1024"
+    }
+  ],
+  "all_bars_met": true,
+  "live": {
+    "note": "The stage's deciding gate, over HTTP through a real deployment, as a user would experience it. Three arms. The first is the installation itself and is the number that must not fall; the other two run against a scratch copy of it at migration 0027, served by an api built from this branch, so the mechanism and the projection are separated from each other.",
+    "before_real_installation_0026": {
+      "what": "the running installation, migration 0026, 128 partitions, identity 1024",
+      "headline_recall_at_8": 0.9,
+      "recall_at_1_all": 0.6667,
+      "recall_at_8_all": 0.9,
+      "document_recall_at_8": 1.0,
+      "mean_rank": 1.37,
+      "median_ms": 839,
+      "p95_ms": 1090,
+      "degraded": 0,
+      "missed": [
+        "boe-bank-rate",
+        "cross-platform-obligations",
+        "table-form-1040-status"
+      ],
+      "scored": 30
+    },
+    "arm_a_this_branch_identity_1024": {
+      "what": "scratch copy at 0027, this branch's code, the 1024 space still active",
+      "isolates": "whether the code change alone moves recall. It does not.",
+      "headline_recall_at_8": 0.9,
+      "recall_at_1_all": 0.6667,
+      "recall_at_8_all": 0.9,
+      "document_recall_at_8": 1.0,
+      "mean_rank": 1.37,
+      "median_ms": 872,
+      "p95_ms": 1247,
+      "degraded": 0,
+      "missed": [
+        "boe-bank-rate",
+        "cross-platform-obligations",
+        "table-form-1040-status"
+      ],
+      "scored": 30
+    },
+    "arm_b_this_branch_svd_512": {
+      "what": "scratch copy at 0027, this branch's code, the svd_512 space active",
+      "isolates": "what the projection costs end to end.",
+      "headline_recall_at_8": 0.9,
+      "recall_at_1_all": 0.6667,
+      "recall_at_8_all": 0.9,
+      "document_recall_at_8": 1.0,
+      "mean_rank": 1.37,
+      "median_ms": 861,
+      "p95_ms": 1160,
+      "degraded": 0,
+      "missed": [
+        "boe-bank-rate",
+        "cross-platform-obligations",
+        "table-form-1040-status"
+      ],
+      "scored": 30
+    },
+    "index_actually_used": {
+      "note": "An identical recall number is exactly what a measurement that did not happen looks like, so this counts index scans across five real HTTP searches rather than trusting the recall. Statistics reset before, flushed with pg_stat_force_next_flush() after -- a first attempt slept two seconds, read zeros and looked like the silent sequential-scan regression this stage exists to avoid. It was the collector, not the plan.",
+      "requests": 5,
+      "svd_512": {
+        "partitions_scanned": 1,
+        "idx_scan": 5,
+        "tuples_read": 250,
+        "reading": "One partition per request, which is RLS pruning. 250 tuples is exactly CANDIDATES=50 x 5 requests, so the dense half got every candidate it asked for rather than losing rows to a post-filter."
+      },
+      "identity_1024": {
+        "partitions_scanned": 0,
+        "idx_scan": 0,
+        "tuples_read": 0,
+        "reading": "The retired space is never touched. No query ranks across both."
+      }
+    }
+  }
+}

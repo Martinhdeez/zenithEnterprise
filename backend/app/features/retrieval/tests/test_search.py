@@ -15,6 +15,7 @@ from app.core.database import owner_session, tenant_session
 from app.core.hardware import PROFILES
 from app.features.auth.service import AccessProfile
 from app.features.embeddings.client import DIMENSION, MODEL, VERSION
+from app.features.embeddings.space import SHIPPED, Space
 from app.features.retrieval.degradation import SEMANTIC_UNAVAILABLE
 from app.features.retrieval.search import RRF_K, candidates, fuse
 from app.features.retrieval.service import SearchService
@@ -239,7 +240,7 @@ async def test_the_dense_half_is_label_filtered_by_its_join(account: Account) ->
     narrow = TenantContext.for_tenant(account.tenant_id, [account.default_label])
 
     async with tenant_session(narrow) as session:
-        found = await dense(session, [0.0] * DIMENSION, MODEL, VERSION, 50, 40)
+        found = await dense(session, [0.0] * DIMENSION, SHIPPED, 50, 40)
 
     assert found == []
 
@@ -270,7 +271,7 @@ async def test_the_unscoped_dense_query_asks_for_an_iterative_scan(account: Acco
     context = (await profile_for(account)).context
 
     async with tenant_session(context) as session:
-        await dense(session, [0.0] * DIMENSION, MODEL, VERSION, 50, 100, documents=None)
+        await dense(session, [0.0] * DIMENSION, SHIPPED, 50, 100, documents=None)
         requested = await session.scalar(text("SELECT current_setting('hnsw.iterative_scan')"))
 
     assert requested == ITERATIVE_SCAN, (
@@ -289,8 +290,14 @@ async def test_only_the_active_embedding_space_is_searched(account: Account) -> 
     context = (await profile_for(account)).context
 
     async with tenant_session(context) as session:
-        other_space = await dense(session, [0.0] * DIMENSION, "some/other-model", "1", 50, 40)
-        this_space = await dense(session, [0.0] * DIMENSION, MODEL, VERSION, 50, 40)
+        other_space = await dense(
+            session,
+            [0.0] * DIMENSION,
+            Space("some/other-model", "1", DIMENSION, None),
+            50,
+            40,
+        )
+        this_space = await dense(session, [0.0] * DIMENSION, SHIPPED, 50, 40)
 
     assert other_space == []
     assert this_space

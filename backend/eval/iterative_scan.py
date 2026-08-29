@@ -60,6 +60,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from app.core.config import settings
 from app.core.hardware import active as active_profile
 from app.features.embeddings.client import MODEL, VERSION, TeiClient
+from app.features.embeddings.space import SHIPPED
 from app.features.retrieval import search as search_module
 from app.features.retrieval.search import CANDIDATES
 from eval.harness import Installation, installation, score
@@ -168,8 +169,7 @@ async def _dense_stage(
                         rows = await search_module.dense(
                             conn,  # type: ignore[arg-type]
                             vector,
-                            MODEL,
-                            VERSION,
+                            SHIPPED,
                             CANDIDATES,
                             ef,
                         )
