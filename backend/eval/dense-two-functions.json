@@ -10,7 +10,7 @@
   "rungs": [
     {
       "modulus": 32,
-      "built_seconds": 15.6,
+      "built_seconds": 14.9,
       "environment": {
         "max_connections": "100",
         "max_locks_per_transaction": "2560",
@@ -32,33 +32,33 @@
       "plans": {
         "today": {
           "planning_ms": {
-            "median": 1.57,
-            "p95": 8.144,
-            "max": 8.144,
-            "min": 1.375,
-            "median_warm": 1.539,
-            "first": 8.144
+            "median": 1.555,
+            "p95": 8.334,
+            "max": 8.334,
+            "min": 1.292,
+            "median_warm": 1.554,
+            "first": 8.334
           },
           "execution_ms": {
-            "median": 2.01,
-            "p95": 3.753,
-            "max": 3.753,
-            "min": 1.859,
-            "median_warm": 1.985,
-            "first": 3.753
+            "median": 2.188,
+            "p95": 4.344,
+            "max": 4.344,
+            "min": 1.731,
+            "median_warm": 2.188,
+            "first": 4.344
           },
           "planning_series_ms": [
-            8.144,
-            1.657,
-            1.606,
-            1.683,
-            1.493,
-            3.262,
-            1.375,
-            1.462,
-            1.57,
-            1.44,
-            1.508
+            8.334,
+            1.553,
+            1.341,
+            1.557,
+            1.58,
+            3.208,
+            1.615,
+            1.292,
+            1.555,
+            1.415,
+            1.431
           ],
           "hnsw_index_in_plan": true,
           "hnsw_index_series": [
@@ -125,8 +125,8 @@
             "                                      Index Cond: (label_ids = '{}'::uuid[])",
             "                                ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                      Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 8.144 ms",
-            "Execution Time: 3.753 ms"
+            "Planning Time: 8.334 ms",
+            "Execution Time: 4.344 ms"
           ],
           "plan_last_execution": [
             "Limit (actual rows=50 loops=1)",
@@ -151,39 +151,39 @@
             "                                      Index Cond: (label_ids = '{}'::uuid[])",
             "                                ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                      Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 1.508 ms",
-            "Execution Time: 1.877 ms"
+            "Planning Time: 1.431 ms",
+            "Execution Time: 2.145 ms"
           ]
         },
         "local": {
           "planning_ms": {
-            "median": 0.171,
-            "p95": 1.367,
-            "max": 1.367,
-            "min": 0.109,
-            "median_warm": 0.17,
-            "first": 0.171
+            "median": 0.179,
+            "p95": 1.457,
+            "max": 1.457,
+            "min": 0.147,
+            "median_warm": 0.175,
+            "first": 0.204
           },
           "execution_ms": {
-            "median": 0.859,
-            "p95": 1.087,
-            "max": 1.087,
-            "min": 0.685,
-            "median_warm": 0.854,
-            "first": 1.002
+            "median": 0.911,
+            "p95": 1.057,
+            "max": 1.057,
+            "min": 0.772,
+            "median_warm": 0.895,
+            "first": 1.057
           },
           "planning_series_ms": [
-            0.171,
-            0.153,
-            0.152,
-            0.177,
+            0.204,
+            0.214,
             0.168,
-            1.367,
-            0.172,
-            0.133,
-            0.109,
-            0.186,
-            0.173
+            0.159,
+            0.156,
+            1.457,
+            0.194,
+            0.171,
+            0.224,
+            0.179,
+            0.147
           ],
           "hnsw_index_in_plan": true,
           "hnsw_index_series": [
@@ -237,8 +237,8 @@
             "                    Index Cond: ((id = e.chunk_id) AND (tenant_id = '00000000-0000-0000-0000-000000000003'::uuid))",
             "                    Filter: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
             "                    Rows Removed by Filter: 1",
-            "Planning Time: 0.171 ms",
-            "Execution Time: 1.002 ms"
+            "Planning Time: 0.204 ms",
+            "Execution Time: 1.057 ms"
           ],
           "plan_last_execution": [
             "Limit (actual rows=50 loops=1)",
@@ -252,39 +252,39 @@
             "                    Index Cond: ((id = e.chunk_id) AND (tenant_id = '00000000-0000-0000-0000-000000000003'::uuid))",
             "                    Filter: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
             "                    Rows Removed by Filter: 1",
-            "Planning Time: 0.173 ms",
-            "Execution Time: 0.923 ms"
+            "Planning Time: 0.147 ms",
+            "Execution Time: 0.772 ms"
           ]
         },
         "shipped_scoped": {
           "planning_ms": {
-            "median": 1.521,
-            "p95": 3.089,
-            "max": 3.089,
-            "min": 1.42,
-            "median_warm": 1.516,
-            "first": 1.881
+            "median": 1.619,
+            "p95": 3.302,
+            "max": 3.302,
+            "min": 1.258,
+            "median_warm": 1.571,
+            "first": 1.864
           },
           "execution_ms": {
-            "median": 2.804,
-            "p95": 3.831,
-            "max": 3.831,
-            "min": 2.647,
-            "median_warm": 2.794,
-            "first": 3.831
+            "median": 3.143,
+            "p95": 3.9,
+            "max": 3.9,
+            "min": 2.351,
+            "median_warm": 3.002,
+            "first": 3.9
           },
           "planning_series_ms": [
-            1.881,
-            1.521,
-            1.653,
-            1.512,
-            1.582,
-            3.089,
-            1.438,
-            1.561,
-            1.44,
-            1.453,
-            1.42
+            1.864,
+            1.673,
+            1.633,
+            1.619,
+            1.508,
+            3.302,
+            1.522,
+            1.382,
+            1.282,
+            1.258,
+            1.661
           ],
           "hnsw_index_in_plan": true,
           "hnsw_index_series": [
@@ -352,8 +352,8 @@
             "                                      Index Cond: (label_ids = '{}'::uuid[])",
             "                                ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                      Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 1.881 ms",
-            "Execution Time: 3.831 ms"
+            "Planning Time: 1.864 ms",
+            "Execution Time: 3.900 ms"
           ],
           "plan_last_execution": [
             "Limit (actual rows=50 loops=1)",
@@ -379,38 +379,2131 @@
             "                                      Index Cond: (label_ids = '{}'::uuid[])",
             "                                ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                      Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 1.420 ms",
-            "Execution Time: 2.845 ms"
+            "Planning Time: 1.661 ms",
+            "Execution Time: 3.357 ms"
           ]
         },
         "scoped_or": {
           "planning_ms": {
-            "median": 0.208,
-            "p95": 1.47,
-            "max": 1.47,
-            "min": 0.166,
-            "median_warm": 0.208,
-            "first": 0.208
+            "median": 0.19,
+            "p95": 1.581,
+            "max": 1.581,
+            "min": 0.143,
+            "median_warm": 0.2,
+            "first": 0.184
           },
           "execution_ms": {
-            "median": 1.843,
-            "p95": 2.247,
-            "max": 2.247,
-            "min": 1.416,
-            "median_warm": 1.829,
-            "first": 1.892
+            "median": 1.659,
+            "p95": 2.123,
+            "max": 2.123,
+            "min": 1.425,
+            "median_warm": 1.639,
+            "first": 1.724
           },
           "planning_series_ms": [
-            0.208,
-            0.252,
-            0.271,
-            0.214,
-            0.2,
-            1.47,
+            0.184,
+            0.147,
+            0.21,
+            0.171,
             0.213,
+            1.581,
+            0.164,
+            0.143,
+            0.215,
+            0.19,
+            0.238
+          ],
+          "hnsw_index_in_plan": true,
+          "hnsw_index_series": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "hnsw_lost_at_execution": null,
+          "partitions_in_plan": 2,
+          "partitions_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "subplans_removed": [],
+          "appends": 0,
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": true,
+          "indexes_used": [
+            "c5_pkey",
+            "e5_embedding_half_idx"
+          ],
+          "seq_scans": [],
+          "hash_join": false,
+          "sort_methods": [],
+          "plan_first_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Result (actual rows=50 loops=1)",
+            "        One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = '00000000-0000-0000-0000-000000000003'::uuid)",
+            "        ->  Nested Loop (actual rows=50 loops=1)",
+            "              ->  Index Scan using e5_embedding_half_idx on e5 e (actual rows=344 loops=1)",
+            "                    Order By: (embedding_half <=> '[...]'::halfvec)",
+            "                    Filter: ((tenant_id = '00000000-0000-0000-0000-000000000003'::uuid) AND ((embedding_model)::text = 'BAAI/bge-m3'::text) AND ((embedding_version)::text = '1'::text))",
+            "              ->  Index Scan using c5_pkey on c5 c (actual rows=0 loops=344)",
+            "                    Index Cond: ((id = e.chunk_id) AND (tenant_id = '00000000-0000-0000-0000-000000000003'::uuid))",
+            "                    Filter: ((document_id = ANY ('{ba81ad3e-c8e0-4649-b719-f6af4007a4b5,e3a705c1-de6f-4755-8f4e-3e2718be9eca,f3975ffd-2cbc-46c7-8e69-40adc6e4d5c3}'::uuid[])) AND ((label_ids = '{}'::uuid[]) OR (label_ids ",
+            "                    Rows Removed by Filter: 1",
+            "Planning Time: 0.184 ms",
+            "Execution Time: 1.724 ms"
+          ],
+          "plan_last_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Result (actual rows=50 loops=1)",
+            "        One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = '00000000-0000-0000-0000-000000000003'::uuid)",
+            "        ->  Nested Loop (actual rows=50 loops=1)",
+            "              ->  Index Scan using e5_embedding_half_idx on e5 e (actual rows=344 loops=1)",
+            "                    Order By: (embedding_half <=> '[...]'::halfvec)",
+            "                    Filter: ((tenant_id = '00000000-0000-0000-0000-000000000003'::uuid) AND ((embedding_model)::text = 'BAAI/bge-m3'::text) AND ((embedding_version)::text = '1'::text))",
+            "              ->  Index Scan using c5_pkey on c5 c (actual rows=0 loops=344)",
+            "                    Index Cond: ((id = e.chunk_id) AND (tenant_id = '00000000-0000-0000-0000-000000000003'::uuid))",
+            "                    Filter: ((document_id = ANY ('{ba81ad3e-c8e0-4649-b719-f6af4007a4b5,e3a705c1-de6f-4755-8f4e-3e2718be9eca,f3975ffd-2cbc-46c7-8e69-40adc6e4d5c3}'::uuid[])) AND ((label_ids = '{}'::uuid[]) OR (label_ids ",
+            "                    Rows Removed by Filter: 1",
+            "Planning Time: 0.238 ms",
+            "Execution Time: 2.123 ms"
+          ]
+        },
+        "scoped_bare": {
+          "planning_ms": {
+            "median": 0.212,
+            "p95": 1.55,
+            "max": 1.55,
+            "min": 0.135,
+            "median_warm": 0.203,
+            "first": 0.237
+          },
+          "execution_ms": {
+            "median": 1.736,
+            "p95": 2.311,
+            "max": 2.311,
+            "min": 1.411,
+            "median_warm": 1.729,
+            "first": 2.253
+          },
+          "planning_series_ms": [
+            0.237,
+            0.218,
+            0.212,
+            0.224,
+            0.194,
+            1.55,
+            0.168,
+            0.161,
+            0.166,
+            0.215,
+            0.135
+          ],
+          "hnsw_index_in_plan": true,
+          "hnsw_index_series": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "hnsw_lost_at_execution": null,
+          "partitions_in_plan": 2,
+          "partitions_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "subplans_removed": [],
+          "appends": 0,
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": true,
+          "indexes_used": [
+            "c5_pkey",
+            "e5_embedding_half_idx"
+          ],
+          "seq_scans": [],
+          "hash_join": false,
+          "sort_methods": [],
+          "plan_first_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Result (actual rows=50 loops=1)",
+            "        One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = '00000000-0000-0000-0000-000000000003'::uuid)",
+            "        ->  Nested Loop (actual rows=50 loops=1)",
+            "              ->  Index Scan using e5_embedding_half_idx on e5 e (actual rows=344 loops=1)",
+            "                    Order By: (embedding_half <=> '[...]'::halfvec)",
+            "                    Filter: ((tenant_id = '00000000-0000-0000-0000-000000000003'::uuid) AND ((embedding_model)::text = 'BAAI/bge-m3'::text) AND ((embedding_version)::text = '1'::text))",
+            "              ->  Index Scan using c5_pkey on c5 c (actual rows=0 loops=344)",
+            "                    Index Cond: ((id = e.chunk_id) AND (tenant_id = '00000000-0000-0000-0000-000000000003'::uuid))",
+            "                    Filter: ((document_id = ANY ('{ba81ad3e-c8e0-4649-b719-f6af4007a4b5,e3a705c1-de6f-4755-8f4e-3e2718be9eca,f3975ffd-2cbc-46c7-8e69-40adc6e4d5c3}'::uuid[])) AND ((label_ids = '{}'::uuid[]) OR (label_ids ",
+            "                    Rows Removed by Filter: 1",
+            "Planning Time: 0.237 ms",
+            "Execution Time: 2.253 ms"
+          ],
+          "plan_last_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Result (actual rows=50 loops=1)",
+            "        One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = '00000000-0000-0000-0000-000000000003'::uuid)",
+            "        ->  Nested Loop (actual rows=50 loops=1)",
+            "              ->  Index Scan using e5_embedding_half_idx on e5 e (actual rows=344 loops=1)",
+            "                    Order By: (embedding_half <=> '[...]'::halfvec)",
+            "                    Filter: ((tenant_id = '00000000-0000-0000-0000-000000000003'::uuid) AND ((embedding_model)::text = 'BAAI/bge-m3'::text) AND ((embedding_version)::text = '1'::text))",
+            "              ->  Index Scan using c5_pkey on c5 c (actual rows=0 loops=344)",
+            "                    Index Cond: ((id = e.chunk_id) AND (tenant_id = '00000000-0000-0000-0000-000000000003'::uuid))",
+            "                    Filter: ((document_id = ANY ('{ba81ad3e-c8e0-4649-b719-f6af4007a4b5,e3a705c1-de6f-4755-8f4e-3e2718be9eca,f3975ffd-2cbc-46c7-8e69-40adc6e4d5c3}'::uuid[])) AND ((label_ids = '{}'::uuid[]) OR (label_ids ",
+            "                    Rows Removed by Filter: 1",
+            "Planning Time: 0.135 ms",
+            "Execution Time: 1.417 ms"
+          ]
+        },
+        "today_forced_generic": {
+          "planning_ms": {
+            "median": 0.059,
+            "p95": 1.872,
+            "max": 1.872,
+            "min": 0.051,
+            "median_warm": 0.058,
+            "first": 1.872
+          },
+          "execution_ms": {
+            "median": 2.18,
+            "p95": 3.696,
+            "max": 3.696,
+            "min": 1.884,
+            "median_warm": 2.176,
+            "first": 3.696
+          },
+          "planning_series_ms": [
+            1.872,
+            0.059,
+            0.058,
+            0.068,
+            0.063,
+            0.057,
+            0.059,
+            0.051,
+            0.051,
+            0.052,
+            0.072
+          ],
+          "hnsw_index_in_plan": false,
+          "hnsw_index_series": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "hnsw_lost_at_execution": 1,
+          "partitions_in_plan": 2,
+          "partitions_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "subplans_removed": [
+            31,
+            31
+          ],
+          "appends": 2,
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": false,
+          "indexes_used": [],
+          "seq_scans": [
+            "e5"
+          ],
+          "hash_join": true,
+          "sort_methods": [
+            "top-N heapsort  Memory"
+          ],
+          "plan_first_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Sort (actual rows=50 loops=1)",
+            "        Sort Key: ((e.embedding_half <=> $1))",
+            "        Sort Method: top-N heapsort  Memory: 30kB",
+            "        ->  Hash Join (actual rows=569 loops=1)",
+            "              Hash Cond: (e.chunk_id = c.id)",
+            "              ->  Append (actual rows=1700 loops=1)",
+            "                    Subplans Removed: 31",
+            "                    ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
+            "                          Filter: (((embedding_model)::text = $2) AND ((embedding_version)::text = $3) AND (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid))",
+            "              ->  Hash (actual rows=569 loops=1)",
+            "                    Buckets: 1024  Batches: 1  Memory Usage: 44kB",
+            "                    ->  Append (actual rows=569 loops=1)",
+            "                          Subplans Removed: 31",
+            "                          ->  Bitmap Heap Scan on c5 c_1 (actual rows=569 loops=1)",
+            "                                Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
+            "                                Filter: (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid)",
+            "                                Heap Blocks: exact=259",
+            "                                ->  BitmapOr (actual rows=0 loops=1)",
+            "                                      ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "                                            Index Cond: (label_ids = '{}'::uuid[])",
+            "                                      ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
+            "                                            Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
+            "Planning Time: 1.872 ms",
+            "Execution Time: 3.696 ms"
+          ],
+          "plan_last_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Sort (actual rows=50 loops=1)",
+            "        Sort Key: ((e.embedding_half <=> $1))",
+            "        Sort Method: top-N heapsort  Memory: 30kB",
+            "        ->  Hash Join (actual rows=569 loops=1)",
+            "              Hash Cond: (e.chunk_id = c.id)",
+            "              ->  Append (actual rows=1700 loops=1)",
+            "                    Subplans Removed: 31",
+            "                    ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
+            "                          Filter: (((embedding_model)::text = $2) AND ((embedding_version)::text = $3) AND (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid))",
+            "              ->  Hash (actual rows=569 loops=1)",
+            "                    Buckets: 1024  Batches: 1  Memory Usage: 44kB",
+            "                    ->  Append (actual rows=569 loops=1)",
+            "                          Subplans Removed: 31",
+            "                          ->  Bitmap Heap Scan on c5 c_1 (actual rows=569 loops=1)",
+            "                                Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
+            "                                Filter: (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid)",
+            "                                Heap Blocks: exact=259",
+            "                                ->  BitmapOr (actual rows=0 loops=1)",
+            "                                      ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "                                            Index Cond: (label_ids = '{}'::uuid[])",
+            "                                      ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
+            "                                            Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
+            "Planning Time: 0.072 ms",
+            "Execution Time: 2.553 ms"
+          ]
+        },
+        "local_forced_generic": {
+          "planning_ms": {
+            "median": 0.059,
+            "p95": 1.405,
+            "max": 1.405,
+            "min": 0.055,
+            "median_warm": 0.058,
+            "first": 1.405
+          },
+          "execution_ms": {
+            "median": 0.823,
+            "p95": 1.205,
+            "max": 1.205,
+            "min": 0.76,
+            "median_warm": 0.818,
+            "first": 1.205
+          },
+          "planning_series_ms": [
+            1.405,
+            0.074,
+            0.066,
+            0.059,
+            0.059,
+            0.056,
+            0.061,
+            0.055,
+            0.058,
+            0.058,
+            0.057
+          ],
+          "hnsw_index_in_plan": true,
+          "hnsw_index_series": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "hnsw_lost_at_execution": null,
+          "partitions_in_plan": 2,
+          "partitions_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "subplans_removed": [
+            31,
+            31
+          ],
+          "appends": 2,
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": true,
+          "indexes_used": [
+            "c5_pkey",
+            "e5_embedding_half_idx"
+          ],
+          "seq_scans": [],
+          "hash_join": false,
+          "sort_methods": [],
+          "plan_first_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Result (actual rows=50 loops=1)",
+            "        One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = $1)",
+            "        ->  Nested Loop (actual rows=50 loops=1)",
+            "              ->  Merge Append (actual rows=122 loops=1)",
+            "                    Sort Key: ((e.embedding_half <=> $2))",
+            "                    Subplans Removed: 31",
+            "                    ->  Index Scan using e5_embedding_half_idx on e5 e_1 (actual rows=122 loops=1)",
+            "                          Order By: (embedding_half <=> $2)",
+            "                          Filter: ((tenant_id = $1) AND ((embedding_model)::text = $3) AND ((embedding_version)::text = $4))",
+            "              ->  Append (actual rows=0 loops=122)",
+            "                    Subplans Removed: 31",
+            "                    ->  Index Scan using c5_pkey on c5 c_1 (actual rows=0 loops=122)",
+            "                          Index Cond: ((id = e.chunk_id) AND (tenant_id = $1))",
+            "                          Filter: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
+            "                          Rows Removed by Filter: 1",
+            "Planning Time: 1.405 ms",
+            "Execution Time: 1.205 ms"
+          ],
+          "plan_last_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Result (actual rows=50 loops=1)",
+            "        One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = $1)",
+            "        ->  Nested Loop (actual rows=50 loops=1)",
+            "              ->  Merge Append (actual rows=122 loops=1)",
+            "                    Sort Key: ((e.embedding_half <=> $2))",
+            "                    Subplans Removed: 31",
+            "                    ->  Index Scan using e5_embedding_half_idx on e5 e_1 (actual rows=122 loops=1)",
+            "                          Order By: (embedding_half <=> $2)",
+            "                          Filter: ((tenant_id = $1) AND ((embedding_model)::text = $3) AND ((embedding_version)::text = $4))",
+            "              ->  Append (actual rows=0 loops=122)",
+            "                    Subplans Removed: 31",
+            "                    ->  Index Scan using c5_pkey on c5 c_1 (actual rows=0 loops=122)",
+            "                          Index Cond: ((id = e.chunk_id) AND (tenant_id = $1))",
+            "                          Filter: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
+            "                          Rows Removed by Filter: 1",
+            "Planning Time: 0.057 ms",
+            "Execution Time: 0.797 ms"
+          ]
+        },
+        "shipped_scoped_forced_generic": {
+          "planning_ms": {
+            "median": 0.064,
+            "p95": 1.519,
+            "max": 1.519,
+            "min": 0.05,
+            "median_warm": 0.063,
+            "first": 1.519
+          },
+          "execution_ms": {
+            "median": 1.209,
+            "p95": 1.379,
+            "max": 1.379,
+            "min": 1.051,
+            "median_warm": 1.207,
+            "first": 1.375
+          },
+          "planning_series_ms": [
+            1.519,
+            0.076,
+            0.062,
+            0.069,
+            0.076,
+            0.073,
+            0.059,
+            0.059,
+            0.05,
+            0.064,
+            0.06
+          ],
+          "hnsw_index_in_plan": false,
+          "hnsw_index_series": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "hnsw_lost_at_execution": 1,
+          "partitions_in_plan": 2,
+          "partitions_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "subplans_removed": [
+            31,
+            31
+          ],
+          "appends": 2,
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": false,
+          "indexes_used": [],
+          "seq_scans": [
+            "e5"
+          ],
+          "hash_join": true,
+          "sort_methods": [
+            "top-N heapsort  Memory"
+          ],
+          "plan_first_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Sort (actual rows=50 loops=1)",
+            "        Sort Key: ((e.embedding_half <=> $1))",
+            "        Sort Method: top-N heapsort  Memory: 30kB",
+            "        ->  Hash Join (actual rows=182 loops=1)",
+            "              Hash Cond: (e.chunk_id = c.id)",
+            "              ->  Append (actual rows=1700 loops=1)",
+            "                    Subplans Removed: 31",
+            "                    ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
+            "                          Filter: (((embedding_model)::text = $2) AND ((embedding_version)::text = $3) AND (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid))",
+            "              ->  Hash (actual rows=182 loops=1)",
+            "                    Buckets: 1024  Batches: 1  Memory Usage: 20kB",
+            "                    ->  Append (actual rows=182 loops=1)",
+            "                          Subplans Removed: 31",
+            "                          ->  Bitmap Heap Scan on c5 c_1 (actual rows=182 loops=1)",
+            "                                Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
+            "                                Filter: ((document_id = ANY ($5)) AND (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid))",
+            "                                Rows Removed by Filter: 387",
+            "                                Heap Blocks: exact=259",
+            "                                ->  BitmapOr (actual rows=0 loops=1)",
+            "                                      ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "                                            Index Cond: (label_ids = '{}'::uuid[])",
+            "                                      ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
+            "                                            Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
+            "Planning Time: 1.519 ms",
+            "Execution Time: 1.375 ms"
+          ],
+          "plan_last_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Sort (actual rows=50 loops=1)",
+            "        Sort Key: ((e.embedding_half <=> $1))",
+            "        Sort Method: top-N heapsort  Memory: 30kB",
+            "        ->  Hash Join (actual rows=182 loops=1)",
+            "              Hash Cond: (e.chunk_id = c.id)",
+            "              ->  Append (actual rows=1700 loops=1)",
+            "                    Subplans Removed: 31",
+            "                    ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
+            "                          Filter: (((embedding_model)::text = $2) AND ((embedding_version)::text = $3) AND (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid))",
+            "              ->  Hash (actual rows=182 loops=1)",
+            "                    Buckets: 1024  Batches: 1  Memory Usage: 20kB",
+            "                    ->  Append (actual rows=182 loops=1)",
+            "                          Subplans Removed: 31",
+            "                          ->  Bitmap Heap Scan on c5 c_1 (actual rows=182 loops=1)",
+            "                                Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
+            "                                Filter: ((document_id = ANY ($5)) AND (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid))",
+            "                                Rows Removed by Filter: 387",
+            "                                Heap Blocks: exact=259",
+            "                                ->  BitmapOr (actual rows=0 loops=1)",
+            "                                      ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "                                            Index Cond: (label_ids = '{}'::uuid[])",
+            "                                      ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
+            "                                            Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
+            "Planning Time: 0.060 ms",
+            "Execution Time: 1.186 ms"
+          ]
+        },
+        "scoped_or_forced_generic": {
+          "planning_ms": {
+            "median": 0.063,
+            "p95": 1.508,
+            "max": 1.508,
+            "min": 0.048,
+            "median_warm": 0.061,
+            "first": 1.508
+          },
+          "execution_ms": {
+            "median": 0.864,
+            "p95": 1.096,
+            "max": 1.096,
+            "min": 0.709,
+            "median_warm": 0.845,
+            "first": 0.927
+          },
+          "planning_series_ms": [
+            1.508,
+            0.084,
+            0.066,
+            0.057,
+            0.075,
+            0.064,
+            0.053,
+            0.063,
+            0.059,
+            0.053,
+            0.048
+          ],
+          "hnsw_index_in_plan": false,
+          "hnsw_index_series": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "hnsw_lost_at_execution": 1,
+          "partitions_in_plan": 2,
+          "partitions_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "subplans_removed": [
+            31,
+            31
+          ],
+          "appends": 2,
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": true,
+          "indexes_used": [],
+          "seq_scans": [
+            "e5"
+          ],
+          "hash_join": true,
+          "sort_methods": [
+            "top-N heapsort  Memory"
+          ],
+          "plan_first_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Sort (actual rows=50 loops=1)",
+            "        Sort Key: ((e.embedding_half <=> $2))",
+            "        Sort Method: top-N heapsort  Memory: 30kB",
+            "        ->  Result (actual rows=182 loops=1)",
+            "              One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = $1)",
+            "              ->  Hash Join (actual rows=182 loops=1)",
+            "                    Hash Cond: (e.chunk_id = c.id)",
+            "                    ->  Append (actual rows=1700 loops=1)",
+            "                          Subplans Removed: 31",
+            "                          ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
+            "                                Filter: ((tenant_id = $1) AND ((embedding_model)::text = $3) AND ((embedding_version)::text = $4))",
+            "                    ->  Hash (actual rows=182 loops=1)",
+            "                          Buckets: 2048  Batches: 1  Memory Usage: 28kB",
+            "                          ->  Append (actual rows=182 loops=1)",
+            "                                Subplans Removed: 31",
+            "                                ->  Bitmap Heap Scan on c5 c_1 (actual rows=182 loops=1)",
+            "                                      Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uui",
+            "                                      Filter: ((tenant_id = $1) AND (($6 IS NULL) OR (document_id = ANY ($6))))",
+            "                                      Rows Removed by Filter: 387",
+            "                                      Heap Blocks: exact=259",
+            "                                      ->  BitmapOr (actual rows=0 loops=1)",
+            "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "                                                  Index Cond: (label_ids = '{}'::uuid[])",
+            "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
+            "                                                  Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
+            "Planning Time: 1.508 ms",
+            "Execution Time: 0.927 ms"
+          ],
+          "plan_last_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Sort (actual rows=50 loops=1)",
+            "        Sort Key: ((e.embedding_half <=> $2))",
+            "        Sort Method: top-N heapsort  Memory: 30kB",
+            "        ->  Result (actual rows=182 loops=1)",
+            "              One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = $1)",
+            "              ->  Hash Join (actual rows=182 loops=1)",
+            "                    Hash Cond: (e.chunk_id = c.id)",
+            "                    ->  Append (actual rows=1700 loops=1)",
+            "                          Subplans Removed: 31",
+            "                          ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
+            "                                Filter: ((tenant_id = $1) AND ((embedding_model)::text = $3) AND ((embedding_version)::text = $4))",
+            "                    ->  Hash (actual rows=182 loops=1)",
+            "                          Buckets: 2048  Batches: 1  Memory Usage: 28kB",
+            "                          ->  Append (actual rows=182 loops=1)",
+            "                                Subplans Removed: 31",
+            "                                ->  Bitmap Heap Scan on c5 c_1 (actual rows=182 loops=1)",
+            "                                      Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uui",
+            "                                      Filter: ((tenant_id = $1) AND (($6 IS NULL) OR (document_id = ANY ($6))))",
+            "                                      Rows Removed by Filter: 387",
+            "                                      Heap Blocks: exact=259",
+            "                                      ->  BitmapOr (actual rows=0 loops=1)",
+            "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "                                                  Index Cond: (label_ids = '{}'::uuid[])",
+            "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
+            "                                                  Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
+            "Planning Time: 0.048 ms",
+            "Execution Time: 0.711 ms"
+          ]
+        },
+        "scoped_bare_forced_generic": {
+          "planning_ms": {
+            "median": 0.062,
+            "p95": 1.484,
+            "max": 1.484,
+            "min": 0.047,
+            "median_warm": 0.061,
+            "first": 1.484
+          },
+          "execution_ms": {
+            "median": 0.799,
+            "p95": 1.106,
+            "max": 1.106,
+            "min": 0.694,
+            "median_warm": 0.79,
+            "first": 1.028
+          },
+          "planning_series_ms": [
+            1.484,
+            0.061,
+            0.062,
+            0.069,
+            0.066,
+            0.055,
+            0.049,
+            0.055,
+            0.047,
+            0.07,
+            0.062
+          ],
+          "hnsw_index_in_plan": false,
+          "hnsw_index_series": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "hnsw_lost_at_execution": 1,
+          "partitions_in_plan": 2,
+          "partitions_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "subplans_removed": [
+            31,
+            31
+          ],
+          "appends": 2,
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": true,
+          "indexes_used": [],
+          "seq_scans": [
+            "e5"
+          ],
+          "hash_join": true,
+          "sort_methods": [
+            "top-N heapsort  Memory"
+          ],
+          "plan_first_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Sort (actual rows=50 loops=1)",
+            "        Sort Key: ((e.embedding_half <=> $2))",
+            "        Sort Method: top-N heapsort  Memory: 30kB",
+            "        ->  Result (actual rows=182 loops=1)",
+            "              One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = $1)",
+            "              ->  Hash Join (actual rows=182 loops=1)",
+            "                    Hash Cond: (e.chunk_id = c.id)",
+            "                    ->  Append (actual rows=1700 loops=1)",
+            "                          Subplans Removed: 31",
+            "                          ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
+            "                                Filter: ((tenant_id = $1) AND ((embedding_model)::text = $3) AND ((embedding_version)::text = $4))",
+            "                    ->  Hash (actual rows=182 loops=1)",
+            "                          Buckets: 2048  Batches: 1  Memory Usage: 28kB",
+            "                          ->  Append (actual rows=182 loops=1)",
+            "                                Subplans Removed: 31",
+            "                                ->  Bitmap Heap Scan on c5 c_1 (actual rows=182 loops=1)",
+            "                                      Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uui",
+            "                                      Filter: ((tenant_id = $1) AND (document_id = ANY ($6)))",
+            "                                      Rows Removed by Filter: 387",
+            "                                      Heap Blocks: exact=259",
+            "                                      ->  BitmapOr (actual rows=0 loops=1)",
+            "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "                                                  Index Cond: (label_ids = '{}'::uuid[])",
+            "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
+            "                                                  Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
+            "Planning Time: 1.484 ms",
+            "Execution Time: 1.028 ms"
+          ],
+          "plan_last_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Sort (actual rows=50 loops=1)",
+            "        Sort Key: ((e.embedding_half <=> $2))",
+            "        Sort Method: top-N heapsort  Memory: 30kB",
+            "        ->  Result (actual rows=182 loops=1)",
+            "              One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = $1)",
+            "              ->  Hash Join (actual rows=182 loops=1)",
+            "                    Hash Cond: (e.chunk_id = c.id)",
+            "                    ->  Append (actual rows=1700 loops=1)",
+            "                          Subplans Removed: 31",
+            "                          ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
+            "                                Filter: ((tenant_id = $1) AND ((embedding_model)::text = $3) AND ((embedding_version)::text = $4))",
+            "                    ->  Hash (actual rows=182 loops=1)",
+            "                          Buckets: 2048  Batches: 1  Memory Usage: 28kB",
+            "                          ->  Append (actual rows=182 loops=1)",
+            "                                Subplans Removed: 31",
+            "                                ->  Bitmap Heap Scan on c5 c_1 (actual rows=182 loops=1)",
+            "                                      Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uui",
+            "                                      Filter: ((tenant_id = $1) AND (document_id = ANY ($6)))",
+            "                                      Rows Removed by Filter: 387",
+            "                                      Heap Blocks: exact=259",
+            "                                      ->  BitmapOr (actual rows=0 loops=1)",
+            "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "                                                  Index Cond: (label_ids = '{}'::uuid[])",
+            "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
+            "                                                  Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
+            "Planning Time: 0.062 ms",
+            "Execution Time: 0.857 ms"
+          ]
+        }
+      },
+      "promotion": {
+        "today": {
+          "executions": 40,
+          "hnsw_index_every_execution": true,
+          "hnsw_lost_at_execution": null,
+          "planning_series_ms": [
+            1.885,
+            1.497,
+            1.589,
+            1.46,
+            1.48,
+            2.641,
+            1.502,
+            1.315,
+            1.197,
+            1.235,
+            1.55,
+            1.579,
+            1.508,
+            1.395,
+            1.423,
+            1.581,
+            1.671,
+            1.399,
+            1.41,
+            1.463,
+            1.34,
+            1.646,
+            1.576,
+            1.638,
+            1.436,
+            1.38,
+            1.33,
+            1.408,
+            1.419,
+            1.423,
+            1.336,
+            1.252,
+            1.257,
+            1.191,
+            1.184,
+            1.565,
+            1.186,
+            1.647,
+            1.571,
+            1.362
+          ]
+        },
+        "local": {
+          "executions": 40,
+          "hnsw_index_every_execution": true,
+          "hnsw_lost_at_execution": null,
+          "planning_series_ms": [
             0.204,
-            0.193,
+            0.15,
+            0.166,
+            0.153,
+            0.141,
+            1.499,
+            0.134,
+            0.176,
+            0.18,
+            0.139,
+            0.158,
+            0.152,
+            0.188,
+            0.168,
+            0.145,
+            0.18,
+            0.14,
+            0.185,
+            0.163,
+            0.157,
+            0.15,
+            0.162,
+            0.129,
+            0.136,
+            0.131,
+            0.202,
             0.17,
+            0.117,
+            0.206,
+            0.163,
+            0.154,
+            0.142,
+            0.149,
+            0.11,
+            0.172,
+            0.137,
+            0.202,
+            0.126,
+            0.214,
+            0.171
+          ]
+        },
+        "shipped_scoped": {
+          "executions": 40,
+          "hnsw_index_every_execution": true,
+          "hnsw_lost_at_execution": null,
+          "planning_series_ms": [
+            1.991,
+            1.63,
+            1.509,
+            1.443,
+            1.448,
+            2.855,
+            1.551,
+            1.506,
+            1.61,
+            1.678,
+            1.496,
+            1.64,
+            1.696,
+            1.511,
+            1.573,
+            1.358,
+            1.667,
+            1.466,
+            1.439,
+            1.494,
+            1.443,
+            1.498,
+            1.417,
+            1.603,
+            1.47,
+            1.521,
+            1.574,
+            1.633,
+            1.419,
+            1.277,
+            1.661,
+            1.582,
+            1.449,
+            1.435,
+            1.428,
+            1.416,
+            1.48,
+            1.428,
+            1.606,
+            1.473
+          ]
+        },
+        "scoped_bare": {
+          "executions": 40,
+          "hnsw_index_every_execution": true,
+          "hnsw_lost_at_execution": null,
+          "planning_series_ms": [
+            0.213,
+            0.226,
+            0.201,
+            0.17,
+            0.224,
+            1.46,
+            0.232,
+            0.176,
+            0.126,
+            0.225,
+            0.157,
+            0.16,
+            0.18,
+            0.158,
+            0.173,
+            0.163,
+            0.148,
+            0.142,
+            0.18,
+            0.16,
+            0.172,
+            0.157,
+            0.158,
+            0.167,
+            0.193,
+            0.226,
+            0.148,
+            0.12,
+            0.112,
+            0.111,
+            0.241,
+            0.188,
+            0.222,
+            0.199,
+            0.138,
+            0.225,
+            0.197,
+            0.168,
+            0.219,
+            0.148
+          ]
+        }
+      },
+      "calls": {
+        "f_shipped": {
+          "locks": 297,
+          "returned": 50,
+          "wall_ms": {
+            "median": 3.546,
+            "p95": 5.716,
+            "max": 5.716,
+            "min": 3.359,
+            "median_warm": 3.587,
+            "first": 3.395
+          },
+          "wall_series_ms": [
+            3.395,
+            3.859,
+            3.546,
+            3.541,
+            5.716,
+            3.638,
+            3.471,
+            3.629,
+            3.359
+          ]
+        },
+        "f_local": {
+          "locks": 18,
+          "returned": 50,
+          "wall_ms": {
+            "median": 1.565,
+            "p95": 3.625,
+            "max": 3.625,
+            "min": 1.216,
+            "median_warm": 1.555,
+            "first": 1.888
+          },
+          "wall_series_ms": [
+            1.888,
+            1.791,
+            1.413,
+            1.216,
+            3.625,
+            1.565,
+            1.594,
+            1.546,
+            1.363
+          ]
+        },
+        "f_shipped_scoped": {
+          "locks": 297,
+          "returned": 50,
+          "wall_ms": {
+            "median": 4.554,
+            "p95": 6.015,
+            "max": 6.015,
+            "min": 4.147,
+            "median_warm": 4.484,
+            "first": 5.101
+          },
+          "wall_series_ms": [
+            5.101,
+            4.659,
+            4.147,
+            5.034,
+            6.015,
+            4.231,
+            4.415,
+            4.314,
+            4.554
+          ]
+        },
+        "f_scoped_or": {
+          "locks": 18,
+          "returned": 50,
+          "wall_ms": {
+            "median": 2.071,
+            "p95": 3.446,
+            "max": 3.446,
+            "min": 1.85,
+            "median_warm": 2.09,
+            "first": 2.064
+          },
+          "wall_series_ms": [
+            2.064,
+            2.109,
+            2.071,
+            1.85,
+            3.446,
+            1.926,
+            2.146,
+            1.953,
+            2.867
+          ]
+        },
+        "f_scoped_bare": {
+          "locks": 18,
+          "returned": 50,
+          "wall_ms": {
+            "median": 2.305,
+            "p95": 3.592,
+            "max": 3.592,
+            "min": 1.842,
+            "median_warm": 2.121,
+            "first": 2.733
+          },
+          "wall_series_ms": [
+            2.733,
+            1.879,
+            1.938,
+            1.842,
+            3.592,
+            1.909,
+            3.11,
+            2.305,
+            2.977
+          ]
+        }
+      },
+      "equivalence": {
+        "f_scoped_bare": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_scoped_or": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_shipped_scoped": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        }
+      },
+      "equivalence_under_one_label": {
+        "f_scoped_bare": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_scoped_or": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        },
+        "f_shipped_scoped": {
+          "shipped_rows": 50,
+          "candidate_rows": 50,
+          "in_both": 50,
+          "max_score_delta": 0.0,
+          "rows_at_a_different_rank": 0
+        }
+      },
+      "in_step": {
+        "documents_in_scope": 39,
+        "unscoped_rows": 50,
+        "scoped_rows": 50,
+        "in_both": 50,
+        "max_score_delta": 0.0,
+        "rows_at_a_different_rank": 0
+      },
+      "isolation": {
+        "cells": 64,
+        "rows_on_the_diagonal": 400,
+        "rows_off_the_diagonal": 0,
+        "foreign_rows": 0,
+        "another_tenants_documents_in_scope": {
+          "rows": 50,
+          "foreign_rows": 0
+        },
+        "plan_cache": [
+          {
+            "after_nine_calls_as_tenant_3": "tenant 5, custom",
+            "rows": 50,
+            "foreign_rows": 0
+          },
+          {
+            "after_nine_calls_as_tenant_3": "tenant 5, forced generic",
+            "rows": 50,
+            "foreign_rows": 0
+          }
+        ],
+        "grid": [
+          {
+            "context": "01",
+            "requested": "01",
+            "rows": 50,
+            "foreign_rows": 0
+          },
+          {
+            "context": "01",
+            "requested": "02",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "01",
+            "requested": "03",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "01",
+            "requested": "04",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "01",
+            "requested": "05",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "01",
+            "requested": "06",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "01",
+            "requested": "07",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "01",
+            "requested": "08",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "02",
+            "requested": "01",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "02",
+            "requested": "02",
+            "rows": 50,
+            "foreign_rows": 0
+          },
+          {
+            "context": "02",
+            "requested": "03",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "02",
+            "requested": "04",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "02",
+            "requested": "05",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "02",
+            "requested": "06",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "02",
+            "requested": "07",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "02",
+            "requested": "08",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "03",
+            "requested": "01",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "03",
+            "requested": "02",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "03",
+            "requested": "03",
+            "rows": 50,
+            "foreign_rows": 0
+          },
+          {
+            "context": "03",
+            "requested": "04",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "03",
+            "requested": "05",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "03",
+            "requested": "06",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "03",
+            "requested": "07",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "03",
+            "requested": "08",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "04",
+            "requested": "01",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "04",
+            "requested": "02",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "04",
+            "requested": "03",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "04",
+            "requested": "04",
+            "rows": 50,
+            "foreign_rows": 0
+          },
+          {
+            "context": "04",
+            "requested": "05",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "04",
+            "requested": "06",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "04",
+            "requested": "07",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "04",
+            "requested": "08",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "05",
+            "requested": "01",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "05",
+            "requested": "02",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "05",
+            "requested": "03",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "05",
+            "requested": "04",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "05",
+            "requested": "05",
+            "rows": 50,
+            "foreign_rows": 0
+          },
+          {
+            "context": "05",
+            "requested": "06",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "05",
+            "requested": "07",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "05",
+            "requested": "08",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "06",
+            "requested": "01",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "06",
+            "requested": "02",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "06",
+            "requested": "03",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "06",
+            "requested": "04",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "06",
+            "requested": "05",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "06",
+            "requested": "06",
+            "rows": 50,
+            "foreign_rows": 0
+          },
+          {
+            "context": "06",
+            "requested": "07",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "06",
+            "requested": "08",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "07",
+            "requested": "01",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "07",
+            "requested": "02",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "07",
+            "requested": "03",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "07",
+            "requested": "04",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "07",
+            "requested": "05",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "07",
+            "requested": "06",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "07",
+            "requested": "07",
+            "rows": 50,
+            "foreign_rows": 0
+          },
+          {
+            "context": "07",
+            "requested": "08",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "08",
+            "requested": "01",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "08",
+            "requested": "02",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "08",
+            "requested": "03",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "08",
+            "requested": "04",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "08",
+            "requested": "05",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "08",
+            "requested": "06",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "08",
+            "requested": "07",
+            "rows": 0,
+            "foreign_rows": 0
+          },
+          {
+            "context": "08",
+            "requested": "08",
+            "rows": 50,
+            "foreign_rows": 0
+          }
+        ]
+      }
+    },
+    {
+      "modulus": 128,
+      "built_seconds": 14.2,
+      "environment": {
+        "max_connections": "100",
+        "max_locks_per_transaction": "2560",
+        "plan_cache_mode": "auto",
+        "server_version": "17.5 (Debian 17.5-1.pgdg120+1)",
+        "shared_buffers": "16384",
+        "work_mem": "4096",
+        "lock_slots": 256000,
+        "alembic_head": "0026",
+        "public_chunks_partitions": 128,
+        "documents_shared_between_tenants": 40
+      },
+      "scope": {
+        "documents": 3,
+        "chunks_in_scope": 513,
+        "chunks_on_the_tenant": 1700,
+        "documents_on_the_tenant": 39
+      },
+      "plans": {
+        "today": {
+          "planning_ms": {
+            "median": 8.452,
+            "p95": 33.751,
+            "max": 33.751,
+            "min": 8.007,
+            "median_warm": 8.381,
+            "first": 33.751
+          },
+          "execution_ms": {
+            "median": 2.266,
+            "p95": 4.463,
+            "max": 4.463,
+            "min": 2.038,
+            "median_warm": 2.255,
+            "first": 4.463
+          },
+          "planning_series_ms": [
+            33.751,
+            9.412,
+            8.297,
+            8.491,
+            8.179,
+            20.976,
+            8.311,
+            8.076,
+            9.003,
+            8.007,
+            8.452
+          ],
+          "hnsw_index_in_plan": true,
+          "hnsw_index_series": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "hnsw_lost_at_execution": null,
+          "partitions_in_plan": 2,
+          "partitions_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "subplans_removed": [
+            127,
+            127
+          ],
+          "appends": 2,
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": false,
+          "indexes_used": [
+            "e5_embedding_half_idx"
+          ],
+          "seq_scans": [],
+          "hash_join": false,
+          "sort_methods": [],
+          "plan_first_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Nested Loop (actual rows=50 loops=1)",
+            "        Join Filter: (e.chunk_id = c.id)",
+            "        Rows Removed by Join Filter: 46232",
+            "        ->  Merge Append (actual rows=122 loops=1)",
+            "              Sort Key: ((e.embedding_half <=> '[...]'::halfvec))",
+            "              Subplans Removed: 127",
+            "              ->  Index Scan using e5_embedding_half_idx on e5 e_1 (actual rows=122 loops=1)",
+            "                    Order By: (embedding_half <=> '[...]'::halfvec)",
+            "                    Filter: (((embedding_model)::text = 'BAAI/bge-m3'::text) AND ((embedding_version)::text = '1'::text) AND (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid))",
+            "        ->  Materialize (actual rows=379 loops=122)",
+            "              ->  Append (actual rows=569 loops=1)",
+            "                    Subplans Removed: 127",
+            "                    ->  Bitmap Heap Scan on c5 c_1 (actual rows=569 loops=1)",
+            "                          Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
+            "                          Filter: (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid)",
+            "                          Heap Blocks: exact=259",
+            "                          ->  BitmapOr (actual rows=0 loops=1)",
+            "                                ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "                                      Index Cond: (label_ids = '{}'::uuid[])",
+            "                                ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
+            "                                      Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
+            "Planning Time: 33.751 ms",
+            "Execution Time: 4.463 ms"
+          ],
+          "plan_last_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Nested Loop (actual rows=50 loops=1)",
+            "        Join Filter: (e.chunk_id = c.id)",
+            "        Rows Removed by Join Filter: 46232",
+            "        ->  Merge Append (actual rows=122 loops=1)",
+            "              Sort Key: ((e.embedding_half <=> '[...]'::halfvec))",
+            "              Subplans Removed: 127",
+            "              ->  Index Scan using e5_embedding_half_idx on e5 e_1 (actual rows=122 loops=1)",
+            "                    Order By: (embedding_half <=> '[...]'::halfvec)",
+            "                    Filter: (((embedding_model)::text = 'BAAI/bge-m3'::text) AND ((embedding_version)::text = '1'::text) AND (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid))",
+            "        ->  Materialize (actual rows=379 loops=122)",
+            "              ->  Append (actual rows=569 loops=1)",
+            "                    Subplans Removed: 127",
+            "                    ->  Bitmap Heap Scan on c5 c_1 (actual rows=569 loops=1)",
+            "                          Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
+            "                          Filter: (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid)",
+            "                          Heap Blocks: exact=259",
+            "                          ->  BitmapOr (actual rows=0 loops=1)",
+            "                                ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "                                      Index Cond: (label_ids = '{}'::uuid[])",
+            "                                ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
+            "                                      Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
+            "Planning Time: 8.452 ms",
+            "Execution Time: 2.211 ms"
+          ]
+        },
+        "local": {
+          "planning_ms": {
+            "median": 0.177,
+            "p95": 7.781,
+            "max": 7.781,
+            "min": 0.138,
+            "median_warm": 0.177,
+            "first": 0.184
+          },
+          "execution_ms": {
+            "median": 0.899,
+            "p95": 1.179,
+            "max": 1.179,
+            "min": 0.794,
+            "median_warm": 0.888,
+            "first": 1.053
+          },
+          "planning_series_ms": [
+            0.184,
+            0.151,
+            0.138,
+            0.177,
+            0.187,
+            7.781,
+            0.179,
+            0.177,
+            0.173,
+            0.195,
+            0.166
+          ],
+          "hnsw_index_in_plan": true,
+          "hnsw_index_series": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "hnsw_lost_at_execution": null,
+          "partitions_in_plan": 2,
+          "partitions_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "subplans_removed": [],
+          "appends": 0,
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": true,
+          "indexes_used": [
+            "c5_pkey",
+            "e5_embedding_half_idx"
+          ],
+          "seq_scans": [],
+          "hash_join": false,
+          "sort_methods": [],
+          "plan_first_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Result (actual rows=50 loops=1)",
+            "        One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = '00000000-0000-0000-0000-000000000003'::uuid)",
+            "        ->  Nested Loop (actual rows=50 loops=1)",
+            "              ->  Index Scan using e5_embedding_half_idx on e5 e (actual rows=122 loops=1)",
+            "                    Order By: (embedding_half <=> '[...]'::halfvec)",
+            "                    Filter: ((tenant_id = '00000000-0000-0000-0000-000000000003'::uuid) AND ((embedding_model)::text = 'BAAI/bge-m3'::text) AND ((embedding_version)::text = '1'::text))",
+            "              ->  Index Scan using c5_pkey on c5 c (actual rows=0 loops=122)",
+            "                    Index Cond: ((id = e.chunk_id) AND (tenant_id = '00000000-0000-0000-0000-000000000003'::uuid))",
+            "                    Filter: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
+            "                    Rows Removed by Filter: 1",
+            "Planning Time: 0.184 ms",
+            "Execution Time: 1.053 ms"
+          ],
+          "plan_last_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Result (actual rows=50 loops=1)",
+            "        One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = '00000000-0000-0000-0000-000000000003'::uuid)",
+            "        ->  Nested Loop (actual rows=50 loops=1)",
+            "              ->  Index Scan using e5_embedding_half_idx on e5 e (actual rows=122 loops=1)",
+            "                    Order By: (embedding_half <=> '[...]'::halfvec)",
+            "                    Filter: ((tenant_id = '00000000-0000-0000-0000-000000000003'::uuid) AND ((embedding_model)::text = 'BAAI/bge-m3'::text) AND ((embedding_version)::text = '1'::text))",
+            "              ->  Index Scan using c5_pkey on c5 c (actual rows=0 loops=122)",
+            "                    Index Cond: ((id = e.chunk_id) AND (tenant_id = '00000000-0000-0000-0000-000000000003'::uuid))",
+            "                    Filter: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
+            "                    Rows Removed by Filter: 1",
+            "Planning Time: 0.166 ms",
+            "Execution Time: 0.854 ms"
+          ]
+        },
+        "shipped_scoped": {
+          "planning_ms": {
+            "median": 8.881,
+            "p95": 16.818,
+            "max": 16.818,
+            "min": 8.231,
+            "median_warm": 8.698,
+            "first": 9.868
+          },
+          "execution_ms": {
+            "median": 3.297,
+            "p95": 4.721,
+            "max": 4.721,
+            "min": 3.03,
+            "median_warm": 3.285,
+            "first": 4.721
+          },
+          "planning_series_ms": [
+            9.868,
+            8.231,
+            8.309,
+            9.099,
+            8.952,
+            16.818,
+            8.515,
+            9.097,
+            8.276,
+            8.371,
+            8.881
+          ],
+          "hnsw_index_in_plan": true,
+          "hnsw_index_series": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "hnsw_lost_at_execution": null,
+          "partitions_in_plan": 2,
+          "partitions_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "subplans_removed": [
+            127,
+            127
+          ],
+          "appends": 2,
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": false,
+          "indexes_used": [
+            "e5_embedding_half_idx"
+          ],
+          "seq_scans": [],
+          "hash_join": false,
+          "sort_methods": [],
+          "plan_first_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Nested Loop (actual rows=50 loops=1)",
+            "        Join Filter: (e.chunk_id = c.id)",
+            "        Rows Removed by Join Filter: 56015",
+            "        ->  Merge Append (actual rows=344 loops=1)",
+            "              Sort Key: ((e.embedding_half <=> '[...]'::halfvec))",
+            "              Subplans Removed: 127",
+            "              ->  Index Scan using e5_embedding_half_idx on e5 e_1 (actual rows=344 loops=1)",
+            "                    Order By: (embedding_half <=> '[...]'::halfvec)",
+            "                    Filter: (((embedding_model)::text = 'BAAI/bge-m3'::text) AND ((embedding_version)::text = '1'::text) AND (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid))",
+            "        ->  Materialize (actual rows=163 loops=344)",
+            "              ->  Append (actual rows=182 loops=1)",
+            "                    Subplans Removed: 127",
+            "                    ->  Bitmap Heap Scan on c5 c_1 (actual rows=182 loops=1)",
+            "                          Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
+            "                          Filter: ((document_id = ANY ('{ba81ad3e-c8e0-4649-b719-f6af4007a4b5,e3a705c1-de6f-4755-8f4e-3e2718be9eca,f3975ffd-2cbc-46c7-8e69-40adc6e4d5c3}'::uuid[])) AND (tenant_id = (NULLIF(current_setting",
+            "                          Rows Removed by Filter: 387",
+            "                          Heap Blocks: exact=259",
+            "                          ->  BitmapOr (actual rows=0 loops=1)",
+            "                                ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "                                      Index Cond: (label_ids = '{}'::uuid[])",
+            "                                ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
+            "                                      Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
+            "Planning Time: 9.868 ms",
+            "Execution Time: 4.721 ms"
+          ],
+          "plan_last_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Nested Loop (actual rows=50 loops=1)",
+            "        Join Filter: (e.chunk_id = c.id)",
+            "        Rows Removed by Join Filter: 56015",
+            "        ->  Merge Append (actual rows=344 loops=1)",
+            "              Sort Key: ((e.embedding_half <=> '[...]'::halfvec))",
+            "              Subplans Removed: 127",
+            "              ->  Index Scan using e5_embedding_half_idx on e5 e_1 (actual rows=344 loops=1)",
+            "                    Order By: (embedding_half <=> '[...]'::halfvec)",
+            "                    Filter: (((embedding_model)::text = 'BAAI/bge-m3'::text) AND ((embedding_version)::text = '1'::text) AND (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid))",
+            "        ->  Materialize (actual rows=163 loops=344)",
+            "              ->  Append (actual rows=182 loops=1)",
+            "                    Subplans Removed: 127",
+            "                    ->  Bitmap Heap Scan on c5 c_1 (actual rows=182 loops=1)",
+            "                          Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
+            "                          Filter: ((document_id = ANY ('{ba81ad3e-c8e0-4649-b719-f6af4007a4b5,e3a705c1-de6f-4755-8f4e-3e2718be9eca,f3975ffd-2cbc-46c7-8e69-40adc6e4d5c3}'::uuid[])) AND (tenant_id = (NULLIF(current_setting",
+            "                          Rows Removed by Filter: 387",
+            "                          Heap Blocks: exact=259",
+            "                          ->  BitmapOr (actual rows=0 loops=1)",
+            "                                ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "                                      Index Cond: (label_ids = '{}'::uuid[])",
+            "                                ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
+            "                                      Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
+            "Planning Time: 8.881 ms",
+            "Execution Time: 3.317 ms"
+          ]
+        },
+        "scoped_or": {
+          "planning_ms": {
+            "median": 0.192,
+            "p95": 9.369,
+            "max": 9.369,
+            "min": 0.148,
+            "median_warm": 0.191,
+            "first": 0.236
+          },
+          "execution_ms": {
+            "median": 1.791,
+            "p95": 2.573,
+            "max": 2.573,
+            "min": 1.388,
+            "median_warm": 1.76,
+            "first": 1.791
+          },
+          "planning_series_ms": [
+            0.236,
+            0.194,
+            0.172,
+            0.192,
+            0.19,
+            9.369,
+            0.241,
+            0.148,
+            0.17,
+            0.265,
+            0.178
+          ],
+          "hnsw_index_in_plan": true,
+          "hnsw_index_series": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "hnsw_lost_at_execution": null,
+          "partitions_in_plan": 2,
+          "partitions_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "subplans_removed": [],
+          "appends": 0,
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": true,
+          "indexes_used": [
+            "c5_pkey",
+            "e5_embedding_half_idx"
+          ],
+          "seq_scans": [],
+          "hash_join": false,
+          "sort_methods": [],
+          "plan_first_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Result (actual rows=50 loops=1)",
+            "        One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = '00000000-0000-0000-0000-000000000003'::uuid)",
+            "        ->  Nested Loop (actual rows=50 loops=1)",
+            "              ->  Index Scan using e5_embedding_half_idx on e5 e (actual rows=344 loops=1)",
+            "                    Order By: (embedding_half <=> '[...]'::halfvec)",
+            "                    Filter: ((tenant_id = '00000000-0000-0000-0000-000000000003'::uuid) AND ((embedding_model)::text = 'BAAI/bge-m3'::text) AND ((embedding_version)::text = '1'::text))",
+            "              ->  Index Scan using c5_pkey on c5 c (actual rows=0 loops=344)",
+            "                    Index Cond: ((id = e.chunk_id) AND (tenant_id = '00000000-0000-0000-0000-000000000003'::uuid))",
+            "                    Filter: ((document_id = ANY ('{ba81ad3e-c8e0-4649-b719-f6af4007a4b5,e3a705c1-de6f-4755-8f4e-3e2718be9eca,f3975ffd-2cbc-46c7-8e69-40adc6e4d5c3}'::uuid[])) AND ((label_ids = '{}'::uuid[]) OR (label_ids ",
+            "                    Rows Removed by Filter: 1",
+            "Planning Time: 0.236 ms",
+            "Execution Time: 1.791 ms"
+          ],
+          "plan_last_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Result (actual rows=50 loops=1)",
+            "        One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = '00000000-0000-0000-0000-000000000003'::uuid)",
+            "        ->  Nested Loop (actual rows=50 loops=1)",
+            "              ->  Index Scan using e5_embedding_half_idx on e5 e (actual rows=344 loops=1)",
+            "                    Order By: (embedding_half <=> '[...]'::halfvec)",
+            "                    Filter: ((tenant_id = '00000000-0000-0000-0000-000000000003'::uuid) AND ((embedding_model)::text = 'BAAI/bge-m3'::text) AND ((embedding_version)::text = '1'::text))",
+            "              ->  Index Scan using c5_pkey on c5 c (actual rows=0 loops=344)",
+            "                    Index Cond: ((id = e.chunk_id) AND (tenant_id = '00000000-0000-0000-0000-000000000003'::uuid))",
+            "                    Filter: ((document_id = ANY ('{ba81ad3e-c8e0-4649-b719-f6af4007a4b5,e3a705c1-de6f-4755-8f4e-3e2718be9eca,f3975ffd-2cbc-46c7-8e69-40adc6e4d5c3}'::uuid[])) AND ((label_ids = '{}'::uuid[]) OR (label_ids ",
+            "                    Rows Removed by Filter: 1",
+            "Planning Time: 0.178 ms",
+            "Execution Time: 2.126 ms"
+          ]
+        },
+        "scoped_bare": {
+          "planning_ms": {
+            "median": 0.169,
+            "p95": 7.302,
+            "max": 7.302,
+            "min": 0.149,
+            "median_warm": 0.175,
+            "first": 0.152
+          },
+          "execution_ms": {
+            "median": 1.594,
+            "p95": 2.507,
+            "max": 2.507,
+            "min": 1.317,
+            "median_warm": 1.615,
+            "first": 1.317
+          },
+          "planning_series_ms": [
+            0.152,
+            0.265,
+            0.181,
+            0.154,
+            0.272,
+            7.302,
+            0.209,
+            0.159,
+            0.169,
+            0.149,
             0.166
           ],
           "hnsw_index_in_plan": true,
@@ -465,8 +2558,8 @@
             "                    Index Cond: ((id = e.chunk_id) AND (tenant_id = '00000000-0000-0000-0000-000000000003'::uuid))",
             "                    Filter: ((document_id = ANY ('{ba81ad3e-c8e0-4649-b719-f6af4007a4b5,e3a705c1-de6f-4755-8f4e-3e2718be9eca,f3975ffd-2cbc-46c7-8e69-40adc6e4d5c3}'::uuid[])) AND ((label_ids = '{}'::uuid[]) OR (label_ids ",
             "                    Rows Removed by Filter: 1",
-            "Planning Time: 0.208 ms",
-            "Execution Time: 1.892 ms"
+            "Planning Time: 0.152 ms",
+            "Execution Time: 1.317 ms"
           ],
           "plan_last_execution": [
             "Limit (actual rows=50 loops=1)",
@@ -481,139 +2574,38 @@
             "                    Filter: ((document_id = ANY ('{ba81ad3e-c8e0-4649-b719-f6af4007a4b5,e3a705c1-de6f-4755-8f4e-3e2718be9eca,f3975ffd-2cbc-46c7-8e69-40adc6e4d5c3}'::uuid[])) AND ((label_ids = '{}'::uuid[]) OR (label_ids ",
             "                    Rows Removed by Filter: 1",
             "Planning Time: 0.166 ms",
-            "Execution Time: 1.416 ms"
-          ]
-        },
-        "scoped_bare": {
-          "planning_ms": {
-            "median": 0.194,
-            "p95": 1.531,
-            "max": 1.531,
-            "min": 0.162,
-            "median_warm": 0.189,
-            "first": 0.229
-          },
-          "execution_ms": {
-            "median": 1.61,
-            "p95": 2.324,
-            "max": 2.324,
-            "min": 1.514,
-            "median_warm": 1.585,
-            "first": 2.324
-          },
-          "planning_series_ms": [
-            0.229,
-            0.225,
-            0.194,
-            0.241,
-            0.164,
-            1.531,
-            0.196,
-            0.174,
-            0.183,
-            0.176,
-            0.162
-          ],
-          "hnsw_index_in_plan": true,
-          "hnsw_index_series": [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          "hnsw_lost_at_execution": null,
-          "partitions_in_plan": 2,
-          "partitions_series": [
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2
-          ],
-          "subplans_removed": [],
-          "appends": 0,
-          "pruning_was_stable": true,
-          "policy_became_a_one_time_filter": true,
-          "indexes_used": [
-            "c5_pkey",
-            "e5_embedding_half_idx"
-          ],
-          "seq_scans": [],
-          "hash_join": false,
-          "sort_methods": [],
-          "plan_first_execution": [
-            "Limit (actual rows=50 loops=1)",
-            "  ->  Result (actual rows=50 loops=1)",
-            "        One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = '00000000-0000-0000-0000-000000000003'::uuid)",
-            "        ->  Nested Loop (actual rows=50 loops=1)",
-            "              ->  Index Scan using e5_embedding_half_idx on e5 e (actual rows=344 loops=1)",
-            "                    Order By: (embedding_half <=> '[...]'::halfvec)",
-            "                    Filter: ((tenant_id = '00000000-0000-0000-0000-000000000003'::uuid) AND ((embedding_model)::text = 'BAAI/bge-m3'::text) AND ((embedding_version)::text = '1'::text))",
-            "              ->  Index Scan using c5_pkey on c5 c (actual rows=0 loops=344)",
-            "                    Index Cond: ((id = e.chunk_id) AND (tenant_id = '00000000-0000-0000-0000-000000000003'::uuid))",
-            "                    Filter: ((document_id = ANY ('{ba81ad3e-c8e0-4649-b719-f6af4007a4b5,e3a705c1-de6f-4755-8f4e-3e2718be9eca,f3975ffd-2cbc-46c7-8e69-40adc6e4d5c3}'::uuid[])) AND ((label_ids = '{}'::uuid[]) OR (label_ids ",
-            "                    Rows Removed by Filter: 1",
-            "Planning Time: 0.229 ms",
-            "Execution Time: 2.324 ms"
-          ],
-          "plan_last_execution": [
-            "Limit (actual rows=50 loops=1)",
-            "  ->  Result (actual rows=50 loops=1)",
-            "        One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = '00000000-0000-0000-0000-000000000003'::uuid)",
-            "        ->  Nested Loop (actual rows=50 loops=1)",
-            "              ->  Index Scan using e5_embedding_half_idx on e5 e (actual rows=344 loops=1)",
-            "                    Order By: (embedding_half <=> '[...]'::halfvec)",
-            "                    Filter: ((tenant_id = '00000000-0000-0000-0000-000000000003'::uuid) AND ((embedding_model)::text = 'BAAI/bge-m3'::text) AND ((embedding_version)::text = '1'::text))",
-            "              ->  Index Scan using c5_pkey on c5 c (actual rows=0 loops=344)",
-            "                    Index Cond: ((id = e.chunk_id) AND (tenant_id = '00000000-0000-0000-0000-000000000003'::uuid))",
-            "                    Filter: ((document_id = ANY ('{ba81ad3e-c8e0-4649-b719-f6af4007a4b5,e3a705c1-de6f-4755-8f4e-3e2718be9eca,f3975ffd-2cbc-46c7-8e69-40adc6e4d5c3}'::uuid[])) AND ((label_ids = '{}'::uuid[]) OR (label_ids ",
-            "                    Rows Removed by Filter: 1",
-            "Planning Time: 0.162 ms",
-            "Execution Time: 1.527 ms"
+            "Execution Time: 1.592 ms"
           ]
         },
         "today_forced_generic": {
           "planning_ms": {
-            "median": 0.06,
-            "p95": 1.631,
-            "max": 1.631,
-            "min": 0.055,
-            "median_warm": 0.059,
-            "first": 1.631
+            "median": 0.068,
+            "p95": 9.194,
+            "max": 9.194,
+            "min": 0.053,
+            "median_warm": 0.068,
+            "first": 9.194
           },
           "execution_ms": {
-            "median": 2.354,
-            "p95": 3.207,
-            "max": 3.207,
-            "min": 2.23,
-            "median_warm": 2.336,
-            "first": 3.207
+            "median": 2.191,
+            "p95": 3.179,
+            "max": 3.179,
+            "min": 1.905,
+            "median_warm": 2.191,
+            "first": 3.179
           },
           "planning_series_ms": [
-            1.631,
+            9.194,
+            0.069,
+            0.068,
+            0.073,
+            0.068,
+            0.067,
+            0.064,
             0.059,
-            0.055,
-            0.061,
-            0.071,
-            0.065,
-            0.063,
-            0.06,
-            0.059,
-            0.059,
-            0.056
+            0.054,
+            0.079,
+            0.053
           ],
           "hnsw_index_in_plan": false,
           "hnsw_index_series": [
@@ -645,8 +2637,8 @@
             2
           ],
           "subplans_removed": [
-            31,
-            31
+            127,
+            127
           ],
           "appends": 2,
           "pruning_was_stable": true,
@@ -667,13 +2659,13 @@
             "        ->  Hash Join (actual rows=569 loops=1)",
             "              Hash Cond: (e.chunk_id = c.id)",
             "              ->  Append (actual rows=1700 loops=1)",
-            "                    Subplans Removed: 31",
+            "                    Subplans Removed: 127",
             "                    ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
             "                          Filter: (((embedding_model)::text = $2) AND ((embedding_version)::text = $3) AND (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid))",
             "              ->  Hash (actual rows=569 loops=1)",
             "                    Buckets: 1024  Batches: 1  Memory Usage: 44kB",
             "                    ->  Append (actual rows=569 loops=1)",
-            "                          Subplans Removed: 31",
+            "                          Subplans Removed: 127",
             "                          ->  Bitmap Heap Scan on c5 c_1 (actual rows=569 loops=1)",
             "                                Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
             "                                Filter: (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid)",
@@ -683,8 +2675,8 @@
             "                                            Index Cond: (label_ids = '{}'::uuid[])",
             "                                      ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                            Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 1.631 ms",
-            "Execution Time: 3.207 ms"
+            "Planning Time: 9.194 ms",
+            "Execution Time: 3.179 ms"
           ],
           "plan_last_execution": [
             "Limit (actual rows=50 loops=1)",
@@ -694,13 +2686,13 @@
             "        ->  Hash Join (actual rows=569 loops=1)",
             "              Hash Cond: (e.chunk_id = c.id)",
             "              ->  Append (actual rows=1700 loops=1)",
-            "                    Subplans Removed: 31",
+            "                    Subplans Removed: 127",
             "                    ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
             "                          Filter: (((embedding_model)::text = $2) AND ((embedding_version)::text = $3) AND (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid))",
             "              ->  Hash (actual rows=569 loops=1)",
             "                    Buckets: 1024  Batches: 1  Memory Usage: 44kB",
             "                    ->  Append (actual rows=569 loops=1)",
-            "                          Subplans Removed: 31",
+            "                          Subplans Removed: 127",
             "                          ->  Bitmap Heap Scan on c5 c_1 (actual rows=569 loops=1)",
             "                                Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
             "                                Filter: (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid)",
@@ -710,153 +2702,39 @@
             "                                            Index Cond: (label_ids = '{}'::uuid[])",
             "                                      ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                            Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 0.056 ms",
-            "Execution Time: 2.244 ms"
+            "Planning Time: 0.053 ms",
+            "Execution Time: 1.916 ms"
           ]
         },
         "local_forced_generic": {
           "planning_ms": {
-            "median": 0.056,
-            "p95": 1.334,
-            "max": 1.334,
-            "min": 0.047,
-            "median_warm": 0.055,
-            "first": 1.334
+            "median": 0.071,
+            "p95": 8.438,
+            "max": 8.438,
+            "min": 0.057,
+            "median_warm": 0.071,
+            "first": 8.438
           },
           "execution_ms": {
-            "median": 0.71,
-            "p95": 1.492,
-            "max": 1.492,
-            "min": 0.656,
-            "median_warm": 0.707,
-            "first": 1.167
+            "median": 1.678,
+            "p95": 2.425,
+            "max": 2.425,
+            "min": 1.529,
+            "median_warm": 1.656,
+            "first": 2.425
           },
           "planning_series_ms": [
-            1.334,
+            8.438,
+            0.081,
+            0.079,
+            0.071,
             0.077,
-            0.066,
-            0.052,
-            0.054,
-            0.05,
-            0.06,
-            0.047,
-            0.056,
-            0.068,
-            0.053
-          ],
-          "hnsw_index_in_plan": true,
-          "hnsw_index_series": [
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true,
-            true
-          ],
-          "hnsw_lost_at_execution": null,
-          "partitions_in_plan": 2,
-          "partitions_series": [
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2
-          ],
-          "subplans_removed": [
-            31,
-            31
-          ],
-          "appends": 2,
-          "pruning_was_stable": true,
-          "policy_became_a_one_time_filter": true,
-          "indexes_used": [
-            "c5_pkey",
-            "e5_embedding_half_idx"
-          ],
-          "seq_scans": [],
-          "hash_join": false,
-          "sort_methods": [],
-          "plan_first_execution": [
-            "Limit (actual rows=50 loops=1)",
-            "  ->  Result (actual rows=50 loops=1)",
-            "        One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = $1)",
-            "        ->  Nested Loop (actual rows=50 loops=1)",
-            "              ->  Merge Append (actual rows=122 loops=1)",
-            "                    Sort Key: ((e.embedding_half <=> $2))",
-            "                    Subplans Removed: 31",
-            "                    ->  Index Scan using e5_embedding_half_idx on e5 e_1 (actual rows=122 loops=1)",
-            "                          Order By: (embedding_half <=> $2)",
-            "                          Filter: ((tenant_id = $1) AND ((embedding_model)::text = $3) AND ((embedding_version)::text = $4))",
-            "              ->  Append (actual rows=0 loops=122)",
-            "                    Subplans Removed: 31",
-            "                    ->  Index Scan using c5_pkey on c5 c_1 (actual rows=0 loops=122)",
-            "                          Index Cond: ((id = e.chunk_id) AND (tenant_id = $1))",
-            "                          Filter: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
-            "                          Rows Removed by Filter: 1",
-            "Planning Time: 1.334 ms",
-            "Execution Time: 1.167 ms"
-          ],
-          "plan_last_execution": [
-            "Limit (actual rows=50 loops=1)",
-            "  ->  Result (actual rows=50 loops=1)",
-            "        One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = $1)",
-            "        ->  Nested Loop (actual rows=50 loops=1)",
-            "              ->  Merge Append (actual rows=122 loops=1)",
-            "                    Sort Key: ((e.embedding_half <=> $2))",
-            "                    Subplans Removed: 31",
-            "                    ->  Index Scan using e5_embedding_half_idx on e5 e_1 (actual rows=122 loops=1)",
-            "                          Order By: (embedding_half <=> $2)",
-            "                          Filter: ((tenant_id = $1) AND ((embedding_model)::text = $3) AND ((embedding_version)::text = $4))",
-            "              ->  Append (actual rows=0 loops=122)",
-            "                    Subplans Removed: 31",
-            "                    ->  Index Scan using c5_pkey on c5 c_1 (actual rows=0 loops=122)",
-            "                          Index Cond: ((id = e.chunk_id) AND (tenant_id = $1))",
-            "                          Filter: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
-            "                          Rows Removed by Filter: 1",
-            "Planning Time: 0.053 ms",
-            "Execution Time: 0.837 ms"
-          ]
-        },
-        "shipped_scoped_forced_generic": {
-          "planning_ms": {
-            "median": 0.063,
-            "p95": 1.625,
-            "max": 1.625,
-            "min": 0.058,
-            "median_warm": 0.062,
-            "first": 1.625
-          },
-          "execution_ms": {
-            "median": 1.155,
-            "p95": 1.386,
-            "max": 1.386,
-            "min": 1.13,
-            "median_warm": 1.155,
-            "first": 1.386
-          },
-          "planning_series_ms": [
-            1.625,
             0.062,
-            0.058,
+            0.057,
+            0.071,
+            0.065,
             0.061,
-            0.089,
-            0.074,
-            0.063,
-            0.063,
-            0.067,
-            0.058,
-            0.062
+            0.071
           ],
           "hnsw_index_in_plan": false,
           "hnsw_index_series": [
@@ -888,8 +2766,141 @@
             2
           ],
           "subplans_removed": [
-            31,
-            31
+            127,
+            127
+          ],
+          "appends": 2,
+          "pruning_was_stable": true,
+          "policy_became_a_one_time_filter": true,
+          "indexes_used": [],
+          "seq_scans": [
+            "e5"
+          ],
+          "hash_join": true,
+          "sort_methods": [
+            "top-N heapsort  Memory"
+          ],
+          "plan_first_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Sort (actual rows=50 loops=1)",
+            "        Sort Key: ((e.embedding_half <=> $2))",
+            "        Sort Method: top-N heapsort  Memory: 30kB",
+            "        ->  Result (actual rows=569 loops=1)",
+            "              One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = $1)",
+            "              ->  Hash Join (actual rows=569 loops=1)",
+            "                    Hash Cond: (e.chunk_id = c.id)",
+            "                    ->  Append (actual rows=1700 loops=1)",
+            "                          Subplans Removed: 127",
+            "                          ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
+            "                                Filter: ((tenant_id = $1) AND ((embedding_model)::text = $3) AND ((embedding_version)::text = $4))",
+            "                    ->  Hash (actual rows=569 loops=1)",
+            "                          Buckets: 8192  Batches: 1  Memory Usage: 100kB",
+            "                          ->  Append (actual rows=569 loops=1)",
+            "                                Subplans Removed: 127",
+            "                                ->  Bitmap Heap Scan on c5 c_1 (actual rows=569 loops=1)",
+            "                                      Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uui",
+            "                                      Filter: (tenant_id = $1)",
+            "                                      Heap Blocks: exact=259",
+            "                                      ->  BitmapOr (actual rows=0 loops=1)",
+            "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "                                                  Index Cond: (label_ids = '{}'::uuid[])",
+            "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
+            "                                                  Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
+            "Planning Time: 8.438 ms",
+            "Execution Time: 2.425 ms"
+          ],
+          "plan_last_execution": [
+            "Limit (actual rows=50 loops=1)",
+            "  ->  Sort (actual rows=50 loops=1)",
+            "        Sort Key: ((e.embedding_half <=> $2))",
+            "        Sort Method: top-N heapsort  Memory: 30kB",
+            "        ->  Result (actual rows=569 loops=1)",
+            "              One-Time Filter: ((NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid = $1)",
+            "              ->  Hash Join (actual rows=569 loops=1)",
+            "                    Hash Cond: (e.chunk_id = c.id)",
+            "                    ->  Append (actual rows=1700 loops=1)",
+            "                          Subplans Removed: 127",
+            "                          ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
+            "                                Filter: ((tenant_id = $1) AND ((embedding_model)::text = $3) AND ((embedding_version)::text = $4))",
+            "                    ->  Hash (actual rows=569 loops=1)",
+            "                          Buckets: 8192  Batches: 1  Memory Usage: 100kB",
+            "                          ->  Append (actual rows=569 loops=1)",
+            "                                Subplans Removed: 127",
+            "                                ->  Bitmap Heap Scan on c5 c_1 (actual rows=569 loops=1)",
+            "                                      Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uui",
+            "                                      Filter: (tenant_id = $1)",
+            "                                      Heap Blocks: exact=259",
+            "                                      ->  BitmapOr (actual rows=0 loops=1)",
+            "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=569 loops=1)",
+            "                                                  Index Cond: (label_ids = '{}'::uuid[])",
+            "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
+            "                                                  Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
+            "Planning Time: 0.071 ms",
+            "Execution Time: 1.678 ms"
+          ]
+        },
+        "shipped_scoped_forced_generic": {
+          "planning_ms": {
+            "median": 0.071,
+            "p95": 9.16,
+            "max": 9.16,
+            "min": 0.065,
+            "median_warm": 0.07,
+            "first": 9.16
+          },
+          "execution_ms": {
+            "median": 1.181,
+            "p95": 1.448,
+            "max": 1.448,
+            "min": 1.031,
+            "median_warm": 1.167,
+            "first": 1.448
+          },
+          "planning_series_ms": [
+            9.16,
+            0.077,
+            0.071,
+            0.071,
+            0.074,
+            0.069,
+            0.079,
+            0.069,
+            0.068,
+            0.065,
+            0.069
+          ],
+          "hnsw_index_in_plan": false,
+          "hnsw_index_series": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "hnsw_lost_at_execution": 1,
+          "partitions_in_plan": 2,
+          "partitions_series": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "subplans_removed": [
+            127,
+            127
           ],
           "appends": 2,
           "pruning_was_stable": true,
@@ -910,13 +2921,13 @@
             "        ->  Hash Join (actual rows=182 loops=1)",
             "              Hash Cond: (e.chunk_id = c.id)",
             "              ->  Append (actual rows=1700 loops=1)",
-            "                    Subplans Removed: 31",
+            "                    Subplans Removed: 127",
             "                    ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
             "                          Filter: (((embedding_model)::text = $2) AND ((embedding_version)::text = $3) AND (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid))",
             "              ->  Hash (actual rows=182 loops=1)",
             "                    Buckets: 1024  Batches: 1  Memory Usage: 20kB",
             "                    ->  Append (actual rows=182 loops=1)",
-            "                          Subplans Removed: 31",
+            "                          Subplans Removed: 127",
             "                          ->  Bitmap Heap Scan on c5 c_1 (actual rows=182 loops=1)",
             "                                Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
             "                                Filter: ((document_id = ANY ($5)) AND (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid))",
@@ -927,8 +2938,8 @@
             "                                            Index Cond: (label_ids = '{}'::uuid[])",
             "                                      ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                            Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 1.625 ms",
-            "Execution Time: 1.386 ms"
+            "Planning Time: 9.160 ms",
+            "Execution Time: 1.448 ms"
           ],
           "plan_last_execution": [
             "Limit (actual rows=50 loops=1)",
@@ -938,13 +2949,13 @@
             "        ->  Hash Join (actual rows=182 loops=1)",
             "              Hash Cond: (e.chunk_id = c.id)",
             "              ->  Append (actual rows=1700 loops=1)",
-            "                    Subplans Removed: 31",
+            "                    Subplans Removed: 127",
             "                    ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
             "                          Filter: (((embedding_model)::text = $2) AND ((embedding_version)::text = $3) AND (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid))",
             "              ->  Hash (actual rows=182 loops=1)",
             "                    Buckets: 1024  Batches: 1  Memory Usage: 20kB",
             "                    ->  Append (actual rows=182 loops=1)",
-            "                          Subplans Removed: 31",
+            "                          Subplans Removed: 127",
             "                          ->  Bitmap Heap Scan on c5 c_1 (actual rows=182 loops=1)",
             "                                Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
             "                                Filter: ((document_id = ANY ($5)) AND (tenant_id = (NULLIF(current_setting('zenith.tenant_id'::text, true), ''::text))::uuid))",
@@ -955,39 +2966,39 @@
             "                                            Index Cond: (label_ids = '{}'::uuid[])",
             "                                      ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                            Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 0.062 ms",
-            "Execution Time: 1.155 ms"
+            "Planning Time: 0.069 ms",
+            "Execution Time: 1.147 ms"
           ]
         },
         "scoped_or_forced_generic": {
           "planning_ms": {
-            "median": 0.061,
-            "p95": 1.687,
-            "max": 1.687,
-            "min": 0.05,
-            "median_warm": 0.061,
-            "first": 1.687
+            "median": 0.081,
+            "p95": 9.328,
+            "max": 9.328,
+            "min": 0.055,
+            "median_warm": 0.077,
+            "first": 9.328
           },
           "execution_ms": {
-            "median": 0.839,
-            "p95": 1.15,
-            "max": 1.15,
-            "min": 0.703,
-            "median_warm": 0.826,
-            "first": 1.106
+            "median": 0.846,
+            "p95": 1.228,
+            "max": 1.228,
+            "min": 0.675,
+            "median_warm": 0.784,
+            "first": 1.228
           },
           "planning_series_ms": [
-            1.687,
-            0.061,
-            0.076,
-            0.061,
-            0.055,
-            0.053,
-            0.071,
-            0.05,
-            0.066,
-            0.061,
-            0.056
+            9.328,
+            0.085,
+            0.081,
+            0.092,
+            0.085,
+            0.067,
+            0.089,
+            0.056,
+            0.073,
+            0.056,
+            0.055
           ],
           "hnsw_index_in_plan": false,
           "hnsw_index_series": [
@@ -1019,8 +3030,8 @@
             2
           ],
           "subplans_removed": [
-            31,
-            31
+            127,
+            127
           ],
           "appends": 2,
           "pruning_was_stable": true,
@@ -1043,13 +3054,13 @@
             "              ->  Hash Join (actual rows=182 loops=1)",
             "                    Hash Cond: (e.chunk_id = c.id)",
             "                    ->  Append (actual rows=1700 loops=1)",
-            "                          Subplans Removed: 31",
+            "                          Subplans Removed: 127",
             "                          ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
             "                                Filter: ((tenant_id = $1) AND ((embedding_model)::text = $3) AND ((embedding_version)::text = $4))",
             "                    ->  Hash (actual rows=182 loops=1)",
             "                          Buckets: 2048  Batches: 1  Memory Usage: 28kB",
             "                          ->  Append (actual rows=182 loops=1)",
-            "                                Subplans Removed: 31",
+            "                                Subplans Removed: 127",
             "                                ->  Bitmap Heap Scan on c5 c_1 (actual rows=182 loops=1)",
             "                                      Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uui",
             "                                      Filter: ((tenant_id = $1) AND (($6 IS NULL) OR (document_id = ANY ($6))))",
@@ -1060,8 +3071,8 @@
             "                                                  Index Cond: (label_ids = '{}'::uuid[])",
             "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                                  Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 1.687 ms",
-            "Execution Time: 1.106 ms"
+            "Planning Time: 9.328 ms",
+            "Execution Time: 1.228 ms"
           ],
           "plan_last_execution": [
             "Limit (actual rows=50 loops=1)",
@@ -1073,13 +3084,13 @@
             "              ->  Hash Join (actual rows=182 loops=1)",
             "                    Hash Cond: (e.chunk_id = c.id)",
             "                    ->  Append (actual rows=1700 loops=1)",
-            "                          Subplans Removed: 31",
+            "                          Subplans Removed: 127",
             "                          ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
             "                                Filter: ((tenant_id = $1) AND ((embedding_model)::text = $3) AND ((embedding_version)::text = $4))",
             "                    ->  Hash (actual rows=182 loops=1)",
             "                          Buckets: 2048  Batches: 1  Memory Usage: 28kB",
             "                          ->  Append (actual rows=182 loops=1)",
-            "                                Subplans Removed: 31",
+            "                                Subplans Removed: 127",
             "                                ->  Bitmap Heap Scan on c5 c_1 (actual rows=182 loops=1)",
             "                                      Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uui",
             "                                      Filter: ((tenant_id = $1) AND (($6 IS NULL) OR (document_id = ANY ($6))))",
@@ -1090,39 +3101,39 @@
             "                                                  Index Cond: (label_ids = '{}'::uuid[])",
             "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                                  Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 0.056 ms",
-            "Execution Time: 0.812 ms"
+            "Planning Time: 0.055 ms",
+            "Execution Time: 0.675 ms"
           ]
         },
         "scoped_bare_forced_generic": {
           "planning_ms": {
-            "median": 0.056,
-            "p95": 1.591,
-            "max": 1.591,
-            "min": 0.047,
-            "median_warm": 0.055,
-            "first": 1.591
+            "median": 0.067,
+            "p95": 7.871,
+            "max": 7.871,
+            "min": 0.064,
+            "median_warm": 0.067,
+            "first": 7.871
           },
           "execution_ms": {
-            "median": 0.716,
-            "p95": 1.229,
-            "max": 1.229,
-            "min": 0.692,
-            "median_warm": 0.714,
-            "first": 1.002
+            "median": 0.785,
+            "p95": 1.13,
+            "max": 1.13,
+            "min": 0.764,
+            "median_warm": 0.778,
+            "first": 1.049
           },
           "planning_series_ms": [
-            1.591,
-            0.066,
-            0.056,
-            0.078,
-            0.066,
-            0.054,
-            0.047,
-            0.053,
-            0.047,
-            0.054,
-            0.076
+            7.871,
+            0.122,
+            0.079,
+            0.067,
+            0.075,
+            0.067,
+            0.067,
+            0.064,
+            0.064,
+            0.072,
+            0.064
           ],
           "hnsw_index_in_plan": false,
           "hnsw_index_series": [
@@ -1154,8 +3165,8 @@
             2
           ],
           "subplans_removed": [
-            31,
-            31
+            127,
+            127
           ],
           "appends": 2,
           "pruning_was_stable": true,
@@ -1178,13 +3189,13 @@
             "              ->  Hash Join (actual rows=182 loops=1)",
             "                    Hash Cond: (e.chunk_id = c.id)",
             "                    ->  Append (actual rows=1700 loops=1)",
-            "                          Subplans Removed: 31",
+            "                          Subplans Removed: 127",
             "                          ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
             "                                Filter: ((tenant_id = $1) AND ((embedding_model)::text = $3) AND ((embedding_version)::text = $4))",
             "                    ->  Hash (actual rows=182 loops=1)",
             "                          Buckets: 2048  Batches: 1  Memory Usage: 28kB",
             "                          ->  Append (actual rows=182 loops=1)",
-            "                                Subplans Removed: 31",
+            "                                Subplans Removed: 127",
             "                                ->  Bitmap Heap Scan on c5 c_1 (actual rows=182 loops=1)",
             "                                      Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uui",
             "                                      Filter: ((tenant_id = $1) AND (document_id = ANY ($6)))",
@@ -1195,8 +3206,8 @@
             "                                                  Index Cond: (label_ids = '{}'::uuid[])",
             "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                                  Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 1.591 ms",
-            "Execution Time: 1.002 ms"
+            "Planning Time: 7.871 ms",
+            "Execution Time: 1.049 ms"
           ],
           "plan_last_execution": [
             "Limit (actual rows=50 loops=1)",
@@ -1208,13 +3219,13 @@
             "              ->  Hash Join (actual rows=182 loops=1)",
             "                    Hash Cond: (e.chunk_id = c.id)",
             "                    ->  Append (actual rows=1700 loops=1)",
-            "                          Subplans Removed: 31",
+            "                          Subplans Removed: 127",
             "                          ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
             "                                Filter: ((tenant_id = $1) AND ((embedding_model)::text = $3) AND ((embedding_version)::text = $4))",
             "                    ->  Hash (actual rows=182 loops=1)",
             "                          Buckets: 2048  Batches: 1  Memory Usage: 28kB",
             "                          ->  Append (actual rows=182 loops=1)",
-            "                                Subplans Removed: 31",
+            "                                Subplans Removed: 127",
             "                                ->  Bitmap Heap Scan on c5 c_1 (actual rows=182 loops=1)",
             "                                      Recheck Cond: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uui",
             "                                      Filter: ((tenant_id = $1) AND (document_id = ANY ($6)))",
@@ -1225,8 +3236,8 @@
             "                                                  Index Cond: (label_ids = '{}'::uuid[])",
             "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                                  Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 0.076 ms",
-            "Execution Time: 1.229 ms"
+            "Planning Time: 0.064 ms",
+            "Execution Time: 0.791 ms"
           ]
         }
       },
@@ -1236,46 +3247,46 @@
           "hnsw_index_every_execution": true,
           "hnsw_lost_at_execution": null,
           "planning_series_ms": [
-            1.772,
-            1.385,
-            1.387,
-            1.439,
-            1.272,
-            2.755,
-            1.377,
-            1.461,
-            1.526,
-            1.562,
-            1.555,
-            1.634,
-            1.476,
-            1.323,
-            1.278,
-            1.579,
-            1.273,
-            1.588,
-            1.446,
-            1.387,
-            1.385,
-            1.589,
-            1.353,
-            1.37,
-            1.414,
-            1.487,
-            1.47,
-            1.455,
-            1.483,
-            1.389,
-            1.257,
-            1.586,
-            1.563,
-            1.252,
-            1.351,
-            1.627,
-            1.424,
-            1.22,
-            1.524,
-            1.374
+            8.591,
+            8.371,
+            8.172,
+            8.781,
+            8.219,
+            15.499,
+            8.515,
+            8.374,
+            8.423,
+            8.129,
+            8.786,
+            9.477,
+            8.119,
+            7.51,
+            9.501,
+            8.084,
+            8.478,
+            7.755,
+            8.311,
+            8.224,
+            8.226,
+            7.889,
+            8.543,
+            8.341,
+            9.643,
+            9.289,
+            9.887,
+            8.976,
+            8.514,
+            7.923,
+            8.078,
+            7.598,
+            8.37,
+            8.367,
+            8.893,
+            8.477,
+            8.165,
+            8.221,
+            8.877,
+            9.242
           ]
         },
         "local": {
@@ -1283,46 +3294,46 @@
           "hnsw_index_every_execution": true,
           "hnsw_lost_at_execution": null,
           "planning_series_ms": [
-            0.192,
-            0.167,
-            0.17,
-            0.16,
-            0.179,
-            1.564,
-            0.163,
-            0.147,
-            0.172,
-            0.158,
-            0.142,
-            0.154,
-            0.139,
-            0.154,
-            0.142,
-            0.143,
-            0.163,
-            0.156,
-            0.125,
-            0.128,
-            0.195,
-            0.116,
-            0.16,
-            0.136,
-            0.219,
-            0.17,
-            0.235,
-            0.16,
+            0.264,
+            0.194,
+            0.176,
+            0.196,
+            0.226,
+            9.6,
+            0.193,
+            0.202,
+            0.145,
             0.155,
-            0.123,
-            0.188,
-            0.164,
-            0.199,
-            0.164,
-            0.165,
-            0.171,
+            0.149,
+            0.176,
+            0.139,
+            0.136,
+            0.136,
+            0.137,
+            0.152,
+            0.146,
+            0.142,
+            0.142,
+            0.15,
             0.17,
-            0.147,
-            0.148,
-            0.148
+            0.207,
+            0.197,
+            0.157,
+            0.217,
+            0.189,
+            0.212,
+            0.259,
+            0.21,
+            0.245,
+            0.233,
+            0.287,
+            0.219,
+            0.208,
+            0.141,
+            0.168,
+            0.215,
+            0.144,
+            0.141
           ]
         },
         "shipped_scoped": {
@@ -1330,46 +3341,46 @@
           "hnsw_index_every_execution": true,
           "hnsw_lost_at_execution": null,
           "planning_series_ms": [
-            1.79,
-            1.5,
-            1.713,
-            1.546,
-            1.643,
-            2.805,
-            1.439,
-            1.552,
-            1.67,
-            1.732,
-            1.577,
-            1.669,
-            1.568,
-            1.527,
-            1.619,
-            1.655,
-            1.695,
-            1.535,
-            1.434,
-            2.162,
-            1.642,
-            1.48,
-            1.544,
-            1.81,
-            1.68,
-            1.683,
-            1.705,
-            1.617,
-            1.765,
-            1.595,
-            1.49,
-            1.583,
-            1.552,
-            1.499,
-            1.489,
-            1.544,
-            1.429,
-            1.49,
-            1.546,
-            1.64
+            9.571,
+            9.232,
+            9.999,
+            8.699,
+            7.969,
+            17.318,
+            8.797,
+            8.609,
+            8.954,
+            8.639,
+            9.177,
+            8.342,
+            8.9,
+            8.218,
+            8.631,
+            9.1,
+            9.045,
+            9.106,
+            8.263,
+            9.394,
+            8.24,
+            8.457,
+            8.91,
+            8.549,
+            9.565,
+            8.005,
+            8.033,
+            9.162,
+            8.725,
+            7.99,
+            8.653,
+            8.104,
+            8.697,
+            8.682,
+            8.67,
+            8.765,
+            11.61,
+            10.468,
+            9.953,
+            10.097
           ]
         },
         "scoped_bare": {
@@ -1377,163 +3388,163 @@
           "hnsw_index_every_execution": true,
           "hnsw_lost_at_execution": null,
           "planning_series_ms": [
-            0.239,
-            0.24,
-            0.215,
+            0.256,
             0.225,
-            0.264,
-            1.756,
-            0.237,
-            0.235,
-            0.247,
-            0.227,
-            0.222,
-            0.176,
-            0.193,
-            0.174,
-            0.164,
-            0.167,
-            0.185,
-            0.17,
-            0.169,
-            0.235,
+            0.232,
             0.196,
+            0.229,
+            8.086,
+            0.211,
+            0.185,
+            0.173,
+            0.16,
+            0.207,
+            0.173,
+            0.15,
+            0.145,
+            0.146,
+            0.157,
+            0.165,
+            0.18,
+            0.18,
+            0.151,
+            0.193,
+            0.17,
+            0.207,
+            0.206,
+            0.181,
+            0.151,
+            0.158,
+            0.198,
             0.169,
-            0.201,
-            0.216,
+            0.148,
+            0.178,
+            0.154,
+            0.227,
+            0.157,
+            0.173,
+            0.176,
             0.204,
-            0.217,
-            0.183,
-            0.213,
-            0.234,
-            0.187,
             0.224,
-            0.172,
-            0.201,
-            0.125,
-            0.116,
-            0.132,
-            0.254,
-            0.133,
-            0.26,
-            0.208
+            0.196,
+            0.161
           ]
         }
       },
       "calls": {
         "f_shipped": {
-          "locks": 297,
+          "locks": 1161,
           "returned": 50,
           "wall_ms": {
-            "median": 3.501,
-            "p95": 5.447,
-            "max": 5.447,
-            "min": 3.165,
-            "median_warm": 3.5,
-            "first": 3.76
+            "median": 10.78,
+            "p95": 21.012,
+            "max": 21.012,
+            "min": 10.026,
+            "median_warm": 10.779,
+            "first": 12.179
           },
           "wall_series_ms": [
-            3.76,
-            3.563,
-            3.497,
-            3.499,
-            5.447,
-            3.918,
-            3.501,
-            3.269,
-            3.165
+            12.179,
+            10.026,
+            10.778,
+            10.854,
+            21.012,
+            10.78,
+            10.382,
+            11.329,
+            10.707
           ]
         },
         "f_local": {
           "locks": 18,
           "returned": 50,
           "wall_ms": {
-            "median": 1.281,
-            "p95": 3.515,
-            "max": 3.515,
-            "min": 1.163,
-            "median_warm": 1.257,
-            "first": 1.38
+            "median": 1.398,
+            "p95": 10.634,
+            "max": 10.634,
+            "min": 1.135,
+            "median_warm": 1.387,
+            "first": 1.618
           },
           "wall_series_ms": [
-            1.38,
-            1.814,
-            1.291,
-            1.186,
-            3.515,
-            1.232,
-            1.163,
-            1.281,
-            1.212
+            1.618,
+            1.482,
+            1.167,
+            1.135,
+            10.634,
+            1.899,
+            1.377,
+            1.398,
+            1.345
           ]
         },
         "f_shipped_scoped": {
-          "locks": 297,
+          "locks": 1161,
           "returned": 50,
           "wall_ms": {
-            "median": 4.825,
-            "p95": 6.122,
-            "max": 6.122,
-            "min": 4.419,
-            "median_warm": 4.789,
-            "first": 4.89
+            "median": 11.991,
+            "p95": 20.937,
+            "max": 20.937,
+            "min": 11.327,
+            "median_warm": 11.979,
+            "first": 11.991
           },
           "wall_series_ms": [
-            4.89,
-            5.012,
-            4.733,
-            4.678,
-            6.122,
-            4.753,
-            4.419,
-            4.825,
-            5.279
+            11.991,
+            12.012,
+            11.947,
+            12.066,
+            20.937,
+            11.946,
+            11.925,
+            11.327,
+            12.834
           ]
         },
         "f_scoped_or": {
           "locks": 18,
           "returned": 50,
           "wall_ms": {
-            "median": 2.732,
-            "p95": 5.396,
-            "max": 5.396,
-            "min": 2.263,
-            "median_warm": 2.659,
-            "first": 2.732
+            "median": 2.148,
+            "p95": 13.143,
+            "max": 13.143,
+            "min": 1.928,
+            "median_warm": 2.138,
+            "first": 2.61
           },
           "wall_series_ms": [
-            2.732,
-            2.745,
-            2.263,
-            2.475,
-            5.396,
-            2.957,
-            3.314,
-            2.422,
-            2.574
+            2.61,
+            1.943,
+            1.928,
+            2.082,
+            13.143,
+            2.672,
+            2.148,
+            2.777,
+            2.128
           ]
         },
         "f_scoped_bare": {
           "locks": 18,
           "returned": 50,
           "wall_ms": {
-            "median": 2.774,
-            "p95": 4.904,
-            "max": 4.904,
-            "min": 2.205,
-            "median_warm": 2.858,
-            "first": 2.205
+            "median": 2.192,
+            "p95": 10.209,
+            "max": 10.209,
+            "min": 2.065,
+            "median_warm": 2.195,
+            "first": 2.107
           },
           "wall_series_ms": [
-            2.205,
-            2.723,
-            2.587,
-            2.289,
-            4.904,
-            2.943,
-            3.22,
-            3.059,
-            2.774
+            2.107,
+            2.192,
+            2.12,
+            2.065,
+            10.209,
+            2.532,
+            2.103,
+            2.276,
+            2.198
           ]
         }
       },
@@ -2002,7 +4013,7 @@
     },
     {
       "modulus": 256,
-      "built_seconds": 16.3,
+      "built_seconds": 15.7,
       "environment": {
         "max_connections": "100",
         "max_locks_per_transaction": "2560",
@@ -2024,33 +4035,33 @@
       "plans": {
         "today": {
           "planning_ms": {
-            "median": 28.533,
-            "p95": 69.333,
-            "max": 69.333,
-            "min": 26.976,
-            "median_warm": 28.477,
-            "first": 69.333
+            "median": 30.529,
+            "p95": 93.34,
+            "max": 93.34,
+            "min": 25.726,
+            "median_warm": 29.913,
+            "first": 93.34
           },
           "execution_ms": {
-            "median": 2.573,
-            "p95": 4.545,
-            "max": 4.545,
-            "min": 2.215,
-            "median_warm": 2.565,
-            "first": 4.545
+            "median": 2.572,
+            "p95": 6.753,
+            "max": 6.753,
+            "min": 2.319,
+            "median_warm": 2.558,
+            "first": 6.753
           },
           "planning_series_ms": [
-            69.333,
-            29.562,
-            29.5,
-            26.976,
-            29.256,
-            59.079,
-            27.719,
-            28.533,
-            27.633,
-            27.918,
-            28.42
+            93.34,
+            30.529,
+            26.417,
+            26.493,
+            29.297,
+            58.987,
+            25.726,
+            26.597,
+            32.024,
+            32.932,
+            31.426
           ],
           "hnsw_index_in_plan": true,
           "hnsw_index_series": [
@@ -2117,8 +4128,8 @@
             "                                      Index Cond: (label_ids = '{}'::uuid[])",
             "                                ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                      Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 69.333 ms",
-            "Execution Time: 4.545 ms"
+            "Planning Time: 93.340 ms",
+            "Execution Time: 6.753 ms"
           ],
           "plan_last_execution": [
             "Limit (actual rows=50 loops=1)",
@@ -2143,39 +4154,39 @@
             "                                      Index Cond: (label_ids = '{}'::uuid[])",
             "                                ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                      Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 28.420 ms",
-            "Execution Time: 2.409 ms"
+            "Planning Time: 31.426 ms",
+            "Execution Time: 2.572 ms"
           ]
         },
         "local": {
           "planning_ms": {
-            "median": 0.211,
-            "p95": 25.636,
-            "max": 25.636,
-            "min": 0.165,
-            "median_warm": 0.21,
-            "first": 0.236
+            "median": 0.194,
+            "p95": 25.351,
+            "max": 25.351,
+            "min": 0.16,
+            "median_warm": 0.193,
+            "first": 0.31
           },
           "execution_ms": {
-            "median": 1.01,
-            "p95": 1.156,
-            "max": 1.156,
-            "min": 0.929,
-            "median_warm": 0.999,
-            "first": 1.156
+            "median": 0.927,
+            "p95": 1.52,
+            "max": 1.52,
+            "min": 0.773,
+            "median_warm": 0.923,
+            "first": 1.52
           },
           "planning_series_ms": [
-            0.236,
+            0.31,
             0.211,
-            0.209,
-            0.206,
-            0.221,
-            25.636,
-            0.21,
-            0.165,
-            0.206,
-            0.227,
-            0.22
+            0.187,
+            0.194,
+            0.172,
+            25.351,
+            0.222,
+            0.225,
+            0.175,
+            0.16,
+            0.191
           ],
           "hnsw_index_in_plan": true,
           "hnsw_index_series": [
@@ -2229,8 +4240,8 @@
             "                    Index Cond: ((id = e.chunk_id) AND (tenant_id = '00000000-0000-0000-0000-000000000003'::uuid))",
             "                    Filter: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
             "                    Rows Removed by Filter: 1",
-            "Planning Time: 0.236 ms",
-            "Execution Time: 1.156 ms"
+            "Planning Time: 0.310 ms",
+            "Execution Time: 1.520 ms"
           ],
           "plan_last_execution": [
             "Limit (actual rows=50 loops=1)",
@@ -2244,39 +4255,39 @@
             "                    Index Cond: ((id = e.chunk_id) AND (tenant_id = '00000000-0000-0000-0000-000000000003'::uuid))",
             "                    Filter: ((label_ids = '{}'::uuid[]) OR (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[])))",
             "                    Rows Removed by Filter: 1",
-            "Planning Time: 0.220 ms",
-            "Execution Time: 1.018 ms"
+            "Planning Time: 0.191 ms",
+            "Execution Time: 0.853 ms"
           ]
         },
         "shipped_scoped": {
           "planning_ms": {
-            "median": 28.747,
-            "p95": 58.133,
-            "max": 58.133,
-            "min": 26.347,
-            "median_warm": 28.559,
-            "first": 28.884
+            "median": 26.981,
+            "p95": 59.258,
+            "max": 59.258,
+            "min": 25.687,
+            "median_warm": 27.447,
+            "first": 26.471
           },
           "execution_ms": {
-            "median": 3.567,
-            "p95": 4.103,
-            "max": 4.103,
-            "min": 3.259,
-            "median_warm": 3.558,
-            "first": 4.103
+            "median": 3.519,
+            "p95": 4.583,
+            "max": 4.583,
+            "min": 3.074,
+            "median_warm": 3.505,
+            "first": 4.583
           },
           "planning_series_ms": [
-            28.884,
-            28.747,
-            26.347,
-            28.285,
-            29.413,
-            58.133,
-            28.316,
-            29.217,
-            28.37,
-            27.647,
-            29.694
+            26.471,
+            26.5,
+            27.913,
+            32.799,
+            30.457,
+            59.258,
+            26.38,
+            25.687,
+            26.981,
+            26.755,
+            27.918
           ],
           "hnsw_index_in_plan": true,
           "hnsw_index_series": [
@@ -2344,8 +4355,8 @@
             "                                      Index Cond: (label_ids = '{}'::uuid[])",
             "                                ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                      Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 28.884 ms",
-            "Execution Time: 4.103 ms"
+            "Planning Time: 26.471 ms",
+            "Execution Time: 4.583 ms"
           ],
           "plan_last_execution": [
             "Limit (actual rows=50 loops=1)",
@@ -2371,39 +4382,39 @@
             "                                      Index Cond: (label_ids = '{}'::uuid[])",
             "                                ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                      Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 29.694 ms",
-            "Execution Time: 3.549 ms"
+            "Planning Time: 27.918 ms",
+            "Execution Time: 3.456 ms"
           ]
         },
         "scoped_or": {
           "planning_ms": {
-            "median": 0.246,
-            "p95": 26.307,
-            "max": 26.307,
-            "min": 0.222,
-            "median_warm": 0.245,
-            "first": 0.297
+            "median": 0.205,
+            "p95": 25.098,
+            "max": 25.098,
+            "min": 0.156,
+            "median_warm": 0.201,
+            "first": 0.318
           },
           "execution_ms": {
-            "median": 2.065,
-            "p95": 2.903,
-            "max": 2.903,
-            "min": 1.757,
-            "median_warm": 2.061,
-            "first": 2.198
+            "median": 1.905,
+            "p95": 2.604,
+            "max": 2.604,
+            "min": 1.641,
+            "median_warm": 1.869,
+            "first": 2.566
           },
           "planning_series_ms": [
-            0.297,
+            0.318,
+            0.251,
+            0.196,
             0.224,
-            0.245,
-            0.232,
-            0.222,
-            26.307,
-            0.271,
-            0.246,
-            0.287,
-            0.256,
-            0.24
+            0.205,
+            25.098,
+            0.196,
+            0.156,
+            0.248,
+            0.175,
+            0.171
           ],
           "hnsw_index_in_plan": true,
           "hnsw_index_series": [
@@ -2457,8 +4468,8 @@
             "                    Index Cond: ((id = e.chunk_id) AND (tenant_id = '00000000-0000-0000-0000-000000000003'::uuid))",
             "                    Filter: ((document_id = ANY ('{ba81ad3e-c8e0-4649-b719-f6af4007a4b5,e3a705c1-de6f-4755-8f4e-3e2718be9eca,f3975ffd-2cbc-46c7-8e69-40adc6e4d5c3}'::uuid[])) AND ((label_ids = '{}'::uuid[]) OR (label_ids ",
             "                    Rows Removed by Filter: 1",
-            "Planning Time: 0.297 ms",
-            "Execution Time: 2.198 ms"
+            "Planning Time: 0.318 ms",
+            "Execution Time: 2.566 ms"
           ],
           "plan_last_execution": [
             "Limit (actual rows=50 loops=1)",
@@ -2472,39 +4483,39 @@
             "                    Index Cond: ((id = e.chunk_id) AND (tenant_id = '00000000-0000-0000-0000-000000000003'::uuid))",
             "                    Filter: ((document_id = ANY ('{ba81ad3e-c8e0-4649-b719-f6af4007a4b5,e3a705c1-de6f-4755-8f4e-3e2718be9eca,f3975ffd-2cbc-46c7-8e69-40adc6e4d5c3}'::uuid[])) AND ((label_ids = '{}'::uuid[]) OR (label_ids ",
             "                    Rows Removed by Filter: 1",
-            "Planning Time: 0.240 ms",
-            "Execution Time: 1.947 ms"
+            "Planning Time: 0.171 ms",
+            "Execution Time: 1.641 ms"
           ]
         },
         "scoped_bare": {
           "planning_ms": {
-            "median": 0.216,
-            "p95": 27.566,
-            "max": 27.566,
-            "min": 0.174,
-            "median_warm": 0.215,
-            "first": 0.227
+            "median": 0.195,
+            "p95": 26.503,
+            "max": 26.503,
+            "min": 0.156,
+            "median_warm": 0.199,
+            "first": 0.156
           },
           "execution_ms": {
-            "median": 1.952,
-            "p95": 2.465,
-            "max": 2.465,
-            "min": 1.703,
-            "median_warm": 1.849,
-            "first": 2.123
+            "median": 1.691,
+            "p95": 2.21,
+            "max": 2.21,
+            "min": 1.427,
+            "median_warm": 1.693,
+            "first": 1.427
           },
           "planning_series_ms": [
-            0.227,
-            0.273,
-            0.238,
-            0.292,
-            0.191,
-            27.566,
-            0.215,
+            0.156,
+            0.218,
+            0.226,
             0.176,
+            0.285,
+            26.503,
             0.174,
-            0.216,
-            0.206
+            0.202,
+            0.191,
+            0.195,
+            0.194
           ],
           "hnsw_index_in_plan": true,
           "hnsw_index_series": [
@@ -2558,8 +4569,8 @@
             "                    Index Cond: ((id = e.chunk_id) AND (tenant_id = '00000000-0000-0000-0000-000000000003'::uuid))",
             "                    Filter: ((document_id = ANY ('{ba81ad3e-c8e0-4649-b719-f6af4007a4b5,e3a705c1-de6f-4755-8f4e-3e2718be9eca,f3975ffd-2cbc-46c7-8e69-40adc6e4d5c3}'::uuid[])) AND ((label_ids = '{}'::uuid[]) OR (label_ids ",
             "                    Rows Removed by Filter: 1",
-            "Planning Time: 0.227 ms",
-            "Execution Time: 2.123 ms"
+            "Planning Time: 0.156 ms",
+            "Execution Time: 1.427 ms"
           ],
           "plan_last_execution": [
             "Limit (actual rows=50 loops=1)",
@@ -2573,39 +4584,39 @@
             "                    Index Cond: ((id = e.chunk_id) AND (tenant_id = '00000000-0000-0000-0000-000000000003'::uuid))",
             "                    Filter: ((document_id = ANY ('{ba81ad3e-c8e0-4649-b719-f6af4007a4b5,e3a705c1-de6f-4755-8f4e-3e2718be9eca,f3975ffd-2cbc-46c7-8e69-40adc6e4d5c3}'::uuid[])) AND ((label_ids = '{}'::uuid[]) OR (label_ids ",
             "                    Rows Removed by Filter: 1",
-            "Planning Time: 0.206 ms",
-            "Execution Time: 1.703 ms"
+            "Planning Time: 0.194 ms",
+            "Execution Time: 1.793 ms"
           ]
         },
         "today_forced_generic": {
           "planning_ms": {
-            "median": 0.104,
-            "p95": 29.242,
-            "max": 29.242,
-            "min": 0.081,
-            "median_warm": 0.098,
-            "first": 29.242
+            "median": 0.078,
+            "p95": 28.701,
+            "max": 28.701,
+            "min": 0.072,
+            "median_warm": 0.077,
+            "first": 28.701
           },
           "execution_ms": {
-            "median": 2.577,
-            "p95": 3.515,
-            "max": 3.515,
-            "min": 2.132,
-            "median_warm": 2.577,
-            "first": 3.515
+            "median": 2.218,
+            "p95": 4.373,
+            "max": 4.373,
+            "min": 2.138,
+            "median_warm": 2.212,
+            "first": 4.373
           },
           "planning_series_ms": [
-            29.242,
-            0.104,
-            0.142,
-            0.105,
-            0.108,
-            0.13,
-            0.092,
-            0.083,
+            28.701,
+            0.144,
             0.081,
-            0.088,
-            0.083
+            0.079,
+            0.078,
+            0.081,
+            0.073,
+            0.075,
+            0.072,
+            0.077,
+            0.076
           ],
           "hnsw_index_in_plan": false,
           "hnsw_index_series": [
@@ -2675,8 +4686,8 @@
             "                                            Index Cond: (label_ids = '{}'::uuid[])",
             "                                      ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                            Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 29.242 ms",
-            "Execution Time: 3.515 ms"
+            "Planning Time: 28.701 ms",
+            "Execution Time: 4.373 ms"
           ],
           "plan_last_execution": [
             "Limit (actual rows=50 loops=1)",
@@ -2702,39 +4713,39 @@
             "                                            Index Cond: (label_ids = '{}'::uuid[])",
             "                                      ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                            Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 0.083 ms",
-            "Execution Time: 2.132 ms"
+            "Planning Time: 0.076 ms",
+            "Execution Time: 2.155 ms"
           ]
         },
         "local_forced_generic": {
           "planning_ms": {
-            "median": 0.101,
-            "p95": 27.022,
-            "max": 27.022,
-            "min": 0.075,
-            "median_warm": 0.101,
-            "first": 27.022
+            "median": 0.095,
+            "p95": 27.035,
+            "max": 27.035,
+            "min": 0.071,
+            "median_warm": 0.087,
+            "first": 27.035
           },
           "execution_ms": {
-            "median": 2.339,
-            "p95": 2.521,
-            "max": 2.521,
-            "min": 1.861,
-            "median_warm": 2.324,
-            "first": 2.521
+            "median": 1.825,
+            "p95": 2.441,
+            "max": 2.441,
+            "min": 1.599,
+            "median_warm": 1.806,
+            "first": 2.441
           },
           "planning_series_ms": [
-            27.022,
-            0.108,
-            0.149,
+            27.035,
+            0.095,
+            0.152,
             0.112,
+            0.126,
             0.101,
-            0.106,
-            0.092,
-            0.088,
-            0.101,
-            0.075,
-            0.075
+            0.079,
+            0.073,
+            0.079,
+            0.074,
+            0.071
           ],
           "hnsw_index_in_plan": false,
           "hnsw_index_series": [
@@ -2806,8 +4817,8 @@
             "                                Subplans Removed: 255",
             "                                ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
             "                                      Filter: ((tenant_id = $1) AND ((embedding_model)::text = $3) AND ((embedding_version)::text = $4))",
-            "Planning Time: 27.022 ms",
-            "Execution Time: 2.521 ms"
+            "Planning Time: 27.035 ms",
+            "Execution Time: 2.441 ms"
           ],
           "plan_last_execution": [
             "Limit (actual rows=50 loops=1)",
@@ -2835,39 +4846,39 @@
             "                                Subplans Removed: 255",
             "                                ->  Seq Scan on e5 e_1 (actual rows=1700 loops=1)",
             "                                      Filter: ((tenant_id = $1) AND ((embedding_model)::text = $3) AND ((embedding_version)::text = $4))",
-            "Planning Time: 0.075 ms",
-            "Execution Time: 1.861 ms"
+            "Planning Time: 0.071 ms",
+            "Execution Time: 1.772 ms"
           ]
         },
         "shipped_scoped_forced_generic": {
           "planning_ms": {
-            "median": 0.105,
-            "p95": 27.321,
-            "max": 27.321,
-            "min": 0.08,
-            "median_warm": 0.102,
-            "first": 27.321
+            "median": 0.091,
+            "p95": 26.209,
+            "max": 26.209,
+            "min": 0.079,
+            "median_warm": 0.089,
+            "first": 26.209
           },
           "execution_ms": {
-            "median": 3.223,
-            "p95": 3.446,
-            "max": 3.446,
-            "min": 2.767,
-            "median_warm": 3.225,
-            "first": 3.06
+            "median": 3.097,
+            "p95": 3.286,
+            "max": 3.286,
+            "min": 2.717,
+            "median_warm": 3.04,
+            "first": 3.244
           },
           "planning_series_ms": [
-            27.321,
-            0.098,
+            26.209,
             0.094,
-            0.12,
-            0.126,
-            0.136,
-            0.09,
-            0.105,
-            0.122,
-            0.095,
-            0.08
+            0.082,
+            0.097,
+            0.088,
+            0.087,
+            0.087,
+            0.091,
+            0.079,
+            0.092,
+            0.098
           ],
           "hnsw_index_in_plan": true,
           "hnsw_index_series": [
@@ -2935,8 +4946,8 @@
             "                                      Index Cond: (label_ids = '{}'::uuid[])",
             "                                ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                      Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 27.321 ms",
-            "Execution Time: 3.060 ms"
+            "Planning Time: 26.209 ms",
+            "Execution Time: 3.244 ms"
           ],
           "plan_last_execution": [
             "Limit (actual rows=50 loops=1)",
@@ -2962,39 +4973,39 @@
             "                                      Index Cond: (label_ids = '{}'::uuid[])",
             "                                ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                      Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 0.080 ms",
-            "Execution Time: 2.963 ms"
+            "Planning Time: 0.098 ms",
+            "Execution Time: 3.286 ms"
           ]
         },
         "scoped_or_forced_generic": {
           "planning_ms": {
-            "median": 0.09,
-            "p95": 26.592,
-            "max": 26.592,
-            "min": 0.079,
-            "median_warm": 0.089,
-            "first": 26.592
+            "median": 0.102,
+            "p95": 26.499,
+            "max": 26.499,
+            "min": 0.074,
+            "median_warm": 0.095,
+            "first": 26.499
           },
           "execution_ms": {
-            "median": 0.894,
-            "p95": 1.121,
-            "max": 1.121,
-            "min": 0.867,
-            "median_warm": 0.892,
-            "first": 1.121
+            "median": 0.907,
+            "p95": 1.876,
+            "max": 1.876,
+            "min": 0.755,
+            "median_warm": 0.877,
+            "first": 1.876
           },
           "planning_series_ms": [
-            26.592,
-            0.091,
-            0.092,
-            0.09,
-            0.123,
-            0.126,
-            0.087,
-            0.081,
+            26.499,
+            0.118,
+            0.115,
+            0.122,
+            0.102,
+            0.13,
             0.088,
-            0.081,
-            0.079
+            0.077,
+            0.078,
+            0.074,
+            0.08
           ],
           "hnsw_index_in_plan": false,
           "hnsw_index_series": [
@@ -3067,8 +5078,8 @@
             "                                                  Index Cond: (label_ids = '{}'::uuid[])",
             "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                                  Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 26.592 ms",
-            "Execution Time: 1.121 ms"
+            "Planning Time: 26.499 ms",
+            "Execution Time: 1.876 ms"
           ],
           "plan_last_execution": [
             "Limit (actual rows=50 loops=1)",
@@ -3097,39 +5108,39 @@
             "                                                  Index Cond: (label_ids = '{}'::uuid[])",
             "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                                  Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 0.079 ms",
-            "Execution Time: 0.890 ms"
+            "Planning Time: 0.080 ms",
+            "Execution Time: 0.816 ms"
           ]
         },
         "scoped_bare_forced_generic": {
           "planning_ms": {
-            "median": 0.086,
-            "p95": 28.472,
-            "max": 28.472,
-            "min": 0.077,
-            "median_warm": 0.084,
-            "first": 28.472
+            "median": 0.083,
+            "p95": 24.9,
+            "max": 24.9,
+            "min": 0.072,
+            "median_warm": 0.082,
+            "first": 24.9
           },
           "execution_ms": {
-            "median": 0.887,
-            "p95": 1.406,
-            "max": 1.406,
-            "min": 0.865,
-            "median_warm": 0.887,
-            "first": 1.272
+            "median": 0.855,
+            "p95": 1.112,
+            "max": 1.112,
+            "min": 0.754,
+            "median_warm": 0.855,
+            "first": 1.112
           },
           "planning_series_ms": [
-            28.472,
-            0.149,
-            0.104,
+            24.9,
+            0.093,
+            0.091,
+            0.089,
             0.083,
-            0.099,
             0.083,
             0.08,
+            0.076,
             0.081,
-            0.077,
-            0.089,
-            0.086
+            0.072,
+            0.08
           ],
           "hnsw_index_in_plan": false,
           "hnsw_index_series": [
@@ -3202,8 +5213,8 @@
             "                                                  Index Cond: (label_ids = '{}'::uuid[])",
             "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                                  Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 28.472 ms",
-            "Execution Time: 1.272 ms"
+            "Planning Time: 24.900 ms",
+            "Execution Time: 1.112 ms"
           ],
           "plan_last_execution": [
             "Limit (actual rows=50 loops=1)",
@@ -3232,8 +5243,8 @@
             "                                                  Index Cond: (label_ids = '{}'::uuid[])",
             "                                            ->  Bitmap Index Scan on c5_label_ids_idx (actual rows=0 loops=1)",
             "                                                  Index Cond: (label_ids && COALESCE((string_to_array(NULLIF(current_setting('zenith.label_ids'::text, true), ''::text), ','::text))::uuid[], '{}'::uuid[]))",
-            "Planning Time: 0.086 ms",
-            "Execution Time: 0.920 ms"
+            "Planning Time: 0.080 ms",
+            "Execution Time: 0.854 ms"
           ]
         }
       },
@@ -3243,46 +5254,46 @@
           "hnsw_index_every_execution": true,
           "hnsw_lost_at_execution": null,
           "planning_series_ms": [
-            27.944,
-            27.649,
-            27.454,
-            29.1,
-            30.358,
-            57.313,
-            29.295,
-            27.877,
-            28.517,
-            28.731,
-            28.268,
-            30.178,
-            27.538,
-            29.018,
-            29.519,
-            29.02,
-            28.42,
+            27.448,
+            28.411,
+            27.011,
+            25.903,
+            27.199,
+            53.074,
+            25.953,
+            25.892,
+            26.765,
+            28.565,
+            28.01,
+            26.278,
+            27.808,
+            27.437,
+            27.656,
+            25.881,
+            29.301,
+            29.353,
+            30.723,
+            31.713,
             27.705,
-            28.057,
-            27.961,
-            29.878,
-            28.18,
-            27.764,
-            24.86,
-            27.634,
-            28.402,
-            26.51,
-            26.695,
-            29.174,
-            29.162,
-            29.048,
-            28.595,
-            27.052,
-            27.373,
-            27.914,
-            29.716,
-            29.199,
-            28.808,
-            27.592,
-            25.747
+            27.696,
+            29.517,
+            26.794,
+            27.08,
+            27.742,
+            28.954,
+            27.538,
+            29.417,
+            26.923,
+            28.299,
+            26.159,
+            25.941,
+            28.178,
+            26.587,
+            26.986,
+            26.66,
+            25.959,
+            28.751,
+            26.784
           ]
         },
         "local": {
@@ -3290,46 +5301,46 @@
           "hnsw_index_every_execution": true,
           "hnsw_lost_at_execution": null,
           "planning_series_ms": [
-            0.247,
-            0.173,
-            0.217,
-            0.169,
-            0.143,
-            25.639,
-            0.201,
-            0.186,
-            0.231,
-            0.231,
+            0.274,
+            0.163,
+            0.146,
+            0.174,
+            0.162,
+            25.927,
+            0.224,
             0.188,
-            0.176,
-            0.202,
-            0.18,
-            0.198,
-            0.235,
-            0.176,
-            0.186,
-            0.235,
-            0.24,
-            0.261,
-            0.212,
-            0.212,
-            0.195,
-            0.184,
-            0.173,
-            0.227,
-            0.152,
-            0.174,
-            0.175,
-            0.211,
-            0.184,
-            0.178,
-            0.186,
+            0.168,
+            0.239,
+            0.204,
+            0.179,
             0.17,
-            0.221,
-            0.203,
-            0.172,
-            0.174,
-            0.136
+            0.205,
+            0.228,
+            0.216,
+            0.2,
+            0.21,
+            0.152,
+            0.139,
+            0.176,
+            0.16,
+            0.17,
+            0.147,
+            0.148,
+            0.238,
+            0.21,
+            0.266,
+            0.173,
+            0.155,
+            0.186,
+            0.176,
+            0.194,
+            0.219,
+            0.187,
+            0.164,
+            0.168,
+            0.16,
+            0.152,
+            0.153
           ]
         },
         "shipped_scoped": {
@@ -3337,46 +5348,46 @@
           "hnsw_index_every_execution": true,
           "hnsw_lost_at_execution": null,
           "planning_series_ms": [
-            29.047,
-            27.744,
-            27.028,
-            29.455,
-            27.029,
-            56.181,
-            27.318,
-            29.326,
-            27.828,
-            27.309,
-            28.166,
-            28.137,
-            27.716,
-            28.575,
-            29.653,
-            26.855,
-            28.221,
-            27.363,
-            27.454,
-            27.312,
-            27.846,
-            26.917,
-            27.121,
-            26.671,
-            29.183,
-            26.756,
-            29.01,
-            27.71,
-            29.101,
-            27.776,
-            28.22,
-            27.468,
-            29.344,
-            27.551,
-            28.188,
-            27.966,
-            27.717,
-            27.128,
-            28.159,
-            28.068
+            27.052,
+            25.928,
+            27.408,
+            25.453,
+            27.038,
+            55.765,
+            26.347,
+            26.41,
+            26.442,
+            25.992,
+            25.773,
+            26.724,
+            26.1,
+            26.312,
+            27.038,
+            26.089,
+            27.268,
+            32.445,
+            30.591,
+            33.294,
+            26.008,
+            29.742,
+            25.674,
+            25.113,
+            24.034,
+            24.07,
+            24.762,
+            24.335,
+            24.216,
+            23.849,
+            22.809,
+            24.96,
+            24.799,
+            23.423,
+            23.695,
+            25.761,
+            27.991,
+            25.914,
+            26.364,
+            26.839
           ]
         },
         "scoped_bare": {
@@ -3384,46 +5395,46 @@
           "hnsw_index_every_execution": true,
           "hnsw_lost_at_execution": null,
           "planning_series_ms": [
-            0.285,
-            0.253,
-            0.286,
-            0.29,
-            0.284,
-            27.569,
-            0.21,
-            0.172,
-            0.2,
-            0.264,
-            0.227,
-            0.25,
-            0.253,
-            0.26,
-            0.207,
-            0.214,
-            0.213,
-            0.231,
-            0.238,
-            0.212,
-            0.249,
+            0.236,
+            0.175,
+            0.171,
+            0.168,
+            0.165,
+            26.496,
+            0.321,
+            0.256,
             0.218,
-            0.201,
+            0.184,
+            0.177,
             0.208,
-            0.211,
-            0.18,
-            0.17,
-            0.191,
-            0.183,
-            0.167,
-            0.189,
-            0.163,
-            0.215,
-            0.204,
+            0.186,
+            0.171,
+            0.164,
+            0.232,
+            0.245,
             0.229,
-            0.252,
-            0.285,
+            0.276,
+            0.21,
             0.228,
-            0.24,
-            0.265
+            0.298,
+            0.233,
+            0.206,
+            0.226,
+            0.164,
+            0.195,
+            0.194,
+            0.201,
+            0.166,
+            0.171,
+            0.192,
+            0.186,
+            0.169,
+            0.164,
+            0.21,
+            0.2,
+            0.154,
+            0.203,
+            0.174
           ]
         }
       },
@@ -3432,115 +5443,115 @@
           "locks": 2313,
           "returned": 50,
           "wall_ms": {
-            "median": 29.974,
-            "p95": 60.905,
-            "max": 60.905,
-            "min": 28.615,
-            "median_warm": 30.219,
-            "first": 29.771
+            "median": 28.816,
+            "p95": 55.436,
+            "max": 55.436,
+            "min": 27.631,
+            "median_warm": 28.925,
+            "first": 27.828
           },
           "wall_series_ms": [
-            29.771,
-            29.974,
-            30.678,
-            29.632,
-            60.905,
-            29.409,
-            30.989,
-            28.615,
-            30.464
+            27.828,
+            29.033,
+            28.012,
+            29.201,
+            55.436,
+            30.018,
+            28.816,
+            27.631,
+            28.529
           ]
         },
         "f_local": {
           "locks": 18,
           "returned": 50,
           "wall_ms": {
-            "median": 1.818,
-            "p95": 29.638,
-            "max": 29.638,
-            "min": 1.412,
-            "median_warm": 1.757,
-            "first": 2.106
+            "median": 1.572,
+            "p95": 27.054,
+            "max": 27.054,
+            "min": 1.294,
+            "median_warm": 1.57,
+            "first": 1.868
           },
           "wall_series_ms": [
-            2.106,
-            1.818,
-            1.971,
-            2.203,
-            29.638,
-            1.696,
-            1.461,
-            1.412,
-            1.452
+            1.868,
+            1.567,
+            1.572,
+            1.513,
+            27.054,
+            1.504,
+            1.731,
+            1.294,
+            1.694
           ]
         },
         "f_shipped_scoped": {
           "locks": 2313,
           "returned": 50,
           "wall_ms": {
-            "median": 36.46,
-            "p95": 66.507,
-            "max": 66.507,
-            "min": 30.954,
-            "median_warm": 39.997,
-            "first": 30.954
+            "median": 29.811,
+            "p95": 58.036,
+            "max": 58.036,
+            "min": 27.754,
+            "median_warm": 29.831,
+            "first": 29.412
           },
           "wall_series_ms": [
-            30.954,
-            31.815,
-            32.253,
-            33.753,
-            66.507,
-            44.519,
-            44.605,
-            36.46,
-            43.533
+            29.412,
+            27.754,
+            30.233,
+            29.443,
+            58.036,
+            30.197,
+            29.852,
+            27.773,
+            29.811
           ]
         },
         "f_scoped_or": {
           "locks": 18,
           "returned": 50,
           "wall_ms": {
-            "median": 3.108,
-            "p95": 40.455,
-            "max": 40.455,
-            "min": 2.506,
-            "median_warm": 3.03,
-            "first": 3.229
+            "median": 2.563,
+            "p95": 27.99,
+            "max": 27.99,
+            "min": 2.094,
+            "median_warm": 2.608,
+            "first": 2.563
           },
           "wall_series_ms": [
-            3.229,
-            2.766,
-            2.506,
-            2.779,
-            40.455,
-            2.953,
-            3.215,
-            3.12,
-            3.108
+            2.563,
+            2.452,
+            2.763,
+            2.109,
+            27.99,
+            3.023,
+            2.888,
+            2.396,
+            2.094
           ]
         },
         "f_scoped_bare": {
           "locks": 18,
           "returned": 50,
           "wall_ms": {
-            "median": 2.63,
-            "p95": 29.951,
-            "max": 29.951,
-            "min": 2.252,
-            "median_warm": 2.661,
-            "first": 2.458
+            "median": 2.567,
+            "p95": 29.72,
+            "max": 29.72,
+            "min": 2.095,
+            "median_warm": 2.743,
+            "first": 2.33
           },
           "wall_series_ms": [
-            2.458,
-            2.63,
-            2.459,
-            2.71,
-            29.951,
-            2.489,
-            2.252,
-            2.856,
-            2.691
+            2.33,
+            2.128,
+            2.095,
+            2.139,
+            29.72,
+            2.567,
+            2.971,
+            2.919,
+            3.229
           ]
         }
       },
@@ -4046,16 +6057,16 @@
           31,
           31
         ],
-        "planning_ms": 1.539,
-        "execution_ms": 1.985,
+        "planning_ms": 1.554,
+        "execution_ms": 2.188,
         "seq_scans": []
       },
       "local": {
         "hnsw": true,
         "partitions": 2,
         "removed": [],
-        "planning_ms": 0.17,
-        "execution_ms": 0.854,
+        "planning_ms": 0.175,
+        "execution_ms": 0.895,
         "seq_scans": []
       },
       "shipped_scoped": {
@@ -4065,24 +6076,24 @@
           31,
           31
         ],
-        "planning_ms": 1.516,
-        "execution_ms": 2.794,
+        "planning_ms": 1.571,
+        "execution_ms": 3.002,
         "seq_scans": []
       },
       "scoped_or": {
         "hnsw": true,
         "partitions": 2,
         "removed": [],
-        "planning_ms": 0.208,
-        "execution_ms": 1.829,
+        "planning_ms": 0.2,
+        "execution_ms": 1.639,
         "seq_scans": []
       },
       "scoped_bare": {
         "hnsw": true,
         "partitions": 2,
         "removed": [],
-        "planning_ms": 0.189,
-        "execution_ms": 1.585,
+        "planning_ms": 0.203,
+        "execution_ms": 1.729,
         "seq_scans": []
       },
       "today_forced_generic": {
@@ -4092,8 +6103,8 @@
           31,
           31
         ],
-        "planning_ms": 0.059,
-        "execution_ms": 2.336,
+        "planning_ms": 0.058,
+        "execution_ms": 2.176,
         "seq_scans": [
           "e5"
         ]
@@ -4105,8 +6116,8 @@
           31,
           31
         ],
-        "planning_ms": 0.055,
-        "execution_ms": 0.707,
+        "planning_ms": 0.058,
+        "execution_ms": 0.818,
         "seq_scans": []
       },
       "shipped_scoped_forced_generic": {
@@ -4116,8 +6127,8 @@
           31,
           31
         ],
-        "planning_ms": 0.062,
-        "execution_ms": 1.155,
+        "planning_ms": 0.063,
+        "execution_ms": 1.207,
         "seq_scans": [
           "e5"
         ]
@@ -4130,7 +6141,7 @@
           31
         ],
         "planning_ms": 0.061,
-        "execution_ms": 0.826,
+        "execution_ms": 0.845,
         "seq_scans": [
           "e5"
         ]
@@ -4142,8 +6153,8 @@
           31,
           31
         ],
-        "planning_ms": 0.055,
-        "execution_ms": 0.714,
+        "planning_ms": 0.061,
+        "execution_ms": 0.79,
         "seq_scans": [
           "e5"
         ]
@@ -4156,6 +6167,126 @@
       }
     },
     {
+      "modulus": 128,
+      "today": {
+        "hnsw": true,
+        "partitions": 2,
+        "removed": [
+          127,
+          127
+        ],
+        "planning_ms": 8.381,
+        "execution_ms": 2.255,
+        "seq_scans": []
+      },
+      "local": {
+        "hnsw": true,
+        "partitions": 2,
+        "removed": [],
+        "planning_ms": 0.177,
+        "execution_ms": 0.888,
+        "seq_scans": []
+      },
+      "shipped_scoped": {
+        "hnsw": true,
+        "partitions": 2,
+        "removed": [
+          127,
+          127
+        ],
+        "planning_ms": 8.698,
+        "execution_ms": 3.285,
+        "seq_scans": []
+      },
+      "scoped_or": {
+        "hnsw": true,
+        "partitions": 2,
+        "removed": [],
+        "planning_ms": 0.191,
+        "execution_ms": 1.76,
+        "seq_scans": []
+      },
+      "scoped_bare": {
+        "hnsw": true,
+        "partitions": 2,
+        "removed": [],
+        "planning_ms": 0.175,
+        "execution_ms": 1.615,
+        "seq_scans": []
+      },
+      "today_forced_generic": {
+        "hnsw": false,
+        "partitions": 2,
+        "removed": [
+          127,
+          127
+        ],
+        "planning_ms": 0.068,
+        "execution_ms": 2.191,
+        "seq_scans": [
+          "e5"
+        ]
+      },
+      "local_forced_generic": {
+        "hnsw": false,
+        "partitions": 2,
+        "removed": [
+          127,
+          127
+        ],
+        "planning_ms": 0.071,
+        "execution_ms": 1.656,
+        "seq_scans": [
+          "e5"
+        ]
+      },
+      "shipped_scoped_forced_generic": {
+        "hnsw": false,
+        "partitions": 2,
+        "removed": [
+          127,
+          127
+        ],
+        "planning_ms": 0.07,
+        "execution_ms": 1.167,
+        "seq_scans": [
+          "e5"
+        ]
+      },
+      "scoped_or_forced_generic": {
+        "hnsw": false,
+        "partitions": 2,
+        "removed": [
+          127,
+          127
+        ],
+        "planning_ms": 0.077,
+        "execution_ms": 0.784,
+        "seq_scans": [
+          "e5"
+        ]
+      },
+      "scoped_bare_forced_generic": {
+        "hnsw": false,
+        "partitions": 2,
+        "removed": [
+          127,
+          127
+        ],
+        "planning_ms": 0.067,
+        "execution_ms": 0.778,
+        "seq_scans": [
+          "e5"
+        ]
+      },
+      "locks": {
+        "f_shipped": 1161,
+        "f_local": 18,
+        "f_shipped_scoped": 1161,
+        "f_scoped_bare": 18
+      }
+    },
+    {
       "modulus": 256,
       "today": {
         "hnsw": true,
@@ -4164,16 +6295,16 @@
           255,
           255
         ],
-        "planning_ms": 28.477,
-        "execution_ms": 2.565,
+        "planning_ms": 29.913,
+        "execution_ms": 2.558,
         "seq_scans": []
       },
       "local": {
         "hnsw": true,
         "partitions": 2,
         "removed": [],
-        "planning_ms": 0.21,
-        "execution_ms": 0.999,
+        "planning_ms": 0.193,
+        "execution_ms": 0.923,
         "seq_scans": []
       },
       "shipped_scoped": {
@@ -4183,24 +6314,24 @@
           255,
           255
         ],
-        "planning_ms": 28.559,
-        "execution_ms": 3.558,
+        "planning_ms": 27.447,
+        "execution_ms": 3.505,
         "seq_scans": []
       },
       "scoped_or": {
         "hnsw": true,
         "partitions": 2,
         "removed": [],
-        "planning_ms": 0.245,
-        "execution_ms": 2.061,
+        "planning_ms": 0.201,
+        "execution_ms": 1.869,
         "seq_scans": []
       },
       "scoped_bare": {
         "hnsw": true,
         "partitions": 2,
         "removed": [],
-        "planning_ms": 0.215,
-        "execution_ms": 1.849,
+        "planning_ms": 0.199,
+        "execution_ms": 1.693,
         "seq_scans": []
       },
       "today_forced_generic": {
@@ -4210,8 +6341,8 @@
           255,
           255
         ],
-        "planning_ms": 0.098,
-        "execution_ms": 2.577,
+        "planning_ms": 0.077,
+        "execution_ms": 2.212,
         "seq_scans": [
           "e5"
         ]
@@ -4223,8 +6354,8 @@
           255,
           255
         ],
-        "planning_ms": 0.101,
-        "execution_ms": 2.324,
+        "planning_ms": 0.087,
+        "execution_ms": 1.806,
         "seq_scans": [
           "e5"
         ]
@@ -4236,8 +6367,8 @@
           255,
           255
         ],
-        "planning_ms": 0.102,
-        "execution_ms": 3.225,
+        "planning_ms": 0.089,
+        "execution_ms": 3.04,
         "seq_scans": []
       },
       "scoped_or_forced_generic": {
@@ -4247,8 +6378,8 @@
           255,
           255
         ],
-        "planning_ms": 0.089,
-        "execution_ms": 0.892,
+        "planning_ms": 0.095,
+        "execution_ms": 0.877,
         "seq_scans": [
           "e5"
         ]
@@ -4260,8 +6391,8 @@
           255,
           255
         ],
-        "planning_ms": 0.084,
-        "execution_ms": 0.887,
+        "planning_ms": 0.082,
+        "execution_ms": 0.855,
         "seq_scans": [
           "e5"
         ]
@@ -4290,6 +6421,20 @@
       }
     },
     {
+      "modulus": 128,
+      "unscoped_generic_baseline_keeps_hnsw": false,
+      "unscoped_candidate_generic_keeps_hnsw": false,
+      "scoped_generic_baseline_keeps_hnsw": false,
+      "scoped_bare_generic_keeps_hnsw": false,
+      "scoped_or_generic_keeps_hnsw": false,
+      "generic_plan_ever_reached_unforced": {
+        "today": null,
+        "local": null,
+        "shipped_scoped": null,
+        "scoped_bare": null
+      }
+    },
+    {
       "modulus": 256,
       "unscoped_generic_baseline_keeps_hnsw": false,
       "unscoped_candidate_generic_keeps_hnsw": false,
@@ -4305,7 +6450,7 @@
     }
   ],
   "bars": {
-    "measured_rungs": 2,
+    "measured_rungs": 3,
     "bar_1_controls_reproduced": false,
     "bar_2_hnsw_survives_a_generic_plan": false,
     "bar_3_prunes_at_plan_time": true,
@@ -4316,6 +6461,8 @@
     "all_seven": false,
     "failures": [
       "modulus 32: Bar 2, scoped_bare lost the HNSW index under a forced generic plan -- seq scans ['e5']",
+      "modulus 128: Bar 1, the unscoped candidate lost the HNSW index under a forced generic plan, which is not what 5f-8 recorded -- this run measured something else",
+      "modulus 128: Bar 2, scoped_bare lost the HNSW index under a forced generic plan -- seq scans ['e5']",
       "modulus 256: Bar 1, the unscoped candidate lost the HNSW index under a forced generic plan, which is not what 5f-8 recorded -- this run measured something else",
       "modulus 256: Bar 2, scoped_bare lost the HNSW index under a forced generic plan -- seq scans ['e5']"
     ]

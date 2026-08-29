@@ -54,6 +54,15 @@ recorded them, this run measured something else and no other bar in it means any
 is first because three null results this week were indistinguishable from experiments that never
 ran.
 
+*Measured: it fails at 128 and at 256, reproducibly, in three consecutive runs. The half that
+fails is `local` — the unscoped candidate keeps the HNSW index under a forced generic plan at
+modulus 32, which is the only modulus 5f-8 measured it at, and loses it at 128 and 256. The bar
+stays as written and stays failed. What it turned out to be measuring is that the plan a forced
+generic call gets is a cost comparison decided near its own margin, and it lands differently at
+different moduli for reasons that have nothing to do with the disjunct this file is about. That
+is a finding about the premise rather than about this harness, so the sections below still
+stand — Bar 2's arm and its baseline are read at the same rung as each other every time.*
+
 **Bar 2 — the deciding question.** Under a forced generic plan, `scoped_bare` must name the HNSW
 index in its plan. Not "must be fast": named. A plan that reads the whole partition sequentially
 and sorts is the failure ADR 0002's dense half exists to avoid, and at this corpus's 1,694 rows
@@ -145,11 +154,17 @@ REPORT = Path(__file__).parent / "dense-two-functions.json"
 
 #: 32 is the modulus `dense-plan-time-pruning.sql` exhibits its plans at, so the plans here can
 #: be read against those line for line. 256 is the rung `dense-plan-time.json` quotes its
-#: headline lock and planning figures from. Partition *size* is set by the tenant count rather
-#: than the modulus — eight synthetic tenants over 13,549 passages is roughly 1,694 rows in
-#: whichever partition a tenant hashes to, at 32 and at 256 alike — so the two rungs differ in
-#: how many empty partitions the planner has to open and in nothing else.
-RUNGS: tuple[int, ...] = (32, 256)
+#: headline lock and planning figures from. **128 is the one that decides**, because it is the
+#: modulus migration 0026 actually installed, and it was added after the first two rungs
+#: disagreed with each other under a forced generic plan — which made the reading at neither of
+#: them a reading about production.
+#:
+#: Partition *size* is set by the tenant count rather than the modulus — eight synthetic tenants
+#: over 13,549 passages is roughly 1,694 rows in whichever partition a tenant hashes to, at 32,
+#: 128 and 256 alike — so the rungs differ in how many empty partitions the planner has to open
+#: and in nothing else. They still differ in which plan a forced generic call gets, which is the
+#: finding rather than the setup.
+RUNGS: tuple[int, ...] = (32, 128, 256)
 
 #: Documents per tenant in the scope. Three, as the SQL file's 5f uses: wide enough that 50 rows
 #: can still be filled, narrow enough to be a real restriction.
