@@ -47,6 +47,17 @@ The failure mode is inverted on purpose: a forgotten filter returns *nothing* ra
 everything. If you find yourself adding `WHERE tenant_id = ...` in Python, the bug is
 somewhere else.
 
+**A partition inherits none of it.** `ENABLE ROW LEVEL SECURITY` on a partitioned parent does
+not reach its partitions and neither does the policy, so a query naming a partition directly
+returns every row it holds: `backend/eval/partition-rls.sql` measures the parent answering
+correctly for tenant 1 while partition `p2` hands back tenant 3 in full. It takes a `GRANT`
+on the partition, and `GRANT ... ON ALL TABLES IN SCHEMA public` is one.
+`tests/integration/test_partition_rls_guard.py` enumerates every partition of an RLS-protected
+table and fails unless it carries row-level security and a policy of its own — and proves it
+can fail, against a bare partition it builds and rolls back. `app.core.partitions.create_partition`
+is how a partition gets made: table, `ENABLE ROW LEVEL SECURITY` and policy in one
+transaction, so it cannot exist half-made.
+
 **2. There are exactly three ways to reach the database, and two of them bypass RLS.**
 
 | Factory | RLS | Who may use it |
