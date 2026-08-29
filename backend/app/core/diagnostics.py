@@ -323,6 +323,128 @@ async def _security_definer_surface() -> tuple[Status, str]:
     return status, "  ".join(findings)
 
 
+# --- The lock budget ------------------------------------------------------------------
+#
+# A query over a partitioned table takes an `AccessShareLock` on every relation of every
+# partition **at plan time**, before runtime pruning has removed anything, and the lock table
+# it draws from is one table for the whole cluster. When it runs out, Postgres raises
+# `OutOfMemory` during *planning*: the query never runs and an ordinary search is a 500.
+#
+# `eval/lock-budget.json` measured the shape. Locks are taken per relation, exactly — the
+# slope across two rungs is 9.00 locks per partition-pair against a schema declaring nine
+# relations — and the second and third statements of a search request add none, because the
+# planner already opened every index of both tables for the first. So the budget is a
+# property of the schema, not of the query mix, and it can be computed.
+#
+# It is computed here rather than written down, because a constant would be wrong the day
+# the partition count or the index set changes and nothing would say so. That is the same
+# reason `AUTHORISED_SECURITY_DEFINERS` is checked against a *running* installation above
+# and not only against the migrations.
+
+
+#: What a transaction may be asked to hold at once, over and above the application pools.
+#:
+#: `api_pool_size` and `worker_pool_size` both run with `max_overflow=0`, so they are hard
+#: ceilings on concurrent application transactions rather than targets. The owner and
+#: platform engines add two apiece (`core.database`), and they are counted because a
+#: diagnostic or a `/system` page running beside a search competes for the same slots.
+BYPASS_POOL_CONNECTIONS: Final = 4
+
+#: How much headroom below which the setting is reported as a warning rather than an error.
+#: A quarter, because the measured boundary is not sharp: `eval/lock-budget.json` records a
+#: transaction holding 2,313 locks against a nominal 6,400-slot table with eight of them in
+#: flight — 18,504 slots' worth — and succeeding, because the lock hash table grows into
+#: shared memory nobody reserved. That surplus is real, transient and shared with every other
+#: backend, so an installation sitting on it is not failing yet and is not safe either.
+LOCK_BUDGET_HEADROOM: Final = 1.25
+
+# Every relation a partitioned table contributes: its partitions, its partitions' indexes,
+# the partitioned parents and their partitioned indexes. `relispartition` covers the first
+# two; `relkind IN ('p', 'I')` covers the last two, and both are locked — measured, not
+# assumed: at 256 partitions of a pair carrying nine relations the count is 2,313, which is
+# 9 x 256 for the partitions plus nine for the two parents and their seven partitioned
+# indexes.
+#
+# Summed over every partitioned table in `public`, which is the ceiling for any transaction
+# rather than the cost of one particular query. Naming the tables a search touches would be
+# a list to keep in step with the schema, and this file exists because those rot.
+_PARTITION_RELATIONS = """
+SELECT count(*) AS relations,
+       count(*) FILTER (WHERE c.relkind = 'p') AS partitioned_tables,
+       count(*) FILTER (WHERE c.relispartition AND c.relkind = 'r') AS partitions
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public'
+  AND (c.relispartition OR c.relkind IN ('p', 'I'))
+"""
+
+
+async def _lock_budget() -> tuple[Status, str]:
+    """Does this installation's `max_locks_per_transaction` cover its partition count?
+
+    Two questions, and they are the split this whole file is built on. `make check` can ask
+    whether the code is right; only a running installation knows how many partitions it has
+    and what its Postgres was started with, and the answer is a restart away from being
+    fixed — so it has to be asked here, before somebody discovers it as a 500.
+
+    **`max_locks_per_transaction` is not a per-transaction cap.** It sizes one table of
+    `max_locks_per_transaction * (max_connections + max_prepared_transactions)` slots that
+    every backend draws from, so the constraint is on concurrency and a single query passing
+    proves nothing about ten. Both are reported: a setting too small for one query is a
+    certain failure, and one too small for the pools is a failure under load only.
+
+    Returns `ok` on an installation with no partitioned tables. That is not a pass by
+    omission — there is genuinely nothing to size for until something is partitioned, and
+    saying so is what makes the number appear on its own the day stage 02 lands.
+    """
+    async with get_owner_session_factory()() as session:
+        row = (await session.execute(text(_PARTITION_RELATIONS))).one()
+        rows = await session.execute(
+            text(
+                "SELECT name, setting FROM pg_settings WHERE name IN "
+                "('max_locks_per_transaction', 'max_connections', "
+                "'max_prepared_transactions')"
+            )
+        )
+        server = {str(name): int(setting) for name, setting in rows}
+
+    per_transaction = int(row.relations)
+    backends = server["max_connections"] + server["max_prepared_transactions"]
+    slots = server["max_locks_per_transaction"] * backends
+    setting = server["max_locks_per_transaction"]
+
+    if not per_transaction:
+        return "ok", (
+            f"max_locks_per_transaction={setting} x {backends} = {slots} slots; "
+            "no partitioned tables, so nothing draws on them yet"
+        )
+
+    concurrency = settings.api_pool_size + settings.worker_pool_size + BYPASS_POOL_CONNECTIONS
+    needed = per_transaction * concurrency
+    # What the setting would have to be, phrased as the thing an operator changes. Ceiling
+    # division: a fractional slot is a slot short.
+    required = -(-needed // backends)
+    # Short on purpose, and `fix` is kept short for the same reason `_breaker_note` is:
+    # `_scrub` truncates a detail at 200 characters, and the half naming the setting to change
+    # must never be the half that is cut. The first version of this said the same thing in 208
+    # characters and lost the word "restart", which is the part with a consequence.
+    shape = (
+        f"{row.partitions} partition(s) of {row.partitioned_tables} table(s) = "
+        f"{per_transaction} locks/txn; {concurrency} concurrent needs {needed} of {slots} slots"
+    )
+    fix = f"Set max_locks_per_transaction={required} and restart."
+
+    if slots < per_transaction:
+        return "fail", f"{shape}. One query alone exceeds the table: every search 500s. {fix}"
+    if slots < needed:
+        return "fail", f"{shape}. Room for {slots // per_transaction} concurrent. {fix}"
+    if slots < needed * LOCK_BUDGET_HEADROOM:
+        # A warning rather than a failure: it works, and the margin it is working on is
+        # shared memory nobody reserved and every other backend may want.
+        return "warn", f"{shape}. Under a quarter of headroom. {fix}"
+    return "ok", f"{shape}, room for {slots // per_transaction} concurrent"
+
+
 async def _job_queue() -> tuple[Status, str]:
     """Are the job-queue tables installed?
 
@@ -760,6 +882,11 @@ async def run_diagnostics() -> list[Check]:
         # database is known to be at head — before that it is the migration state saying the
         # same thing twice.
         await _timed("bypass surface", _security_definer_surface),
+        # Beside the bypass surface because it is the same kind of question and the same kind
+        # of answer: a property of the *running* installation that no test built from the
+        # migrations can see. What a schema declares about partitioning and what a server was
+        # started with are independent, and only one of them causes a 500.
+        await _timed("lock budget", _lock_budget),
         # Right after migrations, because it is the half of the install that `alembic upgrade
         # head` does not do and that nothing else would report as missing.
         await _timed("job queue", _job_queue),

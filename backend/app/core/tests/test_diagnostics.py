@@ -88,7 +88,7 @@ async def test_every_check_runs_even_when_the_database_is_unreachable() -> None:
 
     checks = await run_diagnostics()
 
-    assert len(checks) == 16
+    assert len(checks) == 17
     assert any(check.status == "fail" for check in checks)
     # And the failure still says nothing it should not.
     assert "nothing" not in " ".join(check.detail for check in checks)
@@ -364,6 +364,111 @@ async def test_a_clean_installation_reports_its_bypass_surface(configured_engine
     checks = {check.name: check for check in await run_diagnostics()}
 
     assert checks["bypass surface"].status == "ok", checks["bypass surface"].detail
+
+
+@pytest.mark.asyncio
+async def test_an_unpartitioned_installation_has_nothing_to_size_for(
+    configured_engines: None,
+) -> None:
+    """Nothing is partitioned yet, so the honest answer is that the setting is not load-bearing.
+
+    Reported as `ok` and *said*, rather than passed over. The number this check exists for
+    appears on its own the day something is partitioned, and an operator reading the report
+    today should be able to tell "there is nothing to size for" from "nobody looked".
+    """
+    checks = {check.name: check for check in await run_diagnostics()}
+
+    assert checks["lock budget"].status == "ok", checks["lock budget"].detail
+    assert "no partitioned tables" in checks["lock budget"].detail
+
+
+@pytest.mark.asyncio
+async def test_partitions_are_counted_out_of_the_live_schema(
+    configured_engines: None,
+) -> None:
+    """The half that would rot if it were a constant.
+
+    A partitioned table is built in `public`, with an index on each partition because the
+    locks are taken per *relation* and an index is one — `eval/lock-budget.json` measures the
+    slope at 9.00 locks per partition-pair against a schema declaring nine relations, which is
+    the equality this check depends on. The detail must then name the partitions it found.
+
+    Dropped in a `finally`: this runs against the shared testcontainers database, and a
+    partitioned table left in `public` would be picked up by `test_partition_rls_guard.py`
+    as a partition carrying no policy.
+    """
+    from app.core.database import get_owner_session_factory
+
+    async with get_owner_session_factory()() as session:
+        await session.execute(
+            text("CREATE TABLE lock_probe (tenant_id uuid NOT NULL) PARTITION BY HASH (tenant_id)")
+        )
+        await session.execute(text("CREATE INDEX ON lock_probe (tenant_id)"))
+        for remainder in range(4):
+            await session.execute(
+                text(
+                    f"CREATE TABLE lock_probe_{remainder} PARTITION OF lock_probe "
+                    f"FOR VALUES WITH (MODULUS 4, REMAINDER {remainder})"
+                )
+            )
+        await session.commit()
+
+    try:
+        checks = {check.name: check for check in await run_diagnostics()}
+        detail = checks["lock budget"].detail
+        # Four partitions and their four indexes, plus the parent and its partitioned index.
+        assert "4 partition(s) of 1 table(s) = 10 locks" in detail, detail
+        assert checks["lock budget"].status == "ok", detail
+    finally:
+        async with get_owner_session_factory()() as session:
+            await session.execute(text("DROP TABLE IF EXISTS lock_probe CASCADE"))
+            await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_a_lock_budget_the_pools_can_exhaust_is_a_failure(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """And it has to be able to fail, or it is not a check.
+
+    The pool sizes are raised rather than the partition count, and that is not a shortcut: the
+    inequality has `partitions x relations x concurrency` on one side, so either term moves it,
+    and driving it with the pools tests the arithmetic without creating the several hundred
+    tables it would take to break a 6,400-slot table from the other direction.
+
+    It is also the realistic failure. `eval/lock-budget.json` brackets the boundary at 256
+    partitions on the default 64: eight concurrent searches clean, twelve not. Nothing about
+    the schema changed between those two rungs — only how many people were asking at once.
+    """
+    from app.core.database import get_owner_session_factory
+
+    async with get_owner_session_factory()() as session:
+        await session.execute(
+            text("CREATE TABLE lock_probe (tenant_id uuid NOT NULL) PARTITION BY HASH (tenant_id)")
+        )
+        for remainder in range(4):
+            await session.execute(
+                text(
+                    f"CREATE TABLE lock_probe_{remainder} PARTITION OF lock_probe "
+                    f"FOR VALUES WITH (MODULUS 4, REMAINDER {remainder})"
+                )
+            )
+        await session.commit()
+
+    try:
+        monkeypatch.setattr(settings, "api_pool_size", 100_000)
+        checks = {check.name: check for check in await run_diagnostics()}
+        detail = checks["lock budget"].detail
+
+        assert checks["lock budget"].status == "fail", detail
+        # The number to set, not just the news that it is wrong. An operator reading this in
+        # a ticket has one action available and it needs a restart.
+        assert "Set max_locks_per_transaction=" in detail
+        assert "restart" in detail
+    finally:
+        async with get_owner_session_factory()() as session:
+            await session.execute(text("DROP TABLE IF EXISTS lock_probe CASCADE"))
+            await session.commit()
 
 
 @pytest.mark.asyncio
