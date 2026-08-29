@@ -49,8 +49,16 @@ export function StatusBadge({
     // The bar carries the three that are one fact — how much of this corpus is searchable
     // right now — as proportions instead of prose. Ready, processing and failed are
     // segments of the same length, so ingestion and failure are visible *in* the object
-    // rather than announced beside it, and a full cyan bar is a state anyone can read
-    // without counting: everything in here can be found.
+    // rather than announced beside it, and a bar that is entirely the mark's own blue is a
+    // state anyone can read without counting: everything in here can be found.
+    //
+    // `bg-zenith`, not `bg-zenith-cyan`, which it was. Cyan is the product's "healthy,
+    // confirmed, secure" ink and it still says that on the login shield, on a saved
+    // permission and in an answer's markers — but at the size of a full-width bar it was
+    // the loudest thing in a sidebar of measured indigos, and the dark value is
+    // `#00e5e5`: the one raw hex in a palette that is otherwise `oklch`, at a chroma
+    // nothing else comes near. Amber and destructive still carry the two segments that
+    // are warnings, so nothing is lost by making the calm one the brand's own blue.
     //
     // It is drawn at every count, including zero-processing, which is the same reason the
     // ingestion line used to state "nothing being ingested" rather than disappear: an
@@ -72,7 +80,7 @@ export function StatusBadge({
           text above and below it, and a screen reader announcing the same three numbers a
           second time as an image would be noise, not access. */}
       <div aria-hidden className="flex h-1.5 gap-px overflow-hidden rounded-full bg-secondary">
-        <div className="bg-zenith-cyan transition-[width] duration-500" style={{ width: `${share(ready)}%` }} />
+        <div className="bg-zenith transition-[width] duration-500" style={{ width: `${share(ready)}%` }} />
         {processing > 0 && (
           <div
             className="animate-pulse bg-zenith-amber transition-[width] duration-500"
