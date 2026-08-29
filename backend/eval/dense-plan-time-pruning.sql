@@ -238,9 +238,35 @@ BEGIN
 END;
 $body$;
 
+-- The shape a migration would actually have to ship, because `search.dense()` takes an
+-- optional document scope and a function signature cannot be built by string concatenation
+-- the way `scoped()` builds one. The filter becomes unconditional with a NULL guard, and that
+-- guard is an `OR` — which is the kind of thing that quietly stops an index being used. Asked
+-- rather than assumed: section 5f runs it both ways.
+CREATE FUNCTION zenith_denseplan_iso.candidate_scoped(
+  q halfvec(1024), mdl text, ver text, want int, docs uuid[])
+RETURNS TABLE(chunk_id uuid, score double precision)
+LANGUAGE plpgsql STABLE SECURITY INVOKER
+AS $body$
+DECLARE v_tenant uuid := zenith_current_tenant();
+BEGIN
+  IF v_tenant IS NULL THEN RETURN; END IF;
+  RETURN QUERY
+  SELECT c.id, 1 - (e.embedding_half <=> q)
+  FROM zenith_denseplan_iso.emb e
+  JOIN zenith_denseplan_iso.chk c ON c.id = e.chunk_id AND c.tenant_id = e.tenant_id
+  WHERE e.tenant_id = v_tenant
+    AND e.embedding_model = mdl AND e.embedding_version = ver
+    AND (docs IS NULL OR c.document_id = ANY(docs))
+  ORDER BY e.embedding_half <=> q
+  LIMIT want;
+END;
+$body$;
+
 GRANT EXECUTE ON FUNCTION
   zenith_denseplan_iso.as_shipped(halfvec(1024), text, text, int),
   zenith_denseplan_iso.candidate(halfvec(1024), text, text, int),
+  zenith_denseplan_iso.candidate_scoped(halfvec(1024), text, text, int, uuid[]),
   zenith_denseplan_iso.forced(uuid, halfvec(1024), text, text, int)
 TO zenith_app;
 
