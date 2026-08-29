@@ -55,7 +55,6 @@ import {
 import { Search } from "@/features/search";
 import { tenantStatus, type TenantStatus } from "@/shared/api/tenant";
 import { CommandPalette } from "@/shared/ui/CommandPalette";
-import { SearchField } from "@/shared/ui/SearchField";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { forget, read, write } from "@/shared/lib/storage";
@@ -363,9 +362,6 @@ export function App() {
   // identical text) so asking the same question twice in a row still re-triggers Chat's
   // effect rather than being a no-op React sees as "the same prop".
   const [prefill, setPrefill] = useState<{ text: string; nonce: number } | null>(null);
-  // The sidebar's own box. Local rather than lifted: it is a way *in*, and what it holds
-  // between one search and the next is nobody else's business.
-  const [entry, setEntry] = useState("");
   const [pdfExpanded, setPdfExpanded] = useState(false);
   // Remembered across reloads: someone who collapsed the bar to get room back does not
   // want it handed to them again on every refresh. `localStorage` rather than session,
@@ -519,6 +515,41 @@ export function App() {
   // Zenith mark — sitting in an avatar, which reads as a fact about the user and was a
   // fact about the logo. Falls back to the email when no name is set, and to a dash while
   // the profile is still loading rather than to a letter that would be wrong.
+  // One renderer for every nav row, because the bar has two groups in it and two copies of
+  // this markup would answer a hover differently within a week.
+  const navRow = (name: typeof view, Icon: typeof SearchIcon, extra = "", small = false) => (
+    <button
+      key={name}
+      type="button"
+      onClick={() => open(name)}
+      // `title` and `aria-label` carry the name once the label is gone: an icon alone is a
+      // guess for anyone who has not memorised this bar yet, and a screen reader would
+      // otherwise hear an unnamed button.
+      title={collapsed ? viewLabel(name, t) : undefined}
+      aria-label={collapsed ? viewLabel(name, t) : undefined}
+      className={`flex items-center rounded-lg text-left transition-colors ${
+        collapsed ? "justify-center px-0 py-3" : "gap-3 px-3 py-2"
+      } ${
+        // A neutral fill and a full-contrast label, with the accent spent on the icon alone.
+        // Selection is a state, not an emphasis: the row you are on should be the most
+        // *legible*, and the colour is better spent on one small thing than spread across
+        // the whole item.
+        view === name
+          ? "bg-secondary font-medium text-foreground"
+          : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
+      } ${extra}`}
+    >
+      {/* Larger when collapsed: at this size the icon is the only thing carrying the
+          meaning, so it gets the room the label gave up. */}
+      <Icon
+        className={`shrink-0 ${collapsed ? "size-6" : small ? "size-4" : "size-[18px]"} ${
+          view === name ? "text-primary" : ""
+        }`}
+      />
+      {!collapsed && viewLabel(name, t)}
+    </button>
+  );
+
   const initial = (me?.name ?? me?.email ?? "").trim().charAt(0).toUpperCase() || "–";
 
   return (
@@ -601,118 +632,47 @@ export function App() {
           )}
         </div>
 
-        {/* **Search is not one of six destinations, so it stopped being drawn as one.**
-            
-            It was a row in the list and then it was shouted at — first a tinted wash, then a
-            solid fill — and neither read as elegant, because the problem was never the
-            colour. In a list of identical rows, the emphasised row is read as a *state* of
-            the others: hovered, selected, erroring. Paint cannot fix a filing mistake.
-            
-            So the entry to the product's main use case is a field, above the list. A field
-            is a different kind of object from a row, which is what lets it be the first
-            thing the eye lands on without any emphasis at all — and it is the literal answer
-            to "the box they see first". The five rows below go back to uniform and quiet.
-            
-            Typing here runs the search on the Search screen rather than filtering anything
-            locally, which is why it clears itself afterwards: it is a door, not a filter,
-            and a door that keeps what you last pushed through it is a filter nobody asked
-            for.
-            
-            Collapsed, it is the icon alone in the same slot — a 64px rail has no room for a
-            field, and leaving nothing there would make Search the one screen with no way to
-            reach it. */}
-        {collapsed ? (
-          <div className="flex justify-center px-2 pt-3">
-            <button
-              type="button"
-              onClick={() => open("search")}
-              title={viewLabel("search", t)}
-              aria-label={viewLabel("search", t)}
-              className={`flex size-10 items-center justify-center rounded-lg transition-colors ${
-                view === "search"
-                  ? "bg-secondary text-primary"
-                  : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
-              }`}
-            >
-              <SearchIcon className="size-6" />
-            </button>
-          </div>
-        ) : (
-          <div className="px-3 pt-3">
-            <SearchField
-              value={entry}
-              onChange={setEntry}
-              // Its own accessible name: the Search screen's working field is also called
-              // "Search", and two boxes on one screen must not answer to the same name.
-              label={t("Search your corpus")}
-              placeholder={t("Search your corpus")}
-              onSubmit={() => {
-                const asked = entry.trim();
-                if (!asked) return;
-                setEntry("");
-                setPrefill({ text: asked, nonce: Date.now() });
-                open("search");
-              }}
-            />
-          </div>
-        )}
-
         <div className="scrollbar-none flex flex-1 flex-col overflow-y-auto">
-          <div className="flex flex-col gap-0.5 px-2 py-3">
-            {(
-              [
-                { name: "folders", icon: FolderIcon },
-                { name: "upload", icon: UploadIcon },
-                { name: "history", icon: HistoryIcon },
-                { name: "admin", icon: Settings },
-                // Above every tenant, so it is above every tenant's nav too: drawn only
-                // for the handful of people who hold it. Hiding it is courtesy rather than
-                // security — `/system/*` refuses everyone else on its own — but a nav item
-                // that always 403s is a worse product than one that is not there.
-                { name: "system", icon: Building2 },
-              ] as const
-            )
-              .filter(({ name }) => name !== "system" || me?.is_system_admin)
-              .map(({ name, icon: Icon }) => (
-              <button
-                key={name}
-                type="button"
-                onClick={() => open(name)}
-                // `title` and `aria-label` carry the name once the label is gone: an icon
-                // alone is a guess for anyone who has not memorised this bar yet, and a
-                // screen reader would otherwise hear an unnamed button.
-                title={collapsed ? viewLabel(name, t) : undefined}
-                aria-label={collapsed ? viewLabel(name, t) : undefined}
-                className={`flex items-center rounded-lg text-left text-[15px] transition-colors ${
-                  collapsed ? "justify-center px-0 py-3" : "gap-3 px-3 py-2"
-                } ${
-                  // A neutral fill and a full-contrast label, with the accent spent on the
-                  // icon alone.
-                  //
-                  // It was `bg-primary/10 text-primary` — a translucent blue block with
-                  // blue text, which is shadcn's default and reads as a highlighter mark
-                  // rather than as a selected row. Tinting both the surface and the text
-                  // the same hue also leaves the label washed out at the exact moment it
-                  // matters most.
-                  //
-                  // Selection is a state, not an emphasis: the row you are on should be the
-                  // most *legible*, and the colour is better spent on one small thing than
-                  // spread across the whole item.
-                  view === name
-                    ? "bg-secondary font-medium text-foreground"
-                    : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
-                }`}
-              >
-                {/* Larger when collapsed: at this size the icon is the only thing carrying
-                    the meaning, so it gets the room the label gave up. */}
-                <Icon
-                  className={`shrink-0 ${collapsed ? "size-6" : "size-[18px]"} ${
-                    view === name ? "text-primary" : ""
-                  }`}
-                />
-                {!collapsed && viewLabel(name, t)}
-              </button>
-            ))}
+          {/* **One application and five things you add to it.**
+              
+              The bar presented six peers, and Search is not a peer: it is the screen the
+              product exists to be, and the other five are things you do to the corpus it
+              searches. Three attempts to say that with colour failed on screen — a wash read
+              as a hover, a fill read as loud, a field above the list read as clutter —
+              because emphasis inside a list of identical rows is read as a *state* of the
+              others rather than as a rank among them.
+              
+              So the hierarchy is built by demoting the rest rather than promoting one: the
+              five sit under a heading at 14px with 16px icons, and Search stays at 16px with
+              an 18px icon above them. Two steps of one scale, and no colour anywhere.
+              
+              The heading is a real `h2` rather than a styled `p`, because screen readers
+              navigate by headings — the group has to exist for someone who cannot see the
+              gap that makes it. */}
+          <div className="px-2 py-3">
+            {navRow("search", SearchIcon, "w-full text-base font-medium py-2.5")}
+            {!collapsed && (
+              <h2 className="mt-5 mb-1 px-3 text-[11px] font-semibold tracking-wider text-muted-foreground/60 uppercase">
+                {t("Manage")}
+              </h2>
+            )}
+            <div className="flex flex-col gap-0.5">
+              {(
+                [
+                  { name: "folders", icon: FolderIcon },
+                  { name: "upload", icon: UploadIcon },
+                  { name: "history", icon: HistoryIcon },
+                  { name: "admin", icon: Settings },
+                  // Above every tenant, so it is above every tenant's nav too: drawn only
+                  // for the handful of people who hold it. Hiding it is courtesy rather than
+                  // security — `/system/*` refuses everyone else on its own — but a nav item
+                  // that always 403s is a worse product than one that is not there.
+                  { name: "system", icon: Building2 },
+                ] as const
+              )
+                .filter(({ name }) => name !== "system" || me?.is_system_admin)
+                .map(({ name, icon }) => navRow(name, icon, "text-sm py-1.5", true))}
+            </div>
           </div>
 
           {/* Below the navigation, not above it: this is the answer to "is anything ready

@@ -51,6 +51,7 @@ export const es: Catalogue = {
   Done: "Hecho",
   Delete: "Eliminar",
   "Load more": "Cargar más",
+  "Manage": "Gestión",
   "Loading…": "Cargando…",
   Question: "Pregunta",
 
