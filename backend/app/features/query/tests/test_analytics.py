@@ -64,7 +64,10 @@ async def asked(
         )
         if cites:
             await session.execute(
-                text("INSERT INTO query_citations (query_id, chunk_id, rank) VALUES (:q, :c, 1)"),
+                text(
+                    "INSERT INTO query_citations (query_id, tenant_id, chunk_id, rank) "
+                    "SELECT :q, q.tenant_id, :c, 1 FROM queries q WHERE q.id = :q"
+                ),
                 {"q": query_id, "c": cites},
             )
         return UUID(str(query_id))
@@ -183,7 +186,10 @@ async def test_a_document_cited_twice_in_one_answer_counts_once(account: Account
             {"d": document_id, "t": account.tenant_id},
         )
         await session.execute(
-            text("INSERT INTO query_citations (query_id, chunk_id, rank) VALUES (:q, :c, 2)"),
+            text(
+                "INSERT INTO query_citations (query_id, tenant_id, chunk_id, rank) "
+                "SELECT :q, q.tenant_id, :c, 2 FROM queries q WHERE q.id = :q"
+            ),
             {"q": query_id, "c": second},
         )
 

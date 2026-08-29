@@ -6,6 +6,7 @@ from sqlalchemy import (
     CheckConstraint,
     Computed,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Text,
     UniqueConstraint,
@@ -52,6 +53,10 @@ class Document(Base):
         # because `created_at` is not unique: two documents inserted in one transaction
         # share a timestamp, and a cursor that cannot separate them skips or repeats one.
         Index("ix_documents_listing", "tenant_id", text("created_at DESC"), text("id DESC")),
+        # Redundant with the primary key on `id`, and that is the point: a foreign key may
+        # only target a unique constraint, and migration 0026 makes `fk_chunks_document_id`
+        # composite so the cascade into a partitioned `chunks` carries a tenant to prune on.
+        UniqueConstraint("id", "tenant_id", name="uq_documents_id_tenant_id"),
     )
 
     id: Mapped[uuid_pk]
@@ -126,13 +131,34 @@ class Chunk(Base):
         ),
         Index("ix_chunks_label_ids", "label_ids", postgresql_using="gin"),
         Index("ix_chunks_tenant_id", "tenant_id"),
+        # Composite since migration 0026, and unlike the keys *into* `chunks` this one was
+        # not forced: `documents` is not partitioned, so `document_id` alone is still a
+        # legal key. It carries the tenant so the cascade behind it does — `DELETE FROM
+        # chunks WHERE document_id = $1` has no partition key and opens all 256 partitions
+        # for writing, 1,552 locks for one deletion against 22.
+        ForeignKeyConstraint(
+            ["document_id", "tenant_id"],
+            ["documents.id", "documents.tenant_id"],
+            name="fk_chunks_document_id",
+            ondelete="CASCADE",
+        ),
+        # Migration 0026. Declared here as well as there so the drift test compares two
+        # descriptions of the same table rather than one description and a blank.
+        {"postgresql_partition_by": "HASH (tenant_id)"},
     )
 
     id: Mapped[uuid_pk]
-    document_id: Mapped[uuid_col] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"))
+    document_id: Mapped[uuid_col]
     # Denormalised on purpose: the tenant filter must apply inside the vector query,
     # and a JOIN there penalises the HNSW index.
-    tenant_id: Mapped[uuid_col] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
+    #
+    # Part of the primary key since migration 0026, and not because a chunk needed a wider
+    # identity: Postgres requires the partition key in every unique constraint on a
+    # partitioned table. The consequence is that `id` alone no longer identifies a chunk,
+    # which is why both foreign keys into this table are composite.
+    tenant_id: Mapped[uuid_col] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), primary_key=True
+    )
     # Copy of the document's labels, for the same reason as `tenant_id`.
     label_ids: Mapped[list[Any]] = mapped_column(ARRAY(PgUUID(as_uuid=True)), server_default="{}")
     #: `None` for a document that has no pages — a `.txt` or `.md`. Not `1`: a column

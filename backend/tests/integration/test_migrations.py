@@ -15,14 +15,21 @@ from sqlalchemy import Connection, create_engine, text
 from testcontainers.community.postgres import PostgresContainer
 
 from app.models import Base
-from conftest import BACKEND_DIR, IMAGE
+from conftest import BACKEND_DIR, IMAGE, MAX_LOCKS_PER_TRANSACTION
 
 
 @pytest.fixture(scope="module")
 def own_container() -> Iterator[PostgresContainer]:
     """A separate container: this module runs `downgrade base`, which would wipe the
-    data the RLS tests rely on if it shared an instance."""
-    with PostgresContainer(IMAGE, driver="psycopg") as container:
+    data the RLS tests rely on if it shared an instance.
+
+    Same lock table as the session container and as the deployment — see
+    `conftest.MAX_LOCKS_PER_TRANSACTION`. This is the module that runs 0026's `downgrade`,
+    which is the transaction that needs it most.
+    """
+    with PostgresContainer(IMAGE, driver="psycopg").with_command(
+        f"postgres -c max_locks_per_transaction={MAX_LOCKS_PER_TRANSACTION}"
+    ) as container:
         yield container
 
 
@@ -125,10 +132,51 @@ def test_schema_matches_models(own_container: PostgresContainer) -> None:
     assert differences == [], f"schema has drifted from the models: {differences}"
 
 
+#: Reflected tables the models do not describe and should not be asked to.
+#:
+#: `spatial_ref_sys` is created by PostGIS inside the ParadeDB image. The partition prefixes
+#: are migration 0026's 512 buckets: a partition is an ordinary table in `pg_class`, so
+#: autogenerate reflects every one of them and proposes dropping it. Declaring 512 tables in
+#: the models to silence that would be describing the same thing twice and would make the
+#: modulus a number that has to be edited in two places to change.
+#:
+#: Matched by prefix rather than by `relispartition`, because `compare_metadata` hands this
+#: hook a name and not a catalogue row. The prefixes are anchored to a partition-shaped
+#: suffix so an ordinary table called `chunks_summary` would still be compared.
+IGNORED_TABLES = ("spatial_ref_sys",)
+PARTITION_PREFIXES = ("chunks_p", "chunk_embeddings_p")
+
+
+def _is_partition(name: str | None) -> bool:
+    return name is not None and any(
+        name.startswith(prefix) and name[len(prefix) :].isdigit() for prefix in PARTITION_PREFIXES
+    )
+
+
 def _ignore_external(
     obj: object, name: str | None, type_: str, reflected: bool, compare_to: object
 ) -> bool:
-    return not (type_ == "table" and name == "spatial_ref_sys")
+    """Everything the models are not the authority on.
+
+    Two categories, and the second is not obvious. A foreign key that *references* a
+    partitioned table is expanded by Postgres into one constraint per referenced partition —
+    `chunk_embeddings_chunk_id_tenant_id_fkey018` beside `fk_chunk_embeddings_chunk_id` — and
+    reflection returns all 257 of them. They are one declared key, so the model declares one;
+    the 256 are Postgres's own bookkeeping and proposing to drop them is the tool
+    misunderstanding the schema rather than the schema having drifted.
+
+    The declared parent key is *not* filtered, so this stays able to notice a foreign key
+    that really has gone missing — which is exactly what it did notice: `LIKE` copies no
+    foreign keys, and three were absent from 0026's first draft.
+    """
+    if name in IGNORED_TABLES:
+        return False
+    if type_ == "table":
+        return not _is_partition(name)
+    if type_ == "foreign_key_constraint":
+        elements = getattr(obj, "elements", ())
+        return not any(_is_partition(element.target_fullname.split(".")[0]) for element in elements)
+    return True
 
 
 def _table_count(conn: Connection) -> int:

@@ -374,9 +374,16 @@ async def _record_citations(
     by_id = {hit.chunk_id: hit for hit in hits}
     await session.execute(
         text(
-            "INSERT INTO query_citations (query_id, chunk_id, rank, score_bm25, "
+            # `tenant_id` is read off the query being cited rather than taken as an
+            # argument. Migration 0026 needs the column so the foreign key into a
+            # partitioned `chunks` can be composite, and a citation's tenant is by
+            # definition its query's tenant — so there is no parameter here through which a
+            # caller can supply a wrong one. If the cited chunk belonged to another tenant
+            # the foreign key rejects the row, which is the guarantee the column buys.
+            "INSERT INTO query_citations (query_id, tenant_id, chunk_id, rank, score_bm25, "
             "score_vector, score_rrf, score_rerank) "
-            "VALUES (:query, :chunk, :rank, :bm25, :vector, :rrf, :rerank)"
+            "SELECT :query, q.tenant_id, :chunk, :rank, :bm25, :vector, :rrf, :rerank "
+            "FROM queries q WHERE q.id = :query"
         ),
         [
             {
