@@ -68,7 +68,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from uuid import UUID
 
@@ -104,7 +104,10 @@ GROUPINGS: dict[str, str] = {
     ),
     # `#` rather than `:p`: `text()` reads `:name` as a bind parameter anywhere in the
     # string, including inside a SQL string literal, and `':p'` became a missing parameter.
-    "page": "(c.document_id::text || '#' || c.page_num::text)",
+    # `coalesce`: `chunks.page_num` is nullable since migration 0021 (text documents
+    # have no pages), and a NULL key groups every such passage together and then fails
+    # the primary key. `#none` keeps them one group per document, as the key intends.
+    "page": "(c.document_id::text || '#' || coalesce(c.page_num::text, 'none'))",
     "document": "c.document_id::text",
 }
 
@@ -409,7 +412,7 @@ async def _run() -> int:
                 "questions_scored": len(answerable),
                 "bar": "recall@10 == 1.0000 and worst question == 1.0",
                 "free_at": free,
-                "arms": [a.__dict__ for a in arms],
+                "arms": [asdict(a) for a in arms],
                 "end_to_end": reached,
                 "end_to_end_bar": (
                     "headline Recall@8 and Recall@1 must not fall below the exact baseline"
