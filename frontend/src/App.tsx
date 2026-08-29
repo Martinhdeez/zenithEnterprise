@@ -903,7 +903,12 @@ export function App() {
                 two of these screens are prose. A table is the opposite: it wants every pixel
                 it can have, and cramming one into a reading measure is what produces the
                 columns nobody can read. */}
-            <div className={`mx-auto w-full p-6 ${measure(view)}`}>
+            {/* `min-h-full` and a column here offer the panel's full height to whichever
+                screen wants it; nothing is centred by this alone, because a screen only
+                receives that height by claiming it with `flex-1`. Search is the one that
+                does, for its landing state. The rest stay top-aligned, which is what a
+                list or a form should be. */}
+            <div className={`mx-auto flex min-h-full w-full flex-col p-6 ${measure(view)}`}>
             {/* Kept mounted, not unmounted, while its conversation is showing.
                 `Search` owns its results, its query and its resolved filenames in its own
                 state, so `{view === "search" && <Search/>}` destroyed all of it the moment
@@ -914,7 +919,7 @@ export function App() {
                 would move five pieces of state and their effects into the largest file in
                 the tree. */}
             {view === "search" && (
-              <div className={panel === "conversation" ? "hidden" : undefined}>
+              <div className={panel === "conversation" ? "hidden" : "flex flex-1 flex-col"}>
               <Search
                 token={token}
                 onCitation={(next, question) => {

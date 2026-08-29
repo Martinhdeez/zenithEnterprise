@@ -263,7 +263,17 @@ export function Search({
   const busy = state.phase === "loading";
 
   return (
-    <section className="space-y-4">
+    // Idle, the field and the landing copy are one group sitting a little above centre — not
+    // pinned to the top with the panel empty under them, and not dead centre either, which
+    // reads as a splash screen rather than as a page waiting for input. `pb-24` against
+    // `justify-center` is what buys the "a little above": the padding sits inside the centred
+    // box, so what it holds rises by half of it. Once results exist the group returns to the
+    // top, where reading starts.
+    <section
+      className={`flex flex-1 flex-col space-y-4 ${
+        state.phase === "idle" ? "justify-center pb-24" : ""
+      }`}
+    >
       {/* One rounded field with the control inside it, rather than an input sitting next to
           a button. The pill is the shape a search box has everywhere the people using this
           already search, and putting the submit inside the same border makes it read as one
@@ -328,7 +338,10 @@ export function Search({
           searches, how it differs from Chat, or what to type. It is the landing screen, so
           it is the one place worth spending a few lines explaining the mechanism. */}
       {state.phase === "idle" && (
-        <div className="space-y-5 py-10 text-center">
+        // Centred in what is left under the field, rather than sitting against it with the
+        // rest of the panel empty below. Only this state does it: once there are results,
+        // the list belongs at the top where reading starts.
+        <div className="space-y-5 pt-2 text-center">
           <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-input bg-secondary">
             <SearchIcon className="size-5 text-primary" />
           </div>
