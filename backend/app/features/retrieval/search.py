@@ -19,6 +19,7 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.embeddings.space import NoActiveEmbeddingSpace, Space
 from app.features.retrieval.lexical import CONFIGURATION, engine, to_tsquery
 
 CANDIDATES = 50
@@ -128,11 +129,48 @@ async def lexical(
     return [(row.id, float(row.score)) for row in rows]
 
 
+async def _projected(session: AsyncSession, embedding: list[float], space: Space) -> str:
+    """The query vector, in the space's own basis, as a literal the search can bind.
+
+    **The same rows project both sides.** `zenith_project` reads `embedding_space_axes` for
+    the space it is handed, which is the space that will also filter the rows — so a query
+    vector and the passages it is compared against go through one basis because there is only
+    one, and it is in the database. Nothing in this process holds a matrix that could be
+    stale, and migration 0027 explains why that is not merely tidier: numpy is deliberately
+    absent from the shipped image, so a Python-side projection was never available anyway.
+
+    **Its own round trip, and not folded into the `ORDER BY`.** `zenith_project` reads a
+    table, so it is `STABLE` and not `IMMUTABLE`; a `STABLE` call on the right-hand side of
+    `<=>` is not a constant, and pgvector's index scan wants one. Inlining it returns exactly
+    the right rows from a sequential scan — the silent failure migration 0025 shipped and
+    `test_vector_index.py` exists to catch. Measured at 0.79-0.87 ms warm in
+    `eval/svd-basis.sql`, against a live search median of 941 ms.
+
+    The result is cast to `halfvec(space.dimension)` by the caller, from the same `Space` that
+    chose the basis. That cast is the last gate and the one that survives a new call site: a
+    vector that did not come through this function is the wrong width, and pgvector raises
+    rather than ranks.
+    """
+    projected = await session.scalar(
+        text("SELECT zenith_project(CAST(:embedding AS vector), :model, :version)::text"),
+        {"embedding": str(embedding), "model": space.model, "version": space.version},
+    )
+    if projected is None:
+        # The space claims a projection and has no axes. `ck_embedding_spaces_projection_
+        # complete` makes this hard to reach and a half-finished `fit-basis` is how it would
+        # be reached anyway. Refused rather than fallen back to the unprojected vector,
+        # because that fallback is precisely the confident nonsense this module is about: it
+        # would be the right width by accident only when the projection is the identity.
+        raise NoActiveEmbeddingSpace(
+            f"space {space.model}/{space.version} declares a projection but has no basis"
+        )
+    return projected
+
+
 async def dense(
     session: AsyncSession,
     embedding: list[float],
-    model: str,
-    version: str,
+    space: Space,
     limit: int = CANDIDATES,
     ef_search: int | None = None,
     documents: list[UUID] | None = None,
@@ -143,7 +181,15 @@ async def dense(
     during a reindex (RNF-08), and vectors from two models are not comparable — a query that
     forgot this filter would rank across incompatible spaces and return confident nonsense.
 
-    **The query vector is cast to `halfvec(1024)`, and that cast is load-bearing.** Since
+    **One `Space`, not a model and a version and a width.** That is the change migration 0027
+    required and it is the whole mechanism: the same value projects the query vector, filters
+    the rows and decides the width both are cast to, so there is no second argument to pair
+    incorrectly. `embeddings.space` has the argument in full. Since 0027 a stored vector is as
+    wide as its space says, so the mismatch that used to rank is now
+    `ERROR: different halfvec dimensions 1024 and 512` at the first row touched —
+    demonstrated in `eval/svd-basis.sql`, not asserted.
+
+    **The query vector is cast to `halfvec(k)`, and that cast is load-bearing.** Since
     migration 0025 the HNSW index is on `embedding_half`, the fp16 representation — three
     times smaller per vector at index recall 1.0000 against exact, measured in
     `eval/quantisation.json`. An operator class covers one type: cast the query to `vector`
@@ -154,6 +200,11 @@ async def dense(
     prefer an index either way. The only check that means anything is `EXPLAIN` against a real
     installation, which is where this was verified:
     `Index Scan using ix_chunk_embeddings_hnsw_half on chunk_embeddings e`.
+
+    `k` is `space.dimension` since 0027 rather than a literal 1024, and the index it has to
+    match is partial — one per space, predicated on the same space filter this query already
+    emits. So the cast, the index and the `WHERE` clause all come from one value, and a
+    `Space` is the only way to supply it.
     """
     if ef_search:
         # A per-session knob, and a speed/recall trade, which is why the value comes from
@@ -205,8 +256,19 @@ async def dense(
     await session.execute(text(f"SET LOCAL hnsw.iterative_scan = {ITERATIVE_SCAN}"))
 
     # One embedding space only. `embedding_spaces` exists so several can coexist during a
-    # reindex, and vectors from two models rank against each other as confident nonsense.
-    space = "WHERE e.embedding_model = :model AND e.embedding_version = :version"
+    # reindex, and vectors from two models — or from two bases over one model — rank against
+    # each other as confident nonsense.
+    #
+    # Since 0027 this predicate does a second job: it is the predicate of the space's partial
+    # HNSW index, so it is also what selects the graph to walk. One clause, both jobs, from
+    # one value.
+    clause = "WHERE e.embedding_model = :model AND e.embedding_version = :version"
+
+    # Projected through the space's own basis, or used as the model returned it. The two
+    # branches produce vectors of different widths *on purpose*: that is what makes a query
+    # aimed at the wrong space an error rather than an answer.
+    vector = await _projected(session, embedding, space) if space.projects else str(embedding)
+    width = space.dimension
 
     rows = await session.execute(
         text(
@@ -217,7 +279,13 @@ async def dense(
             # column beside it. Two expressions would mean `score_vector` disagreeing with
             # the order the row came back in — and reading `embedding` per row would detoast
             # 4 KB the query has no other use for.
-            "SELECT c.id, 1 - (e.embedding_half <=> CAST(:embedding AS halfvec(1024))) AS score "
+            # Both sides carry the width, and both come from `space.dimension`. The cast on
+            # the *column* is not decoration either: since 0027 the index is an expression
+            # index over `embedding_half::halfvec(k)`, so an uncast column no longer matches
+            # it and the planner would fall back to a sequential scan returning the right
+            # rows. That is why `test_vector_index.py` reads the plan.
+            f"SELECT c.id, 1 - (e.embedding_half::halfvec({width}) "
+            f"<=> CAST(:embedding AS halfvec({width}))) AS score "
             "FROM chunk_embeddings e "
             # Not decoration: `chunk_embeddings` is filtered by tenant only, so this join is
             # where label isolation is enforced for the dense half.
@@ -229,13 +297,14 @@ async def dense(
             # equality between two columns — and both sides are still pruned by their own
             # policies, which is what `eval/partition-swap.json` records.
             "JOIN chunks c ON c.id = e.chunk_id AND c.tenant_id = e.tenant_id "
-            f"{scoped(space, documents)} "
-            "ORDER BY e.embedding_half <=> CAST(:embedding AS halfvec(1024)) LIMIT :limit"
+            f"{scoped(clause, documents)} "
+            f"ORDER BY e.embedding_half::halfvec({width}) "
+            f"<=> CAST(:embedding AS halfvec({width})) LIMIT :limit"
         ),
         {
-            "model": model,
-            "version": version,
-            "embedding": str(embedding),
+            "model": space.model,
+            "version": space.version,
+            "embedding": vector,
             "limit": limit,
             **scope_params(documents),
         },

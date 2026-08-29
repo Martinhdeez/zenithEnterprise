@@ -38,6 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession, create_async_e
 
 from app.core.config import settings
 from app.features.embeddings.client import DIMENSION, MODEL, VERSION
+from app.features.embeddings.space import SHIPPED
 from app.features.retrieval.search import CANDIDATES, dense
 from eval.harness import installation, score
 
@@ -133,8 +134,7 @@ async def _dense_statements() -> list[str]:
     await dense(
         cast(AsyncSession, recorder),
         embedding=[0.0] * DIMENSION,
-        model=MODEL,
-        version=VERSION,
+        space=SHIPPED,
         ef_search=100,
     )
     return recorder.statements

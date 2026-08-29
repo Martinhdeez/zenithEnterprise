@@ -29,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import owner_session
 from app.features.embeddings.client import DIMENSION, MODEL, VERSION
+from app.features.embeddings.space import SHIPPED
 from app.features.retrieval.search import CANDIDATES, dense
 from eval.ef_search import NEIGHBOURS
 from eval.tenant_scale import DENSE
@@ -69,8 +70,7 @@ async def _dense_sql() -> str:
     await dense(
         cast(AsyncSession, recorder),
         embedding=[0.0] * DIMENSION,
-        model=MODEL,
-        version=VERSION,
+        space=SHIPPED,
         ef_search=100,
     )
     return recorder.statements[-1]
