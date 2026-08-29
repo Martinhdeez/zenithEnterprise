@@ -88,7 +88,7 @@ async def test_every_check_runs_even_when_the_database_is_unreachable() -> None:
 
     checks = await run_diagnostics()
 
-    assert len(checks) == 15
+    assert len(checks) == 16
     assert any(check.status == "fail" for check in checks)
     # And the failure still says nothing it should not.
     assert "nothing" not in " ".join(check.detail for check in checks)
@@ -443,3 +443,221 @@ async def test_a_declared_function_missing_from_the_installation_is_reported(
     assert "declared but absent" in surface.detail
     # Truncated for the redaction reason given in the test above.
     assert "_never_created()" in surface.detail
+
+
+# --- the reranker alarm ------------------------------------------------------------------
+#
+# 28 August: `tei-rerank` was killed for memory and nothing said so. Search kept answering
+# from the fused order, about fifteen points of recall worse, marked `degraded` in a field
+# nobody was reading, and it was found by accident hours later. The compose file now caps the
+# reranker's CPUs and restarts it; these are the tests for the half that was still missing,
+# which is anybody being told.
+
+
+def _reranker(
+    monkeypatch: pytest.MonkeyPatch, *, health: int = 200, metrics: str | None = None
+) -> None:
+    """Stand in for the reranker container: a `/health` code, and `/metrics` or nothing."""
+    import httpx
+
+    class Fake:
+        async def __aenter__(self) -> "Fake":
+            return self
+
+        async def __aexit__(self, *_exc: object) -> None:
+            return None
+
+        async def get(self, url: str) -> httpx.Response:
+            if url.endswith("/metrics"):
+                # `None` is a TEI with no `/metrics` route; `""` is one that has it and has
+                # served nothing. The check has to tell those apart, so the fake does too.
+                if metrics is None:
+                    return httpx.Response(404)
+                return httpx.Response(200, text=metrics)
+            if url.endswith("/info"):
+                return httpx.Response(404)
+            return httpx.Response(health)
+
+    def client(**_kwargs: object) -> Fake:
+        return Fake()
+
+    monkeypatch.setattr(httpx, "AsyncClient", client)
+
+
+@pytest.mark.asyncio
+async def test_an_unreachable_reranker_fails_rather_than_warns(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The severity is the point of the whole check.
+
+    A warning is what the product already did — it degraded, said so in a response field, and
+    carried on. Nobody read it. The runbook and `demo-check.sh` both call a missing reranker a
+    failure because an installation that answers without it shows a recall number nobody can
+    reproduce, and this has to say the same thing or it is a third opinion.
+    """
+    monkeypatch.setattr(settings, "tei_rerank_url", "http://127.0.0.1:1")
+
+    checks = {check.name: check for check in await run_diagnostics()}
+
+    reranker = checks["reranker health"]
+    assert reranker.status == "fail", reranker.detail
+    # Named so an operator knows which container to start, and what they are losing until
+    # they do. Both halves have to survive `_scrub`; the test below is what holds them to it.
+    assert "tei-rerank" in reranker.detail
+    assert "fused order" in reranker.detail
+
+
+@pytest.mark.asyncio
+async def test_a_reranker_that_answers_health_with_an_error_fails(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """TEI answers 503 while it is loading a model, which is exactly the window a restart
+    loop spends most of its time in. Up is not the same as serving."""
+    _reranker(monkeypatch, health=503)
+
+    checks = {check.name: check for check in await run_diagnostics()}
+
+    assert checks["reranker health"].status == "fail"
+    assert "503" in checks["reranker health"].detail
+
+
+@pytest.mark.asyncio
+async def test_a_reranker_that_has_served_nothing_since_it_started_is_reported(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The restart signature, and the only one reachable from inside a container.
+
+    Docker's `.RestartCount` is on the host. What is reachable here is TEI's own counters,
+    which live in the serving process and start again at zero when it does — so a reranker
+    that is up and has answered no inference request since it started is a process younger
+    than the traffic it exists to serve. A check that only asked "is it up" would call the
+    OOM loop healthy between kills, which is the failure this exists for.
+
+    A warning rather than a failure, because the proxy cannot tell that apart from a fresh
+    installation nobody has searched yet. `demo-check.sh` reads the exact count instead.
+    """
+    _reranker(monkeypatch, metrics="# TYPE te_request_count counter\nte_request_count 0\n")
+
+    checks = {check.name: check for check in await run_diagnostics()}
+
+    reranker = checks["reranker health"]
+    assert reranker.status == "warn", reranker.detail
+    assert "0 requests since it last started" in reranker.detail
+    # Honest about the limit, in the report itself and not only in a docstring.
+    assert "docker inspect" in reranker.detail
+
+
+@pytest.mark.asyncio
+async def test_an_empty_metrics_body_is_zero_and_not_silence(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """What a real reranker three seconds out of a kill actually looks like.
+
+    This was written expecting `te_request_count 0`, and the container disagreed: a freshly
+    started TEI answers `/metrics` with `200` and an empty body, because a Prometheus counter
+    that has never been incremented is not rendered at all. The first version read that as
+    "no metrics, cannot tell" and reported `ok` — a check that called the OOM window healthy,
+    on the one installation where it had just been proved otherwise.
+
+    So the status code decides whether the question could be asked, and the body decides the
+    answer. `404` is a TEI without the route; `200` with nothing in it is zero.
+    """
+    _reranker(monkeypatch, metrics="")
+
+    checks = {check.name: check for check in await run_diagnostics()}
+
+    reranker = checks["reranker health"]
+    assert reranker.status == "warn", reranker.detail
+    assert "0 requests since it last started" in reranker.detail
+
+
+@pytest.mark.asyncio
+async def test_a_working_reranker_reports_the_work_it_has_done(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Summed across TEI's label sets. Which `method` series exist is a detail of how the
+    client batched, not of how much the service has served."""
+    _reranker(
+        monkeypatch,
+        metrics=(
+            "# TYPE te_request_count counter\n"
+            'te_request_count{method="batch"} 1600\n'
+            'te_request_count{method="single"} 33\n'
+        ),
+    )
+
+    checks = {check.name: check for check in await run_diagnostics()}
+
+    reranker = checks["reranker health"]
+    assert reranker.status == "ok", reranker.detail
+    assert "1633 request(s)" in reranker.detail
+
+
+@pytest.mark.asyncio
+async def test_a_reranker_without_metrics_is_still_healthy(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An older TEI is a working reranker. Failing over a missing counter would cry wolf, and
+    a check that cries wolf is a check somebody switches off — so it says what it cannot see
+    instead of guessing in either direction."""
+    _reranker(monkeypatch, metrics=None)
+
+    checks = {check.name: check for check in await run_diagnostics()}
+
+    assert checks["reranker health"].status == "ok"
+    assert "invisible from here" in checks["reranker health"].detail
+
+
+@pytest.mark.asyncio
+async def test_the_reranker_alarm_survives_the_default_database_password(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The trap `_job_queue` and the bypass surface both walked into first.
+
+    `_scrub` removes every known secret by exact match, and the default database password in
+    `.env.example` is the word `zenith` — the prefix of every identifier this schema owns. So
+    on a default-password installation `zenith-tei-rerank-1` prints as `***-tei-rerank-1` and
+    `Run \\`zenith diagnose\\`` prints as `Run \\`*** diagnose\\``. The sentence an operator acts
+    on is the one that must not be the casualty, so this check names the *service* and never
+    the container.
+    """
+    monkeypatch.setattr(
+        settings, "database_owner_url", "postgresql+psycopg://zenith:zenith@db:5432/zenith"
+    )
+    monkeypatch.setattr(settings, "tei_rerank_url", "http://127.0.0.1:1")
+
+    checks = {check.name: check for check in await run_diagnostics()}
+
+    reranker = checks["reranker health"]
+    assert "***" not in reranker.detail, reranker.detail
+    assert "tei-rerank" in reranker.detail
+
+
+@pytest.mark.asyncio
+async def test_an_open_circuit_is_reported_and_a_closed_one_is_not(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """How long it has been degraded comes from `breaker.py`, which already tracks it.
+
+    Only the open state is printed. A closed breaker in this process means "nothing here has
+    called the reranker" — `zenith diagnose` is not the uvicorn process, and the breaker is
+    per-process and in memory by design — so printing "circuit closed" would be reporting
+    health that nothing observed. `demo-check.sh` records what that costs: a check that
+    reports health when it cannot tell is worse than one that cries wolf, because nobody
+    switches it off and nobody looks again.
+    """
+    from app.features.retrieval import service as retrieval_service
+    from app.features.retrieval.breaker import Breaker
+
+    _reranker(monkeypatch, metrics='te_request_count{method="batch"} 12\n')
+
+    healthy = {check.name: check for check in await run_diagnostics()}
+    assert "ircuit" not in healthy["reranker health"].detail
+
+    tripped = Breaker(_now=lambda: 0.0)
+    for _ in range(tripped.failures_to_open):
+        tripped.failed()
+    monkeypatch.setattr(retrieval_service, "RERANKER_BREAKER", tripped)
+
+    degraded = {check.name: check for check in await run_diagnostics()}
+    assert "Circuit open" in degraded["reranker health"].detail

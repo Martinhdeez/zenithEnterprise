@@ -58,6 +58,54 @@ for pair in "embed:8081:BAAI/bge-m3" "rerank:8082:"; do
   fi
 done
 
+# --- has the reranker been dying and coming back? -----------------------------------------
+#
+# The one question this script can answer and `zenith diagnose` cannot. The diagnostic runs
+# inside the API container, where Docker's restart count is out of reach, so it has to infer a
+# restart from TEI's own counters — which reset with the process and cannot say how many times
+# or when. This script runs on the host with the Docker CLI, so it can simply ask.
+#
+# It is the question nobody was asking on 28 August. `tei-rerank` was killed for memory
+# (exit 137), came back, and search kept answering from the fused order about fifteen points
+# of recall worse in between. Every check that only asked "is the container listed" said yes:
+# a container that is restarting in a loop has an id like any other, and the loop above would
+# have called it up.
+#
+# A failure, not a warning, when it is recent. A service that is up now but died twice in the
+# last ten minutes is not fit to demonstrate — the recall the audience sees depends on which
+# side of a kill their question lands on.
+# `-a`, unlike the loop above: a container that is stopped or looping still has an id and a
+# restart count, and those are exactly the two states worth asking about here.
+RERANK_ID="$(${COMPOSE} ps -aq tei-rerank 2>/dev/null | head -1)"
+if [ -n "${RERANK_ID}" ]; then
+  read -r STATE RESTARTS STARTED <<EOF
+$(docker inspect --format '{{.State.Status}} {{.RestartCount}} {{.State.StartedAt}}' \
+    "${RERANK_ID}" 2>/dev/null || echo "unknown 0 -")
+EOF
+  # Seconds since the *current* process started. Docker's timestamp carries nanoseconds,
+  # which `fromisoformat` will not parse, so the fraction is dropped rather than rounded —
+  # this is a "how long ago, roughly" and a second either way changes nothing.
+  AGE="$(python3 -c '
+import datetime, sys
+stamp = sys.argv[1].split(".")[0].rstrip("Z")
+started = datetime.datetime.fromisoformat(stamp).replace(tzinfo=datetime.timezone.utc)
+print(int((datetime.datetime.now(datetime.timezone.utc) - started).total_seconds()))
+' "${STARTED}" 2>/dev/null || echo -1)"
+  if [ "${STATE}" = "restarting" ]; then
+    # The state the loop above cannot see. A container caught between kills is listed like
+    # any other, so that loop calls it up — which is precisely how 28 August went unnoticed.
+    bad "tei-rerank is restarting — it is in a loop right now, and the check above still calls it up"
+  elif [ "${STATE}" != "running" ]; then
+    : # Already reported as not running, by name, in the loop above.
+  elif [ "${RESTARTS}" -eq 0 ] 2>/dev/null; then
+    ok "tei-rerank has not restarted since it was created"
+  elif [ "${AGE}" -ge 0 ] && [ "${AGE}" -lt 1800 ]; then
+    bad "tei-rerank has restarted ${RESTARTS} time(s), the last $(( AGE / 60 ))m ago — 'docker logs' it and look for exit 137"
+  else
+    warn "tei-rerank has restarted ${RESTARTS} time(s), but has been up for $(( AGE / 60 ))m"
+  fi
+fi
+
 # --- the proxy ---------------------------------------------------------------------------
 #
 # A route missing from nginx's list does not 404 — it falls through to the SPA and returns
@@ -139,35 +187,59 @@ ${STATUSES}
 EOF
 fi
 
-# --- documents that will fail when clicked ------------------------------------------------
+# --- what `zenith diagnose` found -----------------------------------------------------------
 #
-# A row whose PDF is gone still lists, still searches, and still cites — and then the viewer
-# says "That document is no longer available" in front of the audience. The corpus reports
-# itself complete everywhere else, which is what makes this worth its own line here rather
-# than only in `zenith diagnose`.
+# Asked once and read twice. The diagnostic opens the database, walks the storage root and
+# calls both model services; running it once per question would pay for all of that again to
+# learn nothing new.
+#
 # The reading of that report defaults to *not knowing*, never to "fine". The first version
 # here parsed the payload as a bare list — it is `{"checks": [...]}` — and its `except` fell
 # through to silence, which this script then printed as "every document row has its file" on
 # an installation with twenty-six broken ones. A check that reports health when it cannot tell
 # is worse than one that cries wolf: nobody switches it off, and nobody looks again.
-ORPHANS="$(${COMPOSE} exec -T api zenith diagnose --json 2>/dev/null \
-  | python3 -c '
+REPORT="$(${COMPOSE} exec -T api zenith diagnose --json 2>/dev/null || true)"
+
+# One named check, as `STATUS detail`, or `UNREADABLE why`. Never empty and never silent.
+report_check() {
+  printf '%s' "${REPORT}" | python3 -c '
 import sys, json
+wanted = sys.argv[1]
 try:
     checks = {c["name"]: c for c in json.load(sys.stdin)["checks"]}
 except Exception as error:
     print(f"UNREADABLE could not read the diagnostic report: {error}")
     sys.exit(0)
-files = checks.get("document files")
-if files is None:
-    print("UNREADABLE the diagnostic report has no document-file check")
-elif files["status"] != "ok":
-    print(files["detail"])
-' 2>/dev/null || true)"
-case "${ORPHANS}" in
-  "")             ok   "every document row has its file" ;;
-  UNREADABLE\ *)  warn "${ORPHANS#UNREADABLE }" ;;
-  *)              warn "${ORPHANS}" ;;
+found = checks.get(wanted)
+if found is None:
+    print(f"UNREADABLE the diagnostic report has no {wanted} check")
+else:
+    print(found["status"].upper(), found["detail"])
+' "$1" 2>/dev/null || printf 'UNREADABLE could not read the diagnostic report\n'
+}
+
+# Documents that will fail when clicked. A row whose PDF is gone still lists, still searches
+# and still cites — and then the viewer says "That document is no longer available" in front
+# of the audience, on a corpus that reports itself complete everywhere else.
+FILES="$(report_check "document files")"
+case "${FILES}" in
+  UNREADABLE\ *)  warn "${FILES#UNREADABLE }" ;;
+  OK\ *)          ok   "every document row has its file" ;;
+  *)              warn "${FILES#* }" ;;
+esac
+
+# The reranker, from inside the container. The block near the top of this script already read
+# Docker's restart count, which is the exact answer; this is the other half — is the component
+# reachable and serving *right now*, and has the circuit breaker been skipping it. A missing
+# reranker is a failure here for the same reason it is one there: the installation still
+# answers, and it answers with a recall number nobody in the room can reproduce.
+RERANKER="$(report_check "reranker health")"
+case "${RERANKER}" in
+  UNREADABLE\ *)  warn "${RERANKER#UNREADABLE }" ;;
+  FAIL\ *)        bad  "${RERANKER#* }" ;;
+  WARN\ *)        warn "${RERANKER#* }" ;;
+  OK\ *)          ok   "${RERANKER#* }" ;;
+  *)              warn "the diagnostic report said nothing usable about the reranker" ;;
 esac
 
 # --- what the system panel will show ------------------------------------------------------
