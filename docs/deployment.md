@@ -105,12 +105,33 @@ a task registered in `ingestion/tasks.py` exists only in the image that was rebu
 worker accepts the job and fails it with `Task was not found`, which reads like a queue
 problem and is a build problem. This has been repeated more than once.
 
-If the change added a migration, apply it and *check*:
+If the change added a migration, apply it and *check* — and **rebuild before you migrate.**
+Migration 0026 makes `query_citations.tenant_id` `NOT NULL`, so a pre-0026 image against a
+post-0026 database starts cleanly and then fails on the first citation write. Settings, then
+code, then schema, then statistics:
 
 ```bash
+$COMPOSE up -d --force-recreate db   # only if the compose file changed; see below
+$COMPOSE up -d --build api worker frontend
 $COMPOSE exec api alembic upgrade head
-$COMPOSE exec api alembic current   # must equal head, not merely "no errors"
+$COMPOSE exec api alembic current    # must equal head, not merely "no errors"
+$COMPOSE exec db psql -U zenith -d zenith -c "ANALYZE chunks; ANALYZE chunk_embeddings;"
 ```
+
+**The `ANALYZE` is part of the migration, not hygiene after it.** 0026 partitions `chunks` and
+`chunk_embeddings` and does not analyse the partitions it creates, so until autovacuum has
+reached all of them the planner's estimates cover a fraction of the corpus. `zenith diagnose`
+warns until it is run: a modulus sized on part of the corpus is worse than none.
+
+**`max_locks_per_transaction` needs the `db` container RECREATED, not restarted.** It is a
+start-up flag on the container's `command:` in the base compose file — 2,560, sized against
+the partition count — so `$COMPOSE restart db` restarts the container that already exists with
+the value it already had, silently. Left at Postgres's default of 64 the cluster has 6,400
+lock slots against 1,161 for a single dense search, and beyond a handful of concurrent
+searches `out of shared memory` is raised *during planning*: an HTTP 500 on an ordinary
+search, not a slow answer. `zenith diagnose` reports the value actually in force, which is the
+only way to tell a correct value in the repository from a correct value in the running
+database.
 
 A green test suite does not mean the deployed database is migrated: pytest builds a
 throwaway Postgres per run and migrates it from zero. Migration 0007 passed the suite and
