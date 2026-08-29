@@ -14,8 +14,8 @@ the index. One of them changes the problem.
 |---|---|---|---|
 | fp16 | 3.00× | **shipped**, migration 0025 | `live-recall.json` unchanged across the migration; indistinguishable from fp32 through the same index |
 | `svd_512` | 2.00× | measured, not built | −2.0 points index recall@10, worst question unchanged, **no question worse by >0.1** |
-| coarse-to-fine | 15.6× | measured, **does not scale alone** | page-identical at 13,549; `open ~ N^1.112`, IO stuck at 3–6% of the corpus |
-| IVF instead of HNSW | 18,000× resident | measured, **no** as a global replacement | reaches HNSW's recall reading 10% of the corpus — 82 GiB and ~44 s at 322M |
+| coarse-to-fine | 15.6× | measured, **does not scale alone** | holds the page at 13,549 on the end-to-end bar, fails the exact one; `open ~ N^1.112`, IO stuck at 3–6% of the corpus |
+| IVF instead of HNSW | 18,000× resident | measured, **no** as a global replacement | reaches HNSW's recall reading 10% of the corpus — 81.9 GiB and ~44.0 s at 322M |
 
 And one finding that reframes all four. With the planner defect fixed, **fp32 — uncompressed
 — loses 4 points of recall@10 to HNSW at `ef_search = 100`, and both fp32 and fp16 degrade
@@ -91,13 +91,45 @@ The structural change. Runtime pruning is already verified — `partition-prunin
 `STABLE` and therefore cannot prune at plan time — in all three shapes: the direct query, a
 `PREPARE`/`EXECUTE` pair, and the query with the vector `ORDER BY` on top.
 
-Open questions this stage has to answer rather than assume:
+Pruning has since been re-verified twice more, and it holds everywhere it was asked:
+`partition-rls-policy-pruning.sql` reaches `Subplans Removed: 7` of 8 as the `zenith_app`
+role with **no `WHERE` clause at all**, so the predicate doing the pruning is the label
+policy itself; and `partition-shape.json` reaches `Subplans Removed: 4999` of 5000, pruning
+`chunks` and `chunk_embeddings` independently.
 
-- **Partition count.** Postgres degrades on planning time and lock-table pressure in the
-  thousands. A partition per tenant is the clean model and it does not survive an
-  installation with ten thousand customers. `HASH` sub-partitioning, or list-per-large-tenant
-  with a shared catch-all, are the two shapes to measure.
-- **Tenant creation becomes DDL.** It happens in `owner_session` today, which is already the
+### What the shape measurement answered, and it changed the design
+
+`backend/eval/partition-shape.json`. Three findings, in descending order of how much they
+cost the original plan:
+
+- **The ceiling is locks, not planning time.** The failure is `OutOfMemory` raised *during
+  planning* — an HTTP 500, not a slow answer, which is a worse failure than the one this
+  stage was watching for. A query takes `relations_per_partition × partitions` locks for the
+  whole transaction. At production index counts (9 relations per partition-pair) against the
+  default `max_locks_per_transaction = 64`: **711 partitions for a single query, 177 at 4
+  concurrent, 28 at 25 concurrent.** The setting has to be raised and, more importantly,
+  *checked on the running installation* — it is a startup parameter, so a correct value in
+  the repository and a wrong value in the database look identical from the code.
+- **The uniform "1.6M passages per tenant" assumption in the sizing above is refuted by this
+  installation's own data.** The larger of its two tenants holds **0.6106** of the corpus,
+  not the 0.5 an even split would give. Extrapolating that skew as Zipf 1.0 over 200 tenants
+  puts the largest tenant at 54.8M passages and 139.3 GiB — **34× what the sizing section
+  assumes.** The sizing therefore has to carry `s_max` as a parameter rather than a mean, and
+  an installation has to be asked for its per-tenant counts rather than its total.
+- **Partition count.** Answered: **`HASH` modulus 256, not `LIST` per tenant.** Both shapes
+  cost the same per partition, so `LIST`'s only distinguishing property is that it *forces*
+  partitions = tenants, walking into the lock ceiling above with no knob left to turn. Hash
+  is near-free precisely *because* the distribution is skewed — a 3% widening of the search
+  for a 39× reduction in partition count. It also decouples the schema from the customer
+  list, so onboarding a tenant stops being DDL.
+- **`plan_cache_mode = auto`** drops planning to 0.03 ms after six executions, but the same
+  switch was measured as a **37× regression** on small partitions. The prepared-statement
+  path is therefore something to verify per operating point, not to turn on.
+
+Still open, and not answered by that run:
+
+- **Tenant creation becomes DDL** under `LIST`. Hash removes this, which is part of its case.
+  It happens in `owner_session` today, which is already the
   bypass path used for tenancy provisioning, so the surface does not widen — but a `CREATE
   TABLE` inside a request is a different failure mode from an `INSERT` and needs its own
   handling.
@@ -109,6 +141,19 @@ Open questions this stage has to answer rather than assume:
   sample alone is ~4.5 GB at 32,768 lists.
 - **What RLS costs a probe** inside a partition. `index-shape.json` names this as the first
   thing anyone pursuing IVF must measure, and it is unmeasured for HNSW too.
+- **The queries that cannot prune get slower by the partition count.** Anything running on
+  `platform_session()` or `owner_session()` has no `zenith_current_tenant()` to prune on, so
+  it goes from one scan to 256 — and takes the full lock budget doing it. `/system` routes,
+  cross-tenant counts, purge and the ingestion requeue are the surface. Nobody has costed it,
+  and it is invisible in a demo by construction.
+
+**A schema consequence the original plan missed.** Partitioning by `tenant_id` forces the
+partition key into *every* unique constraint on the table. `pk_chunks` becomes
+`(id, tenant_id)`, `pk_chunk_embeddings` gains `tenant_id`, and every foreign key pointing at
+`chunks.id` has to become composite. `query_citations` is the awkward one: it references
+`chunks.id` and has no `tenant_id` column at all, because its RLS is derived through
+`queries`. That is a decision this stage has to take explicitly rather than dissolve by
+dropping the constraint.
 
 ## Stage 2 — `svd_512`
 
@@ -135,9 +180,20 @@ points worse than SVD at 256 and is not the simpler thing to ship.
 
 ## Stage 3 — coarse-to-fine, deferred with a reason
 
-15.6× resident, and it reproduces the page exactly at this corpus: headline Recall@8 0.9000
-and Recall@1 0.6667, unchanged, on `svd_512` as well as at 1024. Combined with `svd_512` the
-measured factor is **31.27×**, or 820.2 GiB → 26.2 GiB at a million documents.
+15.6× resident, and it holds the page at this corpus: headline Recall@8 0.9000 and Recall@1
+0.6667, unchanged, on `svd_512` as well as at 1024. Combined with `svd_512` the measured
+factor is **31.27×**, or 820.2 GiB → 26.2 GiB at a million documents.
+
+**That is the weaker of the two bars `coarse.py` carries, and the stronger one failed.** The
+bar written into the file before the run was `recall@10 == 1.0000 and worst question == 1.0`
+against exact retrieval, and `coarse.json`'s own `free_at` is `null` for every one of the
+eight groupings — not one of them cleared it. What cleared is `end_to_end_bar`: "headline
+Recall@8 and Recall@1 must not fall below the exact baseline". The distinction matters
+because it is the whole reason this lever is defensible at all: the dense stage loses
+accuracy and the lexical half and the reranker absorb the loss, which is the same mechanism
+`quantisation.json` shows for binary at dense recall 0.8133. An earlier draft of this
+document said "reproduces the page exactly", which reads as the failed bar rather than the
+one that passed.
 
 It is deferred because **the operating point does not extrapolate**. `open ~ N^1.112`: a
 fixed fraction wearing a count's clothing, holding a stubborn 3–6% of passages read at every
@@ -156,9 +212,13 @@ the argument for it assumed.
 
 ## Not in this plan, and why
 
-**IVF as a global replacement.** Its resident footprint is 18,000× smaller — 45.6 MB against
-819 GiB at 322M — and it beats HNSW on the worst question, 0.70–0.80 against 0.50. But
-matching HNSW's recall reads 10% of the corpus: 82 GiB and roughly 44 s per query. The memory
+**IVF as a global replacement.** Its resident footprint is 18,000× smaller — 46.7 MiB
+(49,004,544 bytes, fp16 at 17,944 lists) against 818.7 GiB at 322M — and it beats HNSW on the
+worst question, 0.70–0.80 against 0.50. But matching HNSW's recall reads 10% of the corpus:
+81.9 GiB and roughly 44.0 s per query. An earlier draft printed the resident set as "45.6 MB",
+which is `index-shape.json`'s `resident_centroid_gib` of 0.0456 with its unit dropped. The
+misreading was in the safe direction and the ratio was right either way, which is exactly why
+it survived a reading. The memory
 saved comes back as page cache with interest. It becomes interesting again **inside a
 partition**, where 10% is 10% of one tenant, and that belongs to a stage 1 follow-up rather
 than to a replacement decision.
