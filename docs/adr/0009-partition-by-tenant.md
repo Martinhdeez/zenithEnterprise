@@ -1,11 +1,7 @@
-# ADR 0007 — `chunks` and `chunk_embeddings` are partitioned by tenant
+# ADR 0009 — `chunks` and `chunk_embeddings` are partitioned by tenant
 
-**Status:** Accepted; stage 0 in progress, stages 1–3 planned in
+**Status:** Accepted; stage 0 landed, stages 1–3 planned in
 `.artifacts/specs/2026-08-29-ceiling-3-architecture.md`
-
-*Numbering: `0007-backend-driven-aggregation.md` already holds this number. One of the two has
-to be renumbered and `README.md`'s table corrected; this file does not do it, because the
-rename is not this branch's to make.*
 
 ## Context
 
@@ -142,16 +138,30 @@ it fails in the direction this repository refuses everywhere else: the ordinary 
 working, so nothing surfaces. There is no symptom, only a leak.
 
 The mitigation is stage 0 of the plan and is a hard prerequisite — no table is partitioned
-before it lands:
+before it lands. **It has landed**, and it is three things:
 
-1. `ENABLE ROW LEVEL SECURITY` and the policy template on **every** partition, applied by the
-   same helper that creates a partition so it cannot be forgotten by hand.
-2. A test enumerating every partition of every RLS-protected table and asserting both, in the
-   shape of `tests/integration/test_security_definer_audit.py` — a list somebody has to
-   justify rather than a convention somebody has to remember. `AUTHORISED_SECURITY_DEFINERS`
-   in `core/diagnostics.py` is the precedent, including its lesson that *declared* and
-   *installed* are different questions.
+1. `app.core.partitions.create_partition` emits the `CREATE TABLE`, the
+   `ENABLE ROW LEVEL SECURITY` and the `CREATE POLICY` as one operation. DDL is transactional
+   in Postgres, so there is no state in which the partition exists and its policy does not.
+   It is deliberately an Alembic helper and not a SQL function: a SQL function would have to
+   be created by a migration and would then live in the schema as a string nobody greps —
+   the property that made `SECURITY DEFINER` the unauditable third class of bypass under
+   invariant 2 — and a `SECURITY DEFINER` one would widen that surface to save three lines.
+   The author who assumes inheritance is writing Python, so the thing that stops them is a
+   Python identifier.
+2. `tests/integration/test_partition_rls_guard.py` enumerates every partition of every
+   RLS-protected table and fails unless each carries row-level security and a policy of its
+   own — the shape of `tests/integration/test_security_definer_audit.py`, a list somebody has
+   to justify rather than a convention somebody has to remember. Nothing is partitioned yet,
+   so those assertions currently pass vacuously; **a guard that has never failed is not a
+   guard**, so the test also builds a bare partition in a schema of its own, proves the check
+   reports it and proves the rows really do reach the wrong tenant, then proves the helper
+   closes both, and rolls back.
 3. `partition-rls.sql` kept under `backend/eval/` as the reproducible demonstration.
+
+Neither piece enforces its own use: `CREATE TABLE ... PARTITION OF` by hand still compiles,
+and no helper can prevent that. Point 2 is what catches it, which is why the guard is the
+prerequisite and the helper is only the convenience.
 
 ### What is verified
 
@@ -212,8 +222,8 @@ shape of a boundary and not a threshold.
 
 **Binary quantisation.** Rejected, and the corrected run rejects it harder. Once the arms
 actually used an index, the gap per decade at rescore 100 went from +0.0384 to **+0.0606**,
-and the extrapolated gap at 300M from 0.2137 to **0.3300** (`quantisation.json`
-`trend.binary_r100.at_10`; the superseded pair survives only in prose, see *Evidence*). 18.84×
+and the extrapolated gap at 300M to **0.3300** — recall@10 ≈ 0.67 (`quantisation.json`
+`trend.binary_r100.at_10`; see *Evidence* for what moved and where). 18.84×
 is the largest factor available and it is the one that buys least, because it is the only
 lever whose damage compounds with the same N everything else is fighting.
 
@@ -262,13 +272,21 @@ fix showed both flat at 0.0000 per decade. `quantisation.json` `planner` records
 and `plan_uses_index` on each arm and `truth_is_sequential` under each size now make the claim
 checkable rather than asserted.
 
-**Every fp32, fp16 and binary figure in this ADR is the corrected one.** Two documents still
-carry the superseded pair (+0.0384 per decade, 0.2137 at 300M): the docstring of migration
-`0025_halfvec_vector_index.py`, which also states fp32 and fp16 index recall as 1.0000 "flat",
-and the docstring of `eval/scale.py`. Migration 0025's *decision* — ship fp16, do not ship
-binary — survives the correction unchanged, because it rests on fp16 matching fp32 and not on
-either being exact. Its numbers do not. Neither file is corrected here; this ADR only records
-that they are stale.
+**Every fp32, fp16 and binary figure in this ADR is the corrected one.** Two documents were
+still quoting the superseded pair (+0.0384 per decade, ≈ 0.79 recall at 300M) and are
+corrected on this branch: the docstring of migration `0025_halfvec_vector_index.py`, which
+also stated fp32 and fp16 index recall as 1.0000 and flat, and the docstring of
+`eval/scale.py`. Migration 0025's *decision* — ship fp16, do not ship binary — survives the
+correction unchanged, because it rests on fp16 matching fp32 through the same index and not
+on either being exact; only the numbers cited for it were void, and its `upgrade()` is
+untouched. A shipped migration's SQL is immutable; its prose is not.
+
+One trap the correction leaves behind, recorded because it is the kind that gets rediscovered
+the expensive way: **`eval/scale.py` disables the index scan deliberately**, to isolate what a
+representation loses from what the graph loses. That is the same line of SQL as the defect,
+and in a diff the two are indistinguishable. `scale.py`'s `fp16: 0.0` rows are therefore
+*correct* and mean something quite different from `quantisation.json`'s void 1.0000 rows.
+Both docstrings now say so.
 
 ### Which numbers are projections, and on what assumption
 
@@ -288,8 +306,13 @@ superseded section:
 - **The pruning claim** fails if `Subplans Removed` is absent from a plan under the *full*
   shipped policy — including the `label_ids` array overlap — executed as `zenith_app` rather
   than as the owner. `partition-pruning.sql` tests the tenant equality with the `ORDER BY`
-  on top; it does not `SET ROLE` and it does not exercise the label clause. That gap is real
-  and is stage 1's to close.
+  on top; it does not `SET ROLE` and it does not exercise the label clause. Those two shapes
+  are reported to have been run and to have pruned, but the probe was **not saved**, which is
+  this repository's own rule broken in the way it is usually broken: a number nobody can
+  re-derive is a number nobody can check. A probe carrying both is pending as
+  `backend/eval/partition-rls-policy-pruning.sql`; until it is on the base, this record
+  claims only the three shapes `partition-pruning.sql` supports, and the gap is stage 1's to
+  close.
 - **The recall claim** fails if a partitioned installation at a real size does not show the
   gap shrinking with N. It rests entirely on a fit spanning less than one decade. One
   measurement at 1M passages in a single partition, against exact retrieval, would settle it
