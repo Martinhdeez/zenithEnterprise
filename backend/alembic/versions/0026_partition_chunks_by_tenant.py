@@ -10,7 +10,7 @@ every query reads a fraction of it, and a fraction of a very large graph is stil
 vectors. A tenant holding 1.6M passages should search a 1.6M graph, and after this migration
 it does — the graph is per partition, and `chunk_embeddings` is partitioned by `tenant_id`.
 
-## `HASH` modulus 256, not `LIST` per tenant
+## `HASH`, not `LIST` per tenant
 
 `eval/partition-shape.json` measured both shapes at 10, 100, 1,000, 2,000, 5,000 and 10,000
 partitions and they cost the same per partition: same `Subplans Removed`, same lock count,
@@ -25,9 +25,50 @@ planning**. A query takes `relations_per_partition x partitions` locks before it
 Over it, `psycopg.errors.OutOfMemory: out of shared memory` is raised while the plan is being
 built: a 500 on an ordinary search, not a slow answer. `eval/partition-shape.json` has the
 ladder, and `eval/partition-swap.json` has what this installation's schema actually costs
-per partition afterwards, measured rather than derived — including the concurrency the
-default `max_locks_per_transaction = 64` supports at this modulus, which is the number an
-operator has to look at before raising it.
+per partition afterwards, measured rather than derived.
+
+## The modulus is `settings.partition_modulus`, and its default is 128
+
+**This migration used to hard-code 256, and 256 was chosen against a ceiling that no longer
+exists.** `partition-shape.json` recommended it as "as many as we can safely afford" when
+the affordable number was set by the shared lock table; `chore/partition-lock-budget` then
+sized `max_locks_per_transaction` and took that ceiling away. `eval/modulus-cost.json`
+costed the modulus with nothing stopping it, and `docs/partitioning-modulus.md` is what an
+operator does with the result.
+
+The finding, in one line: **the benefit of a larger modulus is bounded and runs out early;
+the cost is not bounded and grows faster than the modulus does.** A tenant's query reaches
+`s + (1 - s) / P` of the corpus — `s` its own share, `P` the modulus — so the entire benefit
+available from any modulus is the `(1 - s) / P` term, halving per doubling, while planning
+roughly triples per doubling across the five that were measured. At 200 tenants under
+Zipf 1.0 the largest tenant reaches **0.1745 of the corpus at 128 and 0.1746 at 256** —
+identical, for the tenant whose latency gets quoted back — while a request's planning goes
+from **17.16 ms to 37.39 ms** on the post-`perf/unpruned-queries` lexical path and from
+**47.86 ms to 143.09 ms** on the `tsvector` engine this installation is configured with.
+256 was not wrong. It was past the knee.
+
+**And it is now a deployment parameter rather than a number in this file**, because the
+right value depends on the largest tenant's share of the corpus and that is a property of
+somebody else's installation:
+
+    P >= (1 - s) / (epsilon * s)
+
+holds a tenant of share `s` to `epsilon` extra rows. For this installation's real datum —
+`s = 0.6106`, the larger of two tenants, in `partition-shape.json` — that is **16** at 5%.
+For the 200-tenant Zipf population the capacity plan assumes, `s ~ 0.17`, it is **128**.
+128 is the default because it covers the wide case, not because it is right for either.
+
+Wired the way `max_locks_per_transaction` is wired, and deliberately the same way: an
+environment variable with a documented default, set in `docker/docker-compose.yml`, and a
+`zenith diagnose` check that recomputes the answer off the *running* schema rather than
+trusting the constant. A constant would be wrong on the day it mattered and nothing would
+say so.
+
+The value is read once, here, at the moment the partitions are created. Afterwards the
+modulus is a property of the installed schema: the diagnostic counts partitions,
+`test_partition_rls_guard.py` reads the modulus each partition declares, and neither asks
+this setting anything. Changing it on an installation that has already run 0026 changes
+nothing until 0026 is run again.
 
 ## `query_citations`, and why it gains a column instead of losing a foreign key
 
@@ -109,7 +150,8 @@ Two ordering decisions inside it:
 `CREATE INDEX` on a partitioned parent creates one index per partition. That is btree
 behaviour, and neither pg_search nor pgvector is btree. Both were probed on this stack —
 ParadeDB 0.15.26, Postgres 17.5, pgvector 0.8 — before this migration was written, and both
-recurse correctly: 256 `bm25` indexes and 256 `hnsw` indexes appear, one per partition, and
+recurse correctly: one `bm25` index and one `hnsw` index appear per partition — 256 of each
+at the modulus the probe ran at — and
 `@@@` plans as a `Merge Append` over per-partition `Custom Scan (ParadeDB Scan)` nodes that
 merges correctly on `paradedb.score()`. The plan is in `eval/partition-swap.json`.
 
@@ -125,7 +167,9 @@ therefore not comparable across this migration.
 
 The dense half gets pruning free: RLS puts `tenant_id = zenith_current_tenant()` on both
 `chunks` and `chunk_embeddings`, and `eval/partition-swap.json` records `Subplans Removed:
-255` on each, independently, from the statement `search.dense()` builds.
+255` on each, independently, from the statement `search.dense()` builds — `P - 1` at the
+modulus it ran at, and `eval/modulus-cost.json` confirms `P - 1` on both `Append` nodes at
+every rung of its ladder.
 
 Three sites did not, and one of them is on the hot path of every search this product serves.
 `perf/unpruned-queries` established the general rule and measured all three; the fixes are
@@ -135,19 +179,24 @@ here because that branch deliberately did not take the next Alembic number.
 happens at executor startup and needs only a `STABLE` function, which is why reads are
 covered by the policy alone. `UPDATE` and `DELETE` choose their result relations at *plan*
 time, plan-time pruning needs a constant, and a `STABLE` function is not one. So a write
-whose only tenant predicate is the policy's opens all 256 partitions for writing — 2,059
-locks against an installation's 6,400, measured on ingestion's `_clear_previous`.
+whose only tenant predicate is the policy's opens *every* partition for writing — 2,059
+locks against an installation's 6,400, measured on ingestion's `_clear_previous` at
+MODULUS 256. Every figure in this section was taken at that modulus, which is where the
+schema was when `perf/unpruned-queries` ran; the locks are linear in it and the planning is
+worse than linear, so all of them are upper bounds at the 128 this now ships with.
 
 The fix is never "add a tenant predicate". It is "add a tenant predicate **whose value is a
 parameter**", and the two are indistinguishable in review:
 
-1. **`zenith_lexical_search`** — 256 ParadeDB custom scans, 81.5 ms of planning against
+1. **`zenith_lexical_search`** — one ParadeDB custom scan per partition, 81.5 ms of planning
+   against
    0.25 ms, 1,543 locks, on every search. Fixed by reading the tenant into a plpgsql local
    and using that local as a SQL qualifier beside the Tantivy term; see `_LEXICAL_SEARCH`
    for why a local and not an argument, and for the redundant-qualifier version that prunes
    at runtime only and does not move the lock count at all.
 2. **`zenith_sync_chunk_labels`** — relabelling a document rewrote its chunks with
-   `WHERE document_id = NEW.id`, opening all 256 for writing. `NEW.tenant_id` is a parameter
+   `WHERE document_id = NEW.id`, opening every partition for writing. `NEW.tenant_id` is a
+   parameter
    and takes it to 16 locks. See `_SYNC_CHUNK_LABELS`.
 3. **The cascade behind `fk_chunks_document_id`** — 1,552 locks for one document deletion,
    22 once the key is composite. See `_wire_foreign_keys`; this is the site that interacts
@@ -158,13 +207,14 @@ fixed on `perf/unpruned-queries`, not here.
 
 **What is left, and it is left on purpose.** After the three fixes, `eval/partition-swap.json`
 measures the dense arm at 2,342 locks and 27.3 ms of planning, and the lexical arm at 13 locks
-and 0.77 ms. The dense arm's tenant predicate comes from the RLS policy, which is
-`zenith_current_tenant()` and is `STABLE` by design, so it prunes at runtime and locks all
-256 — and making it prune at plan time would mean the application binding a tenant into the
-query, which is invariant 1. So 27.3 ms of planning and 2,342 locks per search is the price
-of this design rather than a defect in it; it is about 3% of the 899 ms median this
-installation measures end to end, and it is the number that decides how many searches can run
-at once.
+and 0.77 ms — again at MODULUS 256. The dense arm's tenant predicate comes from the RLS
+policy, which is `zenith_current_tenant()` and is `STABLE` by design, so it prunes at runtime
+and locks every partition — and making it prune at plan time would mean the application
+binding a tenant into the query, which is invariant 1. So the dense arm's planning and locks
+are the price of this design rather than a defect in it, and they are what the modulus buys
+or spends: `eval/modulus-cost.json` puts a whole request at **1,161 locks and 17.16 ms of
+planning at the default 128**, against 2,313 and 37.39 ms at 256. Against an 826.21 ms
+end-to-end median of which the reranker is 90.6%, that is 2.1% and 4.5% respectively.
 
 ## Grants
 
@@ -177,6 +227,7 @@ its own `ENABLE ROW LEVEL SECURITY` and its own policy, because a grant that arr
 """
 
 from alembic import op
+from app.core.config import settings
 from app.core.partitions import LABEL_POLICY, TENANT_POLICY, create_hash_partition
 
 revision = "0026"
@@ -184,10 +235,19 @@ down_revision = "0025"
 branch_labels = None
 depends_on = None
 
-#: Buckets per table. 512 relations of user data in total, and the number that decides how
-#: many locks a search takes; `eval/partition-swap.json` records what that works out to on
-#: this schema and what concurrency it leaves at the default `max_locks_per_transaction`.
-MODULUS = 256
+#: Buckets per table, and the number that decides how many locks a search takes.
+#:
+#: `ZENITH_PARTITION_MODULUS`, default 128. The reasoning and the rule that chooses it are
+#: in `app/core/config.py` beside the setting and in `docs/partitioning-modulus.md`; what
+#: matters here is that it is read exactly once, at the moment the partitions are created,
+#: and that nothing downstream of this migration reads it again.
+#:
+#: A migration ordinarily describes the schema at its own revision and copies rather than
+#: imports — `BM25_COLUMNS` below says so about the tokeniser. This is the exception that
+#: proves it: the modulus is not a fact about revision 0026, it is the one thing about
+#: revision 0026 an operator is supposed to choose. Copying it would be copying the
+#: question rather than the answer.
+MODULUS = settings.partition_modulus
 
 #: 0025's parameters, unchanged. A differently-tuned graph would make
 #: `eval/quantisation.json` inapplicable to the thing this produces.
@@ -195,32 +255,49 @@ M = 16
 EF_CONSTRUCTION = 64
 DIMENSION = 1024
 
-#: The lock table this modulus requires, and it is a hard prerequisite rather than tuning.
+#: What one search request holds at planning time, and it is exactly linear in the modulus.
 #:
 #: A query takes its locks at *planning* time, on every partition and every index on it —
-#: runtime pruning removes subplans, not locks. `eval/partition-swap.json` measured it on
-#: this schema: the dense arm holds **2,341** relation locks and the lexical arm **1,543**,
-#: overlapping on `chunks`, so one search request is about 2,350. The lock table holds
-#: `max_locks_per_transaction x max_connections` entries *for the whole cluster*, so the
-#: default 64 x 100 = 6,400 supports **two** concurrent searches, after which an ordinary
-#: search returns 500 with `out of shared memory` raised during planning.
+#: runtime pruning removes subplans, not locks. Two files measure the same slope from
+#: different directions and agree: `eval/lock-budget.json` reads **9.00 locks per
+#: partition-pair** off the schema's nine relations, and `eval/modulus-cost.json` records
+#: `locks_for_request` as **exactly `9P + 9`** at all five of its partitioned rungs — 297 at
+#: 32 through 4,617 at 512, with the trailing nine being the two parents and their
+#: partitioned indexes. So this is derived from a measurement rather than predicted, and it
+#: is the one figure here that may safely be computed instead of quoted.
+LOCKS_PER_SEARCH = 9 * MODULUS + 9
+
+#: The lock table this modulus requires, and it is a hard prerequisite rather than tuning.
 #:
-#: The migration itself is above the default too. Sampled against the real installation:
-#: **9,111** locks at the peak of `upgrade`, **14,439** at the peak of `downgrade`. The
-#: upgrade happened to succeed at 64 because the lock table grows into unreserved shared
+#: The lock table holds `max_locks_per_transaction x max_connections` entries *for the whole
+#: cluster*, so the default 64 x 100 = 6,400 supports two concurrent searches at MODULUS 256,
+#: after which an ordinary search returns 500 with `out of shared memory` raised during
+#: planning.
+#:
+#: The migration itself is above the default too. Sampled against the real installation **at
+#: MODULUS 256**: 9,111 locks at the peak of `upgrade`, 14,439 at the peak of `downgrade`.
+#: The upgrade happened to succeed at 64 because the lock table grows into unreserved shared
 #: memory when the cluster is idle — `partition-shape.json` recorded the same surplus — and
 #: the downgrade did not: it failed at `ALTER TABLE chunk_embeddings DROP CONSTRAINT
 #: fk_chunk_embeddings_chunk_id` and rolled back. A migration whose rollback only works on an
 #: idle machine does not have a working downgrade, and `CONTRIBUTING.md` requires one.
 #:
-#: 1024 x 100 = 102,400 entries: 43 concurrent searches, or 37 alongside a downgrade. The
-#: cost is a few tens of megabytes of shared memory and a restart, and it is set in
-#: `docker/docker-compose.yml` and in `conftest.py` so that neither the deployment nor the
-#: test suite can be the one place it is missing.
+#: **Four per bucket, which is where the 1,024 this shipped with came from.** That value was
+#: chosen at MODULUS 256 to buy 43 concurrent searches, or 37 alongside a downgrade; the
+#: locks it was sized against are linear in the modulus, so keeping the ratio keeps the
+#: headroom at any modulus and turning it into a constant again would silently halve the
+#: margin the first time somebody halves the modulus — or wipe it out the first time somebody
+#: doubles it. At the default 128 it asks for 512, which is 51,200 entries against a search's
+#: 1,161.
+#:
+#: Below the 2,560 that `docker/docker-compose.yml` and `conftest.py` set, on purpose. Those
+#: two are what the deployment *has*; this is the floor under which the migration refuses to
+#: start, and a floor that equalled the shipped value would fail an installation that had
+#: chosen a perfectly adequate smaller one.
 #:
 #: Checked here rather than assumed. The alternative is discovering it after the index
 #: builds, on a corpus where those take hours.
-MIN_LOCKS_PER_TRANSACTION = 1024
+MIN_LOCKS_PER_TRANSACTION = 4 * MODULUS
 
 _LOCK_PREFLIGHT = """
 DO $do$
@@ -230,16 +307,24 @@ BEGIN
         RAISE EXCEPTION
             'max_locks_per_transaction is %%, and migration 0026 needs at least %(minimum)s',
             configured
-        USING HINT = 'A query over %(modulus)s partitions takes about 2,350 relation locks '
-                     'at planning time and this migration peaks at 14,439. Set it in '
-                     'docker/docker-compose.yml and restart Postgres, then run this again.';
+        USING HINT = 'A query over %(modulus)s partitions takes %(locks)s relation locks at '
+                     'planning time and this migration peaks about six times higher. Set it '
+                     'in docker/docker-compose.yml and restart Postgres, then run this '
+                     'again — or lower ZENITH_PARTITION_MODULUS, which is what decides it.';
     END IF;
 END $do$
 """
 
 
 def _require_lock_table() -> None:
-    op.execute(_LOCK_PREFLIGHT % {"minimum": MIN_LOCKS_PER_TRANSACTION, "modulus": MODULUS})
+    op.execute(
+        _LOCK_PREFLIGHT
+        % {
+            "minimum": MIN_LOCKS_PER_TRANSACTION,
+            "modulus": MODULUS,
+            "locks": LOCKS_PER_SEARCH,
+        }
+    )
 
 
 #: 0024's analyser, and 0022's column list. Both are copied here rather than imported
@@ -252,7 +337,8 @@ BM25_TEXT_FIELDS = (
 
 
 def upgrade() -> None:
-    # The migration rewrites two tables and builds 1,792 indexes. Neither belongs under the
+    # The migration rewrites two tables and builds seven indexes per partition-pair — 896 at
+    # the default modulus, 1,792 at the 256 it used to ship. Neither belongs under the
     # installation's ordinary statement timeout, and the HNSW and BM25 builds spill at the
     # 64 MB default. `SET LOCAL` keeps both inside this transaction.
     _require_lock_table()
@@ -273,7 +359,7 @@ def upgrade() -> None:
 
 
 def _create_partitioned_chunks() -> None:
-    """The parent, its 256 buckets, and the policy on every one of them.
+    """The parent, its `MODULUS` buckets, and the policy on every one of them.
 
     `LIKE ... INCLUDING GENERATED` rather than a retyped column list. `chunks.tsv` is
     `GENERATED ALWAYS AS (to_tsvector('zenith_text', text)) STORED` — `zenith_text`, the
@@ -423,7 +509,7 @@ def _swap() -> None:
 
 
 def _create_indexes() -> None:
-    """One statement each, 1,792 indexes.
+    """One statement each, seven indexes per partition-pair.
 
     Created on the parents after the swap so they take their production names directly, and
     after the backfill so the copy does not maintain them row by row.
@@ -457,8 +543,8 @@ def _create_indexes() -> None:
 #: does not cover: the rows and the order were unchanged and only the plan said so. After
 #: this, a scan of the vector index reads
 #: `Index Scan using ix_chunk_embeddings_hnsw_half_p017`, and the check that was written for
-#: one index keeps working against 256 without being loosened to a substring of a column
-#: list.
+#: one index keeps working against every bucket at any modulus, without being loosened to a
+#: substring of a column list.
 #:
 #: Driven off `pg_inherits` rather than off a name this migration predicts, because the
 #: generated names are Postgres's to choose and predicting them is a way to rename the wrong
@@ -566,7 +652,7 @@ def _trigger_and_grants() -> None:
     """The label trigger, and privileges on the parents only.
 
     A row-level `BEFORE INSERT` trigger on a partitioned table recurses to every partition
-    (Postgres 13 and later), so this is one statement rather than 256.
+    (Postgres 13 and later), so this is one statement rather than one per partition.
 
     Nothing is granted on the partitions. Reaching a row through the parent needs privileges
     on the parent alone, so the direct-partition path — the one a bare partition would leak
@@ -588,16 +674,16 @@ def _trigger_and_grants() -> None:
 #: `zenith_lexical_search` is `SECURITY DEFINER`, so no policy applies inside it and the
 #: tenant predicate is carried explicitly — as `paradedb.term('tenant_id', ...)` *inside* the
 #: Tantivy query, which is where 0022 deliberately put every isolation column. The planner
-#: cannot see inside a Tantivy query, so after partitioning the lexical arm opened all 256
-#: BM25 indexes on every search: `eval/partition-swap.json` recorded a `Merge Append` over
-#: 256 `Custom Scan (ParadeDB Scan)` nodes, 255 of them returning nothing, and 1,543 locks
-#: for one statement.
+#: cannot see inside a Tantivy query, so after partitioning the lexical arm opened *every*
+#: BM25 index on every search: at MODULUS 256, `eval/partition-swap.json` recorded a
+#: `Merge Append` over 256 `Custom Scan (ParadeDB Scan)` nodes, 255 of them returning nothing,
+#: and 1,543 locks for one statement.
 #:
 #: **A redundant `c.tenant_id = zenith_current_tenant()` is not enough, and it looks like it
-#: is.** That was this migration's first fix and it was measured: `Subplans Removed: 255`,
-#: so every partition but one is skipped at *execution*, and the lock count did not move,
-#: because the planner had already built and locked paths for all 256. `zenith_current_tenant()`
-#: is `STABLE`, and plan-time pruning needs a constant.
+#: is.** That was this migration's first fix and it was measured: `Subplans Removed: 255` at
+#: MODULUS 256, so every partition but one is skipped at *execution*, and the lock count did
+#: not move, because the planner had already built and locked paths for all of them.
+#: `zenith_current_tenant()` is `STABLE`, and plan-time pruning needs a constant.
 #:
 #: Reading the tenant into a plpgsql local first is what supplies one: a local variable
 #: becomes a parameter of the statement underneath, and the planner may prune a custom plan
@@ -709,13 +795,14 @@ def _lexical_search(pruning: bool) -> None:
 #: **A read prunes on `zenith_current_tenant()`; a write does not.** `UPDATE` and `DELETE`
 #: choose their result relations at *plan* time, plan-time pruning needs a constant, and a
 #: `STABLE` function is not one — so a write whose only tenant predicate comes from the RLS
-#: policy opens all 256 partitions for writing. `eval/unpruned-queries.json` measured the
-#: shape on ingestion's `_clear_previous`: 2,059 locks from the policy's clause alone, 19
-#: with the tenant bound as a parameter.
+#: policy opens every partition for writing. `eval/unpruned-queries.json` measured the shape
+#: on ingestion's `_clear_previous` at MODULUS 256: 2,059 locks from the policy's clause
+#: alone, 19 with the tenant bound as a parameter.
 #:
 #: `zenith_sync_chunk_labels` is migration 0003's trigger on `documents`, and it is the write
 #: this stage has to fix: relabelling one document rewrote every chunk of it with
-#: `WHERE document_id = NEW.id`, which after partitioning opens all 256 for writing. It runs
+#: `WHERE document_id = NEW.id`, which after partitioning opens every partition for writing.
+#: It runs
 #: as a trigger on `documents`, so `NEW.tenant_id` is in hand and is a parameter rather than
 #: a function call — 16 locks, measured on that branch.
 #:
@@ -743,8 +830,8 @@ BEGIN
     IF NEW.label_ids IS DISTINCT FROM OLD.label_ids THEN
         -- `tenant_id` is migration 0026's and it is redundant: a chunk's tenant is its
         -- document's, enforced by `fk_chunks_document_id`. It is here because `NEW.tenant_id`
-        -- is a parameter, and an UPDATE with no constant for the partition key opens all 256
-        -- partitions for writing.
+        -- is a parameter, and an UPDATE with no constant for the partition key opens every
+        -- partition for writing.
         UPDATE chunks SET label_ids = NEW.label_ids
         WHERE document_id = NEW.id%(pruning)s;
     END IF;

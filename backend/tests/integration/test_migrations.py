@@ -135,10 +135,11 @@ def test_schema_matches_models(own_container: PostgresContainer) -> None:
 #: Reflected tables the models do not describe and should not be asked to.
 #:
 #: `spatial_ref_sys` is created by PostGIS inside the ParadeDB image. The partition prefixes
-#: are migration 0026's 512 buckets: a partition is an ordinary table in `pg_class`, so
-#: autogenerate reflects every one of them and proposes dropping it. Declaring 512 tables in
-#: the models to silence that would be describing the same thing twice and would make the
-#: modulus a number that has to be edited in two places to change.
+#: are migration 0026's buckets — two tables at `ZENITH_PARTITION_MODULUS` each, 256 relations
+#: at the default: a partition is an ordinary table in `pg_class`, so autogenerate reflects
+#: every one of them and proposes dropping it. Declaring them in the models to silence that
+#: would be describing the same thing twice, and it would put the modulus in a second file —
+#: which is exactly what it stopped being when it became a deployment parameter.
 #:
 #: Matched by prefix rather than by `relispartition`, because `compare_metadata` hands this
 #: hook a name and not a catalogue row. The prefixes are anchored to a partition-shaped
@@ -161,9 +162,9 @@ def _ignore_external(
     Two categories, and the second is not obvious. A foreign key that *references* a
     partitioned table is expanded by Postgres into one constraint per referenced partition —
     `chunk_embeddings_chunk_id_tenant_id_fkey018` beside `fk_chunk_embeddings_chunk_id` — and
-    reflection returns all 257 of them. They are one declared key, so the model declares one;
-    the 256 are Postgres's own bookkeeping and proposing to drop them is the tool
-    misunderstanding the schema rather than the schema having drifted.
+    reflection returns one per partition plus the declared one. They are one declared key, so
+    the model declares one; the rest are Postgres's own bookkeeping and proposing to drop them
+    is the tool misunderstanding the schema rather than the schema having drifted.
 
     The declared parent key is *not* filtered, so this stays able to notice a foreign key
     that really has gone missing — which is exactly what it did notice: `LIKE` copies no

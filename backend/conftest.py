@@ -46,18 +46,25 @@ def _async_url(container: PostgresContainer, user: str, password: str) -> str:
 
 
 #: What `docker/docker-compose.yml` gives the deployment, and therefore what the tests must
-#: run against. Migration 0026 partitions `chunks` and `chunk_embeddings` into 256 buckets
-#: each, and a query locks every partition and every index on it at *planning* time — about
-#: 2,350 relations for one search, 14,439 at the peak of 0026's `downgrade`, measured in
-#: `eval/partition-swap.json`. The default `max_locks_per_transaction = 64` sizes the
-#: cluster's whole lock table at 6,400 entries, which is two concurrent searches.
+#: run against. Migration 0026 partitions `chunks` and `chunk_embeddings` into
+#: `ZENITH_PARTITION_MODULUS` buckets each — 128 by default — and a query locks every
+#: partition and every index on it at *planning* time: `9P + 9` relations for one search,
+#: measured at every rung in `eval/modulus-cost.json`, and about six times that at the peak
+#: of 0026's `downgrade`. The default `max_locks_per_transaction = 64` sizes the cluster's
+#: whole lock table at 6,400 entries, which is two concurrent searches at 256 and four at
+#: 128.
 #:
 #: The value is `chore/partition-lock-budget`'s and that branch owns `docker-compose.yml`;
 #: it sized 2,560 from a lock-per-partition-pair slope rather than from arithmetic, and
-#: 2,560 covers 0026's floor with room. Repeated here because a test environment that
-#: quietly differs from the deployment is how a lock ceiling gets found in production
-#: instead of in CI — and 0026 refuses to run below its own floor, so a container without
-#: this fails the suite rather than the deployment.
+#: 2,560 covers 0026's floor with room at any modulus this suite is likely to run at.
+#: Repeated here because a test environment that quietly differs from the deployment is how
+#: a lock ceiling gets found in production instead of in CI — and 0026 refuses to run below
+#: `4 x modulus`, so a container without this fails the suite rather than the deployment.
+#:
+#: **Not derived from `settings.partition_modulus`, deliberately.** Making this follow the
+#: setting would make the suite pass at whatever modulus it is run with and prove nothing
+#: about the deployment's own lock table, which is the one thing this constant exists to
+#: keep honest.
 MAX_LOCKS_PER_TRANSACTION = 2560
 
 

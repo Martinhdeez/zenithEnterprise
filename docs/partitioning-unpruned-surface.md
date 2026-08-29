@@ -4,9 +4,16 @@
 **Evidence:** `backend/eval/unpruned-queries.json`, `backend/eval/unpruned-plpgsql-pruning.sql`
 **Gate:** `backend/tests/integration/test_unpruned_query_audit.py`
 
-ADR 0009 partitions `chunks` and `chunk_embeddings` by `tenant_id`, HASH, modulus 256. Every
-statement carrying a tenant prunes to one partition and gets faster; `partition-rls-policy-pruning.sql`
+ADR 0009 partitions `chunks` and `chunk_embeddings` by `tenant_id`, HASH. Every statement
+carrying a tenant prunes to one partition and gets faster; `partition-rls-policy-pruning.sql`
 proves that survives the real policy, the real role and a per-partition copy of the predicate.
+
+**Every figure in this document was measured at MODULUS 256**, which is what 0026 hard-coded
+when the ladder was run. The modulus is `ZENITH_PARTITION_MODULUS` now and defaults to 128 —
+see `docs/partitioning-modulus.md` for why — so the lock counts here are twice the shipped
+default's and the planning times are worse than twice. They are left as measured rather than
+halved on paper: what they are evidence for is the *shape* of an unpruned statement, which is
+`modulus` scans against one, and that does not change with the modulus.
 
 This document is about the other half of the schema. Every figure below comes from a run
 written to disk under `backend/eval/`, and none of it was typed from memory.

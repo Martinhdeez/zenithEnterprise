@@ -97,7 +97,7 @@ AUTHORISED_SECURITY_DEFINERS: frozenset[str] = frozenset(
         # 0003 — propagates that same array down to `chunks`, for the same reason. Rewritten
         # in place by 0026 to add `AND tenant_id = NEW.tenant_id`: `chunks` is partitioned,
         # an UPDATE picks its result relations at plan time, and without a constant for the
-        # partition key it opens all 256 for writing. The predicate is redundant — a chunk's
+        # partition key it opens every one for writing. The predicate is redundant — a chunk's
         # tenant is its document's, enforced by `fk_chunks_document_id` — and changes no row.
         # The bypass is unchanged and so is the signature.
         "zenith_sync_chunk_labels()",
@@ -116,7 +116,7 @@ AUTHORISED_SECURITY_DEFINERS: frozenset[str] = frozenset(
         #
         # Rewritten in place by 0026. The tenant is now read into a plpgsql local and that
         # local is used both in the Tantivy term and as an ordinary SQL qualifier, so the
-        # planner has a constant to prune 256 partitions on. It is deliberately **not** a
+        # planner has a constant to prune every other partition on. It is deliberately **not** a
         # parameter of the function: this bypass is only safe because no caller can name the
         # tenant, and an argument would hand that away. The signature is therefore unchanged,
         # which is also what keeps this entry accurate.
@@ -373,9 +373,9 @@ LOCK_BUDGET_HEADROOM: Final = 1.25
 # Every relation a partitioned table contributes: its partitions, its partitions' indexes,
 # the partitioned parents and their partitioned indexes. `relispartition` covers the first
 # two; `relkind IN ('p', 'I')` covers the last two, and both are locked — measured, not
-# assumed: at 256 partitions of a pair carrying nine relations the count is 2,313, which is
-# 9 x 256 for the partitions plus nine for the two parents and their seven partitioned
-# indexes.
+# assumed: the count is `9P + 9` for a pair carrying nine relations per bucket, which is
+# 1,161 at the default modulus of 128 and 2,313 at the 256 it was first measured against.
+# `eval/modulus-cost.json` records that identity at all five of its partitioned rungs.
 #
 # Summed over every partitioned table in the schema, which is the ceiling for any transaction
 # rather than the cost of one particular query. Naming the tables a search touches would be
@@ -627,8 +627,9 @@ _COUNTED_EXACTLY = ("tenants", "users", "documents")
 
 #: The two tables ADR 0009 partitions, counted from the planner's own statistics instead.
 #:
-#: `SELECT count(*)` over a table partitioned into 256 opens all 256 and reads all of them:
-#: 1,542 locks of this installation's 6,400, measured in `eval/unpruned-queries.json`. It is
+#: `SELECT count(*)` over a partitioned table opens every bucket and reads all of them:
+#: 1,542 locks of this installation's 6,400 at MODULUS 256, measured in
+#: `eval/unpruned-queries.json`. It is
 #: not slow — 4.6 ms there — and slowness was never the objection. The objection is that a
 #: diagnostic an operator runs *while the installation is serving* should not take a quarter
 #: of the cluster's lock table to answer a question nobody needs to the row.

@@ -400,8 +400,9 @@ async def test_an_unpartitioned_installation_has_nothing_to_size_for(
     The distinction this exists for is unchanged: an operator reading the report must be able
     to tell "there is nothing to size for" from "nobody looked". What changed is the
     installation. Until 0026 the test database *was* unpartitioned, so this ran against the
-    default and asserted the branch by accident of the schema. Since 0026 `public` holds 512
-    partitions, and the way to keep asserting the same branch was either to loosen it into
+    default and asserted the branch by accident of the schema. Since 0026 `public` holds two
+    partitioned tables at `ZENITH_PARTITION_MODULUS` buckets each, and the way to keep
+    asserting the same branch was either to loosen it into
     something a partitioned schema also satisfies — which would test nothing — or to give it a
     schema that is genuinely empty. This gives it one.
 
@@ -447,7 +448,7 @@ async def test_partitions_are_counted_out_of_the_live_schema(
 
     **Asserted as a difference, because the probe is no longer alone in `public`.** Until 0026
     it was, so the totals the check reported *were* the probe's and could be matched against a
-    literal. Since 0026 the schema carries 512 partitions of its own and that literal is
+    literal. Since 0026 the schema carries a bucket per modulus of its own and that literal is
     wrong — not because the check drifted, but because the check deliberately sums over every
     partitioned table in the schema rather than over the ones a search happens to touch. So
     the run is taken twice and the probe's contribution is what is asserted, which is the
@@ -455,8 +456,9 @@ async def test_partitions_are_counted_out_of_the_live_schema(
     been a number that rots on the next migration to add a partitioned table, and this test is
     named for refusing exactly that.
 
-    The baseline is asserted too, and it is the stronger half: reading 512 partitions of two
-    tables before the probe exists is what proves the count comes out of the live schema. A
+    The baseline is asserted too, and it is the stronger half: reading 0026's own partitions
+    of two tables before the probe exists is what proves the count comes out of the live
+    schema. A
     check hard-coded to zero, or one that had stopped looking, would still pass a
     difference-only assertion.
 
@@ -468,18 +470,24 @@ async def test_partitions_are_counted_out_of_the_live_schema(
 
     baseline = {check.name: check for check in await run_diagnostics()}
     before = _partition_shape(baseline["lock budget"].detail)
-    # `chunks` and `chunk_embeddings`, at 0026's modulus of 256 each, carrying nine relations
-    # per partition-pair. Named rather than tolerated: the point of the check is that it reads
-    # the schema, and a baseline of zero here would mean it had stopped.
+    # `chunks` and `chunk_embeddings`, at whatever `ZENITH_PARTITION_MODULUS` the migration
+    # ran with, carrying nine relations per partition-pair. Named rather than tolerated: the
+    # point of the check is that it reads the schema, and a baseline of zero here would mean
+    # it had stopped.
     #
     # This *is* the constant the check itself refuses to be, and that is the right way round.
     # The check computes the number so that it is never wrong; this asserts it so that it is
-    # never changed silently. A migration adding one index to either table moves the lock
-    # budget by 512 relations, which is a fifth of what a search already holds, and the
-    # measured claim in `_PARTITION_RELATIONS`' comment — nine relations per pair, 2,313 at
-    # modulus 256 — stops being true at the same moment. Both should be re-derived together,
-    # and a red test here is what makes that happen.
-    assert before == (512, 2, 2313), before
+    # never changed silently.
+    #
+    # **Derived from the setting rather than written down, because the modulus stopped being a
+    # constant.** `9P + 9` is not arithmetic invented here: `eval/lock-budget.json` measures
+    # the slope at 9.00 locks per partition-pair and `eval/modulus-cost.json` records
+    # `locks_for_request` as exactly `9P + 9` at all five of its partitioned rungs. So a
+    # migration that adds one index to either table still turns this red — the relation count
+    # moves off `9P + 9` and the measured claim in `_PARTITION_RELATIONS`' comment stops being
+    # true at the same moment — while running the suite at a different modulus does not.
+    modulus = settings.partition_modulus
+    assert before == (2 * modulus, 2, 9 * modulus + 9), (before, modulus)
 
     async with get_owner_session_factory()() as session:
         await session.execute(

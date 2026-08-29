@@ -17,14 +17,23 @@ services:
     # `max_locks_per_transaction` is the setting partitioning breaks first, and it is the one
     # that cannot be changed without a restart.
     #
+    # **It is sized against `ZENITH_PARTITION_MODULUS`, which is set in `../.env` and reaches
+    # this stack through `env_file` on `api` and `worker`.** That variable decides how many
+    # buckets migration 0026 cuts `chunks` and `chunk_embeddings` into, and the locks below
+    # are exactly `9P + 9` — measured at every rung in `eval/modulus-cost.json`. The two are
+    # therefore one decision made in two files, and the one that fails is this one: 0026
+    # refuses to start below `4 x modulus`, and a search over a schema this setting is too
+    # small for is a 500 raised during planning. `zenith diagnose` reports both sides off the
+    # running installation rather than off either file.
+    #
     # A query over a partitioned table takes an `AccessShareLock` on every relation of every
     # partition **at plan time**, before runtime pruning has removed anything. Measured, in
     # `eval/lock-budget.json`: 9.00 locks per partition-pair — exactly the nine relations the
     # schema declares, one heap and five indexes on `chunks`, one heap and two on
     # `chunk_embeddings` — plus nine for the two parents and their partitioned indexes. At the
-    # modulus stage 02 is landing that is **2,313 locks for one search**, and the second and
-    # third statements of the request add none, because the planner already opened every index
-    # of both tables for the first.
+    # default modulus of 128 that is **1,161 locks for one search**, and at the 256 this
+    # comment was first written against, 2,313. The second and third statements of the request
+    # add none, because the planner already opened every index of both tables for the first.
     #
     # The setting does not cap a transaction. It sizes one table of
     # `max_locks_per_transaction * (max_connections + max_prepared_transactions)` slots that
@@ -49,6 +58,13 @@ services:
     # has to be revisited, and `zenith diagnose` recomputes it from the live schema rather than
     # trusting this comment.
     #
+    # **Left at 2,560 although the default modulus is now 128, and that is a decision rather
+    # than an oversight.** 10 x 256 covers 10 x 128 twice over, so an installation that raises
+    # `ZENITH_PARTITION_MODULUS` back to 256 — which the rule sanctions for a corpus whose
+    # largest tenant holds a twentieth of it — needs no second change and no second restart.
+    # Halving this would recover 60 MB of shared memory and would turn one variable into two
+    # that have to move together. `zenith diagnose` is what says whether it is enough.
+    #
     # **It costs 119 MB of shared memory, measured** — `shared_memory_size` moves 143 MB ->
     # 262 MB across the restart, about 500 bytes a slot. That is allocated at startup whether
     # or not anything is partitioned, which is the whole reason it is set here now: nothing is
@@ -57,7 +73,7 @@ services:
     # `shared_buffers` and `work_mem` are deliberately left alone. Nothing measured here asks
     # for them: what the partition ladder moves is planning — about 0.2 ms unpartitioned to
     # 55-75 ms at modulus 256 — while execution stays under 4 ms at every rung. Buffers and
-    # sort memory are not what a planner walking 256 subplans is short of.
+    # sort memory are not what a planner walking a bucket per subplan is short of.
     command:
       - "postgres"
       - "-c"

@@ -138,7 +138,7 @@ _PARENTS = """
 #: **Which rows come back is decided by `partstrat`, and the parse may fail without hiding
 #: them.** The first version selected rows by `pg_get_expr(...) LIKE 'FOR VALUES WITH
 #: (MODULUS%'` and matched `MODULUS (\\d+)` — and Postgres deparses the bound in *lower*
-#: case, `FOR VALUES WITH (modulus 256, remainder 7)`. So it returned nothing against a
+#: case, `FOR VALUES WITH (modulus 128, remainder 7)`. So it returned nothing against a
 #: fully partitioned schema, and the test below passed by asking about an empty set: a guard
 #: that has never failed, on the exact shape it was written for. The catalogue now decides
 #: membership and the regular expression only extracts, so a parse that stops working comes
@@ -173,10 +173,14 @@ _POLICY_TEXT = """
 PROBE_SCHEMA = "partition_guard_probe"
 HASH_PROBE_SCHEMA = "partition_guard_hash_probe"
 
-#: Modulus 4 rather than 0026's 256. What is being proved is that a bucket carries its own
-#: policy and that a bare one leaks, and neither is a function of how many buckets there
-#: are; 256 empty Tantivy and HNSW directories per test run is a cost with no assertion
-#: behind it.
+#: Modulus 4 rather than whatever `ZENITH_PARTITION_MODULUS` gave 0026. What is being proved
+#: is that a bucket carries its own policy and that a bare one leaks, and neither is a
+#: function of how many buckets there are; a Tantivy and an HNSW directory per bucket per test
+#: run is a cost with no assertion behind it.
+#:
+#: Fixed rather than read from the setting, and that is the point: the tests against `public`
+#: above walk whatever the installed modulus is, and this one has to keep proving the same
+#: thing at a size nobody chose.
 HASH_MODULUS = 4
 
 TENANT_ONE = "00000000-0000-0000-0000-000000000001"

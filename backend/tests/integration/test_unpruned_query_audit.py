@@ -4,10 +4,13 @@ ADR 0009 partitions `chunks` and `chunk_embeddings` by `tenant_id`, and migratio
 where it happened. Every statement carrying a tenant prunes to one partition and gets
 faster; that is the point of the ADR and `partition-rls-policy-pruning.sql` proves it
 survives the real policy. **Every statement not carrying one goes from a single scan to
-`modulus` scans**, and at the shipped modulus of 256 that costs what
-`backend/eval/unpruned-queries.json` measures: the lexical half of a search goes from
+`modulus` scans**, and at the MODULUS 256 the measurements were taken at that costs what
+`backend/eval/unpruned-queries.json` records: the lexical half of a search goes from
 0.70 ms to 56.8 ms, mostly in *planning*, and a purge goes from 15 locks to 1,552 of an
-installation's 6,400.
+installation's 6,400. The modulus is `ZENITH_PARTITION_MODULUS` now and defaults to 128, so
+every cost quoted here is an upper bound on the shipped default — the locks are linear in it
+and the planning is worse than linear. What is not proportional to anything is the list
+itself: a statement that does not prune scans `modulus` partitions whatever the modulus is.
 
 This file is the list, and the list is the point. It exists in the shape of
 `test_security_definer_audit.py`, for the same reason: a surface that grows by one entry per
@@ -134,7 +137,8 @@ UNPRUNED_SURFACE: frozenset[str] = frozenset(
         # --- modules reaching these tables through a bypass factory -----------------------
         #
         # `zenith diagnose`'s content check counts both partitioned tables through
-        # `owner_session` with no tenant — 256 scans and 1,542 locks each. It is on this list
+        # `owner_session` with no tenant — one scan per partition and 1,542 locks each at the
+        # MODULUS 256 that was measured. It is on this list
         # rather than removed from it because the module still names the tables: the count is
         # now taken from `pg_class.reltuples`, which scans nothing and takes 7 locks at any
         # modulus, and the exact `count(*)` remains for the three tables that are not
@@ -224,7 +228,8 @@ async def _foreign_keys_without_the_partition_key(engine: AsyncEngine) -> set[st
 
     **A partitioned child** whose key omits `tenant_id` cannot prune the cascade *into* it:
     the `DELETE` Postgres composes has no partition key to prune on. `chunks.document_id` is
-    the one that matters, and it is why a purge scoped perfectly to one tenant opens all 256.
+    the one that matters, and it is why a purge scoped perfectly to one tenant opens every
+    partition.
 
     **A partitioned parent** referenced by a key that omits `tenant_id` will not exist at all:
     a partitioned table's unique constraints must contain the partition key, so
@@ -236,18 +241,20 @@ async def _foreign_keys_without_the_partition_key(engine: AsyncEngine) -> set[st
     prunes, and `tenants` is not partitioned so its own key is fine. The first version of this
     check flagged both of those, on a rule that looked at the parent side unconditionally.
 
-    Since 0026 the query returns 517 rows rather than five, and a reader checking this in
-    `psql` should know why before concluding the check has stopped looking. Postgres clones a
-    foreign key across a partitioned table on both sides: 256 rows are
-    `fk_chunk_embeddings_chunk_id` repeated on each `chunk_embeddings_pNNN`, and 256 more are
-    the same constraint repeated once per `chunks_pNNN` under a generated name. Every clone
-    carries the columns of the constraint it came from, so none is flagged. Five rows are
+    Since 0026 the query returns `2P + 5` rows rather than five — 261 at the default modulus
+    — and a reader checking this in `psql` should know why before concluding the check has
+    stopped looking. Postgres clones a foreign key across a partitioned table on both sides:
+    `P` rows are `fk_chunk_embeddings_chunk_id` repeated on each `chunk_embeddings_pNNN`, and
+    `P` more are the same constraint repeated once per `chunks_pNNN` under a generated name.
+    Every clone carries the columns of the constraint it came from, so none is flagged. Five
+    rows are
     constraints somebody actually wrote — `fk_chunks_document_id`, `fk_chunks_tenant_id`,
     `fk_chunk_embeddings_chunk_id`, `fk_chunk_embeddings_tenant_id` and
     `fk_query_citations_chunk_id` — and those are the five to look at.
 
     **The clones are also why the reported findings stay readable, and where the check's reach
-    ends.** A bad key added to `chunks` reports once, not 257 times — measured, by adding one
+    ends.** A bad key added to `chunks` reports once, not once per partition — measured, by
+    adding one
     and reading the failure — because its clones sit on `chunks_pNNN`, and a clone's child is
     a partition whose name is in neither `PARTITIONED` nor the parent position. The same fact
     is the limitation: a key added *directly to one partition*, `ALTER TABLE chunks_p017 ADD
