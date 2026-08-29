@@ -518,6 +518,83 @@
   --sidebar-ring: oklch(0.6600 0.1911 273.8);
 }
 
+/* The mark drawing itself while the chat is still retrieving, and the passage-shaped
+   placeholders under it. Both live only for the length of a wait — F11 put retrieval at
+   1.2 s, and 4.5 s while somebody is uploading — so unlike the shell's backdrop these earn
+   their frames: there is a question in flight and nothing else on screen to look at.
+
+   `pathLength` is normalised to 100 in the markup, so the offsets here are percentages of
+   the letter however it is drawn. Traced, held, then drawn off the other end rather than
+   snapping back to empty: a stroke that vanishes at the moment it completes reads as a
+   glitch, and the hold is what makes the loop look like a gesture instead of a stutter. */
+@keyframes zenith-trace {
+  0% {
+    stroke-dashoffset: 100;
+  }
+  45% {
+    stroke-dashoffset: 0;
+  }
+  62% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -100;
+  }
+}
+
+.zenith-trace path {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: zenith-trace 2.4s ease-in-out infinite;
+}
+
+@keyframes ghost-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.ghost-line {
+  position: relative;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--secondary);
+}
+
+.ghost-line::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--primary) 22%, transparent),
+    transparent
+  );
+  animation: ghost-shimmer 1.5s ease-in-out infinite;
+}
+
+.ghost-line:nth-child(2)::after {
+  animation-delay: 0.18s;
+}
+
+.ghost-line:nth-child(3)::after {
+  animation-delay: 0.36s;
+}
+
+/* The letter stays drawn rather than disappearing: the point is that something is running,
+   and an empty box would say the opposite of what the label says. */
+@media (prefers-reduced-motion: reduce) {
+  .zenith-trace path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .ghost-line::after {
+    animation: none;
+  }
+}
+
 /* The indeterminate sweep in `ProgressBar`. A plain Tailwind utility can't express "slide
    past both edges and loop", so this is the one hand-written keyframe in the app. */
 @keyframes progress-sweep {

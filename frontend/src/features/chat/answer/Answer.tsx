@@ -24,8 +24,8 @@ import remarkGfm from "remark-gfm";
 
 import type { Citation, QueryResult } from "../stream/stream";
 import { displayed, isProvisional, type AnswerState } from "./answerState";
+import { Thinking } from "./Thinking";
 import { transcript } from "./transcript";
-import { ProgressBar } from "@/shared/components/ProgressBar";
 import { useT } from "@/shared/i18n/useT";
 
 interface Props {
@@ -70,14 +70,15 @@ export function Answer({ state, onCitation }: Props) {
       )}
 
       {provisional && (
-        // One `ProgressBar` instance across both "retrieving" and "streaming" — same tree
+        // One `Thinking` instance across both "retrieving" and "streaming" — same tree
         // position, same `key` — so its internal timer keeps counting through the
         // transition instead of restarting the moment the first token arrives, which would
-        // understate how long the question has actually been running. Only the label
-        // changes, because retrieval and generation are different things to be slow at and
-        // F9's prompt work fixed different failures in each.
-        <ProgressBar
+        // understate how long the question has actually been running. Only the label and
+        // the figure change, because retrieval and generation are different things to be
+        // slow at and F9's prompt work fixed different failures in each.
+        <Thinking
           key={state.question}
+          retrieving={state.phase === "retrieving"}
           label={state.phase === "retrieving" ? t("Searching your documents") : t("Writing the answer")}
         />
       )}
