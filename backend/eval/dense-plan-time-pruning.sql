@@ -48,10 +48,17 @@
 --
 -- ## Measured, at MODULUS 32 over the real 13,549 passages, 8 synthetic tenants
 --
---   as shipped   32 partitions in the plan, `Subplans Removed: 31` on both `Append`s,
+--   as shipped   `Subplans Removed: 31` on both `Append`s — executor-startup pruning —
 --                planning 3.929 ms, execution 2.395 ms, 231 locks
---   candidate     1 partition per relation, no `Append` at all,
+--   candidate     no `Append` at all: one partition per relation chosen while planning,
 --                planning 0.222 ms, execution 0.862 ms, 14 locks
+--
+-- **The lock figures here are lower than `dense-plan-time.json`'s** — 231 against 297 at the
+-- same modulus — and the difference is this file's index set, not its query. It builds the
+-- three indexes the dense join can use and skips the bm25 and `tsv` indexes the installation
+-- also carries on `chunks`. A lock count counts relations opened rather than relations useful,
+-- so those two are locked in production and are not locked here. The JSON is the file to quote
+-- a lock count from; this one is the file to read a plan in.
 --   control      the same qualifier as the `STABLE` call rather than a local:
 --                32 partitions, `Subplans Removed: 31`, planning 1.376 ms. The local is the
 --                mechanism; the extra qualifier on its own buys nothing.

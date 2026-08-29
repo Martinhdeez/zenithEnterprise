@@ -312,21 +312,39 @@ _COLUMNS_CHK = """
   document_id  uuid NOT NULL,
   tenant_id    uuid NOT NULL,
   label_ids    uuid[] NOT NULL DEFAULT '{}',
-  text         varchar NOT NULL
+  text         varchar NOT NULL,
+  tsv          tsvector GENERATED ALWAYS AS
+                 (to_tsvector('zenith_text'::regconfig, text::text)) STORED,
+  unlabelled   boolean GENERATED ALWAYS AS (label_ids = '{}'::uuid[]) STORED
 """
 
-#: The installation's index set for the two relations the dense join reads, replayed on the
-#: parents so Postgres propagates one copy to every partition. The bm25 index is not here:
-#: this file measures the dense half and a Tantivy index on every partition would triple the
-#: build for relations no arm below reads.
+#: The installation's whole index set on the two relations the dense join reads, replayed on
+#: the parents so Postgres propagates one copy to every partition. Written out rather than
+#: generated, as `lock_budget.py` and `modulus_cost.py` write it, and for their reason: a
+#: unique constraint on a partitioned table must contain the partition key, and the bm25 index
+#: has to be exhibited in full so what is counted is one relation rather than a schema of them.
+#:
+#: **The bm25 and `tsv` indexes are here although no arm in this file reads them**, and the
+#: first version of this sweep left them out on the reasoning that a Tantivy index on every
+#: partition is a long build for relations nothing queries. That version measured 1,799 locks
+#: for the shipped arm at modulus 256 where stage 02 measured 2,342, and the whole of the
+#: difference was two index relations per partition that the dense query never touches and the
+#: executor locks anyway. **A lock count counts relations opened, not relations useful**, so an
+#: index set that is not the installation's index set produces a number that cannot be compared
+#: with the one the decision is being made against. The build is the price of a comparable
+#: number.
 _INDEX_DDL = (
     "ALTER TABLE {schema}.emb ADD PRIMARY KEY (chunk_id, embedding_model, "
     "embedding_version, tenant_id)",
     "CREATE INDEX ON {schema}.emb USING hnsw (embedding_half halfvec_cosine_ops) "
     "WITH (m = 16, ef_construction = 64)",
     "ALTER TABLE {schema}.chk ADD PRIMARY KEY (id, tenant_id)",
+    "CREATE INDEX ON {schema}.chk USING bm25 (id, text, tenant_id, label_ids, unlabelled) "
+    'WITH (key_field = id, text_fields = \'{{"text": {{"tokenizer": '
+    '{{"type": "stem", "language": "Spanish", "lowercase": true}}}}}}\')',
     "CREATE INDEX ON {schema}.chk USING gin (label_ids)",
     "CREATE INDEX ON {schema}.chk (tenant_id)",
+    "CREATE INDEX ON {schema}.chk USING gin (tsv)",
 )
 
 _POLICY_DDL = (
