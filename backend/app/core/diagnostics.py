@@ -18,7 +18,7 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Final, Literal
 
 import httpx
 from sqlalchemy import text
@@ -540,6 +540,148 @@ def _model_service(name: str, url: str) -> Callable[[], Awaitable[tuple[Status, 
     return check
 
 
+#: What losing the reranker costs, in one sentence, said the same way in every branch below.
+#:
+#: Every word here has been chosen to survive `_scrub`. That is not a stylistic preference:
+#: `_scrub` removes every known secret by exact match, the default database password in
+#: `.env.example` is the word `zenith`, and the word `nothing` is the password in the
+#: unreachable-database URL the tests point at. So this sentence names the *service*
+#: (`tei-rerank`) rather than the container (`zenith-tei-rerank-1`, which prints as
+#: `***-tei-rerank-1`), and counts with a digit rather than saying a component answered
+#: "nothing". `_job_queue` documents the same trap from the other side.
+#:
+#: Short on purpose too. `_scrub` truncates at 200 characters and this is the half an
+#: operator acts on, so it must never be the half that is cut.
+_RERANKER_COST: Final = (
+    "Search answers from the fused order, about 15 points of recall worse (F7). "
+    "Start the `tei-rerank` container."
+)
+
+#: TEI's Prometheus counters are per-process and start at zero, so a restart resets them.
+#: `te_request_count` moves once per inference call and not at all for `/health` or `/info`,
+#: which is what makes it a measure of work done rather than of liveness.
+#:
+#: Label sets are summed: TEI emits one series per `method` (`batch`, `single`), and which
+#: ones exist is a detail of how the client batched, not of how much the service has served.
+_TEI_REQUEST_COUNT = re.compile(
+    r"^te_request_count(?:\{[^}]*\})?\s+([0-9]+(?:\.[0-9]+)?)\s*$", re.MULTILINE
+)
+
+
+def _requests_served(metrics: str | None) -> int | None:
+    """Inference requests this reranker process has answered since it started.
+
+    `None` means the question could not be asked — no `/metrics` route at all, which an
+    older TEI is entitled not to have.
+
+    **An empty body is zero, not silence**, and the difference is the entire restart proxy.
+    A freshly started TEI answers `/metrics` with `200` and *nothing in it*: a Prometheus
+    counter that has never been incremented is not rendered, so the series appears only once
+    the service has done some work. Reading that as "cannot tell" reported a reranker three
+    seconds out of an OOM kill as healthy, which is the exact silence this check exists to
+    break. The status code is what separates the two cases, so the caller passes text only
+    when it got a `200`.
+    """
+    if metrics is None:
+        return None
+    return sum(int(float(value)) for value in _TEI_REQUEST_COUNT.findall(metrics))
+
+
+def _breaker_note() -> str:
+    """What the circuit breaker knows about how long this has been going on — and silence
+    when it knows nothing, which here is almost always.
+
+    `breaker.py` already tracks this and the answer belongs to it, so this reads it rather
+    than starting a second mechanism it would have to keep in step. What it cannot do is
+    read it from *another process*: the breaker is deliberately per-process and in memory
+    (breaker.py says why — a shared one would mean Redis or a table to solve a problem
+    measured in seconds), and `zenith diagnose` is a separate process from the uvicorn
+    workers that serve search. So the breaker this function imports is a freshly
+    constructed one that has never called anything.
+
+    Which is why a closed breaker prints nothing at all. "Circuit closed" would read as
+    "the installation is not degraded" — a claim this process has no way to make, and
+    exactly the failure `demo-check.sh` records in its own comments: a check that reports
+    health when it cannot tell is worse than one that cries wolf, because nobody switches
+    it off and nobody looks again. An *open* breaker is only ever true, so that one is
+    worth printing wherever it is seen.
+    """
+    from app.features.retrieval.breaker import State
+    from app.features.retrieval.service import RERANKER_BREAKER
+
+    breaker = RERANKER_BREAKER
+    if breaker.state is State.OPEN:
+        return f" Circuit open: skipped for up to the last {breaker.cooldown:.0f}s."
+    if breaker.state is State.HALF_OPEN:
+        return f" Circuit open for at least {breaker.cooldown:.0f}s, retrying."
+    return ""
+
+
+async def _reranker_health() -> tuple[Status, str]:
+    """Is the reranker there, and has it just come back?
+
+    `reranking service` above asks whether a model endpoint responds and names the weights
+    it is serving, for both TEI containers alike. This asks the two questions that were
+    unanswered on 28 August, when `tei-rerank` was killed for memory and *nothing said so*:
+    search kept answering from the fused order, about fifteen points of recall worse,
+    marked `degraded` in a field nobody was reading, and it was found by accident hours
+    later.
+
+    **A failure, never a warning.** The runbook and `demo-check.sh` both already treat a
+    missing reranker as a failure, and for the same reason: an installation that answers
+    without it is a working product showing a recall number nobody can reproduce. Severity
+    here is set by what the absence costs, not by whether an HTTP call raised.
+
+    **The restart proxy, and what it cannot see.** The container it is asking about is not
+    this one, so Docker's restart count is out of reach — `.RestartCount` is on the host,
+    which is where `demo-check.sh` reads it. What *is* reachable is TEI's own
+    `/metrics`: those counters live in the serving process and start again at zero when it
+    does. A reranker that is up and has answered zero requests since it started is a
+    process younger than the traffic it exists to serve, which is what the OOM loop looks
+    like from in here.
+
+    It is a proxy and it is reported as one. It cannot say how many times the service
+    restarted, when, or why; and it cannot tell a service that came back thirty seconds ago
+    from one on a fresh installation that nobody has searched yet. That ambiguity is the
+    whole reason it is a warning while an unreachable reranker is a failure — and the
+    reason `demo-check.sh`, which can read the exact answer, also asks.
+    """
+    url = settings.tei_rerank_url.rstrip("/")
+    shown = redact(url)
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            health = await client.get(f"{url}/health")
+            if health.status_code != 200:
+                return (
+                    "fail",
+                    f"{shown} answered /health with {health.status_code}. {_RERANKER_COST}",
+                )
+            # Best effort, like `/info` above: a TEI without `/metrics` is still a working
+            # reranker, and failing the check over a missing counter would cry wolf.
+            try:
+                metrics = await client.get(f"{url}/metrics")
+                # The status code decides, never the body: TEI answers `200` with an empty
+                # body when it has served nothing, and that emptiness is the signal.
+                served = _requests_served(metrics.text if metrics.status_code == 200 else None)
+            except httpx.HTTPError:
+                served = None
+    except httpx.HTTPError as exc:
+        # The exception name, because `degradation.py` sends it here on purpose: the reader
+        # gets a sentence about their results, and the person who can fix it gets the cause.
+        return "fail", f"{shown} is not answering ({type(exc).__name__}). {_RERANKER_COST}"
+
+    note = _breaker_note()
+    if served is None:
+        return "ok", f"{shown} healthy; no /metrics, so a restart is invisible from here.{note}"
+    if served == 0:
+        return "warn", (
+            f"{shown} is up and has answered 0 requests since it last started, which is what "
+            f"a restart looks like from in here. `docker inspect` has the real count.{note}"
+        )
+    return "ok", f"{shown} healthy, {served} request(s) answered since it last started.{note}"
+
+
 async def _hardware() -> tuple[Status, str]:
     """The active profile, and everything it turned off.
 
@@ -631,4 +773,9 @@ async def run_diagnostics() -> list[Check]:
         await _timed("vector space", _vector_space),
         await _timed("embedding service", _model_service("embed", settings.tei_embed_url)),
         await _timed("reranking service", _model_service("rerank", settings.tei_rerank_url)),
+        # Last, and separate from the line above it. `reranking service` asks the question
+        # every model endpoint is asked — are you there, what are you serving. This asks the
+        # one that went unanswered on 28 August: is the component the recall number depends
+        # on actually present, and has it just come back from the dead.
+        await _timed("reranker health", _reranker_health),
     ]
