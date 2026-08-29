@@ -286,7 +286,7 @@ export function Search({
         }}
       >
         <div
-          className={`flex gap-2 border border-input bg-input/30 py-2 pr-2 pl-5 shadow-sm transition-[border-radius,border-color] focus-within:border-primary/50 ${
+          className={`flex gap-2 border border-input bg-card py-2 pr-2 pl-5 shadow-sm transition-[border-radius,border-color] focus-within:border-primary/50 ${
             grown ? "items-start rounded-3xl" : "items-center rounded-full"
           }`}
         >
@@ -298,7 +298,7 @@ export function Search({
               
               The base `Input` is gone rather than restyled — it is an `<input>`, which has
               no height to give. `dark:bg-transparent` went with it; it was load-bearing only
-              because `Input` carries a `dark:bg-input/30` that outlived a plain
+              because `Input` carries a `dark:bg-card` that outlived a plain
               `bg-transparent` and painted the field a shade off the pill around it. */}
           <textarea
             ref={field}
@@ -364,9 +364,10 @@ export function Search({
                     setQuery(suggestion);
                     void run(suggestion);
                   }}
-                  // `bg-secondary/50`, not `bg-card`: this palette makes `--card` equal to
-                  // `--background`, so a chip filled with it is a chip with no fill and
-                  // nothing but a hairline saying it can be clicked.
+                  // `bg-secondary/50`, not `bg-card`, and for the opposite reason it used to
+                  // be: cards are the lifted surface now, and a suggestion is not a card. It
+                  // is a chip on the working surface, so it takes the recessed fill and lets
+                  // the results above it be the things that stand up.
                   className="inline-flex max-w-xs items-center gap-1.5 rounded-full border border-input bg-secondary/50 px-4 py-2 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:bg-secondary hover:text-foreground"
                 >
                   {recent.length > 0 && <Clock className="size-3 shrink-0 opacity-60" />}
@@ -534,7 +535,7 @@ export function Search({
                 className={`overflow-hidden rounded-lg border transition-colors ${
                   open
                     ? "border-primary bg-primary/25 shadow-[inset_4px_0_0_0_var(--color-primary)]"
-                    : "border-border bg-secondary hover:bg-secondary/70"
+                    : "border-border bg-card hover:bg-secondary/40"
                 }`}
               >
                 <button

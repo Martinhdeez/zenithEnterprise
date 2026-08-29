@@ -178,7 +178,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
   const exists = items.some((item) => item.name.toLowerCase() === trimmed.toLowerCase());
 
   return (
-    <fieldset className="space-y-3 rounded-2xl border border-input bg-secondary p-5">
+    <fieldset className="space-y-3 rounded-2xl border border-input bg-card p-5">
       <legend className="px-1 text-xs font-semibold tracking-wide text-foreground uppercase">{t("Labels")}</legend>
       <p className="-mt-1 text-xs text-muted-foreground">
         {t("File under")}
@@ -262,7 +262,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
                     "border-zenith-amber/40 bg-zenith-amber/10 text-zenith-amber hover:bg-zenith-amber/20"
                   : // Solid in dark, 60% in light, and the split is not cosmetic. `--input`
                     // does two jobs in this codebase — it is `border-input` on every control
-                    // and `bg-input/60` on some thirty surfaces — and in light those jobs
+                    // and `bg-card` on some thirty surfaces — and in light those jobs
                     // pull opposite ways: a boundary has to go dark to be seen against white,
                     // a raised surface has to stay light. `--input` follows the boundary,
                     // because that is the job with a standard behind it, and a fill taken
@@ -278,7 +278,7 @@ export function LabelPicker({ token, selected, onToggle, known, onCreated, onRem
                     // Dark keeps the solid value: at 50% a chip landed 0.025 above its own
                     // panel, a third of the 0.068 step measured as the minimum anyone can see
                     // from across a room, and the row read as one flat field.
-                    "border-input bg-input/15 text-foreground hover:bg-input/30 dark:bg-input dark:hover:bg-input/80"
+                    "border-input bg-card text-foreground hover:bg-card dark:bg-input dark:hover:bg-card"
             }`}
           >
             {/* Equal padding on both sides at rest — the delete button is an absolute

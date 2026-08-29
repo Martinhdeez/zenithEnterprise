@@ -889,7 +889,7 @@ export function App() {
               — so it gets the bare `overflow-hidden` box that layout requires and none of
               the padding or scrolling every other view here still wants from `main`. */}
           {(
-            <main className="flex-1 overflow-auto rounded-b-xl bg-card">
+            <main className="flex-1 overflow-auto rounded-b-xl bg-background">
             {/* Every screen is centred and capped here rather than each one setting its own
                 width. They used to carry a `max-w-*` and no `mx-auto`, which pinned them to
                 the left edge — barely noticeable while the preview panel took a third of the

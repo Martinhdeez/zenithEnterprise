@@ -277,22 +277,54 @@
      red says the action destroys something. Sound, and beside the point: the product
      already had an accent, printed on its own logo, and an interface whose primary action
      is a different colour from its mark is saying those are two different things. */
-  --background: oklch(0.9880 0.0040 257);
-  --foreground: oklch(0.2000 0.0300 257);
+  /* Every neutral here is the brand hue desaturated, not a grey borrowed from somewhere
+     else. They used to sit at 257 while `--primary`, `--ring` and the mark all sit at 273.8
+     — seventeen degrees apart, which is far enough that the greys read as a colder blue
+     than the accent they surround, and close enough that it never looks like a mistake, only
+     like something is slightly off. That is what was being felt.
+
+     The stock answer is a slate ramp, and slate *is* 257: swapping to one would have moved
+     from one borrowed grey to another. The chroma ramp climbing as lightness falls
+     (0.004 → 0.030) was already right and is untouched.
+
+     `--destructive` (27), `--zenith-cyan` (195) and `--zenith-amber` (70) keep their own
+     hues. Each is a sentence the interface says rather than a surface, and tinting them
+     towards the brand would blunt what they mean. `--card` stays achromatic white. */
+  /* The light ladder used to run the wrong way, and only in this theme. `--card` is white,
+     the top of the scale, so a panel painted with it left anything placed inside it nowhere
+     to go but down: folder tiles at `--secondary` sank into the surface they were supposed to
+     sit on. Dark never had the problem — there `--card` (0.252) is in the middle, with the
+     shell below it and `--secondary` above.
+
+     So the working surface drops to `--background` and the things on it keep `--card`. That
+     costs a step of separation between the page and its chips, which is why `--secondary`
+     drops too: the gaps are 0.035 either side of the page now, where they were 0.012 and
+     0.028 the wrong way round. */
+  --background: oklch(0.9700 0.0060 273.8);
+  /* The six fields of the light backdrop: a ground, then five bands. Mixed towards white rather
+     than given their own values, so they stay tints of the palette instead of becoming a
+     sixth and seventh colour the product has to explain. */
+  --art-0: color-mix(in oklab, var(--primary) 30%, white);
+  --art-1: color-mix(in oklab, var(--primary) 14%, white);
+  --art-2: color-mix(in oklab, var(--zenith-cyan) 24%, white);
+  --art-3: color-mix(in oklab, var(--zenith-cyan) 40%, white);
+  --art-4: color-mix(in oklab, var(--primary) 32%, white);
+  --art-5: color-mix(in oklab, var(--zenith-cyan) 58%, white);
+  --foreground: oklch(0.2000 0.0300 273.8);
   --card: oklch(1.0000 0 0);
-  --card-foreground: oklch(0.2000 0.0300 257);
+  --card-foreground: oklch(0.2000 0.0300 273.8);
   --popover: oklch(1.0000 0 0);
-  --popover-foreground: oklch(0.2000 0.0300 257);
+  --popover-foreground: oklch(0.2000 0.0300 273.8);
   --primary: oklch(0.5000 0.1911 273.8);
   --primary-foreground: oklch(0.9850 0.0040 273.8);
-  --secondary: oklch(0.9600 0.0070 257);
-  --secondary-foreground: oklch(0.2400 0.0300 257);
-  --muted: oklch(0.9600 0.0070 257);
-  --muted-foreground: oklch(0.4900 0.0250 257);
-  --accent: oklch(0.9600 0.0070 257);
-  --accent-foreground: oklch(0.2400 0.0300 257);
+  --secondary: oklch(0.9350 0.0090 273.8);
+  --secondary-foreground: oklch(0.2400 0.0300 273.8);
+  --muted: oklch(0.9350 0.0090 273.8);
+  --muted-foreground: oklch(0.4900 0.0250 273.8);
+  --accent: oklch(0.9350 0.0090 273.8);
+  --accent-foreground: oklch(0.2400 0.0300 273.8);
   --destructive: oklch(0.5500 0.2000 27);
-  --destructive-foreground: oklch(0.9850 0.0040 257);
+  --destructive-foreground: oklch(0.9850 0.0040 273.8);
   /* Two borders, two jobs, and in light they were the wrong way round: `--input`, which
      draws the edge of something you operate, was *lighter* than `--border`, which draws a
      separator. Both were near-invisible at 1.39:1 on white, where the eye reads a hairline
@@ -308,8 +340,15 @@
      So the two themes do not merely hold different values for the same idea, they use
      different devices, and the components say which: `bg-secondary` with
      `dark:bg-background`, and the inset well only under `dark:`. */
-  --border: oklch(0.8600 0.0110 257);
-  --input: oklch(0.8000 0.0140 257);
+  --border: oklch(0.8600 0.0110 273.8);
+  /* `--input` is an edge, and only an edge. It was also being used as a surface — 54
+     `bg-input/NN` fills across 21 files — and that is where the light theme inverted. In dark
+     it sits at 0.376, above `--card` at 0.252, so a fill made from it lifts; in light it sits
+     at 0.800, below both `--card` and `--background`, so the same fill sinks. One expression,
+     opposite meanings per theme, and every one of those surfaces read correctly in dark and
+     upside down in light. They are `bg-card` now. Use `border-input` for edges and a surface
+     token for surfaces; a fill built from a border colour cannot be right in both themes. */
+  --input: oklch(0.8000 0.0140 273.8);
   --ring: oklch(0.5000 0.1911 273.8);
   --chart-1: oklch(0.5000 0.1911 273.8);
   --chart-2: oklch(0.6200 0.1500 273.8);
@@ -318,13 +357,13 @@
   --chart-5: oklch(0.8500 0.0550 273.8);
   --radius: 0.75rem;
   --tracking-normal: -0.015em;
-  --sidebar: oklch(0.9700 0.0060 257);
-  --sidebar-foreground: oklch(0.2400 0.0300 257);
+  --sidebar: oklch(0.9700 0.0060 273.8);
+  --sidebar-foreground: oklch(0.2400 0.0300 273.8);
   --sidebar-primary: oklch(0.5000 0.1911 273.8);
   --sidebar-primary-foreground: oklch(1.0000 0 0);
-  --sidebar-accent: oklch(0.9450 0.0080 257);
+  --sidebar-accent: oklch(0.9450 0.0080 273.8);
   --sidebar-accent-foreground: oklch(0.5000 0.1911 273.8);
-  --sidebar-border: oklch(0.8600 0.0110 257);
+  --sidebar-border: oklch(0.8600 0.0110 273.8);
   --sidebar-ring: oklch(0.5000 0.1911 273.8);
   /* The five that existed only inside `.dark` until the light theme arrived, and the reason
      the light theme was not a token swap. Eighteen component files use them, and two of them
@@ -344,7 +383,7 @@
   --zenith-foreground: oklch(0.9850 0.0040 273.8);
   --zenith-cyan: oklch(0.5200 0.1150 195);
   --zenith-amber: oklch(0.5600 0.1350 70);
-  --zenith-navy: oklch(0.9450 0.0080 257);
+  --zenith-navy: oklch(0.9450 0.0080 273.8);
 }
 /*
   ---break---

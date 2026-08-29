@@ -147,7 +147,7 @@ export function TagManager({ token }: { token: string }) {
           />
         </div>
         <Select value={sort} onValueChange={(value) => setSort(value as LabelSort)}>
-          <SelectTrigger className="h-9 w-36 rounded-md border-input bg-input/50" aria-label={t("Sort by")}>
+          <SelectTrigger className="h-9 w-36 rounded-md border-input bg-card" aria-label={t("Sort by")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -183,7 +183,7 @@ export function TagManager({ token }: { token: string }) {
             className={`flex items-center gap-3 rounded-md border px-3 py-2 transition-colors ${
               chosen.has(item.id)
                 ? "border-primary/40 bg-primary/10"
-                : "border-input bg-input/50 hover:bg-input"
+                : "border-input bg-card hover:bg-input"
             }`}
           >
             {/* The same disc as the access list and the staging table. A native checkbox is
@@ -339,7 +339,7 @@ function MergeDialog({
           <div className="space-y-1.5">
             <span className="text-xs font-medium text-muted-foreground">{t("Keep")}</span>
             <Select value={target} onValueChange={setTarget}>
-              <SelectTrigger className="h-9 rounded-md border-input bg-input/50" aria-label={t("Keep")}>
+              <SelectTrigger className="h-9 rounded-md border-input bg-card" aria-label={t("Keep")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -358,7 +358,7 @@ function MergeDialog({
               .map((item) => (
                 <span
                   key={item.id}
-                  className="rounded-full border border-input bg-input/60 px-2.5 py-1 text-xs text-muted-foreground line-through"
+                  className="rounded-full border border-input bg-card px-2.5 py-1 text-xs text-muted-foreground line-through"
                 >
                   {item.name}
                 </span>
@@ -370,7 +370,7 @@ function MergeDialog({
           </div>
 
           {preview && (
-            <div className="space-y-1.5 rounded-md border border-input bg-input/60 p-3 text-sm">
+            <div className="space-y-1.5 rounded-md border border-input bg-card p-3 text-sm">
               <p className="text-foreground">
                 {preview.documents_relabelled}{" "}
                 {preview.documents_relabelled === 1 ? "document" : "documents"} will be

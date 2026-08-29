@@ -71,7 +71,7 @@ export function AccessInspector({ token, filename, labelIds, labels }: Props) {
   // outcome rather than the most.
   if (labelIds.length === 0) {
     return (
-      <div className="rounded-md border border-input bg-input/60 p-4 text-sm">
+      <div className="rounded-md border border-input bg-card p-4 text-sm">
         <p className="font-medium text-foreground">{filename}</p>
         <p className="mt-1 text-muted-foreground">
           Carries no label, which makes it visible to everyone in this organisation. Add a
@@ -82,7 +82,7 @@ export function AccessInspector({ token, filename, labelIds, labels }: Props) {
   }
 
   return (
-    <div className="space-y-3 rounded-md border border-input bg-input/60 p-4 text-sm">
+    <div className="space-y-3 rounded-md border border-input bg-card p-4 text-sm">
       <p className="flex items-center gap-2 font-medium text-foreground">
         <ShieldCheck className="size-4 text-primary" />
         Who can open {filename}
