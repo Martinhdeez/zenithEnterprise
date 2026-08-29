@@ -25,7 +25,8 @@ from app.core.hardware import Profile
 from app.core.hardware import active as active_profile
 from app.features.auth.access.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
-from app.features.embeddings.client import MODEL, VERSION, TeiClient
+from app.features.embeddings.client import TeiClient
+from app.features.embeddings.space import active as active_space
 from app.features.retrieval.breaker import Breaker
 from app.features.retrieval.degradation import RERANKING_UNAVAILABLE, SEMANTIC_UNAVAILABLE
 from app.features.retrieval.identifiers import exact
@@ -116,8 +117,14 @@ class SearchService:
                 await dense(
                     session,
                     embedding,
-                    MODEL,
-                    VERSION,
+                    # Read here rather than taken from `embeddings.client`'s constants, and
+                    # that is the change migration 0027 required. Which space is serving is a
+                    # property of the *installation* — a reindex flips it while this process
+                    # runs — and it now decides how the query vector is projected, not only
+                    # which rows are eligible. A constant could be right about the name and
+                    # wrong about the basis, which is the one mistake that ranks instead of
+                    # failing.
+                    await active_space(session),
                     CANDIDATES,
                     self.hardware.hnsw_ef_search,
                     documents,

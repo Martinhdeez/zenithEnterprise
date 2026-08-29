@@ -71,7 +71,7 @@ REPEATS = 5
 NEIGHBOURS = (
     "SELECT c.id FROM chunk_embeddings e JOIN chunks c ON c.id = e.chunk_id "
     "WHERE e.embedding_model = :model AND e.embedding_version = :version "
-    "ORDER BY e.embedding_half <=> CAST(:embedding AS halfvec(1024)) LIMIT :limit"
+    "ORDER BY e.embedding_half::halfvec(1024) <=> CAST(:embedding AS halfvec(1024)) LIMIT :limit"
 )
 
 #: Ground truth, and deliberately **not** the query above: it orders by the full-precision

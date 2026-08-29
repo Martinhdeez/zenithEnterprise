@@ -93,11 +93,12 @@ REPORT = Path(__file__).parent / "tenant-scale.json"
 #: would plan a sequential scan, and this file would then report that a *sequential* scan
 #: loses no rows to the policy — which is true, and the exact opposite of the finding.
 DENSE = (
-    "SELECT c.id, 1 - (e.embedding_half <=> CAST(:embedding AS halfvec(1024))) AS score "
+    "SELECT c.id, 1 - (e.embedding_half::halfvec(1024) "
+    "<=> CAST(:embedding AS halfvec(1024))) AS score "
     "FROM chunk_embeddings e "
     "JOIN chunks c ON c.id = e.chunk_id "
     "WHERE e.embedding_model = :model AND e.embedding_version = :version "
-    "ORDER BY e.embedding_half <=> CAST(:embedding AS halfvec(1024)) LIMIT :limit"
+    "ORDER BY e.embedding_half::halfvec(1024) <=> CAST(:embedding AS halfvec(1024)) LIMIT :limit"
 )
 
 #: Ground truth: the full-precision column, with every index refused. Not `DENSE`, for the

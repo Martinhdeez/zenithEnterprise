@@ -17,7 +17,8 @@ from app.common.exceptions import PermissionDeniedError
 from app.core.database import owner_session, tenant_session
 from app.features.auth.access.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
-from app.features.embeddings.client import DIMENSION, MODEL, VERSION
+from app.features.embeddings.client import DIMENSION
+from app.features.embeddings.space import SHIPPED
 from app.features.retrieval.service import SearchService
 from app.features.tenancy.context import TenantContext
 from conftest import Account, LexicalOnlyEmbedder
@@ -192,12 +193,11 @@ async def test_the_dense_half_is_scoped_by_its_own_query(account: Account) -> No
     context = (await profile_for(account)).context
 
     async with tenant_session(context) as session:
-        everything = await dense(session, [1.0] + [0.0] * (DIMENSION - 1), MODEL, VERSION, 50, 40)
+        everything = await dense(session, [1.0] + [0.0] * (DIMENSION - 1), SHIPPED, 50, 40)
         scoped = await dense(
             session,
             [1.0] + [0.0] * (DIMENSION - 1),
-            MODEL,
-            VERSION,
+            SHIPPED,
             50,
             40,
             documents=[scoped_document],

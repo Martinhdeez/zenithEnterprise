@@ -69,7 +69,8 @@ from uuid import UUID
 
 from app.core.database import tenant_session
 from app.core.hardware import active as active_profile
-from app.features.embeddings.client import MODEL, VERSION, TeiClient
+from app.features.embeddings.client import TeiClient
+from app.features.embeddings.space import SHIPPED
 from app.features.retrieval.identifiers import exact
 from app.features.retrieval.reranker import TeiReranker
 from app.features.retrieval.search import CANDIDATES, candidates, dense, fuse, hydrate, lexical
@@ -153,7 +154,7 @@ async def _one(where: Installation, question: str) -> Timings:
         started = time.perf_counter()
         dense_scored = (
             await dense(
-                session, embedding, MODEL, VERSION, CANDIDATES, hardware.hnsw_ef_search, None
+                session, embedding, SHIPPED, CANDIDATES, hardware.hnsw_ef_search, None
             )
             if embedding
             else []
