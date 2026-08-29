@@ -382,7 +382,9 @@ export function App() {
   // Changing section closes whatever document was open. The preview belongs to the screen
   // that opened it — a PDF left hanging beside the admin panel is a third of the viewport
   // showing something nothing on screen refers to any more.
-  const open = useCallback((next: typeof view) => {
+  // `ask` is the one caller that wants a query carried across: History repeating a past
+  // question, and the palette. Everybody else is plain navigation and gets a clean screen.
+  const open = useCallback((next: typeof view, ask?: string) => {
     setView(next);
     setCitation(null);
     setPdfExpanded(false);
@@ -399,6 +401,18 @@ export function App() {
     // last time. A thread about a document that is no longer open has nothing to be about.
     setPanel("results");
     setStarted(false);
+    // **The last question stopped following the reader around.**
+    //
+    // `Search` is unmounted by the `view === "search"` guard, so leaving the screen already
+    // dropped its query and its results. What survived was `prefill`, up here — and a
+    // freshly mounted `Search` runs its prefill effect on mount, so coming back re-ran the
+    // search somebody had left behind minutes and three screens ago. Pressing Search is
+    // asking for the search screen, not for the last thing that happened on it.
+    //
+    // Set rather than cleared, because the two callers that *do* want a query carried —
+    // History repeating a question, and the palette — go through this same function, and
+    // clearing unconditionally would batch their `setPrefill` into oblivion.
+    setPrefill(ask ? { text: ask, nonce: Date.now() } : null);
     setAskQuestion(null);
   }, []);
 
@@ -781,10 +795,7 @@ export function App() {
               bboxes: [],
             });
           },
-          ask: (question) => {
-            setPrefill({ text: question, nonce: Date.now() });
-            open("search");
-          },
+          ask: (question) => open("search", question),
         }}
       />
 
@@ -1015,10 +1026,7 @@ export function App() {
             {view === "history" && (
               <History
                 token={token}
-                onAsk={(question) => {
-                  setPrefill({ text: question, nonce: Date.now() });
-                  open("search");
-                }}
+                onAsk={(question) => open("search", question)}
               />
             )}
             {view === "admin" && <Admin token={token} />}
