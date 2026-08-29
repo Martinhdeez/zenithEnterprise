@@ -1,8 +1,33 @@
 # Choosing the HASH modulus
 
-**Status:** measured
+**Status:** measured, and acted on
 **Evidence:** `backend/eval/modulus-cost.json`, `backend/eval/modulus_cost.py`
 **Reopens:** the reasoning behind MODULUS 256 in `backend/eval/partition-shape.json`
+**Closed by:** `perf/modulus-128` — migration 0026's default is **128**, and the modulus is
+`ZENITH_PARTITION_MODULUS` rather than a constant
+
+## What shipped
+
+Three things, and the second is the one that matters:
+
+1. **The default is 128**, from the table below: at 5% extra rows the rule wants 128 for a
+   tenant holding a fifth of the corpus, which is where a 200-tenant Zipf-1.0 population puts
+   its largest. It halves a request's planning against 256 — 37.39 ms to 17.16 ms on the
+   post-stage-02 lexical path, 143.09 to 47.86 on the `tsvector` engine — and buys up 0.0001
+   of the corpus for the tenant it is chosen for, which is nothing.
+2. **It is a deployment parameter.** `ZENITH_PARTITION_MODULUS`, documented in `.env.example`,
+   read once by migration 0026 at the moment it partitions. **128 is the default because it
+   covers the wide case, not because it is right for any particular installation** — this one
+   would be right at 16 — and the rule below is what an operator uses instead.
+3. **`zenith diagnose` evaluates the rule against the running installation.** It reads the
+   largest tenant's share out of `pg_stats` and `reltuples`, reads the modulus out of
+   `pg_class`, and reports which modulus this corpus asks for. Before 0026 it names the
+   number to set; after 0026 it says whether the installed one fits. That is the same
+   "declared versus installed" split as `make check` against `demo-check`, and it exists
+   because the input — how a customer's corpus divides between customers — is not in this
+   repository and never will be.
+
+The rest of this document is the measurement that decided it, unchanged.
 
 ADR 0009 partitions `chunks` and `chunk_embeddings` by `tenant_id`, HASH.
 `partition-shape.json` recommended **256**, and it chose that number against a ceiling: the

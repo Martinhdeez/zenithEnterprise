@@ -89,7 +89,7 @@ async def test_every_check_runs_even_when_the_database_is_unreachable() -> None:
 
     checks = await run_diagnostics()
 
-    assert len(checks) == 17
+    assert len(checks) == 18
     assert any(check.status == "fail" for check in checks)
     # And the failure still says nothing it should not.
     assert "nothing" not in " ".join(check.detail for check in checks)
@@ -565,6 +565,172 @@ async def test_a_lock_budget_the_pools_can_exhaust_is_a_failure(
         async with get_owner_session_factory()() as session:
             await session.execute(text("DROP TABLE IF EXISTS lock_probe CASCADE"))
             await session.commit()
+
+
+#: The corpus a modulus is sized against, built small and skewed on purpose.
+#:
+#: 80 rows for one tenant and 20 for another: `s = 0.8`, so `(1 - s) / (0.05 * s)` is 5 and
+#: the rule wants a modulus of at least 5. Four is short of it and eight clears it, which is
+#: the pair of moduli the two tests below use — one number apart on either side of the answer
+#: rather than orders of magnitude from it, so what they prove is the arithmetic and not a
+#: threshold that could be anywhere.
+#:
+#: Skew rather than a uniform split, because uniform is the case the rule is least
+#: interesting on and the case this product does not have: `eval/partition-shape.json`
+#: measures 0.6106 against the 0.5 a uniform split would give, on the real installation.
+MODULUS_PROBE_SCHEMA = "modulus_fit_probe"
+MODULUS_PROBE_ROWS = (
+    (80, "11111111-1111-1111-1111-111111111111"),
+    (20, "22222222-2222-2222-2222-222222222222"),
+)
+
+
+async def _build_modulus_probe(modulus: int | None) -> None:
+    """A `chunks` of its own, in a schema of its own, analysed so the planner has an opinion.
+
+    `ANALYZE` is the whole point of the fixture and not housekeeping. The check reads
+    `reltuples` and `pg_stats`, which is what makes it cost nothing at 322M passages, and a
+    probe nobody analysed would exercise the "no row estimate yet" branch instead of the one
+    under test. `ANALYZE` on a partitioned table recurses to its partitions, which is where
+    both numbers actually live.
+
+    `modulus=None` builds the same table unpartitioned, which is the branch every
+    installation that has not yet run 0026 is on.
+    """
+    from app.core.database import get_owner_session_factory
+
+    async with get_owner_session_factory()() as session:
+        await session.execute(text(f"CREATE SCHEMA {MODULUS_PROBE_SCHEMA}"))
+        if modulus is None:
+            await session.execute(
+                text(f"CREATE TABLE {MODULUS_PROBE_SCHEMA}.chunks (tenant_id uuid NOT NULL)")
+            )
+        else:
+            await session.execute(
+                text(
+                    f"CREATE TABLE {MODULUS_PROBE_SCHEMA}.chunks (tenant_id uuid NOT NULL) "
+                    "PARTITION BY HASH (tenant_id)"
+                )
+            )
+            for remainder in range(modulus):
+                await session.execute(
+                    text(
+                        f"CREATE TABLE {MODULUS_PROBE_SCHEMA}.chunks_p{remainder} "
+                        f"PARTITION OF {MODULUS_PROBE_SCHEMA}.chunks "
+                        f"FOR VALUES WITH (MODULUS {modulus}, REMAINDER {remainder})"
+                    )
+                )
+        for count, tenant in MODULUS_PROBE_ROWS:
+            await session.execute(
+                text(
+                    f"INSERT INTO {MODULUS_PROBE_SCHEMA}.chunks (tenant_id) "
+                    "SELECT CAST(:tenant AS uuid) FROM generate_series(1, :count)"
+                ),
+                {"tenant": tenant, "count": count},
+            )
+        await session.commit()
+
+    async with get_owner_session_factory()() as session:
+        await session.execute(text(f"ANALYZE {MODULUS_PROBE_SCHEMA}.chunks"))
+        await session.commit()
+
+
+async def _drop_modulus_probe() -> None:
+    from app.core.database import get_owner_session_factory
+
+    async with get_owner_session_factory()() as session:
+        await session.execute(text(f"DROP SCHEMA IF EXISTS {MODULUS_PROBE_SCHEMA} CASCADE"))
+        await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_a_modulus_that_covers_the_largest_tenant_passes(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The rule evaluated against a real distribution, out of the catalogue.
+
+    Eight buckets for a tenant holding four fifths of the corpus, where the rule wants five.
+    What is asserted is not the status alone but the share the check read: 0.800 has to come
+    out of `pg_stats` and `reltuples` for the answer to mean anything, and a check that had
+    stopped reading them would still say `ok`.
+    """
+    await _build_modulus_probe(8)
+    try:
+        monkeypatch.setattr(diagnostics, "PARTITION_SCHEMA", MODULUS_PROBE_SCHEMA)
+        checks = {check.name: check for check in await run_diagnostics()}
+        detail = checks["partition modulus"].detail
+
+        assert checks["partition modulus"].status == "ok", detail
+        assert "8 partitions" in detail, detail
+        # The distribution, read rather than assumed. Both halves: the share and the corpus
+        # it is a share of.
+        assert "owns 0.800 of ~100 rows" in detail, detail
+        # And the rule's answer for it, which is what makes the `ok` a judgement rather than
+        # a default.
+        assert "wants 5 at 5%" in detail, detail
+    finally:
+        await _drop_modulus_probe()
+
+
+@pytest.mark.asyncio
+async def test_a_modulus_too_small_for_the_largest_tenant_is_a_warning(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """And it has to be able to say so, or it is not a check.
+
+    Four buckets against the same corpus, one short of the five the rule wants. The failing
+    side of this one cannot be produced by the installed schema — `public` is at whatever
+    modulus 0026 ran with and its corpus is whatever the customer has — which is exactly why
+    `PARTITION_SCHEMA` is a constant a test can move.
+
+    A warning and not a failure, deliberately, and the assertion says so rather than merely
+    accepting it: too small a modulus makes a tenant read rows it does not own, which is
+    latency. It is not a leak. RLS is still the only access control and a partition boundary
+    was never what enforced it.
+    """
+    await _build_modulus_probe(4)
+    try:
+        monkeypatch.setattr(diagnostics, "PARTITION_SCHEMA", MODULUS_PROBE_SCHEMA)
+        checks = {check.name: check for check in await run_diagnostics()}
+        detail = checks["partition modulus"].detail
+
+        assert checks["partition modulus"].status == "warn", detail
+        assert "4 partitions" in detail, detail
+        assert "wants 5" in detail, detail
+        # What it costs, in the terms the rule is written in: (1 - s) / (P * s) = 6.25%.
+        assert "reads 6.2% more than it owns" in detail, detail
+        # And what an operator does about it, which is not a setting on its own.
+        assert "re-run 0026" in detail, detail
+    finally:
+        await _drop_modulus_probe()
+
+
+@pytest.mark.asyncio
+async def test_an_unpartitioned_corpus_is_told_which_modulus_to_set(
+    configured_engines: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The branch every installation that has not run 0026 is on, and the only useful moment.
+
+    `ZENITH_PARTITION_MODULUS` is read once, by 0026, at the moment it partitions. After that
+    the modulus is a property of the schema and changing the setting does nothing until the
+    migration is run again — over a corpus where that means rebuilding one HNSW graph per
+    bucket. So the report has to name the number *before* the migration, not after it, and
+    this is the branch where it can.
+    """
+    await _build_modulus_probe(None)
+    try:
+        monkeypatch.setattr(diagnostics, "PARTITION_SCHEMA", MODULUS_PROBE_SCHEMA)
+        checks = {check.name: check for check in await run_diagnostics()}
+        detail = checks["partition modulus"].detail
+
+        assert checks["partition modulus"].status == "ok", detail
+        assert "is not partitioned" in detail, detail
+        # The setting, spelled the way it is spelled in `.env`, with the value to give it.
+        assert "Set ZENITH_PARTITION_MODULUS=5" in detail, detail
+        # And what it is now, so the two can be compared without leaving the report.
+        assert str(settings.partition_modulus) in detail, detail
+    finally:
+        await _drop_modulus_probe()
 
 
 @pytest.mark.asyncio

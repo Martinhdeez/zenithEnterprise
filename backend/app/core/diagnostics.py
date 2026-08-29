@@ -13,6 +13,7 @@ unreachable is useless at exactly the moment it is needed. Every check catches i
 failure and reports it as a result; the run always completes.
 """
 
+import math
 import re
 import time
 from collections.abc import Awaitable, Callable
@@ -471,6 +472,210 @@ async def _lock_budget() -> tuple[Status, str]:
         # shared memory nobody reserved and every other backend may want.
         return "warn", f"{shape}. Under a quarter of headroom. {fix}"
     return "ok", f"{shape}, room for {slots // per_transaction} concurrent"
+
+
+# --- Does the installed modulus fit this installation? --------------------------------
+#
+# The lock budget above asks whether the partition count is *affordable*. This asks whether
+# it is *useful*, which is the other half of the same decision and the half nothing in this
+# repository could answer, because the answer is a property of somebody else's corpus.
+#
+# `eval/modulus-cost.json` measured what a modulus buys and what it costs, and
+# `docs/partitioning-modulus.md` reduces it to one inequality an operator can act on. A
+# tenant's query reaches its own rows plus about one modulus-th of everybody else's:
+#
+#     share_of_corpus_reached = s + (1 - s) / P
+#
+# where `s` is that tenant's share of the corpus and `P` the modulus. There is no
+# tenant-count term — every other tenant lands in a given bucket with probability `1 / P`
+# whatever its size, so `T` cancels — and there is a floor, because `(1 - s) / P` goes to
+# zero while `s` does not. Rearranged:
+#
+#     P >= (1 - s) / (epsilon * s)
+#
+# holds a tenant of share `s` to `epsilon` extra rows.
+#
+# So the check reads `s` off the running installation and evaluates the rule, rather than
+# asserting the 128 that `ZENITH_PARTITION_MODULUS` defaults to. 128 covers a 200-tenant
+# Zipf population at 5%; this installation's own two tenants split 0.6106/0.3894, and the
+# rule asks that one for 16. Neither number is knowable from the migrations, which is the
+# same reason `AUTHORISED_SECURITY_DEFINERS` is checked against a running installation and
+# not only against the schema they declare.
+
+
+#: The corpus table whose partitioning the rule is about, and the column it is cut on.
+#:
+#: Named rather than discovered. A search reads `chunks` and `chunk_embeddings`, they carry
+#: the same tenant distribution by construction — an embedding exists only for a chunk — and
+#: reporting the same ratio twice would be noise. `chunks` is the one that also holds the
+#: text, so it is the one whose statistics are certain to exist.
+#:
+#: A constant a test can point elsewhere, exactly as `PARTITION_SCHEMA` is: the installed
+#: schema cannot exhibit a badly-sized modulus on demand, and a check whose warning branch
+#: has never run is not a check.
+MODULUS_TABLE = "chunks"
+MODULUS_KEY = "tenant_id"
+
+#: The extra rows the rule is solved for: 5%, which is `docs/partitioning-modulus.md`'s
+#: tighter column and the one its recommended moduli are read off.
+#:
+#: A target rather than a threshold — being above it is not a failure, and the check says so
+#: by warning rather than failing. Widening costs rows read, not correctness: a tenant whose
+#: bucket holds a neighbour gets slower answers, never wrong ones, because RLS is still the
+#: only access control and the partition boundary is not what enforces isolation.
+MODULUS_EPSILON: Final = 0.05
+
+#: Every leaf of the corpus table's partition tree, with what the planner believes it holds
+#: and how that is split between tenants.
+#:
+#: **Catalogue only: it reads no row of the corpus, at any modulus and any corpus size.** The
+#: alternative is `SELECT tenant_id, count(*) FROM chunks GROUP BY 1`, which opens every
+#: bucket and scans all of them — the objection `_ESTIMATED` below records against counting
+#: `chunks` at all, and it gets worse rather than better at ADR 0009's target of 322.6M
+#: passages, where it is the difference between a diagnostic and an outage.
+#:
+#: `reltuples` gives what a bucket holds, which is what every tenant in it *reaches*; the
+#: most-common-value list gives each tenant's slice of that, which is what it *owns*. Both
+#: come from the same `ANALYZE`, so they are consistent with each other even when they are
+#: both a little stale. The output marks them `~` rather than expecting the reader to know.
+#:
+#: They are not merely close. On the installation this was written against `pg_stats` reports
+#: 0.61059856 for the larger tenant and the exact count is 8,273 of 13,549 = 0.6105985..., the
+#: 0.6106 that `eval/partition-shape.json` and `eval/modulus-cost.json` both quote.
+_MODULUS_FIT = """
+WITH RECURSIVE tree AS (
+    SELECT c.oid, c.relname, n.nspname
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = :schema AND c.relname = :table
+    UNION ALL
+    SELECT child.oid, child.relname, n.nspname
+    FROM pg_inherits i
+    JOIN tree t ON i.inhparent = t.oid
+    JOIN pg_class child ON child.oid = i.inhrelid
+    JOIN pg_namespace n ON n.oid = child.relnamespace
+)
+SELECT c.relkind::text AS relkind,
+       c.reltuples::bigint AS rows,
+       s.most_common_vals::text::text[] AS vals,
+       s.most_common_freqs AS freqs
+FROM tree t
+JOIN pg_class c ON c.oid = t.oid
+LEFT JOIN pg_stats s
+       ON s.schemaname = t.nspname AND s.tablename = t.relname AND s.attname = :key
+"""
+
+
+def _required_modulus(share: float) -> int:
+    """`P >= (1 - s) / (epsilon * s)`, rounded up to a whole bucket.
+
+    Not rounded to a power of two. Postgres accepts any modulus above zero, the rule gives
+    12.75 for this installation's own largest tenant, and reporting 16 where the arithmetic
+    says 13 would be this file inventing a convention the schema does not have.
+    `docs/partitioning-modulus.md`'s table rounds up to powers of two because an operator
+    reads a modulus off it by eye; a machine solving the inequality does not need to.
+    """
+    return max(1, math.ceil((1.0 - share) / (MODULUS_EPSILON * share)))
+
+
+async def _partition_modulus() -> tuple[Status, str]:
+    """Is `ZENITH_PARTITION_MODULUS` the right size for *this* corpus?
+
+    The second half of the partitioning decision, and the half that cannot be tested from
+    the migrations: a modulus is affordable or not depending on the lock table above, and it
+    is useful or not depending on how the corpus is split between customers. Only a running
+    installation knows the second.
+
+    Answers before 0026 as well as after, and that is deliberate rather than incidental. On
+    an unpartitioned installation the rule still has all of its inputs, so the check reports
+    the modulus to set *before* the migration runs — which is the only moment the setting can
+    be acted on without a second table rewrite.
+
+    Never a failure. Too small a modulus costs a tenant rows read, never rows returned:
+    isolation is RLS's job and a partition boundary is not what enforces it. Too large a one
+    costs planning on every search, which is a real bill and still not an outage. So the
+    worst this reports is a warning, and it prints the numbers either way.
+    """
+    async with get_owner_session_factory()() as session:
+        rows = (
+            await session.execute(
+                text(_MODULUS_FIT),
+                {"schema": PARTITION_SCHEMA, "table": MODULUS_TABLE, "key": MODULUS_KEY},
+            )
+        ).all()
+
+    if not rows:
+        return "ok", f"{MODULUS_TABLE} is not installed, so there is no modulus to size"
+
+    # `relkind = 'p'` is the partitioned parent, which holds no rows of its own; the leaves
+    # are what `reltuples` means anything about. An unpartitioned table is its own leaf, so
+    # the leaf count is one rather than zero — the parent's *presence* is what says whether
+    # anything is partitioned, not how many leaves there are.
+    partitioned = any(row.relkind == "p" for row in rows)
+    leaves = [row for row in rows if row.relkind == "r"]
+    installed = len(leaves) if partitioned else 0
+
+    # `reltuples` is -1 on a relation that has never been analysed or vacuumed (Postgres 14
+    # and later). That is not zero and must not be added as zero.
+    corpus = sum(row.rows for row in leaves if row.rows > 0)
+    if not corpus:
+        shape = f"{installed} partition(s)" if partitioned else "not partitioned"
+        return "ok", (
+            f"{MODULUS_TABLE}: {shape}, and the planner has no row estimate for it yet — "
+            "nothing to size a modulus against until there is a corpus"
+        )
+
+    # Rows a tenant owns, from its bucket's estimate and its share of that bucket. A tenant
+    # is in exactly one bucket — that is what hashing the partition key means — so the sum
+    # over leaves has one non-zero term per tenant, and what it reaches is that bucket entire.
+    owned: dict[str, float] = {}
+    reached: dict[str, float] = {}
+    for row in leaves:
+        if row.rows <= 0 or not row.vals or not row.freqs:
+            continue
+        for value, frequency in zip(row.vals, row.freqs, strict=False):
+            owned[value] = owned.get(value, 0.0) + row.rows * frequency
+            reached[value] = max(reached.get(value, 0.0), float(row.rows))
+
+    if not owned:
+        # Rows exist and nothing says whose they are. Recoverable in one command, and worth
+        # saying rather than guessing: without the distribution this check has no input at
+        # all, and reporting `ok` would be reporting that it had looked.
+        return "warn", (
+            f"{MODULUS_TABLE}: ~{corpus:,} rows and no statistics on {MODULUS_KEY}. "
+            f"Run ANALYZE {MODULUS_TABLE}; until then the modulus cannot be sized."
+        )
+
+    tenant = max(owned, key=lambda key: owned[key])
+    share = owned[tenant] / corpus
+    required = _required_modulus(share)
+    # The rule's own prediction rather than the measured widening, and on purpose: `reached`
+    # is one draw of the hash's luck on this installation, while `(1 - s) / (P * s)` is the
+    # quantity that transfers and the one an operator is choosing a modulus on.
+    extra = (1.0 - share) / (installed * share) if installed else 0.0
+    # Every string below is kept well inside `_scrub`'s 200 characters, and the half naming
+    # the setting is never the half at risk of being cut.
+    fit = (
+        f"largest tenant owns {share:.3f} of ~{corpus:,} rows, "
+        f"so the rule wants {required} at {MODULUS_EPSILON:.0%}"
+    )
+
+    if not partitioned:
+        return "ok", (
+            f"{MODULUS_TABLE} is not partitioned; {fit}. "
+            f"Set ZENITH_PARTITION_MODULUS={required} before 0026 runs "
+            f"(it is {settings.partition_modulus})."
+        )
+
+    shape = f"{MODULUS_TABLE}: {installed} partitions, {fit}"
+    if installed < required:
+        # A warning, where the lock budget above fails. The difference is the right way
+        # round: that one is a 500 on every search, this one is rows a customer pays for in
+        # milliseconds.
+        return "warn", (
+            f"{shape}. It reads {extra:.1%} more than it owns; re-run 0026 at a larger modulus."
+        )
+    return "ok", f"{shape}, and it reads {extra:.1%} more than it owns"
 
 
 async def _job_queue() -> tuple[Status, str]:
@@ -956,6 +1161,11 @@ async def run_diagnostics() -> list[Check]:
         # migrations can see. What a schema declares about partitioning and what a server was
         # started with are independent, and only one of them causes a 500.
         await _timed("lock budget", _lock_budget),
+        # And beside *that*, because they are the two halves of one decision: the lock budget
+        # says whether the partition count is affordable, this says whether it is useful.
+        # Neither is answerable from the migrations — one needs the server's start-up flags
+        # and the other needs the customer's own corpus.
+        await _timed("partition modulus", _partition_modulus),
         # Right after migrations, because it is the half of the install that `alembic upgrade
         # head` does not do and that nothing else would report as missing.
         await _timed("job queue", _job_queue),
