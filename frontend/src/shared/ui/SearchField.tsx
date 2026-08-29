@@ -12,9 +12,9 @@
  * picking the more conservative radius would have meant changing the two screens that set
  * the tone to match the three that followed.
  *
- * **`bg-input/30`, not `bg-card`.** A field wants to read as a well — something you type
+ * **`bg-card`, not `bg-card`.** A field wants to read as a well — something you type
  * into — rather than as a card sitting on the panel. The base `Input` component is
- * deliberately not used here: it carries `dark:bg-input/30` of its own, which has outlived
+ * deliberately not used here: it carries `dark:bg-card` of its own, which has outlived
  * an explicit background three times in this codebase and produced a translucent wash
  * somebody then had to debug.
  *
@@ -99,7 +99,7 @@ export function SearchField({ value, onChange, label, placeholder, onSubmit, act
       // fully-rounded edge reads as a lozenge rather than as a field, so the radius eases
       // down as it grows — and everything inside aligns to the first line instead of
       // floating in the middle of a paragraph.
-      className={`flex min-w-0 flex-1 gap-1 border border-input bg-input/30 py-1 pr-1 pl-3.5 transition-[border-radius,border-color] focus-within:border-primary/40 ${
+      className={`flex min-w-0 flex-1 gap-1 border border-input bg-card py-1 pr-1 pl-3.5 transition-[border-radius,border-color] focus-within:border-primary/40 ${
         grown ? "items-start rounded-2xl" : "items-center rounded-full"
       }`}
     >

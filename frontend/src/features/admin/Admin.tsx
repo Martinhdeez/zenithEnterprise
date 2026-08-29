@@ -33,16 +33,19 @@ import { useT } from "@/shared/i18n/useT";
     the content. Every panel on this screen shares this frame so the eye reads them as one
     settings surface rather than three differently-built widgets stacked on a page.
 
-    `bg-secondary`, not `bg-card`, and that is the whole reason this screen had no depth:
-    the page's own `<main>` is already `bg-card`, so a panel painted `bg-card` is the same
-    navy as the page behind it and only its hairline border says it exists. The palette has
-    three steps of blue — `#070a12` behind the app, `#10172a` for the page, `#182238` for a
-    thing *on* the page — and a panel is the third of those. The header keeps `bg-card` so
-    it recedes below its own body, the way a title bar sits below a window. */
+    `bg-card` for the body, and it used to be `bg-secondary` for a reason that has since
+    stopped being true. The working surface was `--card` — white, the top of the light scale —
+    so anything painted with it vanished, and a panel had to go *down* to be seen at all. The
+    surface is `--background` now and the ladder runs the right way: the page is 0.970, a
+    panel on it is 1.000, and a recessed fill is 0.935.
+
+    The header takes `bg-background`, the page's own tone, so it still recedes below its own
+    body the way a title bar sits below a window. Every panel on this screen shares the frame
+    so the eye reads them as one settings surface. */
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="rounded-lg border border-border bg-secondary shadow-sm">
-      <h2 className="rounded-t-lg border-b border-border bg-card px-5 py-3.5 text-sm font-semibold text-foreground">
+    <section className="rounded-lg border border-border bg-card shadow-sm">
+      <h2 className="rounded-t-lg border-b border-border bg-background px-5 py-3.5 text-sm font-semibold text-foreground">
         {title}
       </h2>
       <div className="p-5">{children}</div>

@@ -446,7 +446,7 @@ export function Chat({ token, onCitation, searchable, labels, prefill, anchor }:
             rectangle beside a pill. The two places a person types in this product should be
             the same shape, and "nearly the same" is the version that breaks the first time
             a token moves. */}
-        <div className="flex items-center gap-2 rounded-full border border-input bg-input/30 py-1.5 pr-1.5 pl-4 shadow-sm transition-colors focus-within:border-primary/40">
+        <div className="flex items-center gap-2 rounded-full border border-input bg-card py-1.5 pr-1.5 pl-4 shadow-sm transition-colors focus-within:border-primary/40">
           <Input
             ref={inputRef}
             value={question}
@@ -487,7 +487,7 @@ export function Chat({ token, onCitation, searchable, labels, prefill, anchor }:
             aria-label={t("Question")}
             maxLength={1000}
             // `dark:bg-transparent` is load-bearing, same as the search bar: the base
-            // `Input` carries `dark:bg-input/30`, which outlives a plain `bg-transparent`
+            // `Input` carries `dark:bg-card`, which outlives a plain `bg-transparent`
             // in the dark theme and painted the field a shade off the pill around it.
             className="h-8 flex-1 border-0 bg-transparent p-0 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 dark:bg-transparent"
           />

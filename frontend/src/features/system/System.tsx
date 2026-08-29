@@ -109,7 +109,7 @@ export function System({ token }: { token: string }) {
       />
 
       {items.length === 0 && (
-        <p className="rounded-md border border-input bg-input/60 p-4 text-sm text-muted-foreground">
+        <p className="rounded-md border border-input bg-card p-4 text-sm text-muted-foreground">
           {t("No organisations yet.")}
         </p>
       )}
@@ -208,7 +208,7 @@ function OrganisationGroup({
           hairline in it was a line nobody could see; `--input` (#334155) is a real step away
           from both. Each row here is an organisation somebody may be about to suspend, and
           telling one row from the next is not a decorative concern. */}
-      <ul className="divide-y-2 divide-input overflow-hidden rounded-lg border border-border bg-secondary shadow-sm">
+      <ul className="divide-y-2 divide-input overflow-hidden rounded-lg border border-border bg-card shadow-sm">
         {organisations.map((organisation) => (
           <OrganisationRow
             key={organisation.id}
@@ -323,7 +323,7 @@ function NewOrganisation({ token, onCreated }: { token: string; onCreated: () =>
   return (
     // Raised off the page like every other panel in the product. It was transparent, which
     // on a `bg-card` page means it was the page.
-    <section className="space-y-3 rounded-lg border border-border bg-secondary p-4 shadow-sm">
+    <section className="space-y-3 rounded-lg border border-border bg-card p-4 shadow-sm">
       <p className="text-sm font-medium text-foreground">{t("New organisation")}</p>
       <div className="flex flex-wrap gap-2">
         <input
@@ -331,14 +331,14 @@ function NewOrganisation({ token, onCreated }: { token: string; onCreated: () =>
           onChange={(event) => setName(event.target.value)}
           placeholder={t("Organisation name")}
           aria-label={t("Organisation name")}
-          className="min-w-48 flex-1 rounded-md border border-input bg-input/60 px-3 py-2 text-sm"
+          className="min-w-48 flex-1 rounded-md border border-input bg-card px-3 py-2 text-sm"
         />
         <input
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           placeholder={t("First administrator's email")}
           aria-label={t("First administrator's email")}
-          className="min-w-56 flex-1 rounded-md border border-input bg-input/60 px-3 py-2 text-sm"
+          className="min-w-56 flex-1 rounded-md border border-input bg-card px-3 py-2 text-sm"
         />
         <Button
           disabled={!name.trim() || !email.trim()}
@@ -416,7 +416,7 @@ function PurgeDialog({
             id="confirm-name"
             value={typed}
             onChange={(event) => setTyped(event.target.value)}
-            className="w-full rounded-md border border-input bg-input/60 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
           />
         </div>
         <div className="flex justify-end gap-2">

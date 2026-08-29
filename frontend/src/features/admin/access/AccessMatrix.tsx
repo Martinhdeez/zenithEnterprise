@@ -127,7 +127,7 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
 
   if (groups.length === 0) {
     return (
-      <p className="rounded-md border border-input bg-input/60 p-4 text-sm text-muted-foreground">
+      <p className="rounded-md border border-input bg-card p-4 text-sm text-muted-foreground">
         No groups yet. A group is a part of the business — Finance, Engineering,
         Project-Alpha — and mapping labels to one is how its members reach documents.
       </p>
@@ -152,7 +152,7 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
       <div
         role="tablist"
         aria-label={t("Groups")}
-        className="flex flex-wrap gap-1.5 rounded-md border border-input bg-input/60 p-1.5"
+        className="flex flex-wrap gap-1.5 rounded-md border border-input bg-card p-1.5"
       >
         {groups.map((one) => (
           <button
@@ -182,7 +182,7 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
 
       <div>
         {/* Labels: the unbounded axis, running vertically where length is allowed. */}
-        <div className="space-y-2 rounded-md border border-input bg-input/60 p-3">
+        <div className="space-y-2 rounded-md border border-input bg-card p-3">
           <div className="flex flex-wrap items-center gap-2">
             <SearchField
               value={search}
@@ -257,7 +257,7 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
                   onChange={(event) => void classify(label.id, Number(event.target.value))}
                   aria-label={t("Clearance required by {label}", { label: label.name })}
                   title={t("Applies to this label everywhere, not just to this group — saved as soon as you change it.")}
-                  className="mr-3 shrink-0 rounded-md border border-input bg-input/60 px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                  className="mr-3 shrink-0 rounded-md border border-input bg-card px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
                 >
                   <option value={0}>{t("no clearance")}</option>
                   {Array.from({ length: 10 }, (_, index) => index + 1).map((level) => (
@@ -315,7 +315,7 @@ export function GroupManager({ token, onChanged }: { token: string; onChanged?: 
           onChange={(event) => setName(event.target.value)}
           placeholder={t("Finance, Engineering, Project-Alpha…")}
           aria-label={t("New group name")}
-          className="flex-1 rounded-md border border-input bg-input/60 px-3 py-2 text-sm"
+          className="flex-1 rounded-md border border-input bg-card px-3 py-2 text-sm"
         />
         <Button
           disabled={!name.trim()}
