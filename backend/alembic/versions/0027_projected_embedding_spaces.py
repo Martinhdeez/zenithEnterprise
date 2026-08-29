@@ -216,7 +216,7 @@ def _describe_the_projection() -> None:
     it is what `zenith diagnose` compares.
     """
     op.execute("ALTER TABLE embedding_spaces ADD COLUMN source_dimension integer")
-    op.execute("ALTER TABLE embedding_spaces ADD COLUMN basis_digest text")
+    op.execute("ALTER TABLE embedding_spaces ADD COLUMN basis_digest varchar")
     op.execute(
         "ALTER TABLE embedding_spaces ADD CONSTRAINT ck_embedding_spaces_projection_complete "
         "CHECK ((source_dimension IS NULL) = (basis_digest IS NULL))"
@@ -232,8 +232,8 @@ def _describe_the_projection() -> None:
     op.execute(
         f"""
         CREATE TABLE embedding_space_axes (
-            model text NOT NULL,
-            version text NOT NULL,
+            model varchar NOT NULL,
+            version varchar NOT NULL,
             component integer NOT NULL,
             axis vector({SOURCE_DIMENSION}) NOT NULL,
             CONSTRAINT pk_embedding_space_axes PRIMARY KEY (model, version, component),

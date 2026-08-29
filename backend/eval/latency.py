@@ -153,9 +153,7 @@ async def _one(where: Installation, question: str) -> Timings:
 
         started = time.perf_counter()
         dense_scored = (
-            await dense(
-                session, embedding, SHIPPED, CANDIDATES, hardware.hnsw_ef_search, None
-            )
+            await dense(session, embedding, SHIPPED, CANDIDATES, hardware.hnsw_ef_search, None)
             if embedding
             else []
         )
