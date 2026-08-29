@@ -91,7 +91,27 @@ locks 233 relations anyway has not pruned.
 
 `shipped_scoped` under a forced generic plan is recorded and judged by nobody. It is the
 baseline: whatever it does is what production does today, and it is the only thing that turns
-"`scoped_bare` loses the index" into either a regression or a wash.
+"`scoped_bare` loses the index" into either a regression or a wash. Bar 2 is still judged in
+absolute terms — a plan that reads a whole partition sequentially is a bad plan at production
+partition sizes whatever the plan beside it does — and `verdict` in the report is what says
+whether failing it costs anything against today.
+
+The promotion watch is not a bar either. `dense-plan-time.json`'s planning spike on the sixth
+call was read as Postgres *reaching* a generic plan unforced, and building a candidate generic
+plan and using one are different events: the plancache prices the candidate and goes on planning
+custom if the custom plans are cheaper. `_promotion` runs forty unforced executions of each arm
+on one backend and reads the plan every time, so whether the forced arms are a forecast or a
+bound is a reading rather than an inference.
+
+## The installation these readings come from
+
+Recorded per rung in `environment`, and not as decoration. This branch's measurements straddled
+a deploy: the shared installation went from migration 0025 to 0026, `chunks` and
+`chunk_embeddings` became partitioned in `public`, and `max_locks_per_transaction` went from 64
+to 2,560 when the container was recreated — 6,400 cluster lock slots to 256,000. A lock count
+from one side is not comparable with one from the other. Every figure in
+`dense-two-functions.json` was taken after that boundary; the arms measured before it were
+discarded rather than mixed in.
 
 Built on `dense_plan_time`'s schema builder, tenants, index set and plan reader — the same
 corpus placed the same way, so the numbers here sit beside that file's rather than near them.
@@ -651,11 +671,11 @@ async def _in_step(
                     f"   FROM {SCHEMA}.f_scoped_bare(CAST(:v AS halfvec(1024)), :m, :s, :w, "
                     "                               CAST(:d AS uuid[]))) "
                     "SELECT (SELECT count(*) FROM u) AS unscoped_rows, "
-                    "       (SELECT count(*) FROM c) AS scoped_rows, "
+                    "       (SELECT count(*) FROM cd) AS scoped_rows, "
                     "       count(*) AS in_both, "
-                    "       coalesce(max(abs(u.score - c.score)), 0) AS max_score_delta, "
-                    "       count(*) FILTER (WHERE u.rank <> c.rank) AS at_a_different_rank "
-                    "FROM u JOIN c ON c.chunk_id = u.chunk_id"
+                    "       coalesce(max(abs(u.score - cd.score)), 0) AS max_score_delta, "
+                    "       count(*) FILTER (WHERE u.rank <> cd.rank) AS at_a_different_rank "
+                    "FROM u JOIN cd ON cd.chunk_id = u.chunk_id"
                 ),
                 {
                     "v": vector,
@@ -740,26 +760,37 @@ async def _isolation(
 
     # A document scope is not an access grant: the session's own tenant, asked for its own
     # tenant, with somebody else's documents named in the scope.
+    #
+    # **Counted as foreign rows and not as rows**, and the first version of this probe got that
+    # wrong. `assign` scatters the real corpus over the synthetic tenants by `md5(chunk_id)`, so
+    # one real document's passages land in all eight of them and every tenant's "own documents"
+    # are largely the same document ids. A scope built from tenant 5's documents therefore
+    # selects plenty of tenant 3's rows, and the first reading recorded that as a leak. It is
+    # an artefact of how this corpus is synthesised, measured below as
+    # `documents_shared_between_tenants` so it cannot be forgotten again. What the policy has to
+    # guarantee, and what is asserted, is that none of the rows returned belong to tenant 5.
     async with app.connect() as conn:
         await dpt._context(conn, dpt._tenant(3))
-        foreign_scope = int(
-            (
-                await conn.execute(
-                    text(
-                        "SELECT count(*) AS n FROM "
-                        f"{SCHEMA}.f_scoped_bare(CAST(:v AS halfvec(1024)), :m, :s, :w, "
-                        "                        CAST(:d AS uuid[]))"
-                    ),
-                    {
-                        "v": vector,
-                        "m": space[0],
-                        "s": space[1],
-                        "w": WANTED,
-                        "d": scopes[dpt._tenant(5)],
-                    },
-                )
-            ).scalar_one()
-        )
+        row = (
+            await conn.execute(
+                text(
+                    "SELECT count(*) AS n, "
+                    "  count(*) FILTER (WHERE a.tenant_id <> CAST(:ctx AS uuid)) AS foreign_rows "
+                    f"FROM {SCHEMA}.f_scoped_bare(CAST(:v AS halfvec(1024)), :m, :s, :w, "
+                    "                             CAST(:d AS uuid[])) f "
+                    f"JOIN {SCHEMA}.assign a ON a.chunk_id = f.chunk_id"
+                ),
+                {
+                    "ctx": dpt._tenant(3),
+                    "v": vector,
+                    "m": space[0],
+                    "s": space[1],
+                    "w": WANTED,
+                    "d": scopes[dpt._tenant(5)],
+                },
+            )
+        ).one()
+        foreign_scope = {"rows": int(row.n), "foreign_rows": int(row.foreign_rows)}
         await conn.rollback()
 
     # The plan cache: nine calls as tenant 3, then tenant 5 on the same backend, custom and
@@ -804,9 +835,132 @@ async def _isolation(
         "rows_on_the_diagonal": on_diagonal,
         "rows_off_the_diagonal": off_diagonal,
         "foreign_rows": sum(int(cell["foreign_rows"]) for cell in grid),
-        "rows_with_another_tenants_documents_in_scope": foreign_scope,
+        "another_tenants_documents_in_scope": foreign_scope,
         "plan_cache": cache,
         "grid": grid,
+    }
+
+
+#: Executions in the promotion watch. Postgres builds a candidate generic plan once a prepared
+#: statement has been planned custom five times, and `dense-plan-time.json` read the resulting
+#: spike as the statement *reaching* a generic plan unforced. Building one and using one are
+#: different things — the plancache costs the candidate and keeps planning custom if the custom
+#: plans are cheaper — and that difference is the whole weight of the argument against the
+#: scoped shape. Forty executions, so the claim is measured rather than argued from eleven.
+PROMOTION_WATCH = 40
+
+
+async def _promotion(
+    app: AsyncEngine,
+    tenant: str,
+    vector: str,
+    space: tuple[str, str],
+    scope: list[str],
+) -> dict[str, object]:
+    """Is the generic plan ever reached without being forced?
+
+    The premise this file inherits says the forced-generic plan is what a pooled connection
+    reaches in the course of ordinary traffic. If that is right, the plan changes shape
+    somewhere after the fifth execution and the HNSW index disappears from it on its own. If it
+    is wrong — if Postgres builds the candidate, prices it and goes on planning custom — then
+    the forced arms are a bound on the damage rather than a forecast of it, and the two are very
+    different things to ship on.
+
+    Nothing is forced here and nothing is reset between executions: one backend, one prepared
+    statement, `PROMOTION_WATCH` executions, and the plan read every time.
+    """
+    vec, mdl, ver = dpt._literal(vector), dpt._literal(space[0]), dpt._literal(space[1])
+    tid, docs = dpt._literal(tenant), _array(scope)
+    calls = {
+        "today": f"EXECUTE p_today({vec}, {mdl}, {ver}, {WANTED})",
+        "local": f"EXECUTE p_local({tid}, {vec}, {mdl}, {ver}, {WANTED})",
+        "shipped_scoped": f"EXECUTE p_shipped_scoped({vec}, {mdl}, {ver}, {WANTED}, {docs})",
+        "scoped_bare": f"EXECUTE p_scoped_bare({tid}, {vec}, {mdl}, {ver}, {WANTED}, {docs})",
+    }
+    prepares = [
+        statement.format(schema=SCHEMA).strip()
+        for statement in list(dpt._PREPARES.values()) + list(_PREPARES.values())
+    ]
+
+    out: dict[str, object] = {}
+    for name, call in calls.items():
+        async with app.connect() as conn:
+            await dpt._context(conn, tenant)
+            for statement in prepares:
+                await conn.execute(text(statement))
+            hnsw: list[bool] = []
+            planning: list[float] = []
+            for _ in range(PROMOTION_WATCH):
+                lines = await dpt._explain(conn, call)
+                hnsw.append(bool(_flags(lines)["hnsw_index_in_plan"]))
+                value = dpt._read_plan(lines)["planning_ms"]
+                if value is not None:
+                    planning.append(round(float(value), 3))
+            out[name] = {
+                "executions": PROMOTION_WATCH,
+                "hnsw_index_every_execution": all(hnsw),
+                "hnsw_lost_at_execution": (hnsw.index(False) + 1) if False in hnsw else None,
+                "planning_series_ms": planning,
+            }
+            await conn.rollback()
+    return out
+
+
+async def _environment(owner: AsyncEngine) -> dict[str, object]:
+    """The installation these readings were taken against, written into the report.
+
+    Not decoration. This branch's measurements straddled a deploy — the shared installation went
+    from migration 0025 to 0026, `chunks` and `chunk_embeddings` became partitioned in `public`,
+    and `max_locks_per_transaction` went from 64 to 2,560 when the container was recreated,
+    taking the cluster-wide lock table from 6,400 slots to 256,000. A lock count from one side
+    of that is not comparable with a lock count from the other, and a report that does not say
+    which side it came from cannot be placed by whoever reads it next.
+    """
+    async with owner.connect() as conn:
+        settings_rows = list(
+            await conn.execute(
+                text(
+                    "SELECT name, setting FROM pg_settings WHERE name IN "
+                    "('max_locks_per_transaction', 'max_connections', 'server_version', "
+                    " 'plan_cache_mode', 'shared_buffers', 'work_mem')"
+                )
+            )
+        )
+        head = str(
+            (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar_one()
+        )
+        partitions = int(
+            (
+                await conn.execute(
+                    text(
+                        "SELECT count(*) FROM pg_inherits i JOIN pg_class p "
+                        "ON p.oid = i.inhparent WHERE p.relname = 'chunks'"
+                    )
+                )
+            ).scalar_one()
+        )
+        shared = int(
+            (
+                await conn.execute(
+                    text(
+                        "SELECT count(*) FROM (SELECT document_id FROM "
+                        f"{SCHEMA}.chk GROUP BY document_id "
+                        "HAVING count(DISTINCT tenant_id) > 1) x"
+                    )
+                )
+            ).scalar_one()
+        )
+        await conn.rollback()
+    values = {str(row.name): str(row.setting) for row in settings_rows}
+    return {
+        **values,
+        "lock_slots": int(values["max_locks_per_transaction"]) * int(values["max_connections"]),
+        "alembic_head": head,
+        "public_chunks_partitions": partitions,
+        # The synthetic tenants share document ids, because `assign` scatters one real
+        # document's passages across all eight of them. Recorded so the isolation section's
+        # "another tenant's documents" probe is read as the weak test it is.
+        "documents_shared_between_tenants": shared,
     }
 
 
@@ -848,6 +1002,7 @@ async def _rung(
     return {
         "modulus": modulus,
         "built_seconds": built,
+        "environment": await _environment(owner),
         "scope": {
             "documents": len(scope),
             "chunks_in_scope": in_scope,
@@ -855,6 +1010,7 @@ async def _rung(
             "documents_on_the_tenant": len(everything),
         },
         "plans": await _plans(app, tenant, vector, space, scope),
+        "promotion": await _promotion(app, tenant, vector, space, scope),
         "calls": await _locks(app, tenant, vector, space, scope),
         "equivalence": await _equivalence(app, tenant, vector, space, scope),
         "equivalence_under_one_label": await _equivalence(
@@ -882,6 +1038,16 @@ async def _teardown(owner: AsyncEngine) -> None:
 # --- The verdict ---------------------------------------------------------------------------
 
 
+def _zero(value: object) -> float:
+    """A number read out of the report, with a missing one failing rather than passing.
+
+    `float(x or 0)` reads an absent reading as a pass and `float(x or 1)` reads a passing zero
+    as a failure. Both were in the first version of `_bars` and both were wrong in the direction
+    that hides the answer.
+    """
+    return -1.0 if value is None else float(value)  # pyright: ignore[reportArgumentType]
+
+
 def _bars(rungs: list[dict[str, Any]]) -> dict[str, object]:
     """The seven bars, read off the written report rather than evaluated at measurement time.
 
@@ -890,6 +1056,17 @@ def _bars(rungs: list[dict[str, Any]]) -> dict[str, object]:
     """
     failures: list[str] = []
     measured = [rung for rung in rungs if "plans" in rung]
+
+    # A rung that raised is not a rung that passed. Without this line every bar below reads
+    # `True` over an empty list and the report announces seven passes for a run that never
+    # reached the database — which is the shape of three null results this week.
+    for rung in rungs:
+        if "plans" not in rung:
+            for bar in range(1, 8):
+                failures.append(
+                    f"modulus {rung.get('modulus')}: Bar {bar} unmeasured, the rung failed -- "
+                    f"{rung.get('error')}"
+                )
 
     for rung in measured:
         modulus = int(rung["modulus"])
@@ -944,36 +1121,44 @@ def _bars(rungs: list[dict[str, Any]]) -> dict[str, object]:
             )
 
         # Bar 4 — the rows, against the statement search.dense() sends today.
+        #
+        # `_zero` rather than `x or 0`, and the difference is not style. `0.0 or 1` is `1`, so
+        # the obvious idiom reads a passing zero as a failing one and every one of Bar 4, 5 and
+        # 6 failed on its first run with the numbers printed beside it saying they had passed.
+        # That is the same class of mistake as a bar that cannot fail, reached from the other
+        # side.
         for section in ("equivalence", "equivalence_under_one_label"):
             same: dict[str, Any] = (rung.get(section) or {}).get("f_scoped_bare") or {}
             if (
                 same.get("shipped_rows") != same.get("candidate_rows")
                 or same.get("in_both") != same.get("shipped_rows")
-                or float(same.get("max_score_delta") or 1) != 0.0
-                or int(same.get("rows_at_a_different_rank") or 1) != 0
+                or _zero(same.get("max_score_delta")) != 0.0
+                or _zero(same.get("rows_at_a_different_rank")) != 0
+                or _zero(same.get("candidate_rows")) <= 0
             ):
                 failures.append(f"modulus {modulus}: Bar 4 ({section}) {same}")
 
         # Bar 5 — the qualifier and the scope must never decide.
         isolation: dict[str, Any] = rung.get("isolation") or {}
-        if int(isolation.get("rows_off_the_diagonal") or 1) != 0:
+        if _zero(isolation.get("rows_off_the_diagonal")) != 0:
             failures.append(
                 f"modulus {modulus}: Bar 5, {isolation.get('rows_off_the_diagonal')} rows off "
                 "the diagonal"
             )
-        if int(isolation.get("foreign_rows") or 1) != 0:
+        if _zero(isolation.get("foreign_rows")) != 0:
             failures.append(
                 f"modulus {modulus}: Bar 5, {isolation.get('foreign_rows')} foreign rows"
             )
-        if int(isolation.get("rows_on_the_diagonal") or 0) <= 0:
+        if _zero(isolation.get("rows_on_the_diagonal")) <= 0:
             failures.append(f"modulus {modulus}: Bar 5, nothing on the diagonal either")
-        if int(isolation.get("rows_with_another_tenants_documents_in_scope") or 1) != 0:
+        scoped_probe: dict[str, Any] = isolation.get("another_tenants_documents_in_scope") or {}
+        if _zero(scoped_probe.get("foreign_rows")) != 0:
             failures.append(
                 f"modulus {modulus}: Bar 5, a scope naming another tenant's documents returned "
-                f"{isolation.get('rows_with_another_tenants_documents_in_scope')} rows"
+                f"{scoped_probe.get('foreign_rows')} of that tenant's rows"
             )
         for entry in isolation.get("plan_cache") or []:
-            if int(entry.get("foreign_rows") or 1) != 0 or int(entry.get("rows") or 0) <= 0:
+            if _zero(entry.get("foreign_rows")) != 0 or _zero(entry.get("rows")) <= 0:
                 failures.append(f"modulus {modulus}: Bar 5, plan cache {entry}")
 
         # Bar 6 — the pair cannot drift apart silently.
@@ -981,8 +1166,9 @@ def _bars(rungs: list[dict[str, Any]]) -> dict[str, object]:
         if (
             step.get("unscoped_rows") != step.get("scoped_rows")
             or step.get("in_both") != step.get("unscoped_rows")
-            or float(step.get("max_score_delta") or 1) != 0.0
-            or int(step.get("rows_at_a_different_rank") or 1) != 0
+            or _zero(step.get("max_score_delta")) != 0.0
+            or _zero(step.get("rows_at_a_different_rank")) != 0
+            or _zero(step.get("scoped_rows")) <= 0
         ):
             failures.append(f"modulus {modulus}: Bar 6 {step}")
 
@@ -991,15 +1177,21 @@ def _bars(rungs: list[dict[str, Any]]) -> dict[str, object]:
         if held is None or int(held) > LOCK_CEILING:
             failures.append(f"modulus {modulus}: Bar 7, scoped_bare held {held} locks")
 
+    def passed(bar: str) -> bool:
+        # `and measured` is the whole point: a bar evaluated over an empty list is not a bar
+        # that passed, and a report announcing seven passes for a run that never reached the
+        # database is exactly the failure this project has produced four times this week.
+        return bool(measured) and not any(bar in entry for entry in failures)
+
     return {
         "measured_rungs": len(measured),
-        "bar_1_controls_reproduced": not any("Bar 1" in entry for entry in failures),
-        "bar_2_hnsw_survives_a_generic_plan": not any("Bar 2" in entry for entry in failures),
-        "bar_3_prunes_at_plan_time": not any("Bar 3" in entry for entry in failures),
-        "bar_4_identical_rows": not any("Bar 4" in entry for entry in failures),
-        "bar_5_isolation": not any("Bar 5" in entry for entry in failures),
-        "bar_6_the_pair_agrees": not any("Bar 6" in entry for entry in failures),
-        "bar_7_locks": not any("Bar 7" in entry for entry in failures),
+        "bar_1_controls_reproduced": passed("Bar 1"),
+        "bar_2_hnsw_survives_a_generic_plan": passed("Bar 2"),
+        "bar_3_prunes_at_plan_time": passed("Bar 3"),
+        "bar_4_identical_rows": passed("Bar 4"),
+        "bar_5_isolation": passed("Bar 5"),
+        "bar_6_the_pair_agrees": passed("Bar 6"),
+        "bar_7_locks": passed("Bar 7"),
         "all_seven": bool(measured) and not failures,
         "failures": failures,
     }
@@ -1035,7 +1227,45 @@ def _baseline(rungs: list[dict[str, Any]]) -> list[dict[str, object]]:
                 "execution_ms": (arm.get("execution_ms") or {}).get("median_warm"),
                 "seq_scans": arm.get("seq_scans"),
             }
+        row["locks"] = {
+            name: (rung.get("calls") or {}).get(name, {}).get("locks")
+            for name in ("f_shipped", "f_local", "f_shipped_scoped", "f_scoped_bare")
+        }
         out.append(row)
+    return out
+
+
+def _verdict(rungs: list[dict[str, Any]]) -> list[dict[str, object]]:
+    """The scoped pair against the scoped baseline, and the unscoped pair against theirs.
+
+    Written as a comparison rather than as a score, because "lost the HNSW index" is only a
+    regression if the statement being replaced kept it. Bar 2 is judged in absolute terms on
+    purpose — a shape that reads a whole partition sequentially is a bad shape at production
+    partition sizes whatever the shape beside it does — and this table is what says whether
+    failing it costs anything against today.
+    """
+    out: list[dict[str, object]] = []
+    for rung in rungs:
+        plans: dict[str, Any] = rung.get("plans") or {}
+        promotion: dict[str, Any] = rung.get("promotion") or {}
+
+        def hnsw(name: str) -> object:
+            return (plans.get(name) or {}).get("hnsw_index_in_plan")
+
+        out.append(
+            {
+                "modulus": rung.get("modulus"),
+                "unscoped_generic_baseline_keeps_hnsw": hnsw("today_forced_generic"),
+                "unscoped_candidate_generic_keeps_hnsw": hnsw("local_forced_generic"),
+                "scoped_generic_baseline_keeps_hnsw": hnsw("shipped_scoped_forced_generic"),
+                "scoped_bare_generic_keeps_hnsw": hnsw("scoped_bare_forced_generic"),
+                "scoped_or_generic_keeps_hnsw": hnsw("scoped_or_forced_generic"),
+                "generic_plan_ever_reached_unforced": {
+                    name: entry.get("hnsw_lost_at_execution")
+                    for name, entry in promotion.items()
+                },
+            }
+        )
     return out
 
 
@@ -1085,6 +1315,7 @@ async def _run(rungs: list[int]) -> int:
         await app.dispose()
 
     report["baseline"] = _baseline(report["rungs"])
+    report["verdict"] = _verdict(report["rungs"])
     report["bars"] = _bars(report["rungs"])
     REPORT.write_text(json.dumps(report, indent=2, sort_keys=False) + "\n")
 
@@ -1092,13 +1323,16 @@ async def _run(rungs: list[int]) -> int:
     for row in report["baseline"]:
         print(f"  modulus {row['modulus']}")
         for name, arm in row.items():
-            if name == "modulus" or not isinstance(arm, dict):
+            if name in ("modulus", "locks") or not isinstance(arm, dict):
                 continue
             print(
                 f"    {name:<32} hnsw {str(arm['hnsw']):<5} "
                 f"partitions {str(arm['partitions']):>4}  removed {arm['removed']}  "
                 f"plan {arm['planning_ms']} ms  exec {arm['execution_ms']} ms"
             )
+        print(f"    locks {row.get('locks')}")
+    for row in report["verdict"]:
+        print(f"  verdict at modulus {row['modulus']}: {json.dumps(row)}")
     bars: dict[str, Any] = report["bars"]
     for key, value in bars.items():
         if key != "failures":
