@@ -162,8 +162,11 @@ END $do$
 #: by construction, so this is the projection `eval/dimensions.py` measured — `X @ B[:, :k]`,
 #: with no mean subtracted, which is the whole argument of this migration's third section.
 #:
-#: Returns bare `halfvec`, deliberately. The caller casts to the width it expects, and that
-#: cast is what turns a mismatched basis into an error instead of a ranking.
+#: Returns `vector` — fp32, and bare, with no width. fp32 because migration 0025's reason for
+#: keeping `embedding` at full precision applies to a projected space exactly as it does to
+#: the identity one: `embedding_half` is generated from it, and rounding here would round
+#: twice. Bare because the caller casts to the width it expects, and *that cast* is what turns
+#: a mismatched basis into an error instead of a ranking.
 #:
 #: `NULL` for a space with no axes rather than an exception, so that the 1024 space -- which
 #: has none, being the identity -- reads as "nothing to project" at the one call site that
@@ -174,13 +177,13 @@ END $do$
 #: `embedding_space_axes` carries no policy, exactly like `embedding_spaces`.
 _PROJECT = """
 CREATE FUNCTION zenith_project(v vector, model text, version text)
-RETURNS halfvec
+RETURNS vector
 LANGUAGE sql
 STABLE
 PARALLEL SAFE
 SECURITY INVOKER
 AS $fn$
-    SELECT (array_agg((a.axis <#> v) * -1 ORDER BY a.component))::real[]::vector::halfvec
+    SELECT (array_agg((a.axis <#> v) * -1 ORDER BY a.component))::real[]::vector
     FROM embedding_space_axes a
     WHERE a.model = zenith_project.model AND a.version = zenith_project.version
 $fn$
