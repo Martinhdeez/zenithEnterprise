@@ -67,6 +67,7 @@ import asyncio
 import json
 import statistics
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -111,7 +112,9 @@ DEPTHS = (10, CANDIDATES)
 #: Rescore widths for the binary variant: how many Hamming neighbours are re-ordered by exact
 #: cosine before the top-k is taken. Below `CANDIDATES` the width itself caps recall@50 —
 #: reported rather than hidden, because a narrow rescore is a real deployment choice and its
-#: ceiling is part of the cost.
+#: ceiling is part of the cost. Above the profile's `hnsw.ef_search` the width is unreachable
+#: without widening the graph walk to match, so `_index_recall` raises `ef_search` to the
+#: width; the reasoning is there.
 RESCORE = (20, 50, 100, 200, 400)
 
 #: Repeats per query per variant. The fastest is kept: the question is what the scan costs,
@@ -241,25 +244,69 @@ async def _build_subset(conn: AsyncConnection, size: int, space: Any) -> dict[st
     return {"rows": int(rows), "indexes": built}
 
 
-async def _truth(conn: AsyncConnection, table: str, vectors: list[list[float]]) -> list[list[UUID]]:
-    """Exact nearest neighbours, with every index refused.
+def _index_statement(table: str, variant: Variant) -> str:
+    """The statement the arm's index leg runs.
+
+    Shared with `_plan` so the plan recorded in the report is the plan of the query that was
+    actually timed, rather than of a near-copy that drifted away from it.
+    """
+    if variant.rescore is None:
+        cast = "vector" if variant.column == "embedding" else "halfvec(1024)"
+        return (
+            f"SELECT chunk_id FROM {table} "
+            f"ORDER BY {variant.column} <=> CAST(:q AS {cast}) LIMIT :k"
+        )
+    return (
+        f"SELECT chunk_id FROM {table} "
+        "ORDER BY embedding_bit <~> binary_quantize(CAST(:q AS vector))::bit(1024) LIMIT :k"
+    )
+
+
+def _truth_statement(table: str) -> str:
+    return f"SELECT chunk_id FROM {table} ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"
+
+
+async def _plan(conn: AsyncConnection, statement: str, params: dict[str, object]) -> str:
+    """The node types Postgres chose, joined into one line.
+
+    Recorded rather than trusted. The two settings the ground truth depends on are planner
+    hints rather than commands — `enable_indexscan = off` raises a cost, it does not forbid a
+    plan — and a hint that silently failed, or one that outlived the statement it was meant
+    for, turns a recall number into a comparison of something against itself. That is not
+    hypothetical: it is the defect this file was carrying. The plan is in the report so that
+    "the truth was a sequential scan and each arm used its own HNSW index" is a fact a reader
+    can check instead of a sentence a docstring asserts.
+    """
+    rows = await conn.execute(text(f"EXPLAIN (COSTS off) {statement}"), params)
+    # Truncated per line: a sort key on a vector distance prints the whole 1024-component
+    # literal, which would be most of this report by weight and none of it by content.
+    return " | ".join(line.strip()[:60] for (line,) in rows.fetchall() if line and line.strip())
+
+
+async def _truth(
+    conn: AsyncConnection, table: str, vectors: list[list[float]]
+) -> tuple[list[list[UUID]], str]:
+    """Exact nearest neighbours, with every index refused. Returns the ids and the plan.
 
     `enable_indexscan = off` is not belt and braces: the only honest ground truth for "what
     did the index miss" is a scan that did not use an index. Comparing one approximation
     against another would report the difference between two errors.
+
+    **Both settings are `SET LOCAL`, so they last to the end of the transaction and not to the
+    end of this function.** Turning them back on is `_index_recall`'s first act, and the
+    returned plan is half of the evidence that the pair worked; each arm's `plan_uses_index`
+    is the other half.
     """
     await conn.execute(text("SET LOCAL enable_indexscan = off"))
     await conn.execute(text("SET LOCAL enable_bitmapscan = off"))
+    await conn.execute(text("SET LOCAL enable_seqscan = on"))
+    statement = _truth_statement(table)
+    plan = await _plan(conn, statement, {"q": str(vectors[0]), "k": max(DEPTHS)})
     truth: list[list[UUID]] = []
     for vector in vectors:
-        rows = await conn.execute(
-            text(
-                f"SELECT chunk_id FROM {table} ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"
-            ),
-            {"q": str(vector), "k": max(DEPTHS)},
-        )
+        rows = await conn.execute(text(statement), {"q": str(vector), "k": max(DEPTHS)})
         truth.append([row.chunk_id for row in rows])
-    return truth
+    return truth, plan
 
 
 async def _probe(
@@ -276,28 +323,15 @@ async def _probe(
     heap read of `rescore` fp32 vectors — random I/O against data quantisation did *not*
     shrink. Reporting one number would hide the half that grows.
     """
+    statement = _index_statement(table, variant)
     if variant.rescore is None:
-        cast = "vector" if variant.column == "embedding" else "halfvec(1024)"
         started = time.perf_counter()
-        rows = await conn.execute(
-            text(
-                f"SELECT chunk_id FROM {table} "
-                f"ORDER BY {variant.column} <=> CAST(:q AS {cast}) LIMIT :k"
-            ),
-            {"q": str(vector), "k": limit},
-        )
+        rows = await conn.execute(text(statement), {"q": str(vector), "k": limit})
         ids = [row.chunk_id for row in rows]
         return ids, (time.perf_counter() - started) * 1000, 0.0
 
     started = time.perf_counter()
-    rows = await conn.execute(
-        text(
-            f"SELECT chunk_id FROM {table} "
-            "ORDER BY embedding_bit <~> binary_quantize(CAST(:q AS vector))::bit(1024) "
-            "LIMIT :w"
-        ),
-        {"q": str(vector), "w": variant.rescore},
-    )
+    rows = await conn.execute(text(statement), {"q": str(vector), "k": variant.rescore})
     shortlist = [row.chunk_id for row in rows]
     index_ms = (time.perf_counter() - started) * 1000
 
@@ -319,12 +353,49 @@ async def _index_recall(
     vectors: list[list[float]],
     truth: list[list[UUID]],
     ef_search: int,
+    suffix: str,
 ) -> dict[str, dict[str, object]]:
-    """Every variant against the exact neighbours, at every depth."""
-    await conn.execute(text(f"SET LOCAL hnsw.ef_search = {int(ef_search)}"))
+    """Every variant against the exact neighbours, at every depth.
+
+    `suffix` is what keeps the index names unique across subset sizes, and it is needed here
+    to name the index each arm is supposed to be using so the recorded plan can be checked
+    against it.
+    """
+    # `_truth` ran `enable_indexscan = off` on this same connection, and `SET LOCAL` lasts to
+    # the end of the transaction rather than to the end of the statement. Without these two
+    # lines every arm is answered by a sequential scan over the subset copy, which is exact —
+    # so fp32 and fp16 score a perfect recall against a truth computed the same way, and the
+    # sweep reports that halving the precision is free when it has measured nothing at all.
+    # That is not a hypothetical: the report committed before this fix said exactly that.
+    # `plan_uses_index` below is what proves it is not happening now.
+    #
+    # `enable_seqscan = off` is the other half, and it is not paranoia either: with the
+    # settings merely restored, the planner still chose a sequential scan for some arms on
+    # these scratch copies — fp16 at 13,549 rows among them, at 20 ms against fp32's 0.9 ms
+    # through its index. An arm that opts out of its own index measures nothing, in exactly
+    # the way the ground truth measures nothing when it does not. Both are hints rather than
+    # commands, which is why the plan is recorded and not assumed.
+    await conn.execute(text("SET LOCAL enable_indexscan = on"))
+    await conn.execute(text("SET LOCAL enable_bitmapscan = on"))
+    await conn.execute(text("SET LOCAL enable_seqscan = off"))
     measured: dict[str, dict[str, object]] = {}
 
     for variant in VARIANTS:
+        index_name = f"{variant.index}_{suffix}"
+        # An HNSW scan returns at most `ef_search` rows however large the `LIMIT` is —
+        # measured, at ef_search 100: LIMIT 200 and LIMIT 400 both return 100. So a rescore
+        # width above the profile's ef_search is unreachable unless the walk is widened to
+        # match it, and pinning ef_search here would have made `binary_r200` and
+        # `binary_r400` silent duplicates of `binary_r100`. The width is raised rather than
+        # the report faked: a deployment choosing a 400-wide rescore has to raise ef_search
+        # too, and the wider graph walk is part of what that width costs.
+        ef_used = max(int(ef_search), variant.rescore or 0)
+        await conn.execute(text(f"SET LOCAL hnsw.ef_search = {ef_used}"))
+        plan = await _plan(
+            conn,
+            _index_statement(table, variant),
+            {"q": str(vectors[0]), "k": variant.rescore or max(DEPTHS)},
+        )
         overlaps: dict[int, list[float]] = {depth: [] for depth in DEPTHS}
         index_times: list[float] = []
         rescore_times: list[float] = []
@@ -347,6 +418,9 @@ async def _index_recall(
 
         measured[variant.key] = {
             "rescore_width": variant.rescore,
+            "ef_search": ef_used,
+            "plan": plan,
+            "plan_uses_index": index_name in plan,
             **{
                 f"index_recall_at_{depth}": round(statistics.mean(overlaps[depth]), 4)
                 for depth in DEPTHS
@@ -361,19 +435,30 @@ async def _index_recall(
         print(
             f"    {variant.key:<12} r@10 {row['index_recall_at_10']:.4f}  "
             f"r@{CANDIDATES} {row[f'index_recall_at_{CANDIDATES}']:.4f}  "
-            f"{row['index_median_ms']:.2f} + {row['rescore_median_ms']:.2f} ms",
+            f"{row['index_median_ms']:.2f} + {row['rescore_median_ms']:.2f} ms  "
+            f"{'index' if row['plan_uses_index'] else 'NO INDEX'}",
             flush=True,
         )
     return measured
 
 
-async def _end_to_end(
+#: What an alternative dense half has to look like to be measured end to end: given a
+#: scratch connection and a query embedding, return the candidate chunk ids it proposes.
+DenseStage = Callable[[AsyncConnection, list[float]], Awaitable[list[UUID]]]
+
+
+async def end_to_end(
     where: Installation,
-    size: int,
-    variant: Variant,
+    dense_stage: DenseStage,
     ef_search: int,
 ) -> dict[str, object]:
-    """The real pipeline with only the dense half swapped for the quantised one.
+    """The real pipeline with only the dense half swapped for the one under test.
+
+    Parameterised by the dense stage rather than by a quantisation variant, because
+    `eval/coarse.py` substitutes a two-stage coarse-then-fine retrieval that is not a variant
+    of anything here. Two copies of this function would be two credit rules, two orderings
+    and two definitions of what reached the page — and a number from one could not be read
+    beside a number from the other, which is the only use either has.
 
     `lexical`, `exact`, `candidates`, `fuse`, `hydrate` and the cross-encoder are the
     product's own functions, called in the product's order. Reimplementing them to measure
@@ -405,9 +490,7 @@ async def _end_to_end(
 
                 embedding = await embedder.embed_query(question.question)
                 dense_started = time.perf_counter()
-                dense_ids, _, _ = await _probe(
-                    scratch, _table(size), variant, embedding, CANDIDATES
-                )
+                dense_ids = await dense_stage(scratch, embedding)
                 dense_times.append((time.perf_counter() - dense_started) * 1000)
 
                 async with tenant_session(where.profile.context) as session:
@@ -595,15 +678,41 @@ async def _run(subsets: tuple[int, ...]) -> int:
             for size in sizes:
                 print(f"  {size} vectors:")
                 built = await _build_subset(conn, size, where.space)
-                truth = await _truth(conn, _table(size), vectors)
-                recall = await _index_recall(conn, _table(size), vectors, truth, ef_search)
-                by_size[size] = {**built, "index": recall}
+                truth, truth_plan = await _truth(conn, _table(size), vectors)
+                print(f"    truth plan: {truth_plan}", flush=True)
+                recall = await _index_recall(
+                    conn, _table(size), vectors, truth, ef_search, str(size)
+                )
+                by_size[size] = {
+                    **built,
+                    "truth_plan": truth_plan,
+                    "truth_is_sequential": "Seq Scan" in truth_plan,
+                    "index": recall,
+                }
 
         full = sizes[-1]
         print("\n  end to end, scored as live.py scores, at the full corpus:")
         reached: dict[str, object] = {}
         for variant in VARIANTS:
-            measured = await _end_to_end(where, full, variant, ef_search)
+
+            def probe_variant(
+                scratch: AsyncConnection, embedding: list[float], v: Variant = variant
+            ) -> Awaitable[list[UUID]]:
+                async def _go() -> list[UUID]:
+                    # Set here rather than inside `end_to_end`, which `eval/coarse.py` also
+                    # calls: the dense stage is this file's to constrain, and coarse's is
+                    # not. `SET LOCAL` persists for the connection's transaction, so the
+                    # repeat on every question costs nothing and keeps the setting beside
+                    # the query it exists for.
+                    await scratch.execute(text("SET LOCAL enable_seqscan = off"))
+                    ids, _, _ = await _probe(scratch, _table(full), v, embedding, CANDIDATES)
+                    return ids
+
+                return _go()
+
+            # Same widening as `_index_recall`, for the same reason: at ef_search 100 a
+            # 400-wide shortlist is 100 rows long and the width is not being measured.
+            measured = await end_to_end(where, probe_variant, max(ef_search, variant.rescore or 0))
             reached[variant.key] = measured
             print(f"    {variant.key:<12} {json.dumps(measured)}", flush=True)
 
@@ -641,6 +750,31 @@ async def _run(subsets: tuple[int, ...]) -> int:
             "hnsw": {"m": M, "ef_construction": EF_CONSTRUCTION, "ef_search": ef_search},
             "candidates": CANDIDATES,
             "repeats": REPEATS,
+            "planner": {
+                "truth": (
+                    "Exact fp32 cosine over the subset copy, with enable_indexscan and "
+                    "enable_bitmapscan off. Ground truth for every arm at that size."
+                ),
+                "arms": (
+                    "Both settings are restored, and enable_seqscan turned off, before any "
+                    "arm is measured. SET LOCAL lasts to the end of the transaction, not "
+                    "the end of the statement, and the "
+                    "report published before this note was written did not restore them: "
+                    "every arm was answered by a sequential scan, so the fp32 and fp16 "
+                    "index-recall rows compared exact retrieval against itself and were "
+                    "necessarily 1.0000. The binary rows were unaffected in kind, because "
+                    "Hamming distance over sign bits differs from cosine over full vectors "
+                    "whichever scan reads them. enable_seqscan is off because restoring the "
+                    "settings alone was not enough: the planner still chose a sequential "
+                    "scan for some arms on these scratch copies, which measures nothing for "
+                    "the same reason."
+                ),
+                "evidence": (
+                    "`truth_is_sequential` under each size, and `plan_uses_index` on each "
+                    "arm, are read off EXPLAIN of the statement that was timed. They make "
+                    "the claim checkable rather than asserted."
+                ),
+            },
             "sizes": sizes,
             "by_size": {str(size): value for size, value in by_size.items()},
             "end_to_end": {
@@ -668,9 +802,14 @@ async def _run(subsets: tuple[int, ...]) -> int:
                 "no join to chunks, and are taken while the scratch schema is competing for "
                 "128 MB of shared_buffers with the production corpus. They are comparable to "
                 "each other and not to ef-search.json or latency.json.",
-                "pgvector raises the effective ef_search to the query's LIMIT, so a rescore "
-                "width above hnsw_ef_search widens the graph walk as well as the shortlist. "
-                "Part of the cost of a wide rescore is that, not the rescore alone.",
+                "pgvector does not raise the effective ef_search to the query's LIMIT. An "
+                "HNSW scan returns at most ef_search rows: measured at ef_search 100, both "
+                "LIMIT 200 and LIMIT 400 return 100. So this sweep raises ef_search to the "
+                "rescore width for the arms that need it — see each arm's ef_search — and "
+                "the wider graph walk is part of what a wide rescore costs, not the rescore "
+                "alone. An earlier version of this caveat asserted the opposite; it was "
+                "written from a run in which no arm used an index and the behaviour could "
+                "therefore not have been observed.",
                 "Binary quantisation shrinks the index, not the table. Rescoring reads the "
                 "fp32 vectors from the heap, so the storage saving is in what has to stay "
                 "resident, which is the constraint this measurement is about.",

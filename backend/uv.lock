@@ -1767,6 +1767,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "numpy" },
     { name = "pip-licenses" },
     { name = "pyright" },
     { name = "pytest" },
@@ -1775,6 +1776,9 @@ dev = [
     { name = "ruff" },
     { name = "sentence-transformers" },
     { name = "testcontainers" },
+]
+eval = [
+    { name = "numpy" },
 ]
 
 [package.metadata]
@@ -1801,6 +1805,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "numpy", specifier = ">=2.1" },
     { name = "pip-licenses", specifier = ">=5.0" },
     { name = "pyright", specifier = ">=1.1.390" },
     { name = "pytest", specifier = ">=8.3" },
@@ -1810,3 +1815,4 @@ dev = [
     { name = "sentence-transformers", specifier = ">=5.6.1" },
     { name = "testcontainers", extras = ["postgres"], specifier = ">=4.9" },
 ]
+eval = [{ name = "numpy", specifier = ">=2.1" }]

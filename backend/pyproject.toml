@@ -27,7 +27,16 @@ dependencies = [
 zenith = "app.cli:app"
 
 [dependency-groups]
+# Measurement-only. `eval/dimensions.py` fits a PCA on the corpus's own embeddings, which is a
+# covariance and a symmetric eigendecomposition of a 1024x1024 matrix — seconds of BLAS, and
+# days of pure Python. Kept out of `[project.dependencies]` deliberately: `Dockerfile.backend`
+# builds with `uv sync --no-dev`, so the shipped image does not grow for a sweep. `dev`
+# includes it so `make check` can type-check and import `eval/`.
+eval = [
+    "numpy>=2.1",
+]
 dev = [
+    {include-group = "eval"},
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
     "testcontainers[postgres]>=4.9",
