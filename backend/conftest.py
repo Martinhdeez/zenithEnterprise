@@ -45,10 +45,28 @@ def _async_url(container: PostgresContainer, user: str, password: str) -> str:
     return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{container.dbname}"
 
 
+#: What `docker/docker-compose.yml` gives the deployment, and therefore what the tests must
+#: run against. Migration 0026 partitions `chunks` and `chunk_embeddings` into 256 buckets
+#: each, and a query locks every partition and every index on it at *planning* time — about
+#: 2,350 relations for one search, 14,439 at the peak of 0026's `downgrade`, measured in
+#: `eval/partition-swap.json`. The default `max_locks_per_transaction = 64` sizes the
+#: cluster's whole lock table at 6,400 entries, which is two concurrent searches.
+#:
+#: The value is `chore/partition-lock-budget`'s and that branch owns `docker-compose.yml`;
+#: it sized 2,560 from a lock-per-partition-pair slope rather than from arithmetic, and
+#: 2,560 covers 0026's floor with room. Repeated here because a test environment that
+#: quietly differs from the deployment is how a lock ceiling gets found in production
+#: instead of in CI — and 0026 refuses to run below its own floor, so a container without
+#: this fails the suite rather than the deployment.
+MAX_LOCKS_PER_TRANSACTION = 2560
+
+
 @pytest.fixture(scope="session")
 def postgres() -> Iterator[PostgresContainer]:
     """One container per session: starting it per test would multiply CI time."""
-    with PostgresContainer(IMAGE, driver="psycopg") as container:
+    with PostgresContainer(IMAGE, driver="psycopg").with_command(
+        f"postgres -c max_locks_per_transaction={MAX_LOCKS_PER_TRANSACTION}"
+    ) as container:
         yield container
 
 

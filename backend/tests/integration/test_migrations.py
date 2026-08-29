@@ -15,14 +15,21 @@ from sqlalchemy import Connection, create_engine, text
 from testcontainers.community.postgres import PostgresContainer
 
 from app.models import Base
-from conftest import BACKEND_DIR, IMAGE
+from conftest import BACKEND_DIR, IMAGE, MAX_LOCKS_PER_TRANSACTION
 
 
 @pytest.fixture(scope="module")
 def own_container() -> Iterator[PostgresContainer]:
     """A separate container: this module runs `downgrade base`, which would wipe the
-    data the RLS tests rely on if it shared an instance."""
-    with PostgresContainer(IMAGE, driver="psycopg") as container:
+    data the RLS tests rely on if it shared an instance.
+
+    Same lock table as the session container and as the deployment — see
+    `conftest.MAX_LOCKS_PER_TRANSACTION`. This is the module that runs 0026's `downgrade`,
+    which is the transaction that needs it most.
+    """
+    with PostgresContainer(IMAGE, driver="psycopg").with_command(
+        f"postgres -c max_locks_per_transaction={MAX_LOCKS_PER_TRANSACTION}"
+    ) as container:
         yield container
 
 

@@ -131,21 +131,29 @@ _PARENTS = """
     ORDER BY c.relname
 """
 
-#: Every hash bucket in the schema, with the modulus and remainder it declares. Read out of
-#: `relpartbound` rather than out of the migration, because the question is what the
-#: database has and not what a file says it should.
+#: Every partition of every *hash*-partitioned root, with the modulus and remainder it
+#: declares. Read out of `relpartbound` rather than out of the migration, because the
+#: question is what the database has and not what a file says it should.
+#:
+#: **Which rows come back is decided by `partstrat`, and the parse may fail without hiding
+#: them.** The first version selected rows by `pg_get_expr(...) LIKE 'FOR VALUES WITH
+#: (MODULUS%'` and matched `MODULUS (\\d+)` — and Postgres deparses the bound in *lower*
+#: case, `FOR VALUES WITH (modulus 256, remainder 7)`. So it returned nothing against a
+#: fully partitioned schema, and the test below passed by asking about an empty set: a guard
+#: that has never failed, on the exact shape it was written for. The catalogue now decides
+#: membership and the regular expression only extracts, so a parse that stops working comes
+#: back as `NULL` and fails the test instead of emptying it.
 _HASH_BOUNDS = """
     SELECT root.relname,
            (regexp_match(pg_get_expr(child.relpartbound, child.oid),
-                         'MODULUS (\\d+), REMAINDER (\\d+)'))[1]::int,
+                         'modulus (\\d+), remainder (\\d+)', 'i'))[1]::int,
            (regexp_match(pg_get_expr(child.relpartbound, child.oid),
-                         'MODULUS (\\d+), REMAINDER (\\d+)'))[2]::int
+                         'modulus (\\d+), remainder (\\d+)', 'i'))[2]::int
     FROM pg_class child
     JOIN pg_namespace n ON n.oid = child.relnamespace
     JOIN pg_class root ON root.oid = pg_partition_root(child.oid)
-    WHERE n.nspname = :schema
-      AND child.relispartition
-      AND pg_get_expr(child.relpartbound, child.oid) LIKE 'FOR VALUES WITH (MODULUS%'
+    JOIN pg_partitioned_table pt ON pt.partrelid = root.oid
+    WHERE n.nspname = :schema AND child.relispartition AND pt.partstrat = 'h'
 """
 
 #: The policy expression as Postgres stores it, per relation. Both the `USING` and the
@@ -245,26 +253,31 @@ async def test_every_hash_partitioned_table_covers_every_remainder(
     The expectation is derived from the modulus each partition declares, not from a number
     written here. A guard whose bar is a literal is a guard that has to be edited every time
     0026's modulus changes, and the edit is where it stops being true.
+
+    A bound this cannot parse comes back as `None` and fails here rather than disappearing
+    from the result — see `_HASH_BOUNDS`, which is written that way round because the first
+    version did disappear.
     """
     async with owner_engine.connect() as connection:
-        rows = await connection.execute(text(_HASH_BOUNDS), {"schema": "public"})
-        buckets: dict[str, set[int]] = {}
-        moduli: dict[str, set[int]] = {}
-        for parent, modulus, remainder in rows:
-            buckets.setdefault(parent, set()).add(remainder)
-            moduli.setdefault(parent, set()).add(modulus)
+        rows = list(await connection.execute(text(_HASH_BOUNDS), {"schema": "public"}))
+
+    buckets: dict[str, set[int | None]] = {}
+    moduli: dict[str, set[int | None]] = {}
+    for parent, modulus, remainder in rows:
+        buckets.setdefault(parent, set()).add(remainder)
+        moduli.setdefault(parent, set()).add(modulus)
 
     incomplete = {
-        parent: sorted(set(range(max(moduli[parent]))) - remainders)
+        parent: (sorted(moduli[parent], key=str), sorted(remainders, key=str))
         for parent, remainders in buckets.items()
         if moduli[parent] != {len(remainders)} or remainders != set(range(len(remainders)))
     }
 
     assert incomplete == {}, (
-        "hash-partitioned tables with residue classes no partition accepts: "
+        "hash-partitioned tables whose partitions do not cover every residue class: "
         + ", ".join(
-            f"{parent} is missing remainders {missing} of modulus {sorted(moduli[parent])}"
-            for parent, missing in incomplete.items()
+            f"{parent} declares moduli {declared} across remainders {found}"
+            for parent, (declared, found) in incomplete.items()
         )
     )
 

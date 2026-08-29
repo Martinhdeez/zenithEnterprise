@@ -94,7 +94,12 @@ AUTHORISED_SECURITY_DEFINERS: frozenset[str] = frozenset(
         # administrator with `labels.manage` can remove a label they do not personally reach
         # without the `WITH CHECK` on `documents` rejecting a row they never mentioned.
         "zenith_sync_document_labels()",
-        # 0003 — propagates that same array down to `chunks`, for the same reason.
+        # 0003 — propagates that same array down to `chunks`, for the same reason. Rewritten
+        # in place by 0026 to add `AND tenant_id = NEW.tenant_id`: `chunks` is partitioned,
+        # an UPDATE picks its result relations at plan time, and without a constant for the
+        # partition key it opens all 256 for writing. The predicate is redundant — a chunk's
+        # tenant is its document's, enforced by `fk_chunks_document_id` — and changes no row.
+        # The bypass is unchanged and so is the signature.
         "zenith_sync_chunk_labels()",
         # 0003 — gives a chunk its document's labels at insert time; without it a chunk is
         # born unlabelled, which in this schema means readable by the whole tenant.
@@ -108,6 +113,13 @@ AUTHORISED_SECURITY_DEFINERS: frozenset[str] = frozenset(
         # 0022 — BM25 needs the tenant and label clauses *inside* the Tantivy query, which a
         # policy cannot express. Enforces them imperatively instead; `test_bm25_isolation.py`
         # is what makes that enforcement worth the same as a policy.
+        #
+        # Rewritten in place by 0026. The tenant is now read into a plpgsql local and that
+        # local is used both in the Tantivy term and as an ordinary SQL qualifier, so the
+        # planner has a constant to prune 256 partitions on. It is deliberately **not** a
+        # parameter of the function: this bypass is only safe because no caller can name the
+        # tenant, and an argument would hand that away. The signature is therefore unchanged,
+        # which is also what keeps this entry accurate.
         "zenith_lexical_search(query_string text, want integer)",
     }
 )
