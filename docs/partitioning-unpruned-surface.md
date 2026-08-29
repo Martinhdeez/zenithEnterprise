@@ -11,6 +11,12 @@ proves that survives the real policy, the real role and a per-partition copy of 
 This document is about the other half of the schema. Every figure below comes from a run
 written to disk under `backend/eval/`, and none of it was typed from memory.
 
+**Read the structural numbers, not the milliseconds.** The ladder was run four times on a
+developer machine that two other measurement branches were also using. Partitions scanned,
+partitions opened for writing and lock counts were **identical in every run**; the latencies
+moved by up to 20%. The argument here rests on the first three, and the timings are quoted
+from the run currently on disk so that they can be re-derived rather than believed.
+
 ---
 
 ## The one paragraph that changes stage 02's design
@@ -55,15 +61,15 @@ Tantivy operand is not a partition-key qualifier. Nothing prunes.
 
 | MODULUS | partitions scanned | planning | execution | median | locks |
 |---|---|---|---|---|---|
-| unpartitioned | 1 | 0.29 ms | 0.48 ms | 0.43 ms | 7 |
-| 64 | 64 | 7.47 ms | 4.02 ms | 10.59 ms | 390 |
-| 256 | 256 | **97.55 ms** | 19.71 ms | 61.55 ms | **1,542** |
+| unpartitioned | 1 | 0.25 ms | 0.41 ms | 0.70 ms | 7 |
+| 64 | 64 | 9.50 ms | 4.49 ms | 11.67 ms | 390 |
+| 256 | 256 | **81.50 ms** | 19.47 ms | 56.79 ms | **1,542** |
 
 The cost is overwhelmingly **planning**, not execution: the planner builds paths for 256
 partitions and five indexes on each before the executor discards 255 of them.
 
-Adding a redundant SQL qualifier beside the Tantivy term takes execution to 0.51 ms and leaves
-planning at 57.78 ms, because a `STABLE` key still cannot prune at plan time. **Getting the
+Adding a redundant SQL qualifier beside the Tantivy term takes execution to 0.39 ms and leaves
+planning at 52.73 ms, because a `STABLE` key still cannot prune at plan time. **Getting the
 planning back needs the tenant to be a parameter**, and `unpruned-plpgsql-pruning.sql` measures
 the form that is safe:
 
@@ -150,7 +156,7 @@ product runs most often. **Fixed on this branch** — the tenant is now bound fr
 
 `app/core/diagnostics.py` `_content`, on `owner_session`, counting all five tables with no
 tenant. At MODULUS 256 the two partitioned counts scan every partition: 1,542 and 514 locks,
-6.71 ms and 1.99 ms.
+14.54 ms and 2.47 ms.
 
 The latency does not matter — it runs once per `zenith diagnose`. **The locks do**: an
 operator running a diagnostic while the installation is serving should not take a quarter of
@@ -158,9 +164,15 @@ the lock table to answer a question nobody needs to the row.
 
 **Fixed on this branch.** The two partitioned tables are estimated from `pg_class.reltuples`,
 summed recursively over the partition tree, which scans nothing and takes **7 locks at any
-modulus**. The output marks them `~`. Error against the exact count was **0 at every rung**,
-with the caveat recorded in the report: that was measured immediately after `ANALYZE` on a
-corpus nothing was writing to.
+modulus**. The output marks them `~`.
+
+The error it costs is measured twice, because one of the two answers is flattering and useless.
+Against the scratch schema, `ANALYZE`d moments before: **0 at every rung**. Against **this
+installation's own tables**, last analysed at 17:05 with ingestions since: **13,295 against
+13,549, an error of −254, or 1.87%** — the same on both tables. That is the number an operator
+will actually see, it is why the output says `~`, and it is what the exact count was buying.
+Whether 1.87% is worth 1,535 locks is the trade; this document's position is that it is,
+because nobody reads a corpus count to the row and everybody shares the lock table.
 
 ### 6. Things on the list that are not problems
 
@@ -172,9 +184,9 @@ Said explicitly, because inventing work to look thorough is worse than a short r
 - **`requeue.py` and the CLI.** `find_stranded` reads `documents` and `procrastinate_jobs`.
   No CLI command touches either partitioned table. Nothing to do.
 - **`tenancy/status.py`'s `SELECT count(*) FROM chunks`.** Runs inside `tenant_session`, so
-  the policy supplies the tenant and it prunes — measured at 1 partition scanned, 13.06 ms at
-  MODULUS 256 against 0.48 ms unpartitioned. It is on the first screen of every page load, so
-  the 13 ms is worth knowing, but it is planning time on a *read* and it is stage 02's
+  the policy supplies the tenant and it prunes — measured at 1 partition scanned, 19.30 ms at
+  MODULUS 256 against 0.60 ms unpartitioned. It is on the first screen of every page load, so
+  the 19 ms is worth knowing, but it is planning time on a *read* and it is stage 02's
   lock-budget question, not an unpruned query.
 - **`purge.py`'s mention of `chunks`.** In a comment, explaining why it does *not* delete from
   it. The gate parses string literals rather than grepping, so this does not fire.

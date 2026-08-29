@@ -5,7 +5,7 @@ a tenant then prunes to one partition and gets faster; that is the point of the 
 `partition-rls-policy-pruning.sql` proves it survives the real policy. **Every statement not
 carrying one goes from a single scan to `modulus` scans**, and at the planned modulus of 256
 that costs what `backend/eval/unpruned-queries.json` measures: the lexical half of a search
-goes from 0.43 ms to 61.6 ms, mostly in *planning*, and a purge goes from 15 locks to 1,552
+goes from 0.70 ms to 56.8 ms, mostly in *planning*, and a purge goes from 15 locks to 1,552
 of an installation's 6,400.
 
 This file is the list, and the list is the point. It exists in the shape of
@@ -80,8 +80,8 @@ UNPRUNED_SURFACE: frozenset[str] = frozenset(
         #
         # 0022 — the lexical half of every search. Its tenant clause is a Tantivy term inside
         # the `@@@` operand, and a `@@@` operand is not a partition-key qualifier, so the
-        # planner opens every partition: 256 ParadeDB custom scans, 97.6 ms of planning
-        # against 0.29 ms unpartitioned, 1,542 locks. **This is the most expensive entry on
+        # planner opens every partition: 256 ParadeDB custom scans, 81.5 ms of planning
+        # against 0.25 ms unpartitioned, 1,542 locks. **This is the most expensive entry on
         # the list and the only one on a hot path.**
         #
         # It stays on the list because the fix is a migration and `chunks` is not partitioned

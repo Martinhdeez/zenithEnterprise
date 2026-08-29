@@ -1093,6 +1093,7 @@ async def _run(counts: tuple[int, ...]) -> int:
             documents = int(
                 (await conn.execute(text("SELECT count(*) FROM documents"))).scalar_one()
             )
+            report["live_estimate_error"] = await _live_estimate_error(conn)
             await conn.rollback()
 
         print(f"{passages:,} passages in {documents} documents, {POPULATED} synthetic tenants")
@@ -1201,13 +1202,56 @@ async def _run(counts: tuple[int, ...]) -> int:
         await owner.dispose()
 
 
+#: The same estimate against the *installation's* tables, and its exact count beside it.
+#:
+#: The scratch schema is `ANALYZE`d moments before it is measured, so its estimate is perfect
+#: and says nothing about a real installation. This asks the question where it has an
+#: interesting answer: on tables that were last analysed whenever they were last analysed,
+#: with ingestions since. `last_analyze` comes back with it, because an error without the
+#: staleness that produced it is a number nobody can act on.
+_LIVE_ESTIMATE = """
+WITH RECURSIVE tree AS (
+    SELECT to_regclass(:table)::oid AS oid
+    UNION ALL
+    SELECT i.inhrelid FROM pg_inherits i JOIN tree t ON i.inhparent = t.oid
+)
+SELECT coalesce(sum(c.reltuples), 0)::bigint AS estimate,
+       (SELECT greatest(max(s.last_analyze), max(s.last_autoanalyze))
+        FROM pg_stat_user_tables s
+        WHERE s.relid IN (SELECT oid FROM tree)) AS analysed_at
+FROM tree JOIN pg_class c ON c.oid = tree.oid
+WHERE c.relkind = 'r'
+"""
+
+
+async def _live_estimate_error(conn: AsyncConnection) -> list[dict[str, object]]:
+    """What the estimate is wrong by on the real `chunks` and `chunk_embeddings`."""
+    rows: list[dict[str, object]] = []
+    for table in ("chunks", "chunk_embeddings"):
+        exact = int((await conn.execute(text(f"SELECT count(*) FROM {table}"))).scalar_one())
+        estimated = (await conn.execute(text(_LIVE_ESTIMATE), {"table": table})).one()
+        estimate = int(estimated.estimate)
+        rows.append(
+            {
+                "table": table,
+                "exact": exact,
+                "estimate": estimate,
+                "error": estimate - exact,
+                "relative_error": round(abs(estimate - exact) / exact, 6) if exact else None,
+                "last_analysed": str(estimated.analysed_at) if estimated.analysed_at else None,
+            }
+        )
+    return rows
+
+
 def _estimate_error(report: dict[str, Any]) -> dict[str, object]:
     """What the `reltuples` candidate is wrong by, at every rung.
 
     Stated rather than described. A fix that trades exactness for a constant cost has to say
     how much exactness, and after a fresh `ANALYZE` on a corpus this size the answer may well
-    be "none" — which is a fact about this corpus and not a property of the method, so the
-    report says so in the same breath.
+    be "none" — which is a fact about this corpus and not a property of the method. `live`
+    below is the same question asked where the answer is not zero, and it is the one an
+    operator reading `zenith diagnose` will actually experience.
     """
     rows: list[dict[str, object]] = []
     for rung in [report["control"], *report["ladder"]]:
@@ -1226,12 +1270,15 @@ def _estimate_error(report: dict[str, Any]) -> dict[str, object]:
             )
     return {
         "rungs": rows,
+        "live": report.get("live_estimate_error"),
         "caveat": (
-            "Measured immediately after `ANALYZE`, on a corpus of 13,549 passages that "
-            "nothing was writing to. `reltuples` drifts between analyses in proportion to "
-            "the write rate, so a small error here is not a promise about a busy "
-            "installation. What it does promise is a cost that does not grow with the "
-            "modulus, which is the property being bought."
+            "The rungs are measured immediately after `ANALYZE`, on a corpus that nothing "
+            "was writing to, so their error is zero and that is a fact about the method's "
+            "best case rather than about an installation. `live` is the same estimate "
+            "against the installation's own tables, where it is not zero. `reltuples` "
+            "drifts in proportion to the write rate since the last analysis; what it buys "
+            "is a cost that does not grow with the modulus, and `zenith diagnose` prints a "
+            "`~` so the trade is visible to whoever reads it."
         ),
     }
 

@@ -1,11 +1,29 @@
 {
+  "live_estimate_error": [
+    {
+      "table": "chunks",
+      "exact": 13549,
+      "estimate": 13295,
+      "error": -254,
+      "relative_error": 0.018747,
+      "last_analysed": "2026-08-29 17:05:33.857791+00:00"
+    },
+    {
+      "table": "chunk_embeddings",
+      "exact": 13549,
+      "estimate": 13295,
+      "error": -254,
+      "relative_error": 0.018747,
+      "last_analysed": "2026-08-29 17:05:33.906228+00:00"
+    }
+  ],
   "control": {
     "partitions": 1,
     "document_rows": 1871,
     "arms": {
       "diagnose_count_chunks": {
-        "planning_ms": 0.014,
-        "execution_ms": 0.736,
+        "planning_ms": 0.021,
+        "execution_ms": 1.152,
         "partitions_scanned": 1,
         "partitions_targeted": 0,
         "subplans_removed": [],
@@ -18,22 +36,22 @@
         "value": 13549,
         "locks_for_query": 7,
         "returned": 1,
-        "median_ms": 0.736,
-        "p95_ms": 0.747,
-        "min_ms": 0.718,
+        "median_ms": 0.849,
+        "p95_ms": 1.133,
+        "min_ms": 0.825,
         "ships": true,
         "why": "app/core/diagnostics.py `_content` \u2014 owner_session, no tenant. Once per `zenith diagnose`, and `demo-check.sh` runs that before every demonstration.",
         "bar": "scans every partition, so its cost is linear in the modulus",
         "verdict": "met",
         "pressure": {
           "locks_per_partition": 7.0,
-          "share_of_lock_table": 0.0011,
-          "concurrent_statements_at_nominal_slots": 914
+          "share_of_lock_table": 0.0,
+          "concurrent_statements_at_nominal_slots": 58514
         }
       },
       "diagnose_count_embeddings": {
-        "planning_ms": 0.025,
-        "execution_ms": 0.352,
+        "planning_ms": 0.043,
+        "execution_ms": 0.402,
         "partitions_scanned": 1,
         "partitions_targeted": 0,
         "subplans_removed": [],
@@ -46,22 +64,22 @@
         "value": 13549,
         "locks_for_query": 2,
         "returned": 1,
-        "median_ms": 0.433,
-        "p95_ms": 0.629,
-        "min_ms": 0.429,
+        "median_ms": 0.444,
+        "p95_ms": 0.587,
+        "min_ms": 0.405,
         "ships": true,
         "why": "app/core/diagnostics.py `_content` \u2014 the second of the two partitioned tables.",
         "bar": "scans every partition, for the same reason",
         "verdict": "met",
         "pressure": {
           "locks_per_partition": 2.0,
-          "share_of_lock_table": 0.0003,
-          "concurrent_statements_at_nominal_slots": 3200
+          "share_of_lock_table": 0.0,
+          "concurrent_statements_at_nominal_slots": 204800
         }
       },
       "diagnose_count_estimate": {
-        "planning_ms": 0.174,
-        "execution_ms": 2.677,
+        "planning_ms": 0.087,
+        "execution_ms": 0.506,
         "partitions_scanned": 0,
         "partitions_targeted": 0,
         "subplans_removed": [],
@@ -72,22 +90,22 @@
         "value": 13549,
         "locks_for_query": 7,
         "returned": 1,
-        "median_ms": 0.646,
-        "p95_ms": 0.87,
-        "min_ms": 0.548,
+        "median_ms": 0.496,
+        "p95_ms": 0.611,
+        "min_ms": 0.459,
         "ships": false,
         "why": "Candidate fix: the planner's own estimate, read from the catalogue. Scans no partition at any modulus, and is an estimate \u2014 the report states its error against the exact count rather than leaving the trade to prose.",
         "bar": "scans no partition at all, and takes the same locks at every modulus",
         "verdict": "met",
         "pressure": {
           "locks_per_partition": 7.0,
-          "share_of_lock_table": 0.0011,
-          "concurrent_statements_at_nominal_slots": 914
+          "share_of_lock_table": 0.0,
+          "concurrent_statements_at_nominal_slots": 58514
         }
       },
       "diagnose_count_per_tenant": {
-        "planning_ms": 0.519,
-        "execution_ms": 0.614,
+        "planning_ms": 0.498,
+        "execution_ms": 0.881,
         "partitions_scanned": 1,
         "partitions_targeted": 0,
         "subplans_removed": [],
@@ -100,22 +118,22 @@
         "value": 3502,
         "locks_for_query": 7,
         "returned": 1,
-        "median_ms": 0.476,
-        "p95_ms": 0.597,
-        "min_ms": 0.471,
+        "median_ms": 0.596,
+        "p95_ms": 0.771,
+        "min_ms": 0.555,
         "ships": false,
         "why": "Candidate fix: exact, one tenant at a time. The figure to multiply by the tenant count \u2014 not to read as a whole-installation cost.",
         "bar": "scans exactly one partition",
         "verdict": "met",
         "pressure": {
           "locks_per_partition": 7.0,
-          "share_of_lock_table": 0.0011,
-          "concurrent_statements_at_nominal_slots": 914
+          "share_of_lock_table": 0.0,
+          "concurrent_statements_at_nominal_slots": 58514
         }
       },
       "lexical_as_shipped": {
-        "planning_ms": 0.291,
-        "execution_ms": 0.483,
+        "planning_ms": 0.25,
+        "execution_ms": 0.406,
         "partitions_scanned": 1,
         "partitions_targeted": 0,
         "subplans_removed": [],
@@ -129,22 +147,22 @@
         "top_score": 3.4319,
         "locks_for_query": 7,
         "returned": 50,
-        "median_ms": 0.432,
-        "p95_ms": 0.57,
-        "min_ms": 0.418,
+        "median_ms": 0.701,
+        "p95_ms": 0.995,
+        "min_ms": 0.48,
         "ships": true,
         "why": "migration 0022 `zenith_lexical_search`, SECURITY DEFINER so no policy applies. The tenant clause is a Tantivy term, and a `@@@` operand is not a partition-key qualifier. On the hot path of every search.",
         "bar": "scans every partition \u2014 a Tantivy term is not a partition-key qualifier \u2014 with one ParadeDB custom scan on each",
         "verdict": "met",
         "pressure": {
           "locks_per_partition": 7.0,
-          "share_of_lock_table": 0.0011,
-          "concurrent_statements_at_nominal_slots": 914
+          "share_of_lock_table": 0.0,
+          "concurrent_statements_at_nominal_slots": 58514
         }
       },
       "lexical_scoped": {
-        "planning_ms": 0.152,
-        "execution_ms": 0.254,
+        "planning_ms": 0.246,
+        "execution_ms": 0.372,
         "partitions_scanned": 1,
         "partitions_targeted": 0,
         "subplans_removed": [],
@@ -158,22 +176,22 @@
         "top_score": 4.7848,
         "locks_for_query": 7,
         "returned": 50,
-        "median_ms": 0.591,
-        "p95_ms": 0.772,
-        "min_ms": 0.545,
+        "median_ms": 0.693,
+        "p95_ms": 0.801,
+        "min_ms": 0.543,
         "ships": false,
         "why": "Candidate fix: the same Tantivy query with a redundant SQL qualifier on the partition key beside it. Checked for the custom scan and for NULL scores, because ADR 0002's failure mode is a plan that still answers.",
         "bar": "scans one partition AND keeps the custom scan AND returns rows with no NULL score: all three, because ADR 0002's failure mode is a plan that still answers",
         "verdict": "met",
         "pressure": {
           "locks_per_partition": 7.0,
-          "share_of_lock_table": 0.0011,
-          "concurrent_statements_at_nominal_slots": 914
+          "share_of_lock_table": 0.0,
+          "concurrent_statements_at_nominal_slots": 58514
         }
       },
       "label_sync_as_shipped": {
-        "planning_ms": 0.052,
-        "execution_ms": 136.312,
+        "planning_ms": 0.057,
+        "execution_ms": 155.765,
         "partitions_scanned": 1,
         "partitions_targeted": 1,
         "subplans_removed": [],
@@ -185,22 +203,22 @@
         "triggers": [],
         "locks_for_query": 10,
         "returned": 0,
-        "median_ms": 151.768,
-        "p95_ms": 179.724,
-        "min_ms": 91.444,
+        "median_ms": 149.713,
+        "p95_ms": 190.647,
+        "min_ms": 105.68,
         "ships": true,
         "why": "migration 0003 `zenith_sync_chunk_labels`, SECURITY DEFINER. Fires once per document whose labels change, and once per document during a purge.",
         "bar": "scans every partition and opens every one for writing",
         "verdict": "met",
         "pressure": {
           "locks_per_partition": 10.0,
-          "share_of_lock_table": 0.0016,
-          "concurrent_statements_at_nominal_slots": 640
+          "share_of_lock_table": 0.0,
+          "concurrent_statements_at_nominal_slots": 40960
         }
       },
       "label_sync_stable_tenant": {
-        "planning_ms": 0.102,
-        "execution_ms": 94.598,
+        "planning_ms": 0.161,
+        "execution_ms": 115.854,
         "partitions_scanned": 1,
         "partitions_targeted": 1,
         "subplans_removed": [],
@@ -212,22 +230,22 @@
         "triggers": [],
         "locks_for_query": 10,
         "returned": 0,
-        "median_ms": 138.783,
-        "p95_ms": 160.019,
-        "min_ms": 106.615,
+        "median_ms": 185.327,
+        "p95_ms": 198.791,
+        "min_ms": 127.728,
         "ships": false,
         "why": "The obvious fix, and the one that is only half a fix. A `STABLE` key prunes the scan at executor startup and does not shrink the result-relation list, so the reads get cheap and the locks do not. This arm exists to make that visible rather than to be adopted.",
         "bar": "scans one partition and still opens every one for writing, because result relations are chosen at plan time and `zenith_current_tenant()` is STABLE",
         "verdict": "met",
         "pressure": {
           "locks_per_partition": 10.0,
-          "share_of_lock_table": 0.0016,
-          "concurrent_statements_at_nominal_slots": 640
+          "share_of_lock_table": 0.0,
+          "concurrent_statements_at_nominal_slots": 40960
         }
       },
       "label_sync_bound_tenant": {
-        "planning_ms": 0.116,
-        "execution_ms": 100.246,
+        "planning_ms": 0.137,
+        "execution_ms": 105.669,
         "partitions_scanned": 1,
         "partitions_targeted": 1,
         "subplans_removed": [],
@@ -239,22 +257,22 @@
         "triggers": [],
         "locks_for_query": 10,
         "returned": 0,
-        "median_ms": 138.983,
-        "p95_ms": 163.431,
-        "min_ms": 101.688,
+        "median_ms": 147.005,
+        "p95_ms": 166.852,
+        "min_ms": 111.494,
         "ships": false,
         "why": "Candidate fix: the tenant as a bound parameter, which the planner may fold into a custom plan and prune on. The trigger already has `NEW.tenant_id` in hand \u2014 this is one column on a WHERE clause.",
         "bar": "scans one partition and opens one for writing",
         "verdict": "met",
         "pressure": {
           "locks_per_partition": 10.0,
-          "share_of_lock_table": 0.0016,
-          "concurrent_statements_at_nominal_slots": 640
+          "share_of_lock_table": 0.0,
+          "concurrent_statements_at_nominal_slots": 40960
         }
       },
       "reingest_clear_chunks": {
-        "planning_ms": 0.232,
-        "execution_ms": 9.445,
+        "planning_ms": 0.165,
+        "execution_ms": 14.881,
         "partitions_scanned": 1,
         "partitions_targeted": 1,
         "subplans_removed": [],
@@ -272,22 +290,22 @@
         ],
         "locks_for_query": 12,
         "returned": 0,
-        "median_ms": 8.919,
-        "p95_ms": 9.896,
-        "min_ms": 7.896,
+        "median_ms": 9.278,
+        "p95_ms": 9.658,
+        "min_ms": 8.813,
         "ships": true,
         "why": "app/features/ingestion/pipeline.py `_clear_previous`, under `tenant_session` so the tenant clause is the policy's and is therefore `STABLE`. This is the shape every write this product makes to `chunks` has.",
         "bar": "scans one partition and still opens every one for writing \u2014 the same half-pruning as the label sync, and it is what every policy-scoped write to `chunks` will do",
         "verdict": "met",
         "pressure": {
           "locks_per_partition": 12.0,
-          "share_of_lock_table": 0.0019,
-          "concurrent_statements_at_nominal_slots": 533
+          "share_of_lock_table": 0.0,
+          "concurrent_statements_at_nominal_slots": 34133
         }
       },
       "reingest_clear_chunks_bound": {
-        "planning_ms": 0.139,
-        "execution_ms": 11.867,
+        "planning_ms": 0.106,
+        "execution_ms": 9.01,
         "partitions_scanned": 1,
         "partitions_targeted": 1,
         "subplans_removed": [],
@@ -305,22 +323,22 @@
         ],
         "locks_for_query": 12,
         "returned": 0,
-        "median_ms": 15.255,
-        "p95_ms": 41.655,
-        "min_ms": 12.29,
+        "median_ms": 8.998,
+        "p95_ms": 9.719,
+        "min_ms": 8.477,
         "ships": false,
         "why": "Candidate fix: the same delete with the tenant bound. `TenantContext` has it already, so nothing has to be looked up to write it down.",
         "bar": "scans one partition and opens one for writing",
         "verdict": "met",
         "pressure": {
           "locks_per_partition": 12.0,
-          "share_of_lock_table": 0.0019,
-          "concurrent_statements_at_nominal_slots": 533
+          "share_of_lock_table": 0.0,
+          "concurrent_statements_at_nominal_slots": 34133
         }
       },
       "purge_documents": {
-        "planning_ms": 0.108,
-        "execution_ms": 50.39,
+        "planning_ms": 0.067,
+        "execution_ms": 28.943,
         "partitions_scanned": 0,
         "partitions_targeted": 0,
         "subplans_removed": [],
@@ -341,22 +359,22 @@
         ],
         "locks_for_query": 15,
         "returned": 0,
-        "median_ms": 38.744,
-        "p95_ms": 42.938,
-        "min_ms": 37.226,
+        "median_ms": 25.907,
+        "p95_ms": 26.493,
+        "min_ms": 24.181,
         "ships": true,
         "why": "app/features/system/purge.py \u2014 `DELETE FROM documents WHERE tenant_id`, reaching `chunks` through a foreign key on `document_id` that carries no tenant. Measured with the single-column key the schema has today.",
         "bar": "takes at least one lock per partition of `chunks`: the cascade's foreign key is on `document_id` alone, so the statement Postgres writes for it carries no tenant",
         "verdict": "met",
         "pressure": {
           "locks_per_partition": 15.0,
-          "share_of_lock_table": 0.0023,
-          "concurrent_statements_at_nominal_slots": 426
+          "share_of_lock_table": 0.0,
+          "concurrent_statements_at_nominal_slots": 27306
         }
       },
       "purge_documents_composite_fk": {
-        "planning_ms": 0.056,
-        "execution_ms": 23.851,
+        "planning_ms": 0.057,
+        "execution_ms": 31.439,
         "partitions_scanned": 0,
         "partitions_targeted": 0,
         "subplans_removed": [],
@@ -377,17 +395,17 @@
         ],
         "locks_for_query": 15,
         "returned": 0,
-        "median_ms": 24.885,
-        "p95_ms": 27.609,
-        "min_ms": 23.09,
+        "median_ms": 24.8,
+        "p95_ms": 28.588,
+        "min_ms": 23.525,
         "ships": false,
         "why": "Candidate fix: the same purge with `chunks` referencing `documents (id, tenant_id)` instead of `documents (id)`. The referential action is a statement Postgres writes, and it can only carry the partition key if the key is in the constraint. The constraint is swapped in place on the same rung, so the rows, the partitions and the planner state are identical and the constraint is the only difference.",
         "bar": "takes fewer locks than `purge_documents` does on the same rung, and a count that does not grow with the modulus, because the constraint now carries the partition key",
         "verdict": "not_applicable",
         "pressure": {
           "locks_per_partition": 15.0,
-          "share_of_lock_table": 0.0023,
-          "concurrent_statements_at_nominal_slots": 426
+          "share_of_lock_table": 0.0,
+          "concurrent_statements_at_nominal_slots": 27306
         }
       }
     }
@@ -398,8 +416,8 @@
       "document_rows": 1871,
       "arms": {
         "diagnose_count_chunks": {
-          "planning_ms": 2.276,
-          "execution_ms": 1.756,
+          "planning_ms": 2.166,
+          "execution_ms": 1.535,
           "partitions_scanned": 64,
           "partitions_targeted": 0,
           "subplans_removed": [],
@@ -414,22 +432,22 @@
           "value": 13549,
           "locks_for_query": 390,
           "returned": 1,
-          "median_ms": 1.71,
-          "p95_ms": 2.059,
-          "min_ms": 1.613,
+          "median_ms": 1.373,
+          "p95_ms": 2.444,
+          "min_ms": 1.273,
           "ships": true,
           "why": "app/core/diagnostics.py `_content` \u2014 owner_session, no tenant. Once per `zenith diagnose`, and `demo-check.sh` runs that before every demonstration.",
           "bar": "scans every partition, so its cost is linear in the modulus",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 6.09,
-            "share_of_lock_table": 0.0609,
-            "concurrent_statements_at_nominal_slots": 16
+            "share_of_lock_table": 0.001,
+            "concurrent_statements_at_nominal_slots": 1050
           }
         },
         "diagnose_count_embeddings": {
-          "planning_ms": 1.263,
-          "execution_ms": 0.623,
+          "planning_ms": 1.308,
+          "execution_ms": 0.607,
           "partitions_scanned": 64,
           "partitions_targeted": 0,
           "subplans_removed": [],
@@ -444,22 +462,22 @@
           "value": 13549,
           "locks_for_query": 130,
           "returned": 1,
-          "median_ms": 0.918,
-          "p95_ms": 0.972,
-          "min_ms": 0.678,
+          "median_ms": 0.647,
+          "p95_ms": 0.828,
+          "min_ms": 0.632,
           "ships": true,
           "why": "app/core/diagnostics.py `_content` \u2014 the second of the two partitioned tables.",
           "bar": "scans every partition, for the same reason",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 2.03,
-            "share_of_lock_table": 0.0203,
-            "concurrent_statements_at_nominal_slots": 49
+            "share_of_lock_table": 0.0003,
+            "concurrent_statements_at_nominal_slots": 3150
           }
         },
         "diagnose_count_estimate": {
-          "planning_ms": 0.201,
-          "execution_ms": 2.302,
+          "planning_ms": 0.636,
+          "execution_ms": 3.461,
           "partitions_scanned": 0,
           "partitions_targeted": 0,
           "subplans_removed": [],
@@ -470,22 +488,22 @@
           "value": 13549,
           "locks_for_query": 7,
           "returned": 1,
-          "median_ms": 0.893,
-          "p95_ms": 1.072,
-          "min_ms": 0.82,
+          "median_ms": 0.567,
+          "p95_ms": 0.724,
+          "min_ms": 0.564,
           "ships": false,
           "why": "Candidate fix: the planner's own estimate, read from the catalogue. Scans no partition at any modulus, and is an estimate \u2014 the report states its error against the exact count rather than leaving the trade to prose.",
           "bar": "scans no partition at all, and takes the same locks at every modulus",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 0.11,
-            "share_of_lock_table": 0.0011,
-            "concurrent_statements_at_nominal_slots": 914
+            "share_of_lock_table": 0.0,
+            "concurrent_statements_at_nominal_slots": 58514
           }
         },
         "diagnose_count_per_tenant": {
-          "planning_ms": 3.468,
-          "execution_ms": 1.119,
+          "planning_ms": 4.276,
+          "execution_ms": 1.235,
           "partitions_scanned": 1,
           "partitions_targeted": 0,
           "subplans_removed": [
@@ -500,22 +518,22 @@
           "value": 3502,
           "locks_for_query": 390,
           "returned": 1,
-          "median_ms": 3.806,
-          "p95_ms": 3.876,
-          "min_ms": 3.359,
+          "median_ms": 2.736,
+          "p95_ms": 3.756,
+          "min_ms": 2.663,
           "ships": false,
           "why": "Candidate fix: exact, one tenant at a time. The figure to multiply by the tenant count \u2014 not to read as a whole-installation cost.",
           "bar": "scans exactly one partition",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 6.09,
-            "share_of_lock_table": 0.0609,
-            "concurrent_statements_at_nominal_slots": 16
+            "share_of_lock_table": 0.001,
+            "concurrent_statements_at_nominal_slots": 1050
           }
         },
         "lexical_as_shipped": {
-          "planning_ms": 7.466,
-          "execution_ms": 4.018,
+          "planning_ms": 9.501,
+          "execution_ms": 4.486,
           "partitions_scanned": 64,
           "partitions_targeted": 0,
           "subplans_removed": [],
@@ -531,22 +549,22 @@
           "top_score": 2.9879,
           "locks_for_query": 390,
           "returned": 50,
-          "median_ms": 10.587,
-          "p95_ms": 11.062,
-          "min_ms": 9.352,
+          "median_ms": 11.671,
+          "p95_ms": 12.659,
+          "min_ms": 10.743,
           "ships": true,
           "why": "migration 0022 `zenith_lexical_search`, SECURITY DEFINER so no policy applies. The tenant clause is a Tantivy term, and a `@@@` operand is not a partition-key qualifier. On the hot path of every search.",
           "bar": "scans every partition \u2014 a Tantivy term is not a partition-key qualifier \u2014 with one ParadeDB custom scan on each",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 6.09,
-            "share_of_lock_table": 0.0609,
-            "concurrent_statements_at_nominal_slots": 16
+            "share_of_lock_table": 0.001,
+            "concurrent_statements_at_nominal_slots": 1050
           }
         },
         "lexical_scoped": {
-          "planning_ms": 8.449,
-          "execution_ms": 0.472,
+          "planning_ms": 8.249,
+          "execution_ms": 0.309,
           "partitions_scanned": 1,
           "partitions_targeted": 0,
           "subplans_removed": [
@@ -562,22 +580,22 @@
           "top_score": 2.988,
           "locks_for_query": 390,
           "returned": 50,
-          "median_ms": 8.561,
-          "p95_ms": 8.831,
-          "min_ms": 8.015,
+          "median_ms": 8.724,
+          "p95_ms": 9.299,
+          "min_ms": 7.824,
           "ships": false,
           "why": "Candidate fix: the same Tantivy query with a redundant SQL qualifier on the partition key beside it. Checked for the custom scan and for NULL scores, because ADR 0002's failure mode is a plan that still answers.",
           "bar": "scans one partition AND keeps the custom scan AND returns rows with no NULL score: all three, because ADR 0002's failure mode is a plan that still answers",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 6.09,
-            "share_of_lock_table": 0.0609,
-            "concurrent_statements_at_nominal_slots": 16
+            "share_of_lock_table": 0.001,
+            "concurrent_statements_at_nominal_slots": 1050
           }
         },
         "label_sync_as_shipped": {
-          "planning_ms": 2.019,
-          "execution_ms": 95.074,
+          "planning_ms": 2.255,
+          "execution_ms": 104.353,
           "partitions_scanned": 64,
           "partitions_targeted": 64,
           "subplans_removed": [],
@@ -591,22 +609,22 @@
           "triggers": [],
           "locks_for_query": 394,
           "returned": 0,
-          "median_ms": 142.374,
-          "p95_ms": 167.869,
-          "min_ms": 101.228,
+          "median_ms": 143.488,
+          "p95_ms": 173.122,
+          "min_ms": 98.051,
           "ships": true,
           "why": "migration 0003 `zenith_sync_chunk_labels`, SECURITY DEFINER. Fires once per document whose labels change, and once per document during a purge.",
           "bar": "scans every partition and opens every one for writing",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 6.16,
-            "share_of_lock_table": 0.0616,
-            "concurrent_statements_at_nominal_slots": 16
+            "share_of_lock_table": 0.001,
+            "concurrent_statements_at_nominal_slots": 1039
           }
         },
         "label_sync_stable_tenant": {
-          "planning_ms": 2.636,
-          "execution_ms": 99.028,
+          "planning_ms": 2.659,
+          "execution_ms": 112.506,
           "partitions_scanned": 1,
           "partitions_targeted": 64,
           "subplans_removed": [
@@ -620,22 +638,22 @@
           "triggers": [],
           "locks_for_query": 394,
           "returned": 0,
-          "median_ms": 139.802,
-          "p95_ms": 148.87,
-          "min_ms": 124.44,
+          "median_ms": 136.605,
+          "p95_ms": 138.76,
+          "min_ms": 119.058,
           "ships": false,
           "why": "The obvious fix, and the one that is only half a fix. A `STABLE` key prunes the scan at executor startup and does not shrink the result-relation list, so the reads get cheap and the locks do not. This arm exists to make that visible rather than to be adopted.",
           "bar": "scans one partition and still opens every one for writing, because result relations are chosen at plan time and `zenith_current_tenant()` is STABLE",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 6.16,
-            "share_of_lock_table": 0.0616,
-            "concurrent_statements_at_nominal_slots": 16
+            "share_of_lock_table": 0.001,
+            "concurrent_statements_at_nominal_slots": 1039
           }
         },
         "label_sync_bound_tenant": {
-          "planning_ms": 0.169,
-          "execution_ms": 134.405,
+          "planning_ms": 0.141,
+          "execution_ms": 137.418,
           "partitions_scanned": 1,
           "partitions_targeted": 1,
           "subplans_removed": [],
@@ -647,22 +665,22 @@
           "triggers": [],
           "locks_for_query": 16,
           "returned": 0,
-          "median_ms": 140.75,
-          "p95_ms": 162.976,
-          "min_ms": 110.156,
+          "median_ms": 130.267,
+          "p95_ms": 161.637,
+          "min_ms": 97.81,
           "ships": false,
           "why": "Candidate fix: the tenant as a bound parameter, which the planner may fold into a custom plan and prune on. The trigger already has `NEW.tenant_id` in hand \u2014 this is one column on a WHERE clause.",
           "bar": "scans one partition and opens one for writing",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 0.25,
-            "share_of_lock_table": 0.0025,
-            "concurrent_statements_at_nominal_slots": 400
+            "share_of_lock_table": 0.0,
+            "concurrent_statements_at_nominal_slots": 25600
           }
         },
         "reingest_clear_chunks": {
-          "planning_ms": 3.368,
-          "execution_ms": 29.067,
+          "planning_ms": 2.673,
+          "execution_ms": 24.931,
           "partitions_scanned": 1,
           "partitions_targeted": 64,
           "subplans_removed": [
@@ -682,22 +700,22 @@
           ],
           "locks_for_query": 523,
           "returned": 0,
-          "median_ms": 25.409,
-          "p95_ms": 26.419,
-          "min_ms": 24.091,
+          "median_ms": 21.89,
+          "p95_ms": 23.195,
+          "min_ms": 21.133,
           "ships": true,
           "why": "app/features/ingestion/pipeline.py `_clear_previous`, under `tenant_session` so the tenant clause is the policy's and is therefore `STABLE`. This is the shape every write this product makes to `chunks` has.",
           "bar": "scans one partition and still opens every one for writing \u2014 the same half-pruning as the label sync, and it is what every policy-scoped write to `chunks` will do",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 8.17,
-            "share_of_lock_table": 0.0817,
-            "concurrent_statements_at_nominal_slots": 12
+            "share_of_lock_table": 0.0013,
+            "concurrent_statements_at_nominal_slots": 783
           }
         },
         "reingest_clear_chunks_bound": {
-          "planning_ms": 0.11,
-          "execution_ms": 26.331,
+          "planning_ms": 0.139,
+          "execution_ms": 22.055,
           "partitions_scanned": 1,
           "partitions_targeted": 1,
           "subplans_removed": [],
@@ -715,22 +733,22 @@
           ],
           "locks_for_query": 19,
           "returned": 0,
-          "median_ms": 25.311,
-          "p95_ms": 25.845,
-          "min_ms": 24.628,
+          "median_ms": 21.166,
+          "p95_ms": 22.31,
+          "min_ms": 20.926,
           "ships": false,
           "why": "Candidate fix: the same delete with the tenant bound. `TenantContext` has it already, so nothing has to be looked up to write it down.",
           "bar": "scans one partition and opens one for writing",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 0.3,
-            "share_of_lock_table": 0.003,
-            "concurrent_statements_at_nominal_slots": 336
+            "share_of_lock_table": 0.0,
+            "concurrent_statements_at_nominal_slots": 21557
           }
         },
         "purge_documents": {
-          "planning_ms": 0.047,
-          "execution_ms": 77.567,
+          "planning_ms": 0.033,
+          "execution_ms": 58.519,
           "partitions_scanned": 0,
           "partitions_targeted": 0,
           "subplans_removed": [],
@@ -751,22 +769,22 @@
           ],
           "locks_for_query": 400,
           "returned": 0,
-          "median_ms": 64.477,
-          "p95_ms": 78.53,
-          "min_ms": 57.277,
+          "median_ms": 50.044,
+          "p95_ms": 53.804,
+          "min_ms": 48.613,
           "ships": true,
           "why": "app/features/system/purge.py \u2014 `DELETE FROM documents WHERE tenant_id`, reaching `chunks` through a foreign key on `document_id` that carries no tenant. Measured with the single-column key the schema has today.",
           "bar": "takes at least one lock per partition of `chunks`: the cascade's foreign key is on `document_id` alone, so the statement Postgres writes for it carries no tenant",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 6.25,
-            "share_of_lock_table": 0.0625,
-            "concurrent_statements_at_nominal_slots": 16
+            "share_of_lock_table": 0.001,
+            "concurrent_statements_at_nominal_slots": 1024
           }
         },
         "purge_documents_composite_fk": {
-          "planning_ms": 0.082,
-          "execution_ms": 72.245,
+          "planning_ms": 0.035,
+          "execution_ms": 45.523,
           "partitions_scanned": 0,
           "partitions_targeted": 0,
           "subplans_removed": [],
@@ -787,17 +805,17 @@
           ],
           "locks_for_query": 22,
           "returned": 0,
-          "median_ms": 73.852,
-          "p95_ms": 79.983,
-          "min_ms": 71.294,
+          "median_ms": 43.587,
+          "p95_ms": 47.391,
+          "min_ms": 43.02,
           "ships": false,
           "why": "Candidate fix: the same purge with `chunks` referencing `documents (id, tenant_id)` instead of `documents (id)`. The referential action is a statement Postgres writes, and it can only carry the partition key if the key is in the constraint. The constraint is swapped in place on the same rung, so the rows, the partitions and the planner state are identical and the constraint is the only difference.",
           "bar": "takes fewer locks than `purge_documents` does on the same rung, and a count that does not grow with the modulus, because the constraint now carries the partition key",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 0.34,
-            "share_of_lock_table": 0.0034,
-            "concurrent_statements_at_nominal_slots": 290
+            "share_of_lock_table": 0.0001,
+            "concurrent_statements_at_nominal_slots": 18618
           }
         }
       },
@@ -808,8 +826,8 @@
       "document_rows": 1871,
       "arms": {
         "diagnose_count_chunks": {
-          "planning_ms": 10.531,
-          "execution_ms": 2.535,
+          "planning_ms": 12.363,
+          "execution_ms": 4.921,
           "partitions_scanned": 256,
           "partitions_targeted": 0,
           "subplans_removed": [],
@@ -824,22 +842,22 @@
           "value": 13549,
           "locks_for_query": 1542,
           "returned": 1,
-          "median_ms": 6.713,
-          "p95_ms": 7.486,
-          "min_ms": 5.853,
+          "median_ms": 14.537,
+          "p95_ms": 15.145,
+          "min_ms": 12.079,
           "ships": true,
           "why": "app/core/diagnostics.py `_content` \u2014 owner_session, no tenant. Once per `zenith diagnose`, and `demo-check.sh` runs that before every demonstration.",
           "bar": "scans every partition, so its cost is linear in the modulus",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 6.02,
-            "share_of_lock_table": 0.2409,
-            "concurrent_statements_at_nominal_slots": 4
+            "share_of_lock_table": 0.0038,
+            "concurrent_statements_at_nominal_slots": 265
           }
         },
         "diagnose_count_embeddings": {
-          "planning_ms": 5.505,
-          "execution_ms": 1.03,
+          "planning_ms": 19.351,
+          "execution_ms": 1.34,
           "partitions_scanned": 256,
           "partitions_targeted": 0,
           "subplans_removed": [],
@@ -854,22 +872,22 @@
           "value": 13549,
           "locks_for_query": 514,
           "returned": 1,
-          "median_ms": 1.989,
-          "p95_ms": 2.167,
-          "min_ms": 1.509,
+          "median_ms": 2.469,
+          "p95_ms": 2.705,
+          "min_ms": 2.092,
           "ships": true,
           "why": "app/core/diagnostics.py `_content` \u2014 the second of the two partitioned tables.",
           "bar": "scans every partition, for the same reason",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 2.01,
-            "share_of_lock_table": 0.0803,
-            "concurrent_statements_at_nominal_slots": 12
+            "share_of_lock_table": 0.0013,
+            "concurrent_statements_at_nominal_slots": 796
           }
         },
         "diagnose_count_estimate": {
-          "planning_ms": 0.196,
-          "execution_ms": 2.441,
+          "planning_ms": 0.279,
+          "execution_ms": 1.099,
           "partitions_scanned": 0,
           "partitions_targeted": 0,
           "subplans_removed": [],
@@ -880,22 +898,22 @@
           "value": 13549,
           "locks_for_query": 7,
           "returned": 1,
-          "median_ms": 1.166,
-          "p95_ms": 1.323,
-          "min_ms": 1.119,
+          "median_ms": 1.032,
+          "p95_ms": 1.133,
+          "min_ms": 0.963,
           "ships": false,
           "why": "Candidate fix: the planner's own estimate, read from the catalogue. Scans no partition at any modulus, and is an estimate \u2014 the report states its error against the exact count rather than leaving the trade to prose.",
           "bar": "scans no partition at all, and takes the same locks at every modulus",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 0.03,
-            "share_of_lock_table": 0.0011,
-            "concurrent_statements_at_nominal_slots": 914
+            "share_of_lock_table": 0.0,
+            "concurrent_statements_at_nominal_slots": 58514
           }
         },
         "diagnose_count_per_tenant": {
-          "planning_ms": 16.144,
-          "execution_ms": 1.126,
+          "planning_ms": 19.34,
+          "execution_ms": 1.503,
           "partitions_scanned": 1,
           "partitions_targeted": 0,
           "subplans_removed": [
@@ -910,22 +928,22 @@
           "value": 3502,
           "locks_for_query": 1542,
           "returned": 1,
-          "median_ms": 13.06,
-          "p95_ms": 13.92,
-          "min_ms": 12.771,
+          "median_ms": 19.295,
+          "p95_ms": 44.541,
+          "min_ms": 12.628,
           "ships": false,
           "why": "Candidate fix: exact, one tenant at a time. The figure to multiply by the tenant count \u2014 not to read as a whole-installation cost.",
           "bar": "scans exactly one partition",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 6.02,
-            "share_of_lock_table": 0.2409,
-            "concurrent_statements_at_nominal_slots": 4
+            "share_of_lock_table": 0.0038,
+            "concurrent_statements_at_nominal_slots": 265
           }
         },
         "lexical_as_shipped": {
-          "planning_ms": 97.553,
-          "execution_ms": 19.71,
+          "planning_ms": 81.503,
+          "execution_ms": 19.465,
           "partitions_scanned": 256,
           "partitions_targeted": 0,
           "subplans_removed": [],
@@ -941,22 +959,22 @@
           "top_score": 2.9879,
           "locks_for_query": 1542,
           "returned": 50,
-          "median_ms": 61.552,
-          "p95_ms": 66.617,
-          "min_ms": 61.479,
+          "median_ms": 56.793,
+          "p95_ms": 61.209,
+          "min_ms": 55.61,
           "ships": true,
           "why": "migration 0022 `zenith_lexical_search`, SECURITY DEFINER so no policy applies. The tenant clause is a Tantivy term, and a `@@@` operand is not a partition-key qualifier. On the hot path of every search.",
           "bar": "scans every partition \u2014 a Tantivy term is not a partition-key qualifier \u2014 with one ParadeDB custom scan on each",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 6.02,
-            "share_of_lock_table": 0.2409,
-            "concurrent_statements_at_nominal_slots": 4
+            "share_of_lock_table": 0.0038,
+            "concurrent_statements_at_nominal_slots": 265
           }
         },
         "lexical_scoped": {
-          "planning_ms": 57.779,
-          "execution_ms": 0.509,
+          "planning_ms": 52.726,
+          "execution_ms": 0.392,
           "partitions_scanned": 1,
           "partitions_targeted": 0,
           "subplans_removed": [
@@ -972,22 +990,22 @@
           "top_score": 2.988,
           "locks_for_query": 1542,
           "returned": 50,
-          "median_ms": 54.907,
-          "p95_ms": 55.621,
-          "min_ms": 54.488,
+          "median_ms": 49.886,
+          "p95_ms": 51.813,
+          "min_ms": 49.503,
           "ships": false,
           "why": "Candidate fix: the same Tantivy query with a redundant SQL qualifier on the partition key beside it. Checked for the custom scan and for NULL scores, because ADR 0002's failure mode is a plan that still answers.",
           "bar": "scans one partition AND keeps the custom scan AND returns rows with no NULL score: all three, because ADR 0002's failure mode is a plan that still answers",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 6.02,
-            "share_of_lock_table": 0.2409,
-            "concurrent_statements_at_nominal_slots": 4
+            "share_of_lock_table": 0.0038,
+            "concurrent_statements_at_nominal_slots": 265
           }
         },
         "label_sync_as_shipped": {
-          "planning_ms": 11.044,
-          "execution_ms": 104.954,
+          "planning_ms": 8.932,
+          "execution_ms": 96.162,
           "partitions_scanned": 256,
           "partitions_targeted": 256,
           "subplans_removed": [],
@@ -1001,22 +1019,22 @@
           "triggers": [],
           "locks_for_query": 1546,
           "returned": 0,
-          "median_ms": 171.928,
-          "p95_ms": 182.754,
-          "min_ms": 108.961,
+          "median_ms": 135.482,
+          "p95_ms": 156.906,
+          "min_ms": 96.848,
           "ships": true,
           "why": "migration 0003 `zenith_sync_chunk_labels`, SECURITY DEFINER. Fires once per document whose labels change, and once per document during a purge.",
           "bar": "scans every partition and opens every one for writing",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 6.04,
-            "share_of_lock_table": 0.2416,
-            "concurrent_statements_at_nominal_slots": 4
+            "share_of_lock_table": 0.0038,
+            "concurrent_statements_at_nominal_slots": 264
           }
         },
         "label_sync_stable_tenant": {
-          "planning_ms": 11.818,
-          "execution_ms": 98.18,
+          "planning_ms": 10.171,
+          "execution_ms": 99.676,
           "partitions_scanned": 1,
           "partitions_targeted": 256,
           "subplans_removed": [
@@ -1030,22 +1048,22 @@
           "triggers": [],
           "locks_for_query": 1546,
           "returned": 0,
-          "median_ms": 139.962,
-          "p95_ms": 147.989,
-          "min_ms": 124.315,
+          "median_ms": 133.76,
+          "p95_ms": 161.713,
+          "min_ms": 122.862,
           "ships": false,
           "why": "The obvious fix, and the one that is only half a fix. A `STABLE` key prunes the scan at executor startup and does not shrink the result-relation list, so the reads get cheap and the locks do not. This arm exists to make that visible rather than to be adopted.",
           "bar": "scans one partition and still opens every one for writing, because result relations are chosen at plan time and `zenith_current_tenant()` is STABLE",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 6.04,
-            "share_of_lock_table": 0.2416,
-            "concurrent_statements_at_nominal_slots": 4
+            "share_of_lock_table": 0.0038,
+            "concurrent_statements_at_nominal_slots": 264
           }
         },
         "label_sync_bound_tenant": {
-          "planning_ms": 0.109,
-          "execution_ms": 126.479,
+          "planning_ms": 0.169,
+          "execution_ms": 128.048,
           "partitions_scanned": 1,
           "partitions_targeted": 1,
           "subplans_removed": [],
@@ -1057,22 +1075,22 @@
           "triggers": [],
           "locks_for_query": 16,
           "returned": 0,
-          "median_ms": 129.095,
-          "p95_ms": 162.921,
-          "min_ms": 94.919,
+          "median_ms": 129.364,
+          "p95_ms": 164.273,
+          "min_ms": 95.206,
           "ships": false,
           "why": "Candidate fix: the tenant as a bound parameter, which the planner may fold into a custom plan and prune on. The trigger already has `NEW.tenant_id` in hand \u2014 this is one column on a WHERE clause.",
           "bar": "scans one partition and opens one for writing",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 0.06,
-            "share_of_lock_table": 0.0025,
-            "concurrent_statements_at_nominal_slots": 400
+            "share_of_lock_table": 0.0,
+            "concurrent_statements_at_nominal_slots": 25600
           }
         },
         "reingest_clear_chunks": {
-          "planning_ms": 16.156,
-          "execution_ms": 32.624,
+          "planning_ms": 9.976,
+          "execution_ms": 27.449,
           "partitions_scanned": 1,
           "partitions_targeted": 256,
           "subplans_removed": [
@@ -1092,22 +1110,22 @@
           ],
           "locks_for_query": 2059,
           "returned": 0,
-          "median_ms": 33.308,
-          "p95_ms": 35.498,
-          "min_ms": 31.943,
+          "median_ms": 30.161,
+          "p95_ms": 30.981,
+          "min_ms": 29.154,
           "ships": true,
           "why": "app/features/ingestion/pipeline.py `_clear_previous`, under `tenant_session` so the tenant clause is the policy's and is therefore `STABLE`. This is the shape every write this product makes to `chunks` has.",
           "bar": "scans one partition and still opens every one for writing \u2014 the same half-pruning as the label sync, and it is what every policy-scoped write to `chunks` will do",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 8.04,
-            "share_of_lock_table": 0.3217,
-            "concurrent_statements_at_nominal_slots": 3
+            "share_of_lock_table": 0.005,
+            "concurrent_statements_at_nominal_slots": 198
           }
         },
         "reingest_clear_chunks_bound": {
-          "planning_ms": 0.125,
-          "execution_ms": 27.083,
+          "planning_ms": 0.098,
+          "execution_ms": 21.535,
           "partitions_scanned": 1,
           "partitions_targeted": 1,
           "subplans_removed": [],
@@ -1125,22 +1143,22 @@
           ],
           "locks_for_query": 19,
           "returned": 0,
-          "median_ms": 27.328,
-          "p95_ms": 29.586,
-          "min_ms": 26.223,
+          "median_ms": 21.655,
+          "p95_ms": 21.876,
+          "min_ms": 21.317,
           "ships": false,
           "why": "Candidate fix: the same delete with the tenant bound. `TenantContext` has it already, so nothing has to be looked up to write it down.",
           "bar": "scans one partition and opens one for writing",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 0.07,
-            "share_of_lock_table": 0.003,
-            "concurrent_statements_at_nominal_slots": 336
+            "share_of_lock_table": 0.0,
+            "concurrent_statements_at_nominal_slots": 21557
           }
         },
         "purge_documents": {
-          "planning_ms": 0.061,
-          "execution_ms": 122.646,
+          "planning_ms": 0.047,
+          "execution_ms": 94.141,
           "partitions_scanned": 0,
           "partitions_targeted": 0,
           "subplans_removed": [],
@@ -1161,22 +1179,22 @@
           ],
           "locks_for_query": 1552,
           "returned": 0,
-          "median_ms": 77.355,
-          "p95_ms": 97.581,
-          "min_ms": 62.189,
+          "median_ms": 53.939,
+          "p95_ms": 69.044,
+          "min_ms": 50.778,
           "ships": true,
           "why": "app/features/system/purge.py \u2014 `DELETE FROM documents WHERE tenant_id`, reaching `chunks` through a foreign key on `document_id` that carries no tenant. Measured with the single-column key the schema has today.",
           "bar": "takes at least one lock per partition of `chunks`: the cascade's foreign key is on `document_id` alone, so the statement Postgres writes for it carries no tenant",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 6.06,
-            "share_of_lock_table": 0.2425,
-            "concurrent_statements_at_nominal_slots": 4
+            "share_of_lock_table": 0.0038,
+            "concurrent_statements_at_nominal_slots": 263
           }
         },
         "purge_documents_composite_fk": {
-          "planning_ms": 0.056,
-          "execution_ms": 73.07,
+          "planning_ms": 0.063,
+          "execution_ms": 49.313,
           "partitions_scanned": 0,
           "partitions_targeted": 0,
           "subplans_removed": [],
@@ -1197,33 +1215,33 @@
           ],
           "locks_for_query": 22,
           "returned": 0,
-          "median_ms": 73.662,
-          "p95_ms": 89.146,
-          "min_ms": 70.303,
+          "median_ms": 44.912,
+          "p95_ms": 57.198,
+          "min_ms": 43.092,
           "ships": false,
           "why": "Candidate fix: the same purge with `chunks` referencing `documents (id, tenant_id)` instead of `documents (id)`. The referential action is a statement Postgres writes, and it can only carry the partition key if the key is in the constraint. The constraint is swapped in place on the same rung, so the rows, the partitions and the planner state are identical and the constraint is the only difference.",
           "bar": "takes fewer locks than `purge_documents` does on the same rung, and a count that does not grow with the modulus, because the constraint now carries the partition key",
           "verdict": "met",
           "pressure": {
             "locks_per_partition": 0.09,
-            "share_of_lock_table": 0.0034,
-            "concurrent_statements_at_nominal_slots": 290
+            "share_of_lock_table": 0.0001,
+            "concurrent_statements_at_nominal_slots": 18618
           }
         }
       },
-      "build_s": 3.2
+      "build_s": 2.8
     }
   ],
   "postgres": {
     "enable_partition_pruning": "on",
     "max_connections": "100",
-    "max_locks_per_transaction": "64",
+    "max_locks_per_transaction": "4096",
     "max_prepared_transactions": "0",
     "plan_cache_mode": "auto",
     "server_version": "17.5 (Debian 17.5-1.pgdg120+1)",
     "shared_buffers": "16384",
     "work_mem": "4096",
-    "lock_table_slots": 6400,
+    "lock_table_slots": 409600,
     "lock_table_note": "max_locks_per_transaction * max_connections sizes one table shared by the whole cluster; it is not a per-transaction allowance. Sizing it belongs to `chore/partition-lock-budget`. This file reports only what each shape takes."
   },
   "build": {
@@ -1266,7 +1284,25 @@
         "relative_error": 0.0
       }
     ],
-    "caveat": "Measured immediately after `ANALYZE`, on a corpus of 13,549 passages that nothing was writing to. `reltuples` drifts between analyses in proportion to the write rate, so a small error here is not a promise about a busy installation. What it does promise is a cost that does not grow with the modulus, which is the property being bought."
+    "live": [
+      {
+        "table": "chunks",
+        "exact": 13549,
+        "estimate": 13295,
+        "error": -254,
+        "relative_error": 0.018747,
+        "last_analysed": "2026-08-29 17:05:33.857791+00:00"
+      },
+      {
+        "table": "chunk_embeddings",
+        "exact": 13549,
+        "estimate": 13295,
+        "error": -254,
+        "relative_error": 0.018747,
+        "last_analysed": "2026-08-29 17:05:33.906228+00:00"
+      }
+    ],
+    "caveat": "The rungs are measured immediately after `ANALYZE`, on a corpus that nothing was writing to, so their error is zero and that is a fact about the method's best case rather than about an installation. `live` is the same estimate against the installation's own tables, where it is not zero. `reltuples` drifts in proportion to the write rate since the last analysis; what it buys is a cost that does not grow with the modulus, and `zenith diagnose` prints a `~` so the trade is visible to whoever reads it."
   },
   "locks_across_the_ladder": {
     "diagnose_count_chunks": {
@@ -1335,8 +1371,8 @@
       "256": 22
     }
   },
-  "generated_at": "2026-08-29T17:00:23+0000",
-  "took_s": 19.7,
+  "generated_at": "2026-08-29T17:07:21+0000",
+  "took_s": 18.8,
   "bars": {
     "diagnose_count_chunks": "scans every partition, so its cost is linear in the modulus",
     "diagnose_count_embeddings": "scans every partition, for the same reason",
