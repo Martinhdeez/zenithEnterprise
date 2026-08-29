@@ -9,9 +9,9 @@ are planned together rather than separately.
 
 **Ceiling 3 — is binary quantisation usable?** `eval/quantisation.json` measured it at
 13,549 vectors and found the gap to exact retrieval **widening with corpus size**:
-`+0.0384` per decade at rescore 100, with the worst question falling 0.90 → 0.50 across less
-than one decade. Extrapolated log-linearly to 300M passages the gap is 0.2137, i.e.
-recall@10 ≈ 0.79, which is not shippable. But an extrapolation from four points inside one
+`+0.0606` per decade at rescore 100, with the worst question falling 0.90 → 0.40 across less
+than one decade. Extrapolated log-linearly to 300M passages the gap is 0.3300, i.e.
+recall@10 ≈ 0.67, which is not shippable. But an extrapolation from four points inside one
 decade is a hypothesis, not a finding. Binary is the difference between ~156,000 and
 ~980,000 documents on the same server, so the hypothesis is worth the cost of testing.
 
@@ -73,9 +73,13 @@ formality.
 | 3 | `max_scan_tuples` where it can finally bind | ceiling 2: the missing constant |
 | 4 | fp16 confirmed at scale | ceiling 3: does the safe option stay safe |
 
-Stage 4 is not a formality either. fp16 was flat across 2k–13.5k, but "flat across one
-decade" is the same evidence binary had before the trend appeared. The variant being adopted
-gets tested at the same sizes as the one being doubted.
+Stage 4 is not a formality, and it became less of one. fp16 was reported flat across
+2k–13.5k; that reading came from a `quantisation.json` in which fp16 was measured by
+sequential scan, and the corrected run has it widening at **+0.0386 per decade** — within
+noise of uncompressed fp32's +0.0445, because what widens is the HNSW graph at
+`ef_search = 100` and not the representation. So the variant being adopted gets tested at the
+same sizes as the one being doubted, and the question at those sizes is no longer "is fp16
+flat" but "does binary degrade faster than the graph already does".
 
 ## Ladder and cost
 
@@ -92,8 +96,14 @@ memory pressure and are not the latency of the target server.** Recall figures a
 by residency, and recall is what this measures.
 
 No fp32 HNSW index is built above 13,549. Ground truth is an exact scan, which needs the
-vectors and not an index, and an 8 GB fp32 index would cost build time for a baseline already
-known to be 1.0000.
+vectors and not an index, and an 8 GB fp32 index would cost build time for a baseline this
+sweep does not use: what is measured here is quantisation error alone, against exact fp32,
+so the fp32 arm is the ground truth rather than a variant. The earlier version of this
+paragraph justified the omission differently — "a baseline already known to be 1.0000" — and
+that justification was void, because `quantisation.json`'s fp32 index-recall row was a
+sequential scan compared against itself. The corrected run puts fp32 through its own HNSW
+index at **0.9600** at 13,549 and widening. The omission still stands on the reason above;
+it did not stand on the one it was given.
 
 ## The contingency, checked before it was needed
 
@@ -145,10 +155,21 @@ at the one standing in for ~35M passages. Rescore 100 is still finished — 0.14
 worst — but the width is a query-time choice costing four hundred exact distance
 computations, and migration 0025 keeps the fp32 vectors that rescoring needs.
 
-The corroboration is worth as much as the numbers. `quantisation.json` measures through an
-HNSW index over 30 answerable questions and puts the real corpus's r100 gap at 0.0467; this
-file measures by exact scan over 31 and gets **0.0484**. Two harnesses, two methods, one
-answer — which is why the trend they agree on is credible.
+The corroboration is worth as much as the numbers, and it is worth less than this paragraph
+first claimed. It read: `quantisation.json` measures through an HNSW index over 30 answerable
+questions and puts the real corpus's r100 gap at 0.0467, this file measures by exact scan
+over 31 and gets **0.0484**, two harnesses and two methods agreeing. They were not two
+methods. `quantisation.py` was leaving `enable_indexscan = off` on for its arms, so its
+binary shortlist was an exact sequential Hamming scan — the same computation this file does,
+which is why the two agreed to within 0.002.
+
+Corrected, `quantisation.json` puts the r100 gap at **0.0667** through a real HNSW walk at
+`ef_search = 100`, against this file's **0.0484** by exact scan. The two now differ by the
+graph, in the expected direction and by about the amount the graph costs elsewhere in that
+report (fp32 itself loses 0.0400 at the same size), and each is the right number for its own
+question: this file isolates what binary quantisation destroys, `quantisation.json` reports
+what deploying it would actually retrieve. The trend is what both agree on, and that
+agreement is real.
 
 **The gate is properly calibrated now.** Worst delta 0.0226 and, more importantly, the
 systematic bias is gone: `mixed` rather than `flatters_binary`. The noise questions were
@@ -156,7 +177,10 @@ producing the bias as well as the inflated worst case.
 
 **fp16 is adopted and is not perfectly free.** 0.0097 at the densest point against 0.0000
 everywhere else — about one percent of recall@10, in a density regime no planned corpus
-reaches. Negligible, and worth recording because "flat forever" was the previous claim.
+reaches. Negligible, and worth recording because "flat forever" was the previous claim. That
+is quantisation error alone, by exact scan. Through an index it is joined by the graph's own
+loss, which the corrected `quantisation.json` puts at 0.0400 at 13,549 for fp16 *and* for
+uncompressed fp32 alike; the adoption rests on fp16 matching fp32, not on either being exact.
 
 **What this leaves.** fp16 gives 3.00x with no practical cost. Binary at rescore 400 gives
 18.84x and is defensible into the tens of millions of passages, degrading past that.
