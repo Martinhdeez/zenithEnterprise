@@ -7,10 +7,16 @@
 """Does binary quantisation fail at the corpus size this product is aimed at?
 
 `quantisation.json` measured the three precisions over the real 13,549 vectors and found the
-gap to exact retrieval **widening with corpus size**: `+0.0384` per decade at rescore 100.
-Extrapolated log-linearly to 300M passages that is recall@10 ≈ 0.79, which is not shippable.
+gap to exact retrieval **widening with corpus size**: `+0.0606` per decade at rescore 100.
+Extrapolated log-linearly to 300M passages that is recall@10 ≈ 0.67, which is not shippable.
 Binary is the difference between roughly 156,000 and 980,000 documents on one server, so the
 extrapolation is worth more than an extrapolation.
+
+Those two figures are the **corrected** ones. This module was written against `+0.0384` and
+≈ 0.79, from a `quantisation.py` run whose arms were answered by sequential scans because
+`SET LOCAL enable_indexscan = off` leaked out of the ground-truth query and into them. The
+re-run made binary's trend worse, not better, so the question this module was built to settle
+is if anything more worth settling than it was.
 
 The corpus that would settle it does not exist and cannot be downloaded. This builds one.
 
@@ -41,9 +47,9 @@ wrong until it is measured:
 
 Interpolation avoids both, and it still does not produce a corpus that *is* a larger real
 one. Measured here: at 13,549 rows the synthetic set's mean distance to the tenth nearest
-neighbour is **0.1773** against the real corpus's **0.2589**. It is denser than a real corpus
-of the same count, and its density falls faster as it grows (exponent ≈ −0.30 to −0.56
-against the real corpus's −0.135).
+neighbour is **0.1689** against the real corpus's **0.2621**. It is denser than a real corpus
+of the same count, and its density falls faster as it grows (exponent ≈ −0.31 to −0.57
+against the real corpus's −0.107).
 
 **That is not corrected, it is used.** Being denser than its row count suggests is precisely
 what makes a corpus of 150,000 rows able to stand in for the regime under investigation: at
@@ -71,9 +77,25 @@ cheaper one than shipping an index built on a hope.
 ## What is measured, and what is deliberately not
 
 Quantisation error **alone**, by exact scan, with every index refused. `quantisation.json`
-measured quantisation and HNSW approximation together, which is right for choosing what to
+measures quantisation and HNSW approximation together, which is right for choosing what to
 ship and wrong for asking which of the two grows: an index-based number that degrades could
 be the compression or could be the graph. Here the graph is removed.
+
+**That sentence was false when it was written and is true now**, which is worth a reader's
+attention rather than a silent tense. `quantisation.py` was disabling the index scan for its
+arms by accident, so it was measuring quantisation alone — the same thing this module does —
+and the two harnesses agreeing to within 0.002 was read as two methods corroborating each
+other when it was one method run twice. The re-run gives it a real HNSW walk, the two now
+differ by the graph and in the expected direction, and each is the right number for its own
+question: this module isolates what binary quantisation destroys, `quantisation.json` reports
+what deploying it would actually retrieve.
+
+The distinction matters beyond this file, because **disabling the index scan on purpose and
+disabling it by mistake are the same line of SQL.** Here it is deliberate and is the whole
+method; there it was a `SET LOCAL` outliving the statement that wanted it. A future reader
+comparing the two will find identical-looking code meaning opposite things, and the only
+thing separating them is that this module reports `d10` — a property of the vectors, which an
+index could not have changed — while that one now reports `plan_uses_index` per arm.
 
 Latency is not reported. This runs in a 7.75 GB VM against tables that do not fit in
 `shared_buffers`, so every figure would describe memory pressure on a laptop rather than the

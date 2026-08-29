@@ -18,6 +18,7 @@ future maintainer most needs to find before repeating the experiment.
 | [0006](0006-circuit-breaker-for-optional-components.md) | Optional components degrade visibly, and stop being paid for | Accepted |
 | [0007](0007-backend-driven-aggregation.md) | The server computes groupings the client would get wrong | Accepted |
 | [0008](0008-problem-details-for-errors.md) | RFC 7807 for every error response | Accepted |
+| [0009](0009-partition-by-tenant.md) | `chunks` and `chunk_embeddings` partitioned by tenant, the only lever that changes N | Accepted, stage 0 landed |
 
 ## Format
 
