@@ -48,6 +48,15 @@
     0 0 14px 2px color-mix(in oklab, var(--primary) 55%, transparent);
 }
 
+.app-art {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
 /* Scrolls, but never shows the scrollbar itself — the sidebar is short enough that the
    bar flashing in and out on every folder/upload update read as noise, not signal. */
 .scrollbar-none {
@@ -450,6 +459,17 @@
      The two that were complained about are now 0.062 and 0.124 apart instead of 0.050 and
      0.000. Text stays comfortable on every one of them: 9.27:1 on the brightest. */
   --background: oklch(0.1900 0.0400 257);
+  /* The same six fields as light, mixed towards `--background` instead of towards white.
+     That is the whole difference: one drawing, two sets of tints, so the two themes are the
+     same product in two lights rather than two different products. Dark needs a narrower
+     spread — the shell is already near-black, and a band that clears it by much stops being
+     ground and starts being an object. */
+  --art-0: color-mix(in oklab, var(--primary) 24%, var(--background));
+  --art-1: color-mix(in oklab, var(--primary) 13%, var(--background));
+  --art-2: color-mix(in oklab, var(--zenith-cyan) 16%, var(--background));
+  --art-3: color-mix(in oklab, var(--zenith-cyan) 26%, var(--background));
+  --art-4: color-mix(in oklab, var(--primary) 30%, var(--background));
+  --art-5: color-mix(in oklab, var(--zenith-cyan) 38%, var(--background));
   --foreground: oklch(0.9676 0.0075 243);
   --card: oklch(0.2520 0.0400 257);
   --card-foreground: oklch(0.9676 0.0075 243);
