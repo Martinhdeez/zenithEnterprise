@@ -1,12 +1,13 @@
-"""The statements that will not prune when `chunks` is partitioned, held to a list.
+"""The statements that will not prune now that `chunks` is partitioned, held to a list.
 
-ADR 0009 partitions `chunks` and `chunk_embeddings` by `tenant_id`. Every statement carrying
-a tenant then prunes to one partition and gets faster; that is the point of the ADR and
-`partition-rls-policy-pruning.sql` proves it survives the real policy. **Every statement not
-carrying one goes from a single scan to `modulus` scans**, and at the planned modulus of 256
-that costs what `backend/eval/unpruned-queries.json` measures: the lexical half of a search
-goes from 0.70 ms to 56.8 ms, mostly in *planning*, and a purge goes from 15 locks to 1,552
-of an installation's 6,400.
+ADR 0009 partitions `chunks` and `chunk_embeddings` by `tenant_id`, and migration 0026 is
+where it happened. Every statement carrying a tenant prunes to one partition and gets
+faster; that is the point of the ADR and `partition-rls-policy-pruning.sql` proves it
+survives the real policy. **Every statement not carrying one goes from a single scan to
+`modulus` scans**, and at the shipped modulus of 256 that costs what
+`backend/eval/unpruned-queries.json` measures: the lexical half of a search goes from
+0.70 ms to 56.8 ms, mostly in *planning*, and a purge goes from 15 locks to 1,552 of an
+installation's 6,400.
 
 This file is the list, and the list is the point. It exists in the shape of
 `test_security_definer_audit.py`, for the same reason: a surface that grows by one entry per
@@ -20,15 +21,43 @@ Three questions, of two different sources, because "what the schema declares" an
 code writes" are different questions and neither answers the other:
 
 1. **`SECURITY DEFINER` functions**, of the database. These are the third class of bypass —
-   no policy applies to them and no Python identifier names them — and two of the seven touch
-   `chunks`. Read out of `pg_proc.prosrc`.
+   no policy applies to them and no Python identifier names them — and two of the seven name
+   `chunks`. Both carry a tenant qualifier since 0026, so neither is on the list. Read out of
+   `pg_proc.prosrc`.
 2. **Foreign keys touching `chunks` or `chunk_embeddings`**, of the database. A referential
    action is a statement Postgres writes, and it can only carry the partition key if the key
-   is in the constraint. Every one of them is on the list today and every one is a stage 02
-   decision.
+   is in the constraint. Every one of them is composite since 0026, so none is on the list.
 3. **Modules that reach the database through a bypass factory and name these tables**, of the
    source tree. `owner_session` and `platform_session` are greppable by design; this is that
    grep, made into an assertion.
+
+## What came off the list, and how
+
+The list was written before 0026 with five entries on it that 0026 was expected to retire,
+each naming the fix it was waiting for. It shipped all five, so all five are gone and this
+is the record of which mechanism removed each — because a set difference cannot tell a
+statement that was *rewritten* from one that was *dropped*, and only one of those is a fix.
+Checked against the schema the migrations build rather than inferred from the arithmetic:
+
+- `zenith_lexical_search(query_string text, want integer)` — **rewritten in place**, still
+  present, same identity signature, still `SECURITY DEFINER`, and 0023's revoke from
+  `PUBLIC` survived the `CREATE OR REPLACE` — `proacl` names the owner and `zenith_app` and
+  carries no `PUBLIC` entry, which is what 0023 exists to be true.
+  It reads `zenith_current_tenant()` into a plpgsql local and puts that local on the `WHERE`
+  clause *beside* the Tantivy term, which is the form `unpruned-plpgsql-pruning.sql`
+  measured and not the redundant `zenith_current_tenant()` qualifier that scored
+  `Subplans Removed: 255` and moved no locks.
+- `zenith_sync_chunk_labels()` — **rewritten in place**, same signature, same trigger on
+  `documents`; the `UPDATE` gained `AND tenant_id = NEW.tenant_id`.
+- `fk_chunks_document_id`, `fk_chunk_embeddings_chunk_id`, `fk_query_citations_chunk_id` —
+  **made composite**, not dropped. All three are still `ON DELETE CASCADE` and all three now
+  read `(…, tenant_id) -> (…, tenant_id)`. 0026's own docstring argues at length against the
+  other way of making these stop being reported, which is to drop them.
+
+Both function bodies were read back out of `pg_proc.prosrc` and the qualifier confirmed to be
+on an executable line rather than in one of the comments 0026 wrote beside it. That is the
+distinction `_TENANT_QUALIFIER` cannot draw on its own, and it is why this paragraph exists
+instead of a commit message nobody will find.
 
 ## What it deliberately does not do
 
@@ -78,44 +107,30 @@ UNPRUNED_SURFACE: frozenset[str] = frozenset(
     {
         # --- SECURITY DEFINER functions ------------------------------------------------
         #
-        # 0022 — the lexical half of every search. Its tenant clause is a Tantivy term inside
-        # the `@@@` operand, and a `@@@` operand is not a partition-key qualifier, so the
-        # planner opens every partition: 256 ParadeDB custom scans, 81.5 ms of planning
-        # against 0.25 ms unpartitioned, 1,542 locks. **This is the most expensive entry on
-        # the list and the only one on a hot path.**
+        # None. `zenith_lexical_search` and `zenith_sync_chunk_labels` were both here until
+        # 0026 rewrote them in place; the module docstring records which mechanism retired
+        # each and what was checked before the entry was removed. An empty section rather
+        # than a deleted one, because the next `SECURITY DEFINER` function to name `chunks`
+        # belongs here and its author should find the heading.
         #
-        # It stays on the list because the fix is a migration and `chunks` is not partitioned
-        # yet, so the fix would be dead code today with an Alembic revision number this
-        # branch was not assigned. `unpruned-plpgsql-pruning.sql` measures the exact form
-        # stage 02 should ship: read `zenith_current_tenant()` into a plpgsql local and put
-        # that local on the WHERE clause *beside* the Tantivy term, never instead of it. A
-        # tenant *parameter* would be a leak — the function runs as its owner, so its tenant
-        # clause is the only thing between one customer and another's passages, and a caller
-        # who may pass the tenant may pass somebody else's.
-        "secdef:zenith_lexical_search(query_string text, want integer)",
-        # 0003 — propagates a document's labels down to its passages:
-        # `UPDATE chunks SET label_ids = NEW.label_ids WHERE document_id = NEW.id`, with no
-        # tenant at all. Scans 256 partitions and opens 256 for writing; 1,546 locks. Fires
-        # once per document whose labels change, and once per document during a purge.
-        #
-        # On the list for the same reason as above — it is a migration — and the fix is one
-        # column: the trigger is on `documents`, so `NEW.tenant_id` is already in hand, and a
-        # plpgsql field reference is a parameter, which prunes at plan time.
-        "secdef:zenith_sync_chunk_labels()",
         # --- foreign keys ----------------------------------------------------------------
         #
-        # Every one of these is a stage 02 decision and none of them is optional, because a
-        # partitioned table's unique constraints must contain the partition key: `chunks (id)`
-        # becomes `chunks (id, tenant_id)` and every key referencing it becomes composite.
-        # They are listed so that the choice is made deliberately rather than discovered when
-        # a migration fails to apply.
+        # None either, and for two different reasons that are worth keeping apart.
         #
-        # `documents (id)` is the one that is *not* forced and is worth the most. The purge
-        # cascade reaches `chunks` through it, so with `tenant_id` in the constraint the
+        # `fk_chunk_embeddings_chunk_id` and `fk_query_citations_chunk_id` *had* to become
+        # composite: a partitioned table's unique constraints must contain the partition key,
+        # so `chunks (id)` became `chunks (id, tenant_id)` and every key referencing it
+        # became composite or stopped being a legal constraint. Postgres now enforces that
+        # half, which is why `_foreign_keys_without_the_partition_key`'s parent-side rule can
+        # no longer fire against `chunks` — it is kept anyway, because 0026 has a working
+        # `downgrade` and the rule is what would catch the schema on the way back.
+        #
+        # `fk_chunks_document_id` is the one that was *not* forced and is worth the most. The
+        # purge cascade reaches `chunks` through it, so with `tenant_id` in the constraint the
         # referential action carries a tenant: measured, a purge goes from 1,552 locks to 22.
-        "fk:chunks.fk_chunks_document_id",
-        "fk:chunk_embeddings.fk_chunk_embeddings_chunk_id",
-        "fk:query_citations.fk_query_citations_chunk_id",
+        # Nothing in Postgres would have complained had 0026 left it simple, so nothing but
+        # this list and that measurement was ever going to make it happen.
+        #
         # --- modules reaching these tables through a bypass factory -----------------------
         #
         # `zenith diagnose`'s content check counts both partitioned tables through
@@ -164,9 +179,14 @@ async def test_no_undeclared_security_definer_touches_these_tables_without_a_ten
 ) -> None:
     """A `SECURITY DEFINER` function is the one bypass that no policy and no grep reaches.
 
-    Two of the seven the schema declares touch `chunks` without a tenant qualifier, and both
-    are on the list with the migration that should carry the fix. A third would be a new
-    unpruned statement on a hot path with nobody having decided that.
+    Two of the seven the schema declares name `chunks`, and since 0026 both carry a tenant
+    qualifier, so the list is empty on this side. That makes the assertion strictly stronger
+    than it was: any `SECURITY DEFINER` function reaching a partitioned table without a
+    tenant is now a new unpruned statement on a hot path with nobody having decided that.
+
+    It is an equality rather than a subset check in both directions on purpose. `found`
+    growing is an undeclared bypass; `declared` growing without `found` is an entry somebody
+    added for a statement that does not exist, which is the list rotting the other way.
     """
     found = await _unpruned_functions(app_engine)
     declared = {entry for entry in UNPRUNED_SURFACE if entry.startswith("secdef:")}
@@ -215,6 +235,26 @@ async def _foreign_keys_without_the_partition_key(engine: AsyncEngine) -> set[st
     not flagged: its child column *is* the partition key, so the cascade from a deleted tenant
     prunes, and `tenants` is not partitioned so its own key is fine. The first version of this
     check flagged both of those, on a rule that looked at the parent side unconditionally.
+
+    Since 0026 the query returns 517 rows rather than five, and a reader checking this in
+    `psql` should know why before concluding the check has stopped looking. Postgres clones a
+    foreign key across a partitioned table on both sides: 256 rows are
+    `fk_chunk_embeddings_chunk_id` repeated on each `chunk_embeddings_pNNN`, and 256 more are
+    the same constraint repeated once per `chunks_pNNN` under a generated name. Every clone
+    carries the columns of the constraint it came from, so none is flagged. Five rows are
+    constraints somebody actually wrote — `fk_chunks_document_id`, `fk_chunks_tenant_id`,
+    `fk_chunk_embeddings_chunk_id`, `fk_chunk_embeddings_tenant_id` and
+    `fk_query_citations_chunk_id` — and those are the five to look at.
+
+    **The clones are also why the reported findings stay readable, and where the check's reach
+    ends.** A bad key added to `chunks` reports once, not 257 times — measured, by adding one
+    and reading the failure — because its clones sit on `chunks_pNNN`, and a clone's child is
+    a partition whose name is in neither `PARTITIONED` nor the parent position. The same fact
+    is the limitation: a key added *directly to one partition*, `ALTER TABLE chunks_p017 ADD
+    CONSTRAINT ...`, is invisible here. Nothing in this repository writes one — Alembic
+    operates on the parent and Postgres propagates — but it is a hole in a fence and it is
+    written down rather than left to be discovered, which is the same reason the module
+    docstring says this file does not parse SQL.
     """
     async with AsyncSession(engine) as session:
         rows = (await session.execute(text(_FOREIGN_KEYS), {"tables": list(PARTITIONED)})).all()

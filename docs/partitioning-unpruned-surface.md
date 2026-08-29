@@ -1,6 +1,6 @@
 # The queries that cannot prune
 
-**Status:** measured; two fixes landed, three handed to stage 02
+**Status:** measured; two fixes landed here, three handed to stage 02 and shipped by it in 0026
 **Evidence:** `backend/eval/unpruned-queries.json`, `backend/eval/unpruned-plpgsql-pruning.sql`
 **Gate:** `backend/tests/integration/test_unpruned_query_audit.py`
 
@@ -210,9 +210,22 @@ Said explicitly, because inventing work to look thorough is worse than a short r
 - The composite foreign keys are part of the partitioning migration itself and cannot
   sensibly precede it.
 
-`backend/tests/integration/test_unpruned_query_audit.py` holds all five to a list, in the
-shape of `test_security_definer_audit.py`. It goes red when a sixth appears, and its author
-has to write down which entry it is and why.
+`backend/tests/integration/test_unpruned_query_audit.py` held all five to a list, in the shape
+of `test_security_definer_audit.py`. It goes red when a sixth appears, and its author has to
+write down which entry it is and why.
+
+**Stage 02 shipped all five in migration 0026, and the list is now one entry long.** Both
+functions were rewritten in place — same signature, same bypass, `CREATE OR REPLACE` so 0023's
+revoke from `PUBLIC` survived — and the three foreign keys became composite rather than being
+dropped. The gate went red on the merge saying so, which is the behaviour this section was
+written to produce: it reported the five as *fixed*, not as missing, and nothing new had
+appeared beside them. Which mechanism retired each one, and what was read out of `pg_proc` and
+`pg_constraint` to confirm it, is in that file's module docstring — recorded there rather than
+here because that is the file a reviewer opens when the gate next goes red.
+
+The two paragraphs above about what needed a migration are kept as written. They are the
+reasoning that was correct at the time, and a document that edits its own history to look
+prescient is one nobody can learn from.
 
 ---
 
