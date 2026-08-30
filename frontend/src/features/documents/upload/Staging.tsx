@@ -18,12 +18,13 @@
  * because they operate on the array and not on what is painted.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, Sparkles, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { LabelPicker, TagChips, type Label } from "@/features/labels";
-import { applySuggestion, noteFor, suggestForFile } from "./suggestion";
+import { applySuggestion, noteFor, offerable, suggestForFile } from "./suggestion";
+import type { SuggestionRefusal } from "../api";
 
 /**
  * Ids to names, dropping any the picker has not loaded.
@@ -35,7 +36,30 @@ import { applySuggestion, noteFor, suggestForFile } from "./suggestion";
 export function namesOf(ids: string[], known: Map<string, Label>): string[] {
   return ids.map((id) => known.get(id)?.name).filter((name): name is string => name !== undefined);
 }
-import { useT } from "@/shared/i18n/useT";
+
+/**
+ * Why the button is off, in the words of the person who can do something about it.
+ *
+ * Written out as literals rather than assembled, because the Spanish catalogue test scans
+ * the source for translation calls and cannot see a key built from a variable — which is
+ * also why this is a switch and not a lookup table.
+ */
+function refusalNote(t: T, reason: SuggestionRefusal): string {
+  switch (reason) {
+    // The installation, not this person. An administrator configures a model.
+    case "unavailable":
+      return t("No model is configured for this organisation");
+    // This person's own reach. Somebody has to grant them a folder — and on a new tenant
+    // that is everybody, because the only labels that exist are the reserved ones.
+    case "no_folders":
+      return t("You have no folders to file into yet");
+    // Their reach again, in the other direction, and permanent: the shortlist that would
+    // have rescued it was measured and refuted, so "try again later" would be false.
+    default:
+      return t("You reach too many folders for a model to choose between");
+  }
+}
+import { useT, type T } from "@/shared/i18n/useT";
 import {
   acceptProposed,
   addToSelected,
@@ -66,6 +90,24 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
   const [anchor, setAnchor] = useState<string | null>(null);
   const [picking, setPicking] = useState<Set<string>>(new Set());
   const [suggesting, setSuggesting] = useState<{ done: number; total: number } | null>(null);
+  /**
+   * Why the model cannot be asked, if it cannot. Asked once, before the button is drawn,
+   * because the alternative is what this installation actually does today: four of its six
+   * tenants hold only the quarantine and default labels, so they reach nothing offerable,
+   * and pressing the brightest control on the bar walks a hundred rows past to arrive at a
+   * hundred identical notes. That is the first thing a new customer would see.
+   */
+  const [refusal, setRefusal] = useState<SuggestionRefusal | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    void offerable(token).then((reason) => {
+      if (live) setRefusal(reason);
+    });
+    return () => {
+      live = false;
+    };
+  }, [token]);
 
   const summary = useMemo(() => summarise(rows), [rows]);
   const painted = rows.slice(0, RENDER_CAP);
@@ -171,7 +213,7 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
             glitters continuously in a toolbar is an alarm, and this is an offer. */}
         <Button
           size="sm"
-          disabled={!selected.size || !!suggesting}
+          disabled={!selected.size || !!suggesting || refusal !== null}
           onClick={() => void autoTag()}
           title={t("Suggest tags from each file's opening pages, using the configured model")}
           data-running={suggesting ? "true" : undefined}
@@ -188,6 +230,17 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
             {suggesting ? `${suggesting.done}/${suggesting.total}` : t("Label with AI")}
           </span>
         </Button>
+
+        {/* Disabled and explained, rather than gone. On the single-file panel silence is
+            right — it has a job of its own and an unasked-for sentence is noise there. Here
+            it is the opposite: labelling is what somebody came to this bar to do, so a
+            control that quietly vanishes leaves them hunting for a feature they were told
+            about, with nothing to read and nobody to ask. Three sentences and not one,
+            because each refusal has a different remedy and a different person who can act
+            on it. */}
+        {refusal && (
+          <span className="text-xs text-muted-foreground">{refusalNote(t, refusal)}</span>
+        )}
 
         <Button
           variant="outline"

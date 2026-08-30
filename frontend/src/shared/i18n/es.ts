@@ -73,6 +73,9 @@ export const es: Catalogue = {
   "Keyword and meaning at once — passages come back ranked, with the page they came from. Nothing is generated here: open a result and ask about that document for a written answer.":
     "Palabra y significado a la vez: los pasajes vuelven ordenados y con la página de la que salen. Aquí no se genera nada: abre un resultado y pregunta sobre ese documento para obtener una respuesta redactada.",
   "Label with AI": "Etiquetar con IA",
+  "No model is configured for this organisation": "No hay ningún modelo configurado en esta organización",
+  "You have no folders to file into yet": "Todavía no tienes carpetas donde archivar",
+  "You reach too many folders for a model to choose between": "Alcanzas demasiadas carpetas para que un modelo pueda elegir",
   "{count} suggested, none applied yet": {
     one: "1 sugerencia, ninguna aplicada todavía",
     other: "{count} sugerencias, ninguna aplicada todavía",
