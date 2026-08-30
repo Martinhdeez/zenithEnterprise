@@ -292,6 +292,53 @@ export function suggestLabels(token: string, excerpt: string): Promise<Suggestio
   }).then((response) => ({ outcome: response.outcome, labelIds: response.label_ids }));
 }
 
+/**
+ * The three endings that are settled before a model is spoken to.
+ *
+ * Derived from `SuggestionOutcome` with `Extract` rather than written out again, so removing
+ * or renaming one of them fails the build here instead of leaving a dead branch behind.
+ */
+export type SuggestionRefusal = Extract<
+  SuggestionOutcome,
+  "unavailable" | "no_folders" | "too_many_folders"
+>;
+
+export interface SuggestionAvailability {
+  /** `null` when automatic labelling can be offered to this person. */
+  reason: SuggestionRefusal | null;
+}
+
+/**
+ * Whether automatic labelling can be offered to *this signed-in person* — asked before the
+ * button is drawn rather than learned from a note on every row afterwards.
+ *
+ * `unavailable`, `no_folders` and `too_many_folders` are decided by the caller's reach and by
+ * the installation's configuration, so none of them depends on the document. Learning them
+ * per file, after a pass over a hundred of them, means offering a prominent action that could
+ * never have done anything — and on a fresh tenant that is the ordinary case, not the edge:
+ * four of the six tenants in `backend/eval/label-shortlist.json` hold labels and no offerable
+ * ones.
+ *
+ * **The rule is not evaluated here, and deliberately so.** "Offerable" is
+ * `NOT is_quarantine AND NOT is_default`, `LabelResponse` publishes neither flag beyond
+ * `is_default`, and the ceiling is a server constant — a client that re-derived any of it
+ * would be a second implementation of a predicate no test on this side can reach, free to
+ * drift from the server the day the filter changes. `reason` is the same `Outcome` value
+ * `POST /labels/suggest` would report for this caller, produced by the front half of the same
+ * function, so the two cannot disagree.
+ *
+ * `chose`, `declined` and `failed` are never returned: they describe how a call went, and no
+ * call has been made. A model that is configured but broken looks available here and reports
+ * `failed` per file, which is correct — nothing short of calling it can know.
+ *
+ * Rejects on a transport failure like every other function in this module. A caller that
+ * cannot reach the server does not know the action is unavailable, and hiding the button on a
+ * failed pre-flight would remove a working one.
+ */
+export function suggestionAvailability(token: string): Promise<SuggestionAvailability> {
+  return request<SuggestionAvailability>("/labels/suggest/availability", token);
+}
+
 /** What a document is made of, and how much it has been used. */
 export interface DocumentInsights {
   /** Passages after chunking — the unit retrieval actually searches. */

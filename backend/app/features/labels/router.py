@@ -18,6 +18,7 @@ from app.features.labels.schemas import (
     LabelSearchPage,
     LabelSuggestion,
     SuggestedLabels,
+    SuggestionAvailability,
 )
 from app.features.labels.service import MANAGE, LabelService
 
@@ -244,6 +245,42 @@ async def suggest_labels(request: LabelSuggestion, profile: CurrentProfile) -> S
 
     filing = await Classifier(profile.context).suggest(profile.user_id, request.excerpt)
     return SuggestedLabels(label_ids=filing.labels, outcome=filing.outcome)
+
+
+@router.get("/labels/suggest/availability")
+async def suggestion_availability(profile: CurrentProfile) -> SuggestionAvailability:
+    """Can *you* be offered automatic labelling — asked before the button is drawn.
+
+    `POST /labels/suggest` reports which of six endings it reached, per file, once the pass
+    has run. Three of those are settled before a model is spoken to and can therefore be
+    answered in advance; and answering them afterwards is the difference between not offering
+    a dead action and offering one, watching a hundred rows tick past, and writing the same
+    note on every one. On a fresh tenant that is the common case rather than the edge:
+    `eval/label-shortlist.json` records four of this installation's six tenants holding labels
+    of which none is offerable.
+
+    **The rule is not exported for the client to evaluate.** The alternative shape was
+    `LabelResponse.offerable` plus a published `MAX_LABELS`, and a browser counting rows —
+    which puts `NOT is_quarantine AND NOT is_default AND reach <= MAX_LABELS` in two places,
+    only one of which any test here can reach. It would also count the wrong set: `GET
+    /labels` widens to the whole tenant for a caller holding `labels.manage`, while the
+    classifier offers only what that person *reaches*, so the count would be wrong for exactly
+    the administrator most likely to press the button.
+
+    Same gate as the suggestion itself — signed in, nothing more. It discloses no label, no
+    name and no count; only which of three states the caller is in.
+
+    Answers `200` with `reason: null` when it can be offered. A `reason` here is the same
+    `Outcome` value `POST /labels/suggest` would report for this caller, not a translation of
+    it: `Classifier.availability` is the front half of `Classifier.file`, so the two are one
+    evaluation rather than two that agree. Errors are left to fail as errors — a pre-flight
+    that cannot be computed must not answer "unavailable", because a client cannot tell that
+    apart from a real refusal and would hide a button that works.
+    """
+    from app.features.ingestion.classification import Classifier, Refused
+
+    state = await Classifier(profile.context).availability(profile.user_id)
+    return SuggestionAvailability(reason=state.reason if isinstance(state, Refused) else None)
 
 
 @router.put("/labels/{label_id}/clearance", dependencies=[manage])

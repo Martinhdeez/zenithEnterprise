@@ -78,6 +78,40 @@ class SuggestedLabels(BaseModel):
     outcome: Outcome
 
 
+class SuggestionAvailability(BaseModel):
+    """Whether automatic labelling can be offered to *the caller*, before they press anything.
+
+    The answer to `POST /labels/suggest` says which of six endings it hit, per file, after the
+    pass has run. Three of those endings are settled before a model is spoken to, so a client
+    that only learns them afterwards offers a prominent button, runs a hundred files through
+    it, and writes the same note on every row — nothing could ever have happened. That is not
+    an edge case: `eval/label-shortlist.json` records six tenants on this installation and
+    four of them hold labels of which none is offerable, which is the ordinary state of a
+    fresh tenant and the first thing a new customer meets.
+
+    So the server answers it in advance, rather than exporting the rule for a client to
+    re-derive. Exporting it would mean publishing `is_quarantine` beside `is_default` and
+    publishing `MAX_LABELS`, and then the predicate `NOT is_quarantine AND NOT is_default AND
+    reach <= MAX_LABELS` would exist in two places — one of which no test on this side can
+    reach. The client asks a question; it does not hold a copy of the answer.
+
+    **This is a fact about a person, not about an organisation.** The reach it measures is the
+    caller's own, so in one tenant an administrator reaching two hundred labels is refused
+    while a member reaching ten is offered a list. Nothing here describes the tenant.
+    """
+
+    #: `None` when it can be offered. Otherwise which of the three, and they have three
+    #: different remedies — configure a model, ask an administrator for a folder, or accept a
+    #: ceiling that measurement says is permanent. Telling a reader the wrong one is worse
+    #: than telling them nothing, which is why this is `Outcome` itself rather than a boolean
+    #: with a note: it is the same value `POST /labels/suggest` will report, so the two can be
+    #: compared directly instead of through a mapping that could be got wrong.
+    #:
+    #: Only ever `unavailable`, `no_folders` or `too_many_folders`. `chose`, `declined` and
+    #: `failed` describe how a call went, and no call has been made.
+    reason: Outcome | None
+
+
 class LabelClearance(BaseModel):
     priority_level: int = Field(ge=0, le=10)
 
