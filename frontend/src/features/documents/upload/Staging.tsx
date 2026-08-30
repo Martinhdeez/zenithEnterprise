@@ -23,11 +23,16 @@ import { Check, Sparkles, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { LabelPicker, TagChips, type Label } from "@/features/labels";
-import { excerpt } from "./excerpt";
-import { applySuggestion, noteFor, suggestFor } from "./suggestion";
+import { applySuggestion, noteFor, suggestForFile } from "./suggestion";
 
-/** Ids to names, dropping any the picker has not loaded. */
-function namesOf(ids: string[], known: Map<string, Label>): string[] {
+/**
+ * Ids to names, dropping any the picker has not loaded.
+ *
+ * Exported because the single-file review panel renders the same proposed chips from the
+ * same `known` map, and a chip whose name is missing must be dropped in both places rather
+ * than drawn as a raw uuid in one of them.
+ */
+export function namesOf(ids: string[], known: Map<string, Label>): string[] {
   return ids.map((id) => known.get(id)?.name).filter((name): name is string => name !== undefined);
 }
 import { useT } from "@/shared/i18n/useT";
@@ -106,19 +111,14 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
     setSuggesting({ done: 0, total: targets.length });
     let updated = rows;
     for (const [index, row] of targets.entries()) {
-      const text = await excerpt(row.file);
-      // A file `excerpt` could not read — a scan with no text layer, an encrypted PDF — is
-      // never asked about, and the row is left saying only that it is untagged. It is
-      // emphatically *not* stamped `unavailable`: that means "no model configured", which
-      // would be a false statement about the installation made on the evidence of one bad
-      // file. Nothing here can tell the person why that file was skipped; saying nothing is
-      // the honest version of not knowing.
-      if (!text) {
-        setSuggesting({ done: index + 1, total: targets.length });
-        continue;
+      // `null` is a file that could not be read, which is never asked about and never
+      // stamped with an ending — `suggestForFile` says why, and says it once for both the
+      // screens that ask.
+      const suggested = await suggestForFile(token, row.file);
+      if (suggested) {
+        updated = applySuggestion(updated, row.id, suggested);
+        onChange(updated);
       }
-      updated = applySuggestion(updated, row.id, await suggestFor(token, text));
-      onChange(updated);
       setSuggesting({ done: index + 1, total: targets.length });
     }
     setSuggesting(null);

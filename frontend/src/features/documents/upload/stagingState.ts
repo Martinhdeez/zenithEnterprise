@@ -149,19 +149,29 @@ export function summarise(rows: StagedFile[]): StagingSummary {
 }
 
 /**
- * A person agreeing with the model. The only path from `proposed` to `labelIds`.
+ * A person agreeing with the model: what they had chosen, plus what was proposed.
  *
- * Union rather than replacement: somebody may have ticked a label by hand before running
- * the classifier, and the suggestion is an addition to their judgement rather than a
- * correction of it. Silently dropping what they chose would be the interface overruling
- * them on the one screen where it must not.
+ * **Union rather than replacement.** Somebody may have ticked a label by hand before the
+ * classifier ran, and the suggestion is an addition to their judgement rather than a
+ * correction of it. Silently dropping what they chose would be the interface overruling them
+ * on the one screen where it must not — and since a label is a permission here, the label it
+ * dropped is a permission it revoked without being asked.
+ *
+ * One function rather than one per screen. The staging table accepts per row and the
+ * single-file review panel accepts into the label picker's own selection; they hold their
+ * decisions in different shapes, but "added to, never in place of" is the same rule and a
+ * second copy of it is how the two come to disagree.
  */
+export function accepted(chosen: Iterable<string>, proposed: Iterable<string>): string[] {
+  return [...new Set([...chosen, ...proposed])];
+}
+
+/** A person agreeing with the model. The only path from `proposed` to `labelIds`. */
 export function acceptProposed(rows: StagedFile[], ids?: Set<string>): StagedFile[] {
   return rows.map((row) => {
     if (ids && !ids.has(row.id)) return row;
     if (!row.proposed?.length) return row;
-    const merged = [...new Set([...row.labelIds, ...row.proposed])];
-    return { ...row, labelIds: merged, proposed: [] };
+    return { ...row, labelIds: accepted(row.labelIds, row.proposed), proposed: [] };
   });
 }
 
