@@ -18,11 +18,18 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 vi.mock("../api", () => ({
   uploadDocument: vi.fn(),
   getDocument: vi.fn(),
+  // The review panel asks whether automatic labelling can be offered at all as soon as a
+  // single file is staged. Nothing here stages one — every case below drops a batch — but a
+  // mocked module has to carry every export the tree reaches, and `suggestion.ts` reaches
+  // both of these.
+  suggestLabels: vi.fn(),
+  suggestionAvailability: vi.fn(async () => ({ reason: null })),
 }));
 
 vi.mock("@/features/labels", () => ({
   labels: vi.fn(async () => []),
   LabelPicker: () => null,
+  TagChips: () => null,
 }));
 
 vi.mock("./uploadWatch", () => ({

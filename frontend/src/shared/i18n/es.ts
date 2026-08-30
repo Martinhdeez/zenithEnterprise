@@ -138,6 +138,9 @@ export const es: Catalogue = {
   "Select all staged files": "Seleccionar todos los ficheros preparados",
   "Suggest tags from each file's opening pages, using the configured model":
     "Sugerir etiquetas leyendo las primeras páginas de cada fichero con el modelo configurado",
+  // The single-file review panel asks on its own, so this is the only thing that says a
+  // model is being spoken to at all.
+  "Looking for a folder for this document…": "Buscando una carpeta para este documento…",
 
   // How a staged row's suggestion ended. Five sentences rather than one, because the four
   // the server distinguishes and the one only the browser can see mean different things for
