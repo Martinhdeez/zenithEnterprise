@@ -231,11 +231,33 @@ export function folders(token: string): Promise<FolderTree> {
  *
  * The server's `Outcome`, name for name — `backend/app/features/ingestion/classification.py`
  * is where the reasoning lives and it is worth reading rather than paraphrasing here. What
- * matters on this side is that **three of the four carry no ids**, and they are not the same
+ * matters on this side is that **only `chose` carries ids**, and the rest are not the same
  * fact: `declined` is the model reading the document and finding no folder that fits,
- * `unavailable` is nobody having been asked, `failed` is the call breaking.
+ * `failed` is the call breaking.
+ *
+ * The other three are the ways nobody was asked, and they were one value — `unavailable` —
+ * until it was found doing what this union exists to stop:
+ *
+ * - `unavailable`: the *installation* has no model. Ordinary and supported; an operator
+ *   configures one. This is the only ending that says anything about the installation.
+ * - `no_folders`: *this person* reaches no label that could be suggested — none at all, or
+ *   only reserved ones. The model is fine. An administrator grants them a compartment.
+ * - `too_many_folders`: this person's reach is past the server's ceiling, so the list is too
+ *   long for a model to choose from well. Measured and permanent, not a gap waiting to be
+ *   filled: `backend/eval/label-shortlist.json` scored the shortlist that would have lifted
+ *   the ceiling and recommended against adopting it.
+ *
+ * Telling somebody "no model configured" when the model is answering every other question in
+ * the product is what the split removes, and it is why a row must not fold these back
+ * together to shorten a sentence.
  */
-export type SuggestionOutcome = "chose" | "declined" | "unavailable" | "failed";
+export type SuggestionOutcome =
+  | "chose"
+  | "declined"
+  | "unavailable"
+  | "no_folders"
+  | "too_many_folders"
+  | "failed";
 
 export interface Suggestion {
   outcome: SuggestionOutcome;
