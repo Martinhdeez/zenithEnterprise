@@ -14,6 +14,13 @@
  * - a proposal is **not** an application, and survives an upload without being applied;
  * - accepting **unions** with what the person picked by hand, rather than replacing it;
  * - the three refusals settled before a model is spoken to ask nothing and say nothing.
+ *
+ * **Every label here used to carry `is_default: false`, and that is why eleven passing tests
+ * described a panel that was silent on every real tenant.** A tenant always has a default,
+ * the panel pre-checks it on load, and the note's guard read "carries no labels" as "has not
+ * decided" — so on an installation the note never appeared once. The fixture was not a
+ * tenant; it was the one arrangement of a tenant in which the bug is invisible. The last
+ * group below builds the ordinary one.
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -38,31 +45,39 @@ vi.mock("./uploadWatch", () => ({
   phaseFor: vi.fn(() => ({ phase: "done" as const })),
 }));
 
-const label = (id: string, name: string): Label =>
-  ({ id, name, is_default: false }) as unknown as Label;
+const label = (id: string, name: string, is_default = false): Label =>
+  ({ id, name, is_default }) as unknown as Label;
 
 const FINANCE = label("l-finance", "finance");
 const LEGAL = label("l-legal", "legal");
+/** What every tenant has and this file used to pretend none had. Pre-checked on load. */
+const EVERYTHING = label("l-everything", "everything", true);
 
 /**
- * The real picker searches server-side; this one is two buttons over the same contract —
- * `selected` in, a whole `Label` out — which is all this file needs in order to tick one by
- * hand before the model answers. `TagChips` is deliberately **not** replaced: the dashed,
- * unfilled chip is the thing that makes a proposal visibly a proposal, so the real one is
- * what renders.
+ * The real picker searches server-side; this one is a button per label over the same
+ * contract — `selected` and `known` in, a whole `Label` out — which is all this file needs
+ * in order to tick one by hand before the model answers, or to untick the default the panel
+ * pre-checked. `TagChips` is deliberately **not** replaced: the dashed, unfilled chip is the
+ * thing that makes a proposal visibly a proposal, so the real one is what renders.
+ *
+ * It draws `known` rather than a hard-coded pair so that a tenant with a default label is
+ * reachable through the same buttons as any other. Hard-coding the pair is how the default
+ * stayed out of this file for as long as it did.
  */
 vi.mock("@/features/labels", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/labels")>()),
   labels: vi.fn(async () => [FINANCE, LEGAL]),
   LabelPicker: ({
     selected,
+    known,
     onToggle,
   }: {
     selected: Set<string>;
+    known: Map<string, Label>;
     onToggle: (label: Label) => void;
   }) => (
     <div>
-      {[FINANCE, LEGAL].map((one) => (
+      {[...known.values()].map((one) => (
         <button key={one.id} type="button" onClick={() => onToggle(one)}>
           {selected.has(one.id) ? `untick ${one.name}` : `tick ${one.name}`}
         </button>
@@ -73,10 +88,12 @@ vi.mock("@/features/labels", async (importOriginal) => ({
 
 const { Upload } = await import("./Upload");
 const { uploadDocument, suggestLabels, suggestionAvailability } = await import("../api");
+const { labels: listLabels } = await import("@/features/labels");
 
 const uploads = vi.mocked(uploadDocument);
 const asked = vi.mocked(suggestLabels);
 const offered = vi.mocked(suggestionAvailability);
+const listed = vi.mocked(listLabels);
 
 const pdf = () => new File(["%PDF-1.4"], "invoice.pdf", { type: "application/pdf" });
 
@@ -84,7 +101,9 @@ beforeEach(() => {
   uploads.mockReset();
   asked.mockReset();
   offered.mockReset();
+  listed.mockReset();
   offered.mockResolvedValue({ reason: null });
+  listed.mockResolvedValue([FINANCE, LEGAL]);
   uploads.mockImplementation(async (file) => ({
     document: {
       id: "d1",
@@ -108,12 +127,24 @@ beforeEach(() => {
 /** Choose exactly one file, which is the path that goes to the review panel. */
 async function chooseOne() {
   render(<Upload token="t" onUploaded={() => {}} />);
-  // The picker's two buttons only exist once the label list has arrived, and the panel reads
-  // the same map to name a proposed id.
+  // The picker's buttons only exist once the label list has arrived, and the panel reads the
+  // same map to name a proposed id.
   await screen.findByText("tick finance");
   await act(async () => {
     fireEvent.change(screen.getByLabelText("Upload PDFs"), { target: { files: [pdf()] } });
   });
+}
+
+/**
+ * The same, on a tenant that has a default label — which is every tenant.
+ *
+ * `everything` comes back ticked without anybody ticking it, which is the arrangement the
+ * rest of this file never built.
+ */
+async function chooseOneOnAnOrdinaryTenant() {
+  listed.mockResolvedValue([EVERYTHING, FINANCE, LEGAL]);
+  await chooseOne();
+  expect(screen.getByText("untick everything")).toBeTruthy();
 }
 
 /** The ids the one upload was actually sent with. */
@@ -269,5 +300,123 @@ describe("the endings that only a call can reach", () => {
     });
 
     expect(screen.queryByText("no match — server will file it")).toBeNull();
+  });
+});
+
+/**
+ * The tenant's default is pre-checked, and a pre-check is not a decision.
+ *
+ * This is the group that would have caught the defect. Everything above runs on a tenant
+ * with no default label, which is not a tenant — so `selected` stayed empty until somebody
+ * ticked something, the note's guard held, and eleven tests agreed the panel worked while it
+ * said nothing at all on the installation it was written for.
+ */
+describe("a tenant with a default label", () => {
+  it("still reports an ending, though the default arrived ticked", async () => {
+    // The reported defect, in the ending the reporter actually hit: the tenant's key has no
+    // credit, so the call comes back `failed`, and `failed` is the one ending that can leave
+    // the document waiting for an administrator. It was suppressed by a label nobody chose.
+    asked.mockResolvedValue({
+      outcome: "failed",
+      labelIds: [],
+      detail: "your prepayment credits are depleted",
+    });
+
+    await chooseOneOnAnOrdinaryTenant();
+
+    const note = await screen.findByText(/suggestion failed/);
+    expect(note.textContent).toMatch(/prepayment credits are depleted/);
+  });
+
+  it("says the model read it and found nothing, with the default still ticked", async () => {
+    asked.mockResolvedValue({ outcome: "declined", labelIds: [] });
+
+    await chooseOneOnAnOrdinaryTenant();
+
+    expect(await screen.findByText("no match — server will file it")).toBeTruthy();
+  });
+
+  it("goes quiet once a folder is ticked beside the default", async () => {
+    // The half of the guard that was never broken, kept: an ending is worth reading while
+    // nobody has answered, and noise beside a folder somebody chose.
+    asked.mockResolvedValue({ outcome: "declined", labelIds: [] });
+
+    await chooseOneOnAnOrdinaryTenant();
+    await screen.findByText("no match — server will file it");
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("tick finance"));
+    });
+
+    expect(screen.queryByText("no match — server will file it")).toBeNull();
+  });
+
+  it("keeps reporting when the default is unticked and nothing replaces it", async () => {
+    // "They touched the picker" alone would go quiet here, and this is the one place it must
+    // not: unticking the default and choosing nothing is the document going up carrying no
+    // labels at all, which is exactly what the ending is about. Touching is not deciding —
+    // a decision is a tick that survives.
+    asked.mockResolvedValue({ outcome: "declined", labelIds: [] });
+
+    await chooseOneOnAnOrdinaryTenant();
+    await screen.findByText("no match — server will file it");
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("untick everything"));
+    });
+
+    expect(screen.getByText("no match — server will file it")).toBeTruthy();
+  });
+
+  it("keeps the default when the suggestion is accepted beside it", async () => {
+    // A label is a permission and the policy is a union, so the two candidates here are
+    // "widen to both folders" and "drop the one the panel pre-checked". Widening is kept.
+    // The default is where this document was going anyway if nobody accepted anything, so
+    // adding the suggested folder exposes it no further than doing nothing would have, and
+    // the result is visible in the picker, one click from being unticked. Dropping the
+    // default would be the interface revoking a readership on its own initiative, and an
+    // absence is the one change nobody notices.
+    asked.mockResolvedValue({ outcome: "chose", labelIds: [LEGAL.id] });
+
+    await chooseOneOnAnOrdinaryTenant();
+    await screen.findByTitle("Suggested — not yet applied");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Apply the suggestion/ }));
+    });
+    await upload();
+
+    expect(sentLabels()).toEqual([EVERYTHING.id, LEGAL.id]);
+  });
+
+  it("does not call an accepted document untagged", async () => {
+    // Answering the proposal is deciding. Without that, the panel would follow an accepted
+    // suggestion with the note for a cleared `chose` — the word `untagged`, over two labels.
+    asked.mockResolvedValue({ outcome: "chose", labelIds: [LEGAL.id] });
+
+    await chooseOneOnAnOrdinaryTenant();
+    await screen.findByTitle("Suggested — not yet applied");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Apply the suggestion/ }));
+    });
+
+    expect(screen.queryByText("untagged")).toBeNull();
+  });
+
+  it("says nothing more after the proposal is dismissed", async () => {
+    // Dismissing is the other way of answering. The document still carries the default, so
+    // `untagged` would be false, and a note after a dismissal is the panel asking again.
+    asked.mockResolvedValue({ outcome: "chose", labelIds: [LEGAL.id] });
+
+    await chooseOneOnAnOrdinaryTenant();
+    await screen.findByTitle("Suggested — not yet applied");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Dismiss the suggestion/ }));
+    });
+
+    expect(screen.queryByTitle("Suggested — not yet applied")).toBeNull();
+    expect(screen.queryByText("untagged")).toBeNull();
   });
 });

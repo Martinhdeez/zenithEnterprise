@@ -96,6 +96,21 @@ export function Upload({ token, onUploaded }: Props) {
   // chips can render even when the current search does not contain them.
   const [known, setKnown] = useState<Map<string, Label>>(new Map());
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  /**
+   * Whether anything in `selected` got there because a person put it there.
+   *
+   * The tenant's default is pre-checked on load, so `selected` is non-empty before anybody
+   * has said a word — and a guard reading "carries no labels" therefore read "has already
+   * decided" from the first render onwards. Every tenant has a default, so the panel's note
+   * was suppressed on every installation, every time, while eleven tests passed against a
+   * fixture whose labels were all `is_default: false`.
+   *
+   * Set by the three acts that are a person answering "where does this document go" — ticking
+   * or creating a label, and accepting or dismissing the proposal. Deliberately **not** set by
+   * `removed`: deleting a label from the tenant is a statement about the tenant, not about
+   * this document, and it must not be able to pass a pre-check off as a decision.
+   */
+  const [decided, setDecided] = useState(false);
   const [staged, setStaged] = useState<Staged | null>(null);
   // One row per file. Replaces the single progress bar: a batch has no one percentage
   // worth showing, and the question during a migration is which files are stuck, not how
@@ -117,6 +132,8 @@ export function Upload({ token, onUploaded }: Props) {
         setKnown(new Map(result.map((label) => [label.id, label])));
         // Pre-check the tenant's default so the common case — one label, everyone files
         // under it — is a single click, not a click to open the list plus one to check it.
+        // `decided` stays false: this is the panel filling in an answer, not a person giving
+        // one, and anything downstream that asks "have they chosen" must be able to tell.
         const fallback = result.find((label) => label.is_default);
         if (fallback) setSelected(new Set([fallback.id]));
       })
@@ -175,16 +192,35 @@ export function Upload({ token, onUploaded }: Props) {
    *
    * `accepted` is the staging table's own rule: added to what they chose, never in place of
    * it. Somebody who ticked a label by hand before the answer arrived keeps it.
+   *
+   * **And so does the pre-checked default, which is the harder case.** It is not a decision —
+   * that is the whole point of `decided` — so the argument that protects a hand-picked label
+   * does not reach it, and dropping it once a real folder is accepted is defensible: the
+   * default is the fallback for "nobody said", and the person has now said. It is kept
+   * anyway, for two reasons that are about access rather than tidiness. A label is a
+   * permission and the policy is a union — `label_ids && zenith_current_labels()` — so
+   * removing the default *narrows* who can read the document, and the interface would be
+   * revoking a readership nobody asked it to touch. Keeping it widens nothing: the default is
+   * exactly where this document was going if the suggestion had never been accepted, so the
+   * union is bounded by the do-nothing outcome. And the asymmetry decides it — the ticks are
+   * in the picker directly above, so a default that should not be there is one visible click
+   * from gone, whereas a default we removed silently is an absence, and nobody notices an
+   * absence.
    */
   const acceptSuggestion = useCallback(() => {
     const proposed = staged?.proposed;
     if (!proposed?.length) return;
     setSelected((chosen) => new Set(accepted(chosen, proposed)));
+    // Agreeing with the model is deciding. Without this the panel would follow an accepted
+    // suggestion with the note for a cleared `chose` — the word `untagged`, over two labels.
+    setDecided(true);
     setStaged((current) => current && { ...current, proposed: [] });
   }, [staged]);
 
   /** Disagreeing. The outcome stays, so the panel still says what the model answered. */
   const dismissSuggestion = useCallback(() => {
+    // Also an answer. Saying nothing further is the point of pressing it.
+    setDecided(true);
     setStaged((current) => current && { ...current, proposed: [] });
   }, []);
 
@@ -193,6 +229,9 @@ export function Upload({ token, onUploaded }: Props) {
   // list by the time the selected chips render.
   const toggle = useCallback((label: Label) => {
     setKnown((current) => (current.has(label.id) ? current : new Map(current).set(label.id, label)));
+    // Including an untick. Clearing the pre-checked default and stopping there is a person
+    // saying "not that one, and nothing yet" — the note is owed to them more than to anyone.
+    setDecided(true);
     setSelected((current) => {
       const next = new Set(current);
       if (next.has(label.id)) next.delete(label.id);
@@ -207,9 +246,15 @@ export function Upload({ token, onUploaded }: Props) {
   // into an upload form meant to file this document under it.
   const added = useCallback((label: Label) => {
     setKnown((current) => new Map(current).set(label.id, label));
+    setDecided(true);
     setSelected((current) => new Set(current).add(label.id));
   }, []);
 
+  // No `setDecided` here, unlike its two neighbours: this is a label being deleted from the
+  // tenant, and the id leaving `selected` is a consequence rather than a choice about this
+  // document. Deleting some unrelated folder must not turn the pre-checked default into a
+  // decision. It errs the safe way regardless — if the deletion empties the selection, the
+  // note appears on the `selected.size` half of the guard.
   const removed = useCallback((id: string) => {
     setKnown((current) => {
       const next = new Map(current);
@@ -519,12 +564,24 @@ export function Upload({ token, onUploaded }: Props) {
               </button>
             </div>
           ) : (
-            // Only once something has been asked, and only while this document is carrying
-            // no labels at all — the same guard the staging rows use. A note saying the
-            // model found nothing is worth reading beside an empty picker and is noise
-            // beside a label somebody chose themselves. `unavailable` cannot arrive here:
-            // `offerable` settles it before anything is asked.
-            selected.size === 0 &&
+            // Only once something has been asked, and only while nobody has answered the
+            // question the note is about. A note saying the model found nothing is worth
+            // reading beside a picker nobody has touched and is noise beside a label somebody
+            // chose themselves. `unavailable` cannot arrive here: `offerable` settles it
+            // before anything is asked.
+            //
+            // **This read `selected.size === 0` and was therefore never true.** The staging
+            // rows can ask "carries no labels", because a staged row starts empty and only a
+            // person puts anything in it. This panel shares the page's label picker, which
+            // pre-checks the tenant's default on load — so the same question here means "the
+            // labels list came back", and the note was suppressed on every tenant that has a
+            // default, which is all of them.
+            //
+            // Both halves are needed and neither alone is right. `decided` alone goes quiet
+            // when somebody unticks the default and picks nothing, which is precisely the
+            // document that will arrive carrying nothing and the person most owed the
+            // sentence. `selected.size` alone is what was here.
+            (!decided || selected.size === 0) &&
             staged.suggestion && (
               <p
                 className={`text-xs ${
