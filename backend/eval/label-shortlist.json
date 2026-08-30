@@ -122,6 +122,7 @@
         "macro_recall_at_proposed_k": 1.0,
         "documents_fully_covered_at_proposed_k": 26,
         "documents": 26,
+        "k_required_for_95_percent": 11,
         "best_rank_median": 3.0,
         "rank_median": 3.0,
         "rank_p90": 10,
@@ -152,6 +153,7 @@
         "macro_recall_at_proposed_k": 0.8372,
         "documents_fully_covered_at_proposed_k": 19,
         "documents": 26,
+        "k_required_for_95_percent": 57,
         "best_rank_median": 4.5,
         "rank_median": 10.5,
         "rank_p90": 53,
@@ -315,6 +317,7 @@
         "macro_recall_at_proposed_k": 0.5282,
         "documents_fully_covered_at_proposed_k": 11,
         "documents": 26,
+        "k_required_for_95_percent": 190,
         "best_rank_median": 11.5,
         "rank_median": 35.0,
         "rank_p90": 185,
@@ -490,6 +493,7 @@
         "macro_recall_at_proposed_k": 0.1103,
         "documents_fully_covered_at_proposed_k": 1,
         "documents": 26,
+        "k_required_for_95_percent": 1906,
         "best_rank_median": 107.5,
         "rank_median": 317.5,
         "rank_p90": 1817,
@@ -667,6 +671,7 @@
         "macro_recall_at_proposed_k": 1.0,
         "documents_fully_covered_at_proposed_k": 26,
         "documents": 26,
+        "k_required_for_95_percent": 10,
         "best_rank_median": 3.0,
         "rank_median": 3.0,
         "rank_p90": 9,
@@ -697,6 +702,7 @@
         "macro_recall_at_proposed_k": 0.8179,
         "documents_fully_covered_at_proposed_k": 18,
         "documents": 26,
+        "k_required_for_95_percent": 54,
         "best_rank_median": 4.5,
         "rank_median": 8.0,
         "rank_p90": 48,
@@ -860,6 +866,7 @@
         "macro_recall_at_proposed_k": 0.5679,
         "documents_fully_covered_at_proposed_k": 13,
         "documents": 26,
+        "k_required_for_95_percent": 187,
         "best_rank_median": 11.0,
         "rank_median": 22.0,
         "rank_p90": 161,
@@ -1035,6 +1042,7 @@
         "macro_recall_at_proposed_k": 0.1372,
         "documents_fully_covered_at_proposed_k": 1,
         "documents": 26,
+        "k_required_for_95_percent": 1822,
         "best_rank_median": 98.5,
         "rank_median": 204.5,
         "rank_p90": 1612,
@@ -1212,6 +1220,7 @@
         "macro_recall_at_proposed_k": 1.0,
         "documents_fully_covered_at_proposed_k": 26,
         "documents": 26,
+        "k_required_for_95_percent": 10,
         "best_rank_median": 2.0,
         "rank_median": 3.0,
         "rank_p90": 8,
@@ -1242,6 +1251,7 @@
         "macro_recall_at_proposed_k": 0.8256,
         "documents_fully_covered_at_proposed_k": 18,
         "documents": 26,
+        "k_required_for_95_percent": 52,
         "best_rank_median": 4.0,
         "rank_median": 7.0,
         "rank_p90": 48,
@@ -1393,6 +1403,7 @@
         "macro_recall_at_proposed_k": 0.6244,
         "documents_fully_covered_at_proposed_k": 14,
         "documents": 26,
+        "k_required_for_95_percent": 175,
         "best_rank_median": 12.0,
         "rank_median": 16.5,
         "rank_p90": 163,
@@ -1568,6 +1579,7 @@
         "macro_recall_at_proposed_k": 0.091,
         "documents_fully_covered_at_proposed_k": 1,
         "documents": 26,
+        "k_required_for_95_percent": 1693,
         "best_rank_median": 118.5,
         "rank_median": 159.5,
         "rank_p90": 1596,
@@ -1728,22 +1740,22 @@
   "cost": {
     "embedding_the_labels_once": {
       "real_labels": 14,
-      "real_labels_ms": 409.9,
+      "real_labels_ms": 400.9,
       "synthetic_labels": 1986,
-      "synthetic_labels_ms": 101552.9,
-      "per_label_ms": 50.98,
+      "synthetic_labels_ms": 99935.2,
+      "per_label_ms": 50.17,
       "note": "tei-embed caps a client batch at 4, so this is round trips rather than model time. In the product a label is embedded when it is created \u2014 one name, once \u2014 so the per-label figure is the one that would be paid."
     },
     "embedding_the_document": {
       "mean_of_passage_vectors_ms": 0.0,
-      "note": "Zero, and that is the finding. The pipeline embeds before it classifies, so the passage vectors already exist and their mean is an aggregate. Embedding the excerpt separately, which the proposal does not require, cost 6700.2 ms per document here.",
-      "excerpt_via_tei_ms_per_document": 6700.2
+      "note": "Zero, and that is the finding. The pipeline embeds before it classifies, so the passage vectors already exist and their mean is an aggregate. Embedding the excerpt separately, which the proposal does not require, cost 6633.1 ms per document here.",
+      "excerpt_via_tei_ms_per_document": 6633.1
     },
     "shortlist_query_at_pool_2000": {
       "rows": 2000,
       "no_index": {
-        "median_ms": 2.912,
-        "p95_ms": 3.099,
+        "median_ms": 2.944,
+        "p95_ms": 3.194,
         "plan": [
           "Limit  (cost=97.29..97.36 rows=25 width=40)",
           "  ->  Sort  (cost=97.29..101.79 rows=1800 width=40)",
@@ -1752,8 +1764,8 @@
         "index_used": false
       },
       "hnsw_planner_choice": {
-        "median_ms": 3.132,
-        "p95_ms": 3.413,
+        "median_ms": 3.141,
+        "p95_ms": 4.063,
         "plan": [
           "Limit  (cost=105.44..105.50 rows=25 width=36)",
           "  ->  Sort  (cost=105.44..110.44 rows=2000 width=36)",
@@ -1762,8 +1774,8 @@
         "index_used": false
       },
       "hnsw_forced": {
-        "median_ms": 1.033,
-        "p95_ms": 1.231,
+        "median_ms": 1.002,
+        "p95_ms": 1.233,
         "plan": [
           "Limit  (cost=27.33..128.74 rows=25 width=36)",
           "  ->  Index Scan using label_vectors_embedding_idx on label_vectors  (cost=27.33..8140.00 rows=2000 width=36)",
@@ -1772,7 +1784,7 @@
         "index_used": true
       }
     },
-    "shortlist_in_process_numpy_ms": 0.227,
+    "shortlist_in_process_numpy_ms": 0.232,
     "what_it_precedes": {
       "answer_path_median_ms": 10544.7,
       "source": "eval/answer-report.json summary.median_latency_ms",
@@ -1790,8 +1802,16 @@
     "b4_recall_does_not_decay_with_label_count": false,
     "b5_cost_is_noise_beside_the_call_it_precedes": true
   },
+  "verdict": {
+    "recommendation": "do not adopt",
+    "at_any_k_swept": "Micro recall@25 at 2000 labels is 0.1818, and even k=100 reaches only 0.3636. Keeping 95% of the labels a human chose would take k=1822 of 2000 \u2014 not a shortlist, a slightly shorter list, and far past the point the module docstring already identifies as where a model skims instead of weighing.",
+    "the_cost_claim_is_correct_and_does_not_help": "The shortlist itself is free: 3.141 ms per document against a measured answer-path median of 10544.7 ms, and the document vector is the mean of passage vectors that already exist when filing runs. Cost was never the reason not to do this.",
+    "why_it_fails": "Cosine over label names ranks by topical neighbourhood, and in a 2000-label taxonomy the neighbourhood is far larger than 25. The shortlist puts every legal document among legal folders and then cannot choose between siblings \u2014 the region is right and the folder is wrong.",
+    "what_the_ceiling_is_worth": "Above 60 labels the product files nothing, which is a defensible design: a document reaching the tenant default is visible to the tenant, which is where it was already. Filing it into one of 25 topically plausible but wrong compartments is not the same failure \u2014 the classifier only ever narrows, so a wrong label hides the document from the people who should have it and shows it to a compartment nobody chose, silently. Trading 0% filing for a 23% chance of the right folder being on offer is a trade against the product.",
+    "what_would_have_to_change_first": "Nothing here rules out a shortlist built from something richer than a label's name \u2014 the passages already filed under it, for instance. That is a different proposal with a different cost, and this run says nothing about it."
+  },
   "run": {
-    "started_at": "2026-08-30T11:35:43.938606+00:00",
+    "started_at": "2026-08-30T11:41:39.538330+00:00",
     "seed": 20260830,
     "k_values": [
       5,

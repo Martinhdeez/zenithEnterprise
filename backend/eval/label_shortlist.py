@@ -465,6 +465,10 @@ def _arm(
         "macro_recall_at_proposed_k": round(statistics.mean(per_document), 4),
         "documents_fully_covered_at_proposed_k": sum(value == 1.0 for value in per_document),
         "documents": len(documents),
+        # The number that decides the recommendation. Recall@k asks what a chosen k keeps;
+        # this asks what k it would take to keep almost everything, and if the answer is a
+        # large fraction of the pool then there is no shortlist here, only a smaller list.
+        "k_required_for_95_percent": sorted(ranks)[max(0, int(len(ranks) * 0.95) - 1)],
         "best_rank_median": statistics.median(best_ranks),
         "rank_median": statistics.median(ranks),
         "rank_p90": sorted(ranks)[max(0, int(len(ranks) * 0.9) - 1)],
@@ -758,6 +762,45 @@ async def _run() -> int:
         ),
         "b5_cost_is_noise_beside_the_call_it_precedes": (
             float(query_cost["hnsw_planner_choice"]["median_ms"]) <= 100
+        ),
+    }
+    report["verdict"] = {
+        "recommendation": "do not adopt",
+        "at_any_k_swept": (
+            f"Micro recall@{PROPOSED_K} at 2000 labels is "
+            f"{largest['micro_recall_at'][str(PROPOSED_K)]}, and even k=100 reaches only "
+            f"{largest['micro_recall_at']['100']}. Keeping 95% of the labels a human chose "
+            f"would take k={largest['k_required_for_95_percent']} of 2000 — not a shortlist, "
+            "a slightly shorter list, and far past the point the module docstring already "
+            "identifies as where a model skims instead of weighing."
+        ),
+        "the_cost_claim_is_correct_and_does_not_help": (
+            "The shortlist itself is free: "
+            f"{query_cost['hnsw_planner_choice']['median_ms']} ms per document against a "
+            "measured answer-path median of 10544.7 ms, and the document vector is the mean "
+            "of passage vectors that already exist when filing runs. Cost was never the "
+            "reason not to do this."
+        ),
+        "why_it_fails": (
+            "Cosine over label names ranks by topical neighbourhood, and in a 2000-label "
+            "taxonomy the neighbourhood is far larger than 25. The shortlist puts every "
+            "legal document among legal folders and then cannot choose between siblings — "
+            "the region is right and the folder is wrong."
+        ),
+        "what_the_ceiling_is_worth": (
+            "Above 60 labels the product files nothing, which is a defensible design: a "
+            "document reaching the tenant default is visible to the tenant, which is where "
+            "it was already. Filing it into one of 25 topically plausible but wrong "
+            "compartments is not the same failure — the classifier only ever narrows, so a "
+            "wrong label hides the document from the people who should have it and shows it "
+            "to a compartment nobody chose, silently. Trading 0% filing for a "
+            f"{largest['any_true_label_at'][str(PROPOSED_K)]:.0%} chance of the right folder "
+            "being on offer is a trade against the product."
+        ),
+        "what_would_have_to_change_first": (
+            "Nothing here rules out a shortlist built from something richer than a label's "
+            "name — the passages already filed under it, for instance. That is a different "
+            "proposal with a different cost, and this run says nothing about it."
         ),
     }
     report["run"] = {
