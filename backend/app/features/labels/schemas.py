@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.features.ingestion.classification import Outcome
+
 
 class LabelCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
@@ -48,8 +50,24 @@ class LabelSuggestion(BaseModel):
 
 
 class SuggestedLabels(BaseModel):
+    """The suggestion, and which of the four endings produced it.
+
+    `label_ids` alone could not say. Three of the four endings — the model declining, no
+    model being configured, the call breaking — all come back with nothing to suggest, and a
+    client holding only an empty list has to guess between them. The staging area guessed,
+    and told the person `no match — server will file it` under `FAILED`, which is the one
+    ending where that is false: a document nothing vouched for is left in a quarantine label
+    only `admin` reaches.
+
+    `Outcome` itself rather than a parallel enum of this feature's own. It is the same
+    decision — `Classifier.suggest` is `Classifier.file` without the write — and a second
+    vocabulary for it would be a second thing to keep in step with `0017`'s access rules.
+    Being a `StrEnum` it crosses the wire as `chose` / `declined` / `unavailable` / `failed`.
+    """
+
     #: Ids from the caller's own reach, or empty. Never a name, and never a new label.
     label_ids: list[UUID]
+    outcome: Outcome
 
 
 class LabelClearance(BaseModel):

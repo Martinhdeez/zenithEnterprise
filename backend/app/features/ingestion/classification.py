@@ -191,7 +191,7 @@ class Classifier:
         # named no folder it was shown. Both are the model declining, not the model failing.
         return Filing(applied, Outcome.CHOSE if applied else Outcome.DECLINED)
 
-    async def suggest(self, user_id: UUID, excerpt: str) -> list[UUID]:
+    async def suggest(self, user_id: UUID, excerpt: str) -> Filing:
         """The same decision, offered rather than applied.
 
         For the staging area, where files sit in the browser until somebody confirms them.
@@ -202,11 +202,20 @@ class Classifier:
         Separate from `file` only in that it takes the user directly: staging has no
         document yet, so there is no `uploaded_by` to read.
 
-        Returns the labels alone. A suggestion the user can ignore does not need to explain
-        why there is nothing to suggest — the four outcomes exist so that an *access*
-        decision can be made from them, and staging makes none.
+        **Returns the whole `Filing`, outcome included.** It used to return the labels alone,
+        on the reasoning that a suggestion the user can ignore need not explain why there is
+        nothing to suggest — that the four outcomes existed so an *access* decision could be
+        made from them, and staging makes none.
+
+        That was wrong about what staging *says*, not about what it decides. The staging row
+        read `no match — server will file it` whenever the suggestion came back empty, and
+        under `FAILED` that is the opposite of what happens: nothing vouched for the
+        document, so ingestion leaves it in a quarantine label only `admin` reaches, and the
+        person was told it had been filed. Three endings collapsed into an empty list is
+        exactly the bug the module docstring above describes — the caller guessing — and the
+        guess it made was the untrue one.
         """
-        return (await self.file(document_id=None, uploaded_by=user_id, text_excerpt=excerpt)).labels
+        return await self.file(document_id=None, uploaded_by=user_id, text_excerpt=excerpt)
 
     async def _candidates(self, uploaded_by: UUID) -> list[tuple[UUID, str]]:
         """The labels the uploader reaches, by name, ordered so the prompt is stable.

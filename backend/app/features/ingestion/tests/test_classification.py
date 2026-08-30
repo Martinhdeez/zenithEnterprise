@@ -443,3 +443,75 @@ async def test_filing_refuses_the_quarantine_label_even_if_it_arrives(account: A
     # Released to the default, as a document nothing was chosen for — and emphatically not
     # left with an empty array.
     assert await labels_on(document_id) == {account.default_label}
+
+
+# --- the same four endings, offered rather than applied ---------------------------------
+#
+# `suggest` is `file` without the write, and until this it threw the ending away and handed
+# back the labels alone. Three of the four endings have no labels, so the staging area
+# received one value for three different facts and had to guess which — and it guessed that
+# an empty answer meant the model had read the document and declined, which under `FAILED`
+# is the opposite of what happens to the document.
+#
+# One test per ending, named for the ending, because "the field is present" is a weaker
+# question than "these two cases are still told apart".
+
+
+async def test_a_suggestion_the_model_made_says_it_chose(account: Account) -> None:
+    suggestion = await Classifier(context(account), provider=Replying("1")).suggest(
+        account.admin_id, "an invoice"
+    )
+
+    assert suggestion.outcome is Outcome.CHOSE
+    assert len(suggestion.labels) == 1
+
+
+async def test_a_suggestion_the_model_declined_is_not_a_failure(account: Account) -> None:
+    """The model read it and no folder fitted. Nothing to suggest, and that is an answer:
+    on the ingestion path this is what releases a document into the tenant default."""
+    suggestion = await Classifier(context(account), provider=Replying("NONE")).suggest(
+        account.admin_id, "a birthday card"
+    )
+
+    assert suggestion.outcome is Outcome.DECLINED
+    assert suggestion.labels == []
+
+
+async def test_a_suggestion_with_no_model_configured_is_unavailable(
+    account: Account, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The documented behaviour of `POST /labels/suggest`: an installation without
+    generation still uploads documents, and must not be told anything broke.
+
+    Patched at `provider_for`, since the point is that there is no provider to inject.
+    """
+    from app.features.ingestion import classification
+
+    async def unconfigured(_context: object) -> object:
+        raise RuntimeError("no provider configured")
+
+    monkeypatch.setattr(classification, "provider_for", unconfigured)
+
+    suggestion = await Classifier(context(account)).suggest(account.admin_id, "an invoice")
+
+    assert suggestion.outcome is Outcome.UNAVAILABLE
+    assert suggestion.labels == []
+
+
+async def test_a_suggestion_whose_model_broke_says_failed_and_not_declined(
+    account: Account,
+) -> None:
+    """The ending the interface was lying about.
+
+    Configured and broken. It comes back with no labels, exactly like a decline — and if the
+    client cannot tell the two apart it says `no match — server will file it` about a
+    document that ingestion will leave in a quarantine label only `admin` reaches. The
+    inequality is asserted rather than implied: it is the whole defect.
+    """
+    suggestion = await Classifier(context(account), provider=Broken()).suggest(
+        account.admin_id, "an invoice"
+    )
+
+    assert suggestion.outcome is Outcome.FAILED
+    assert suggestion.outcome is not Outcome.DECLINED
+    assert suggestion.labels == []

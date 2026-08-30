@@ -221,13 +221,21 @@ async def suggest_labels(request: LabelSuggestion, profile: CurrentProfile) -> S
     single function that answers that question — so this can only ever name labels they
     already hold, and a suggestion of a label you hold tells you nothing you did not know.
 
-    Answers with an empty list rather than an error when no model is configured. An
+    Answers `200` with no ids rather than an error when no model is configured. An
     installation without generation still uploads documents.
+
+    **And it says which of the four endings it reached**, because three of them have no ids
+    to return and they are not the same fact. `declined` is the model reading the document
+    and finding no folder that fits — an answer. `unavailable` is nobody having been asked.
+    `failed` is the call breaking, which on the ingestion path is the one ending that leaves
+    a document quarantined. A client given an empty list and nothing else has to guess, and
+    the staging area guessed wrong in the expensive direction: it said the server would file
+    a document that was in fact going to sit in quarantine.
     """
     from app.features.ingestion.classification import Classifier
 
-    suggested = await Classifier(profile.context).suggest(profile.user_id, request.excerpt)
-    return SuggestedLabels(label_ids=suggested)
+    filing = await Classifier(profile.context).suggest(profile.user_id, request.excerpt)
+    return SuggestedLabels(label_ids=filing.labels, outcome=filing.outcome)
 
 
 @router.put("/labels/{label_id}/clearance", dependencies=[manage])
