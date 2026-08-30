@@ -135,6 +135,72 @@ async def test_a_suggestion_can_only_name_labels_the_caller_already_holds(
     assert bool(body["label_ids"]) == (body["outcome"] == "chose")
 
 
+async def test_the_preflight_refuses_a_caller_who_reaches_no_offerable_label(
+    client: AsyncClient, account: Account
+) -> None:
+    """The state a new customer arrives in, answered before the button is drawn.
+
+    The member reaches the default label and nothing else, and neither reserved label is ever
+    offered — so there is nothing to suggest and there never was. Four of the six tenants in
+    `backend/eval/label-shortlist.json` record `offerable_labels: 0`, which makes this the
+    ordinary first experience rather than an edge case.
+
+    `no_folders` and not `unavailable`: the remedy is an administrator granting a compartment,
+    not an operator inspecting a connector that may well be working. Naming the wrong one is
+    worse than naming none.
+    """
+    response = await client.get(
+        "/labels/suggest/availability", headers=await headers(client, account.member_email)
+    )
+
+    assert response.status_code == 200
+    assert response.json()["reason"] == "no_folders"
+
+
+async def test_the_preflight_answers_what_the_suggestion_then_does(
+    client: AsyncClient, account: Account
+) -> None:
+    """The test that matters most, asserted over the wire rather than over the objects.
+
+    A pre-flight that can disagree with the pass it precedes is the divergence it was built
+    to prevent: either a prominent button is offered and every row comes back saying nothing
+    could have happened, or the button is hidden from somebody it would have worked for.
+
+    Both directions, for two callers who reach different amounts. A `reason` must be exactly
+    the ending the suggestion reports — same vocabulary, so the comparison is `==` and not a
+    mapping that could itself be wrong. No `reason` must be followed by an ending that is not
+    one of the three: `chose`, `declined` and `failed` describe how a call went, and nothing
+    short of making the call can predict them — a model that is configured but broken looks
+    available here, correctly.
+
+    Deliberately not pinned to particular values. Which state a test installation is in
+    depends on whether a model is configured for it; the property that has to hold on every
+    installation is that these two never contradict each other. The test above pins the value
+    for the caller whose state does not depend on that.
+    """
+    predicted = ["unavailable", "no_folders", "too_many_folders"]
+
+    for email in (account.member_email, account.admin_email):
+        signed_in = await headers(client, email)
+        preflight = await client.get("/labels/suggest/availability", headers=signed_in)
+        suggested = await client.post(
+            "/labels/suggest",
+            json={"excerpt": "an invoice for consulting services"},
+            headers=signed_in,
+        )
+
+        assert preflight.status_code == 200
+        assert suggested.status_code == 200
+        reason = preflight.json()["reason"]
+        outcome = suggested.json()["outcome"]
+
+        if reason is None:
+            assert outcome not in predicted, f"{email} was offered an action that could not run"
+        else:
+            assert reason in predicted
+            assert reason == outcome, f"{email} was told one thing and shown another"
+
+
 async def test_the_status_counts_only_what_the_caller_reaches(
     client: AsyncClient, account: Account
 ) -> None:

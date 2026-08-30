@@ -18,6 +18,8 @@ from app.features.ingestion.classification import (
     Classifier,
     Filing,
     Outcome,
+    Ready,
+    Refused,
     build,
     read,
 )
@@ -800,3 +802,242 @@ async def test_each_way_of_not_being_asked_writes_its_own_note(
     for other, phrase in NOTES.items():
         if other is not outcome:
             assert phrase not in detail
+
+
+# --- the same three reasons, answered before anybody presses anything --------------------
+#
+# `Classifier.availability` is the front half of `Classifier.file`: the reach, the reserved
+# filter, the ceiling and whether a provider resolves, evaluated once and then consumed by
+# the call. So these tests ask two things of it. One per reason, each asserting it is *not*
+# the others — the inequality is what has broken repeatedly here, and the three remedies are
+# different enough that naming the wrong one is worse than saying nothing. And, at the end,
+# that what it predicts is what `suggest` actually reaches; if those two can disagree, this
+# is the divergence it was built to prevent rather than the cure.
+
+
+async def test_the_preflight_says_no_folders_when_the_person_reaches_none(
+    account: Account,
+) -> None:
+    """A working model is injected, so nothing here is unavailable in any sense an operator
+    could act on. The remedy is to grant this person a compartment."""
+    person = await a_user_reaching(account, labels=0)
+
+    state = await Classifier(context(account), provider=Replying("1")).availability(person)
+
+    assert isinstance(state, Refused)
+    assert state.reason is Outcome.NO_FOLDERS
+    assert state.reason is not Outcome.UNAVAILABLE
+    assert state.reason is not Outcome.TOO_MANY_FOLDERS
+
+
+async def test_the_preflight_says_no_folders_when_every_label_they_reach_is_reserved(
+    account: Account,
+) -> None:
+    """The state a fresh tenant is actually in, and the reason this endpoint exists.
+
+    The member holds the default label and nothing else: a non-empty reach, well under the
+    ceiling, filtered to nothing because neither reserved label is ever offered. Four of the
+    six tenants in `eval/label-shortlist.json` record `offerable_labels: 0`, so the button
+    would be dead on arrival for most of them — which is the common case, not an edge one.
+    """
+    state = await Classifier(context(account), provider=Replying("1")).availability(
+        account.member_id
+    )
+
+    assert isinstance(state, Refused)
+    assert state.reason is Outcome.NO_FOLDERS
+    assert state.reason is not Outcome.UNAVAILABLE
+    assert state.reason is not Outcome.TOO_MANY_FOLDERS
+
+
+async def test_the_preflight_says_too_many_folders_above_the_ceiling(account: Account) -> None:
+    """The model is present and working; the list is too long for it to choose well, and
+    `eval/label-shortlist.json` established that the ceiling stays.
+
+    Emphatically not `NO_FOLDERS` — there are folders, and the remedy is the opposite one:
+    granting this person more reach makes it worse.
+    """
+    person = await a_user_reaching(account, labels=MAX_LABELS + 1)
+
+    state = await Classifier(context(account), provider=Replying("1")).availability(person)
+
+    assert isinstance(state, Refused)
+    assert state.reason is Outcome.TOO_MANY_FOLDERS
+    assert state.reason is not Outcome.NO_FOLDERS
+    assert state.reason is not Outcome.UNAVAILABLE
+
+
+async def test_the_preflight_says_unavailable_only_when_there_is_no_model(
+    account: Account, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`UNAVAILABLE` is the one word that accuses the installation, so it has to be worth
+    accusing it. Here there really is no model and the caller's reach is fine — the three
+    tests above are the same claim with the halves swapped."""
+    from app.features.ingestion import classification
+
+    async def unconfigured(_context: object) -> object:
+        raise RuntimeError("no provider configured")
+
+    monkeypatch.setattr(classification, "provider_for", unconfigured)
+
+    state = await Classifier(context(account)).availability(account.admin_id)
+
+    assert isinstance(state, Refused)
+    assert state.reason is Outcome.UNAVAILABLE
+    assert state.reason is not Outcome.NO_FOLDERS
+    assert state.reason is not Outcome.TOO_MANY_FOLDERS
+
+
+async def test_the_preflight_offers_it_when_there_is_a_list_and_a_model(account: Account) -> None:
+    """The other side of every refusal above, so none of them can quietly become the answer
+    for everybody. A refusal that is always returned would pass all four tests above and hide
+    a working button from the entire product."""
+    state = await Classifier(context(account), provider=Replying("1")).availability(
+        account.admin_id
+    )
+
+    assert isinstance(state, Ready)
+    assert state.folders, "the admin reaches real compartments"
+
+
+async def test_exactly_the_ceiling_is_still_offered(account: Account) -> None:
+    """The boundary, from the pre-flight's side. `MAX_LABELS` reachable folders is a list."""
+    person = await a_user_reaching(account, labels=MAX_LABELS)
+
+    state = await Classifier(context(account), provider=Replying("1")).availability(person)
+
+    assert isinstance(state, Ready)
+    assert len(state.folders) == MAX_LABELS
+
+
+async def test_the_ceiling_is_a_fact_about_the_person_not_the_tenant(account: Account) -> None:
+    """The nuance that is easy to get backwards, pinned in one tenant.
+
+    `len(reachable) > MAX_LABELS` measures the reach of whoever would press the button, not
+    how many labels the tenant holds. So the same tenant, at the same moment, answers
+    differently for two people — and anything the interface says about `too_many_folders` has
+    to be a sentence about that person's own reach, not about the organisation's taxonomy.
+    """
+    wide = await a_user_reaching(account, labels=MAX_LABELS + 1)
+    narrow = await a_user_reaching(account, labels=10)
+    classifier = Classifier(context(account), provider=Replying("1"))
+
+    refused = await classifier.availability(wide)
+    offered = await classifier.availability(narrow)
+
+    assert isinstance(refused, Refused)
+    assert refused.reason is Outcome.TOO_MANY_FOLDERS
+    assert isinstance(offered, Ready)
+    assert len(offered.folders) == 10
+
+
+async def test_an_unreadable_reach_raises_rather_than_refusing(
+    account: Account, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The one place the pre-flight deliberately differs from `file`, and why.
+
+    `file` turns a broken `_candidates` into `FAILED`, because filing must never fail an
+    ingestion. A pre-flight has the opposite duty: a refusal invented out of an error is
+    indistinguishable from a real one, and it would hide a button that works. So it raises,
+    the route answers with an error, and the client can tell "I could not ask" apart from
+    "the answer is no".
+
+    The second half asserts the difference is only in this direction — `file` still reports
+    `FAILED` for the same breakage, so extracting the front half changed nothing about what
+    an ingestion does when the database will not answer.
+    """
+    from app.features.ingestion import classification
+
+    async def broken(_self: object, _user_id: UUID) -> tuple[UUID, ...]:
+        raise RuntimeError("the reach could not be read")
+
+    monkeypatch.setattr(classification.UserRepository, "label_ids", broken)
+    classifier = Classifier(context(account), provider=Replying("1"))
+
+    with pytest.raises(RuntimeError):
+        await classifier.availability(account.admin_id)
+
+    filing = await classifier.file(None, account.admin_id, "an invoice")
+    assert filing.outcome is Outcome.FAILED
+
+
+# --- and the pre-flight agrees with the suggestion it predicts ---------------------------
+#
+# The test that matters most. A pre-flight that can disagree with the pass it precedes is
+# the divergence this was built to prevent, wearing the costume of the cure: the button is
+# offered and the pass says `no_folders`, or the button is hidden and the pass would have
+# worked. They cannot disagree here because `file` *calls* `availability` and continues from
+# what it returns — but "cannot by construction" is exactly the claim that has to be pinned,
+# because the construction is one refactor away from being undone.
+
+
+@pytest.mark.parametrize(
+    "scenario", ["reaches nothing", "reaches only reserved labels", "past the ceiling", "no model"]
+)
+async def test_the_reason_the_preflight_gives_is_the_ending_the_suggestion_reaches(
+    account: Account, monkeypatch: pytest.MonkeyPatch, scenario: str
+) -> None:
+    """Equality, asserted for every reason the pre-flight can give.
+
+    Not "both are falsy" and not a mapping from one vocabulary to another: the pre-flight
+    returns the same `Outcome` value the suggestion does, so the assertion is `is`. A
+    translation table between two enums would be a third place for this to be got wrong.
+    """
+    classifier, person = await _scenario(account, monkeypatch, scenario)
+
+    state = await classifier.availability(person)
+    suggestion = await classifier.suggest(person, "an invoice for consulting services")
+
+    assert isinstance(state, Refused)
+    assert state.reason is suggestion.outcome
+    assert suggestion.labels == []
+
+
+async def test_a_preflight_that_offers_it_never_precedes_one_of_those_three(
+    account: Account,
+) -> None:
+    """The other direction, and the one that decides whether the button lies.
+
+    A pre-flight saying yes must not be followed by a pass that reports one of the three
+    endings it exists to predict — that is a person pressing a prominent action and being
+    told afterwards that it could never have worked, which is the whole defect. `CHOSE`,
+    `DECLINED` and `FAILED` are all legitimate here: they describe how the call went, and
+    nothing short of making it can know.
+    """
+    classifier = Classifier(context(account), provider=Replying("1"))
+
+    state = await classifier.availability(account.admin_id)
+    suggestion = await classifier.suggest(account.admin_id, "an invoice for consulting services")
+
+    assert isinstance(state, Ready)
+    assert suggestion.outcome not in {
+        Outcome.UNAVAILABLE,
+        Outcome.NO_FOLDERS,
+        Outcome.TOO_MANY_FOLDERS,
+    }
+    assert suggestion.outcome is Outcome.CHOSE
+
+
+async def _scenario(
+    account: Account, monkeypatch: pytest.MonkeyPatch, scenario: str
+) -> tuple[Classifier, UUID]:
+    """One caller in one of the four states that refuse, with a model injected wherever the
+    model is not the point."""
+    if scenario == "reaches nothing":
+        return Classifier(context(account), provider=Replying("1")), await a_user_reaching(
+            account, labels=0
+        )
+    if scenario == "reaches only reserved labels":
+        return Classifier(context(account), provider=Replying("1")), account.member_id
+    if scenario == "past the ceiling":
+        return Classifier(context(account), provider=Replying("1")), await a_user_reaching(
+            account, labels=MAX_LABELS + 1
+        )
+
+    from app.features.ingestion import classification
+
+    async def unconfigured(_context: object) -> object:
+        raise RuntimeError("no provider configured")
+
+    monkeypatch.setattr(classification, "provider_for", unconfigured)
+    return Classifier(context(account)), account.admin_id
