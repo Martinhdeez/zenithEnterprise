@@ -240,11 +240,19 @@ async def suggest_labels(request: LabelSuggestion, profile: CurrentProfile) -> S
     their reach is past the ceiling, which `eval/label-shortlist.json` established is
     permanent. Reporting the last two as "no model configured" sends whoever reads it to a
     connector that is working, which is the same cost the other two collapses had.
+
+    **`failed` also carries what the provider said**, and that is a different kind of
+    addition from the ones above. Every split so far divided one value into several; this
+    one admits that the enum was never going to carry the whole answer. `failed` is the
+    ending, and the ending is what the access decision needs. Why it failed is a sentence
+    only the provider can write, it changes what a person does next, and until now it was
+    logged and discarded — which is how "the language model returned 429" came to be all
+    anybody was told about a depleted billing account.
     """
     from app.features.ingestion.classification import Classifier
 
     filing = await Classifier(profile.context).suggest(profile.user_id, request.excerpt)
-    return SuggestedLabels(label_ids=filing.labels, outcome=filing.outcome)
+    return SuggestedLabels(label_ids=filing.labels, outcome=filing.outcome, detail=filing.detail)
 
 
 @router.get("/labels/suggest/availability")

@@ -330,7 +330,7 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
                         : "text-muted-foreground"
                     }`}
                   >
-                    {noteFor(t, row.suggestion)}
+                    {noteFor(t, row.suggestion, row.reason)}
                   </span>
                 )
               )}

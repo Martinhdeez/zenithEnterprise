@@ -48,6 +48,17 @@ export interface StagedFile {
    */
   suggestion?: StagedOutcome;
   /**
+   * Under `failed`, what the provider said about why. Undefined for every other ending.
+   *
+   * Beside `suggestion` rather than folded into it, because they answer different questions
+   * and only one of them is a fixed set of values. The outcome says what happens to the
+   * document — that is the part the row must not lie about. This says what a person can do
+   * about it, and it is a sentence only the provider can write: `the language model returned
+   * 429` and `your prepayment credits are depleted` are the same outcome and two different
+   * afternoons.
+   */
+  reason?: string;
+  /**
    * Label ids the model proposed and **nobody has accepted yet**. Deliberately not
    * `labelIds`.
    *

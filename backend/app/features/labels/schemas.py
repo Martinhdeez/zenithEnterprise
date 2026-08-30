@@ -76,6 +76,19 @@ class SuggestedLabels(BaseModel):
     #: Ids from the caller's own reach, or empty. Never a name, and never a new label.
     label_ids: list[UUID]
     outcome: Outcome
+    #: Under `failed`, what the provider said about why — and `None` otherwise.
+    #:
+    #: The outcome and this are answering different questions and both are needed. `failed`
+    #: says what happens to the document, which is what the row must not lie about. This says
+    #: what to do about it, and only the provider knows: an operator told "the suggestion
+    #: failed" checks the connector, an operator told "your prepayment credits are depleted"
+    #: goes to the billing page. The first of those is half an hour spent on three settings
+    #: that were correct.
+    #:
+    #: Carried only for a `GenerationUnavailableError` — see `classification.repeatable`. The
+    #: adapter wrote it for a person and stripped credentials out of it; nothing else in
+    #: scope at the `except` has had either done to it.
+    detail: str | None = None
 
 
 class SuggestionAvailability(BaseModel):

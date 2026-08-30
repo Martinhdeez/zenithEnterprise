@@ -315,11 +315,19 @@ class IngestionPipeline:
         if filing.outcome is Outcome.FAILED:
             # The one case that stays put. An administrator files it by hand, and the status
             # says so rather than leaving them to wonder why it is not in a folder.
-            await self._note(
-                document_id,
+            #
+            # **And why it failed, when the provider said.** This note is what an
+            # administrator opening the documents list actually reads, so it is where the
+            # difference between "the model broke" and "the billing account is empty" is
+            # worth the most: one of those is a document to file by hand and forget, the
+            # other is every document from now until somebody tops up an account. `detail`
+            # is `None` unless the failure was a `GenerationUnavailableError`, whose message
+            # the adapter built for a person and scrubbed of credentials.
+            note = (
                 "automatic filing failed; this document is waiting for an administrator "
-                "to choose its access labels",
+                "to choose its access labels"
             )
+            await self._note(document_id, f"{note} ({filing.detail})" if filing.detail else note)
             return False
 
         # Never the label it is already waiting in. `_candidates` no longer offers it, and

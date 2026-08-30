@@ -85,7 +85,7 @@ from uuid import UUID
 import structlog
 from sqlalchemy import text
 
-from app.common.llm import BaseLLMProvider
+from app.common.llm import BaseLLMProvider, GenerationUnavailableError
 from app.core.database import tenant_session
 from app.features.auth.repository import UserRepository
 from app.features.generation.connector.resolve import provider_for
@@ -152,6 +152,24 @@ def read(reply: str, count: int) -> list[int]:
     return chosen[:MAX_CHOSEN]
 
 
+def repeatable(error: BaseException) -> str | None:
+    """What of this failure may be said out loud, which is a `GenerationUnavailableError`
+    and nothing else.
+
+    `file` catches bare `Exception` on purpose — filing must never fail an ingestion — so
+    what it holds could be an `asyncpg` error naming a column, an SSL error naming a path,
+    or a `KeyError`. None of those were written for a person and none went through the
+    adapter's scrubber, so none of them are repeated. Only the one exception type this
+    system raises deliberately, whose message the adapter already built to be read and
+    already stripped of credentials, crosses out of here.
+
+    The narrowness is the point. "Say more" is the whole change, and it would be a bad
+    trade if it meant "say whatever happened to be in scope" — that is how a stack trace
+    ends up in a staging row.
+    """
+    return error.message if isinstance(error, GenerationUnavailableError) else None
+
+
 class Outcome(StrEnum):
     """Why the classifier produced what it produced. See the module docstring.
 
@@ -183,6 +201,12 @@ class Outcome(StrEnum):
 class Filing:
     labels: list[UUID]
     outcome: Outcome
+    #: Under `FAILED`, what the provider said about why — and `None` whenever nothing said
+    #: anything worth repeating. `Outcome` says *which* ending was reached, which is what the
+    #: access decision turns on; this says what a person has to do about it, which no enum
+    #: can carry. "The model broke" and "the model broke because the billing account is
+    #: empty" lead to the same quarantine and to very different afternoons.
+    detail: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -260,7 +284,7 @@ class Classifier:
             state = await self.availability(uploaded_by)
         except Exception as error:  # noqa: BLE001 - filing must never fail an ingestion
             log.warning("classification_failed", document_id=str(document_id), error=str(error))
-            return Filing([], Outcome.FAILED)
+            return Filing([], Outcome.FAILED, detail=repeatable(error))
 
         if isinstance(state, Refused):
             # Nothing to ask about, and *which* nothing decides what an administrator does
@@ -280,7 +304,7 @@ class Classifier:
             chosen = read(reply.text, len(candidates))
         except Exception as error:  # noqa: BLE001 - filing must never fail an ingestion
             log.warning("classification_failed", document_id=str(document_id), error=str(error))
-            return Filing([], Outcome.FAILED)
+            return Filing([], Outcome.FAILED, detail=repeatable(error))
 
         applied = [candidates[number - 1][0] for number in chosen]
         log.info(

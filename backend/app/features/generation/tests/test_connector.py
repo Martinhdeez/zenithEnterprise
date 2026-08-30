@@ -176,9 +176,8 @@ async def test_no_key_reaches_the_message_or_the_log() -> None:
             },
         )
 
-    with capture_logs() as logged:
-        with pytest.raises(GenerationUnavailableError) as raised:
-            await provider(echoes, api_key=key).complete("s", "u")
+    with capture_logs() as logged, pytest.raises(GenerationUnavailableError) as raised:
+        await provider(echoes, api_key=key).complete("s", "u")
 
     # The line really was written, so the assertions below are about a scrubbed log rather
     # than about an empty one.
@@ -209,7 +208,9 @@ async def test_the_streamed_path_says_as_much_as_the_buffered_one() -> None:
     """
 
     def depleted(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(429, json={"error": {"message": "Your prepayment credits are depleted."}})
+        return httpx.Response(
+            429, json={"error": {"message": "Your prepayment credits are depleted."}}
+        )
 
     with pytest.raises(GenerationUnavailableError) as raised:
         async for _ in provider(depleted).stream("s", "u"):

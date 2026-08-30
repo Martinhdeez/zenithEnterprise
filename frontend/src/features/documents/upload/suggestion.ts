@@ -30,6 +30,12 @@ import type { T } from "@/shared/i18n/useT";
 
 export interface Suggested {
   outcome: StagedOutcome;
+  /**
+   * Under `failed`, what the provider said about why. Absent otherwise, and absent under
+   * `unreachable` — that ending is this browser's request breaking, and there is no provider
+   * on the other side of it to have said anything.
+   */
+  detail?: string;
   /** Non-empty only under `chose`. */
   labelIds: string[];
 }
@@ -72,7 +78,7 @@ export function applySuggestion(
     // a person's own ticks is a machine's guess wearing a human decision's clothes, and on
     // this screen that decision is who may read the document.
     const proposed = suggested.outcome === "chose" ? [...suggested.labelIds] : [];
-    return { ...row, proposed, suggestion: suggested.outcome };
+    return { ...row, proposed, suggestion: suggested.outcome, reason: suggested.detail };
   });
 }
 
@@ -87,7 +93,7 @@ export function applySuggestion(
  * sentence, and a key assembled from a variable is one it cannot find. That is also why the
  * mapping is a switch rather than a lookup table.
  */
-export function noteFor(t: T, outcome: StagedOutcome | undefined): string {
+export function noteFor(t: T, outcome: StagedOutcome | undefined, reason?: string): string {
   switch (outcome) {
     // The model read the document and no folder fitted. The document goes to the tenant
     // default, and the server really does file it — this is the one ending the old copy
@@ -101,7 +107,18 @@ export function noteFor(t: T, outcome: StagedOutcome | undefined): string {
     // Asked, and it broke. Untagged, this is the ending that leaves the document waiting
     // for an administrator, so the row must not promise it has been filed.
     case "failed":
-      return t("suggestion failed — tag it, or it may be held for review");
+      // **And why, when the provider said why.** The sentence before the parenthesis is
+      // what happens to the document and it does not change; the parenthesis is what the
+      // person can act on, and only the provider knows it. `the language model returned
+      // 429` sent an operator to check an endpoint, a model name and a key that were all
+      // correct; `your prepayment credits are depleted` sends them to a billing page.
+      //
+      // Appended rather than translated. It is the provider's own prose, in whatever
+      // language the provider writes, and putting it through the catalogue would mean
+      // inventing a Spanish sentence for a message nobody here composed.
+      return reason
+        ? `${t("suggestion failed — tag it, or it may be held for review")} (${reason})`
+        : t("suggestion failed — tag it, or it may be held for review");
     case "unreachable":
       return t("suggestion failed — the server could not be reached");
     // `chose` with no labels left means somebody cleared them, which is untagged again.

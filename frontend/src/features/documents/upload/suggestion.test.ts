@@ -97,6 +97,46 @@ describe("the four endings the server reports", () => {
     expect(noteFor(t, "failed")).not.toBe(noteFor(t, "declined"));
     expect(noteFor(t, "failed")).not.toMatch(/server will file it/);
   });
+
+  it("failed: it says what the provider said, when the provider said anything", async () => {
+    // The live failure. `failed` alone is true and useless: it is the same value whether
+    // the connector is misconfigured or the billing account is empty, and the operator who
+    // read only the outcome spent half an hour checking an endpoint, a model name and a key
+    // that were all correct.
+    asked.mockResolvedValueOnce({
+      outcome: "failed",
+      labelIds: [],
+      detail:
+        "the language model returned 429: Your prepayment credits are depleted. Please go " +
+        "to AI Studio at https://ai.studio/projects to manage your project and billing.",
+    });
+
+    const suggested = await suggestFor("token", "an invoice");
+    const [tagged] = applySuggestion([row("a")], "a", suggested);
+
+    expect(tagged!.reason).toMatch(/prepayment credits are depleted/);
+    // What happens to the document is still said first, and still said. The provider's
+    // sentence is added to it, not put in its place — the document really is waiting for an
+    // administrator, whatever the reason turns out to be.
+    const note = noteFor(t, tagged!.suggestion, tagged!.reason);
+    expect(note).toMatch(/^suggestion failed — tag it, or it may be held for review/);
+    expect(note).toMatch(/prepayment credits are depleted/);
+  });
+
+  it("failed: with nothing from the provider, the row reads exactly as it did", async () => {
+    // The pair to the test above, and the reason there are two. A provider that says
+    // nothing useful must not produce a trailing empty parenthesis, and it must not lose
+    // the sentence that was already right.
+    asked.mockResolvedValueOnce({ outcome: "failed", labelIds: [] });
+
+    const suggested = await suggestFor("token", "an invoice");
+    const [tagged] = applySuggestion([row("a")], "a", suggested);
+
+    expect(tagged!.reason).toBeUndefined();
+    expect(noteFor(t, tagged!.suggestion, tagged!.reason)).toBe(
+      "suggestion failed — tag it, or it may be held for review",
+    );
+  });
 });
 
 describe("the fifth ending, which only the client can see", () => {

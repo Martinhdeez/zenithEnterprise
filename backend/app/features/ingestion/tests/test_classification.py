@@ -48,6 +48,32 @@ class Broken(BaseLLMProvider):
         raise GenerationUnavailableError("no model is configured")
 
 
+class Depleted(BaseLLMProvider):
+    """The live failure, as the adapter now hands it up: status, then the provider's words."""
+
+    name = "depleted"
+
+    async def complete(self, system: str, user: str) -> GenerationResponse:
+        raise GenerationUnavailableError(
+            "the language model returned 429: Your prepayment credits are depleted. Please "
+            "go to AI Studio at https://ai.studio/projects to manage your project and billing."
+        )
+
+
+class Exploding(BaseLLMProvider):
+    """Anything that is not this system's own error, and therefore not for repeating.
+
+    Its message is what a driver wrote for a developer, it names infrastructure, and nothing
+    has stripped a credential out of it. `file` catches bare `Exception` because filing must
+    never fail an ingestion, so this is a real thing it holds.
+    """
+
+    name = "exploding"
+
+    async def complete(self, system: str, user: str) -> GenerationResponse:
+        raise RuntimeError("connection to db.internal failed for user zenith_app: no pg_hba entry")
+
+
 def context(account: Account) -> TenantContext:
     return TenantContext.for_tenant(account.tenant_id, [])
 
@@ -307,6 +333,46 @@ async def test_a_model_that_breaks_mid_call_reports_failure(account: Account) ->
 
     assert filing.labels == []
     assert filing.outcome is Outcome.FAILED
+
+
+async def test_a_failure_carries_what_the_provider_said_about_it(account: Account) -> None:
+    """The ending is `FAILED` either way; what a person does next is not.
+
+    `Outcome` answers the access question — this document stays in quarantine — and it is
+    the same answer whether the connector is misconfigured or the billing account is empty.
+    Only one of those is fixed by looking at the connector, and the provider is the only
+    thing that knows which. Discarding its sentence is what left an operator checking an
+    endpoint, a model name and a key that were all correct.
+    """
+    document_id = await document(account.tenant_id, account.admin_id)
+
+    filing = await Classifier(context(account), provider=Depleted()).file(
+        document_id, account.admin_id, "text"
+    )
+
+    assert filing.outcome is Outcome.FAILED
+    assert filing.detail is not None
+    assert "prepayment credits are depleted" in filing.detail
+
+
+async def test_a_failure_that_is_not_the_providers_words_carries_nothing(
+    account: Account,
+) -> None:
+    """`file` catches bare `Exception`, so what it holds is very often not for reading.
+
+    A database error names a host and a role, an SSL error names a path, and neither has
+    been through the adapter's scrubber. The narrow rule — only a `GenerationUnavailableError`
+    is repeated — is what keeps "say more" from becoming "say whatever was in scope", and it
+    is asserted here because the tempting simplification is one line of `str(error)`.
+    """
+    document_id = await document(account.tenant_id, account.admin_id)
+
+    filing = await Classifier(context(account), provider=Exploding()).file(
+        document_id, account.admin_id, "text"
+    )
+
+    assert filing.outcome is Outcome.FAILED
+    assert filing.detail is None
 
 
 async def test_no_model_configured_is_unavailable_rather_than_failed(

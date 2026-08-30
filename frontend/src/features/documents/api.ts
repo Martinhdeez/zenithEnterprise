@@ -263,6 +263,19 @@ export interface Suggestion {
   outcome: SuggestionOutcome;
   /** Non-empty only under `chose`. */
   labelIds: string[];
+  /**
+   * Under `failed`, what the provider said about why. Absent otherwise.
+   *
+   * The outcome says what happens to the document; this says what to do about it, and the
+   * two are not interchangeable. `failed` is the same value whether the connector is
+   * misconfigured or the billing account is empty — an operator told only the first spends
+   * half an hour on three settings that were correct.
+   *
+   * The server sends it only for its own `GenerationUnavailableError`, whose message was
+   * written for a person and had credentials stripped out of it. It is still the provider's
+   * prose, so it arrives in whatever language the provider writes and is not translated.
+   */
+  detail?: string;
 }
 
 /**
@@ -285,11 +298,21 @@ export interface Suggestion {
  * hidden behind a client that quietly reports success.
  */
 export function suggestLabels(token: string, excerpt: string): Promise<Suggestion> {
-  return request<{ label_ids: string[]; outcome: SuggestionOutcome }>("/labels/suggest", token, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ excerpt }),
-  }).then((response) => ({ outcome: response.outcome, labelIds: response.label_ids }));
+  return request<{ label_ids: string[]; outcome: SuggestionOutcome; detail?: string | null }>(
+    "/labels/suggest",
+    token,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ excerpt }),
+    },
+  ).then((response) => ({
+    outcome: response.outcome,
+    labelIds: response.label_ids,
+    // `null` on the wire for every ending but `failed`; `undefined` here, so that "there is
+    // no detail" is one value on this side rather than two a caller has to remember.
+    detail: response.detail ?? undefined,
+  }));
 }
 
 /**
