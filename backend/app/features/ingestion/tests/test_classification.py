@@ -14,6 +14,7 @@ from app.common.llm import BaseLLMProvider, GenerationResponse, GenerationUnavai
 from app.core.database import owner_session, tenant_session
 from app.features.ingestion.classification import (
     MAX_CHOSEN,
+    MAX_LABELS,
     Classifier,
     Filing,
     Outcome,
@@ -344,7 +345,13 @@ async def test_a_document_whose_uploader_is_gone_is_left_alone(account: Account)
 
     assert filing.labels == []
     # Nobody was asked, so it is not a failure — the document is released into the default.
-    assert filing.outcome is Outcome.UNAVAILABLE
+    #
+    # `NO_FOLDERS` rather than `UNAVAILABLE`, and the inequality is the point: a working
+    # model is injected here. An installation reporting "no model configured" for a document
+    # whose uploader was deleted sends an operator to a connector that is answering every
+    # other request in the product.
+    assert filing.outcome is Outcome.NO_FOLDERS
+    assert filing.outcome is not Outcome.UNAVAILABLE
 
 
 async def test_filing_writes_labels_that_reach_the_chunks(account: Account) -> None:
@@ -402,8 +409,9 @@ async def test_the_quarantine_label_is_never_offered_to_the_model(account: Accou
     """
     offered = await Classifier(context(account))._candidates(account.admin_id)  # type: ignore[reportPrivateUsage]
 
-    assert account.quarantine_label not in [label_id for label_id, _ in offered]
-    assert offered, "the admin reaches real compartments, so the list is not simply empty"
+    assert account.quarantine_label not in [label_id for label_id, _ in offered.folders]
+    assert offered.folders, "the admin reaches real compartments, so the list is not empty"
+    assert offered.refusal is None, "and no refusal travels with a non-empty list"
 
 
 async def test_the_default_label_is_never_offered_either(account: Account) -> None:
@@ -414,7 +422,7 @@ async def test_the_default_label_is_never_offered_either(account: Account) -> No
     """
     offered = await Classifier(context(account))._candidates(account.admin_id)  # type: ignore[reportPrivateUsage]
 
-    assert account.default_label not in [label_id for label_id, _ in offered]
+    assert account.default_label not in [label_id for label_id, _ in offered.folders]
 
 
 async def test_filing_refuses_the_quarantine_label_even_if_it_arrives(account: Account) -> None:
@@ -515,3 +523,280 @@ async def test_a_suggestion_whose_model_broke_says_failed_and_not_declined(
     assert suggestion.outcome is Outcome.FAILED
     assert suggestion.outcome is not Outcome.DECLINED
     assert suggestion.labels == []
+
+
+# --- and "nobody was asked" was three facts wearing one name ----------------------------
+#
+# The same defect again, one level further down. `UNAVAILABLE` meant the installation has no
+# model, *and* this person reaches no folder that could be offered, *and* this person reaches
+# more folders than a model can weigh. One of those is fixed by configuring a connector; the
+# other two are not, and an operator shown the first sentence goes and inspects a connector
+# that is working. That is the entire cost, and it is the same argument that split
+# `DECLINED` from `FAILED`.
+#
+# One test per value, named for what the value means, and each asserting it is *not* the
+# others: the inequality is the bug, so the inequality is what gets pinned. A test that only
+# read `outcome is NO_FOLDERS` would still pass on the day somebody folds them back together
+# behind an alias.
+
+
+async def a_user_reaching(account: Account, labels: int) -> UUID:
+    """A user in a role of its own, holding exactly `labels` fresh compartments.
+
+    Its own role rather than the seeded ones, because the seeded roles reach the default and
+    quarantine labels and this needs to control the count exactly — the ceiling is measured
+    against the uploader's reach, not against the tenant's label table.
+    """
+    from app.features.auth.model import Role
+    from app.features.auth.onboarding.provisioning import create_user
+    from app.features.labels.model import AccessLabel, RoleLabel
+    from conftest import PASSWORD
+
+    async with owner_session() as session:
+        role = Role(tenant_id=account.tenant_id, name=f"reach-{uuid4()}")
+        session.add(role)
+        await session.flush()
+        for index in range(labels):
+            label = AccessLabel(tenant_id=account.tenant_id, name=f"Reach {index} {uuid4()}")
+            session.add(label)
+            await session.flush()
+            session.add(RoleLabel(role_id=role.id, label_id=label.id))
+        user = await create_user(
+            session, account.tenant_id, f"reach-{uuid4()}@example.com", PASSWORD, [role.id]
+        )
+        return user.id
+
+
+async def test_an_uploader_who_reaches_no_label_says_no_folders(account: Account) -> None:
+    """A statement about that person, not about the installation.
+
+    A working model is injected, so nothing here is unavailable in any sense an operator
+    could act on by configuring a connector. The remedy is to grant this person a
+    compartment, and the ending has to say so or nobody will look there.
+    """
+    uploader = await a_user_reaching(account, labels=0)
+
+    filing = await Classifier(context(account), provider=Replying("1")).file(
+        None, uploader, "an invoice"
+    )
+
+    assert filing.labels == []
+    assert filing.outcome is Outcome.NO_FOLDERS
+    # The three it must not be confused with. `UNAVAILABLE` is the expensive one — it names
+    # the installation — but `TOO_MANY_FOLDERS` has the opposite remedy, and `FAILED` would
+    # quarantine a document nothing is wrong with.
+    assert filing.outcome is not Outcome.UNAVAILABLE
+    assert filing.outcome is not Outcome.TOO_MANY_FOLDERS
+    assert filing.outcome is not Outcome.FAILED
+    assert filing.outcome is not Outcome.DECLINED
+
+
+async def test_an_uploader_reaching_only_reserved_labels_says_no_folders_too(
+    account: Account,
+) -> None:
+    """The sub-case that survived both guards and was invisible.
+
+    The member holds the default label and nothing else. That is a non-empty reach well under
+    the ceiling, so neither check fires — and `_candidates` then filters the default out,
+    because offering it would make "the model picked General" and "the model picked nothing"
+    indistinguishable. The list arrives empty for a third reason.
+
+    It is not hypothetical: four of the six tenants in `eval/label-shortlist.json` record
+    `offerable_labels: 0`.
+    """
+    filing = await Classifier(context(account), provider=Replying("1")).file(
+        None, account.member_id, "an invoice"
+    )
+
+    assert filing.labels == []
+    assert filing.outcome is Outcome.NO_FOLDERS
+    assert filing.outcome is not Outcome.UNAVAILABLE
+    assert filing.outcome is not Outcome.TOO_MANY_FOLDERS
+    assert filing.outcome is not Outcome.FAILED
+
+
+async def test_a_reach_above_the_ceiling_says_too_many_folders(account: Account) -> None:
+    """The model is present and working; the list is too long for it to choose well.
+
+    And this ending is permanent. `eval/label-shortlist.json` scored the embedding shortlist
+    that would have lifted `MAX_LABELS` and recommended against adopting it — micro recall@25
+    of 0.1818 at a pool of 2000, needing k=1822 to keep 95% of the labels a human chose — so
+    a large tenant gets no automatic filing for good. An ending nobody is going to remove is
+    an ending worth naming.
+
+    Emphatically not `NO_FOLDERS`: there are folders, and the remedy is the opposite one.
+    Granting this person more reach makes it worse.
+    """
+    uploader = await a_user_reaching(account, labels=MAX_LABELS + 1)
+
+    filing = await Classifier(context(account), provider=Replying("1")).file(
+        None, uploader, "an invoice"
+    )
+
+    assert filing.labels == []
+    assert filing.outcome is Outcome.TOO_MANY_FOLDERS
+    assert filing.outcome is not Outcome.NO_FOLDERS
+    assert filing.outcome is not Outcome.UNAVAILABLE
+    assert filing.outcome is not Outcome.FAILED
+    assert filing.outcome is not Outcome.DECLINED
+
+
+async def test_one_label_under_the_ceiling_is_still_offered(account: Account) -> None:
+    """The other side of the boundary, so `TOO_MANY_FOLDERS` cannot quietly become the
+    answer for everybody. Exactly `MAX_LABELS` reachable folders is a list the model is
+    shown."""
+    uploader = await a_user_reaching(account, labels=MAX_LABELS)
+
+    filing = await Classifier(context(account), provider=Replying("1")).file(
+        None, uploader, "an invoice"
+    )
+
+    assert filing.outcome is Outcome.CHOSE
+    assert len(filing.labels) == 1
+
+
+async def test_only_a_missing_model_says_unavailable(
+    account: Account, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The inequality read from the other end.
+
+    `UNAVAILABLE` is the one word that accuses the installation, so it has to be worth
+    accusing it. Here there really is no model and the uploader's reach is fine; the two
+    tests above are the same claim with the two halves swapped, and together they are what
+    stops the value from drifting back into meaning "something was missing".
+    """
+    from app.features.ingestion import classification
+
+    async def unconfigured(_context: object) -> object:
+        raise RuntimeError("no provider configured")
+
+    monkeypatch.setattr(classification, "provider_for", unconfigured)
+
+    filing = await Classifier(context(account)).file(None, account.admin_id, "an invoice")
+
+    assert filing.outcome is Outcome.UNAVAILABLE
+    assert filing.outcome is not Outcome.NO_FOLDERS
+    assert filing.outcome is not Outcome.TOO_MANY_FOLDERS
+
+
+async def test_a_suggestion_for_someone_with_no_folders_does_not_blame_the_installation(
+    account: Account,
+) -> None:
+    """The staging area is where a person reads this, and the two sentences are different
+    actions: "ask an administrator for access to a folder" against "tell whoever runs this
+    that the model is not configured". The second is wrong here and unactionable by them."""
+    uploader = await a_user_reaching(account, labels=0)
+
+    suggestion = await Classifier(context(account), provider=Replying("1")).suggest(
+        uploader, "an invoice"
+    )
+
+    assert suggestion.labels == []
+    assert suggestion.outcome is Outcome.NO_FOLDERS
+    assert suggestion.outcome is not Outcome.UNAVAILABLE
+    assert suggestion.outcome is not Outcome.DECLINED
+
+
+async def test_a_suggestion_above_the_ceiling_says_so_rather_than_declining(
+    account: Account,
+) -> None:
+    """`DECLINED` would be the worst reading of this one — it claims the model looked at the
+    document and found no folder that fits, when it was never shown the list at all, and a
+    person told "no match" about a taxonomy too large to search has been told nothing."""
+    uploader = await a_user_reaching(account, labels=MAX_LABELS + 1)
+
+    suggestion = await Classifier(context(account), provider=Replying("1")).suggest(
+        uploader, "an invoice"
+    )
+
+    assert suggestion.labels == []
+    assert suggestion.outcome is Outcome.TOO_MANY_FOLDERS
+    assert suggestion.outcome is not Outcome.DECLINED
+    assert suggestion.outcome is not Outcome.NO_FOLDERS
+    assert suggestion.outcome is not Outcome.UNAVAILABLE
+
+
+# --- and none of them quarantines a document -------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "outcome", [Outcome.UNAVAILABLE, Outcome.NO_FOLDERS, Outcome.TOO_MANY_FOLDERS]
+)
+async def test_no_way_of_not_being_asked_quarantines_a_document(
+    account: Account, outcome: Outcome
+) -> None:
+    """The reasoning that had to survive the split, stated as a test.
+
+    `UNAVAILABLE` carried it: an installation without a model is an ordinary, supported
+    installation whose documents must not all pile up in a quarantine label only `admin`
+    reaches. Splitting one value into three is exactly how that guarantee gets lost for two
+    of them, so each is asserted rather than argued. `FAILED` remains the only ending that
+    keeps a document where it is, and it has its own test above.
+    """
+    from app.features.ingestion.pipeline import IngestionPipeline
+
+    document_id = await document(account.tenant_id, account.admin_id, account.quarantine_label)
+
+    class NotAsked:
+        async def file(self, *_args: object, **_kwargs: object) -> Filing:
+            return Filing([], outcome)
+
+    pipeline = IngestionPipeline(
+        TenantContext.for_tenant(account.tenant_id, [account.quarantine_label]),
+        classifier=NotAsked(),  # type: ignore[arg-type]
+    )
+
+    await pipeline._file(document_id, [])  # type: ignore[reportPrivateUsage]
+
+    assert await labels_on(document_id) == {account.default_label}
+    assert account.quarantine_label not in await labels_on(document_id)
+
+
+#: The distinguishing phrase of each note, and they have to stay disjoint — three sentences
+#: that differ only in wording would be the same collapse written out longhand.
+NOTES = {
+    Outcome.UNAVAILABLE: "no classification model is configured",
+    Outcome.NO_FOLDERS: "reaches no labels",
+    Outcome.TOO_MANY_FOLDERS: f"more than {MAX_LABELS} labels",
+}
+
+
+@pytest.mark.parametrize("outcome", list(NOTES))
+async def test_each_way_of_not_being_asked_writes_its_own_note(
+    account: Account, outcome: Outcome
+) -> None:
+    """Where the collapse was actually paid for.
+
+    All three wrote "no classification model is configured", and for two of them that is
+    false — it describes a component the administrator will then go and inspect, find
+    healthy, and learn nothing from. The note is the only place the reason reaches a human on
+    the ingestion path, so the value existing is not enough: it has to be spent.
+    """
+    from app.features.ingestion.pipeline import IngestionPipeline
+
+    document_id = await document(account.tenant_id, account.admin_id, account.quarantine_label)
+
+    class NotAsked:
+        async def file(self, *_args: object, **_kwargs: object) -> Filing:
+            return Filing([], outcome)
+
+    pipeline = IngestionPipeline(
+        TenantContext.for_tenant(account.tenant_id, [account.quarantine_label]),
+        classifier=NotAsked(),  # type: ignore[arg-type]
+    )
+
+    await pipeline._file(document_id, [])  # type: ignore[reportPrivateUsage]
+
+    reader = TenantContext.for_tenant(account.tenant_id, [account.default_label])
+    async with tenant_session(reader) as session:
+        detail = await session.scalar(
+            text("SELECT status_detail FROM documents WHERE id = :d"), {"d": document_id}
+        )
+
+    assert detail is not None
+    assert NOTES[outcome] in detail
+    # And it says none of the others. This is the assertion that would have caught the
+    # original defect: every one of the three used to render the first sentence.
+    for other, phrase in NOTES.items():
+        if other is not outcome:
+            assert phrase not in detail

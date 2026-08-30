@@ -40,6 +40,29 @@ rather than being released to the tenant on the strength of a timeout.
 Collapsing those three into an empty list was safe while "unchanged" meant "tenant-wide". It
 is not safe now, and the same shape of bug — several endings, one return value, the caller
 guessing — is the one `uploadWatch.ts` was extracted to fix on the other side of the product.
+
+**And "it was never asked" was itself three endings wearing one name.** `UNAVAILABLE` covered
+the installation having no model, the uploader having no folder that could be offered, and the
+uploader reaching more folders than a model can weigh. Same bug, one level further down. They
+are not the same fact and they do not have the same remedy:
+
+* No model configured is a statement about the *installation*. An operator fixes it by
+  configuring one — and this is what the collapse costs: an operator shown that sentence on an
+  installation whose model is fine goes and inspects a connector that is working.
+* No folder to offer is a statement about *that person's reach*. They hold no label, or every
+  label they hold is a reserved one. Nothing about the installation is wrong. A document whose
+  uploader has since been deleted lands here too, because `documents.uploaded_by` is
+  `ON DELETE SET NULL` and there is then no reach to draw a list from.
+* More folders than `MAX_LABELS` is a statement about the *taxonomy that person reaches*, and
+  it is permanent. `eval/label-shortlist.json` measured the shortlist that would have lifted
+  the ceiling and recommended against it — micro recall@25 of 0.1818 at a pool of 2000 labels,
+  needing k=1822 of 2000 to keep 95% of the labels a human chose — so a wide reach gets no
+  automatic filing for good, by decision rather than by omission.
+
+None of the three is a failure and none of them quarantines a document: all three release it
+into the tenant default, exactly as before, and `FAILED` remains the only ending that does
+not. What changed is that the caller is told which one it was instead of guessing, and the
+note written on the document gives the true reason rather than the comfortable one.
 """
 
 from __future__ import annotations
@@ -66,9 +89,16 @@ log = structlog.get_logger()
 EXCERPT_CHARACTERS = 4_000
 
 #: Above this, the list stops being something a model can weigh and starts being something
-#: it skims. A tenant with more labels than this gets no automatic filing rather than bad
-#: filing — the labels are ordered by name, so silently taking the first sixty would file
-#: everything under whatever begins with "a".
+#: it skims. A reach wider than this gets no automatic filing rather than bad filing — the
+#: labels are ordered by name, so silently taking the first sixty would file everything under
+#: whatever begins with "a".
+#:
+#: **The ceiling is permanent, and measured rather than assumed.** `eval/label-shortlist.json`
+#: scored an embedding shortlist that would have replaced it and recommended against adopting
+#: it: at a pool of 2000 labels micro recall@25 is 0.1818, and keeping 95% of the labels a
+#: human chose needs k=1822 — a slightly shorter list, not a shortlist. `TOO_MANY_FOLDERS` is
+#: therefore an ending the product keeps, not one it is waiting to remove, which is reason
+#: enough to say it out loud instead of reporting it as "no model configured".
 MAX_LABELS = 60
 
 #: More than this and the model is guessing rather than classifying. A document that is
@@ -113,14 +143,28 @@ def read(reply: str, count: int) -> list[int]:
 
 
 class Outcome(StrEnum):
-    """Why the classifier produced what it produced. See the module docstring."""
+    """Why the classifier produced what it produced. See the module docstring.
+
+    Five of the six carry no labels, so `Filing.labels` cannot tell them apart and no caller
+    should try. Exactly one of them — `FAILED` — leaves a document quarantined.
+    """
 
     #: It read the document and named folders. `Filing.labels` is non-empty.
     CHOSE = "chose"
     #: It read the document and none of the folders fitted. A real answer, just not a label.
     DECLINED = "declined"
-    #: It was never asked — no model configured, or no folders to offer it.
+    #: There is no model to ask. A fact about the *installation*, and an ordinary one: search
+    #: works without generation, and ingestion has to work without either.
     UNAVAILABLE = "unavailable"
+    #: There was nothing to offer it. A fact about *the uploader's reach* — they hold no
+    #: label, or every label they hold is a reserved one — and, because `uploaded_by` is
+    #: `ON DELETE SET NULL`, also a document whose uploader has been deleted. The
+    #: installation is fine; this person has no folders.
+    NO_FOLDERS = "no_folders"
+    #: There were too many to offer it: the uploader reaches more than `MAX_LABELS`. The
+    #: model is present and working and the list is too long for it to choose well. This one
+    #: is permanent — see `MAX_LABELS` and the run that refuted the shortlist.
+    TOO_MANY_FOLDERS = "too_many_folders"
     #: It was asked and the call broke. The only outcome that leaves a document quarantined.
     FAILED = "failed"
 
@@ -129,6 +173,22 @@ class Outcome(StrEnum):
 class Filing:
     labels: list[UUID]
     outcome: Outcome
+
+
+@dataclass(frozen=True, slots=True)
+class Offer:
+    """The folders to show the model, or — when there are none — which ending that is.
+
+    `_candidates` used to return a bare list, and an empty one meant three different things:
+    the uploader reaches nothing, the uploader reaches only reserved labels, and the uploader
+    reaches more than `MAX_LABELS`. That is the module docstring's bug in miniature, so the
+    reason travels back beside the list rather than being re-derived by whoever asked.
+    """
+
+    folders: list[tuple[UUID, str]]
+    #: Why there are none; `None` exactly when `folders` is non-empty. Never `CHOSE`,
+    #: `DECLINED` or `FAILED` — those are endings of a *call*, and no call has been made.
+    refusal: Outcome | None
 
 
 class Classifier:
@@ -148,23 +208,36 @@ class Classifier:
             # `documents.uploaded_by` is `ON DELETE SET NULL`, so this is a document whose
             # uploader has since been removed. There is no reach to draw a list from, and
             # inventing one from the tenant's full label set would file the document under
-            # compartments nobody chose. Nobody was asked, so it is not a failure.
-            return Filing([], Outcome.UNAVAILABLE)
+            # compartments nobody chose. Nobody was asked, so it is not a failure — and it is
+            # not `UNAVAILABLE` either: the installation's model, if it has one, is fine, and
+            # saying otherwise sends an operator to inspect a working connector.
+            return Filing([], Outcome.NO_FOLDERS)
 
         try:
-            candidates = await self._candidates(uploaded_by)
+            offer = await self._candidates(uploaded_by)
         except Exception as error:  # noqa: BLE001 - filing must never fail an ingestion
             log.warning("classification_failed", document_id=str(document_id), error=str(error))
             return Filing([], Outcome.FAILED)
 
-        if not candidates:
-            return Filing([], Outcome.UNAVAILABLE)
+        if offer.refusal is not None:
+            # Nothing to ask about, and *which* nothing decides what an administrator does
+            # next: widen somebody's reach, or accept a ceiling that measurement says stays.
+            log.info(
+                "classification_not_offered",
+                document_id=str(document_id),
+                outcome=offer.refusal.value,
+            )
+            return Filing([], offer.refusal)
+        candidates = offer.folders
 
         # Resolving the provider is separated from calling it, and that is the whole point of
         # this arrangement: "there is no model configured" and "the model broke" are different
         # facts about the installation, and since 0017 they lead to different access outcomes.
         # Folded into one `try`, an unconfigured installation would look like a broken one and
         # quarantine every document it ever ingests.
+        #
+        # This is now the *only* site that reports `UNAVAILABLE`, and that is what makes the
+        # word true: it says the installation has no model, and nothing else says it.
         try:
             provider = self._provider or await provider_for(self.context)
         except Exception as error:  # noqa: BLE001
@@ -204,8 +277,8 @@ class Classifier:
 
         **Returns the whole `Filing`, outcome included.** It used to return the labels alone,
         on the reasoning that a suggestion the user can ignore need not explain why there is
-        nothing to suggest — that the four outcomes existed so an *access* decision could be
-        made from them, and staging makes none.
+        nothing to suggest — that the outcomes existed so an *access* decision could be made
+        from them, and staging makes none.
 
         That was wrong about what staging *says*, not about what it decides. The staging row
         read `no match — server will file it` whenever the suggestion came back empty, and
@@ -217,18 +290,35 @@ class Classifier:
         """
         return await self.file(document_id=None, uploaded_by=user_id, text_excerpt=excerpt)
 
-    async def _candidates(self, uploaded_by: UUID) -> list[tuple[UUID, str]]:
+    async def _candidates(self, uploaded_by: UUID) -> Offer:
         """The labels the uploader reaches, by name, ordered so the prompt is stable.
 
         `UserRepository.label_ids` rather than a query written here: it is the single place
         a person's reach is resolved, it already accounts for both the grant and the
         group-plus-clearance routes, and it is tested directly. A second implementation of
         it would be a second answer to "what may this person see".
+
+        **It returns why the list is empty, not merely that it is.** `if not reachable or
+        len(reachable) > MAX_LABELS: return []` folded two unrelated statements — this person
+        holds nothing, this person holds too much — into one value, and a third arrived
+        underneath them: a reach made entirely of reserved labels, which passes both checks
+        and is then filtered to nothing by the query below. That third one is not
+        hypothetical. Four of the six tenants in `eval/label-shortlist.json` record
+        `offerable_labels: 0`.
         """
         async with tenant_session(self.context) as session:
             reachable = await UserRepository(session).label_ids(uploaded_by)
-            if not reachable or len(reachable) > MAX_LABELS:
-                return []
+            if not reachable:
+                # No label at all. Nothing is wrong with the installation; this person has
+                # simply not been granted a compartment.
+                return Offer([], Outcome.NO_FOLDERS)
+            if len(reachable) > MAX_LABELS:
+                # The ceiling, and it is a decision rather than a gap. Note it measures the
+                # *uploader's reach*, not the tenant's label count: in one tenant an
+                # administrator reaching two hundred labels is refused while a member
+                # reaching ten is filed normally, and an operator told "no model configured"
+                # for the first has no way to discover that.
+                return Offer([], Outcome.TOO_MANY_FOLDERS)
 
             # **Reserved labels are never offered**, and the quarantine one is why this
             # clause exists at all. An administrator reaches `Unclassified`, so without it the
@@ -250,4 +340,8 @@ class Classifier:
                 ),
                 {"ids": [str(label_id) for label_id in reachable]},
             )
-            return [(row.id, row.name) for row in rows]
+            folders = [(row.id, row.name) for row in rows]
+            # A reach made entirely of reserved labels. The same fact as holding none — there
+            # is no folder to offer this person — so it is the same ending, and emphatically
+            # not "the installation has no model".
+            return Offer(folders, None if folders else Outcome.NO_FOLDERS)

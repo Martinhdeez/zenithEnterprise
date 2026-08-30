@@ -50,19 +50,27 @@ class LabelSuggestion(BaseModel):
 
 
 class SuggestedLabels(BaseModel):
-    """The suggestion, and which of the four endings produced it.
+    """The suggestion, and which ending produced it.
 
-    `label_ids` alone could not say. Three of the four endings — the model declining, no
-    model being configured, the call breaking — all come back with nothing to suggest, and a
-    client holding only an empty list has to guess between them. The staging area guessed,
-    and told the person `no match — server will file it` under `FAILED`, which is the one
-    ending where that is false: a document nothing vouched for is left in a quarantine label
-    only `admin` reaches.
+    `label_ids` alone could not say. Every ending but `chose` comes back with nothing to
+    suggest, and a client holding only an empty list has to guess between them. The staging
+    area guessed, and told the person `no match — server will file it` under `FAILED`, which
+    is the one ending where that is false: a document nothing vouched for is left in a
+    quarantine label only `admin` reaches.
 
     `Outcome` itself rather than a parallel enum of this feature's own. It is the same
     decision — `Classifier.suggest` is `Classifier.file` without the write — and a second
     vocabulary for it would be a second thing to keep in step with `0017`'s access rules.
-    Being a `StrEnum` it crosses the wire as `chose` / `declined` / `unavailable` / `failed`.
+    Being a `StrEnum` it crosses the wire as `chose` / `declined` / `unavailable` /
+    `no_folders` / `too_many_folders` / `failed`.
+
+    The last three of those were one value until `unavailable` was found to be doing exactly
+    what this class was written to stop: several endings, one value, the caller guessing.
+    `unavailable` now means only that the installation has no model, `no_folders` that this
+    person reaches nothing that could be offered, and `too_many_folders` that their reach is
+    past the ceiling `MAX_LABELS` sets — a permanent ending, since the shortlist that would
+    have lifted it was measured and refused. An operator sent to check a working connector
+    because the server said "no model" is the cost the split removes.
     """
 
     #: Ids from the caller's own reach, or empty. Never a name, and never a new label.

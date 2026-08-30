@@ -113,12 +113,25 @@ async def test_a_suggestion_can_only_name_labels_the_caller_already_holds(
     body = suggested.json()
     assert set(body["label_ids"]) <= reachable
 
-    # And the empty answer says which of the four endings produced it. Asserted here rather
-    # than pinned to one value, because *which* ending a test installation reaches depends on
-    # whether a model is configured for it — the property that must hold on every
-    # installation is that ids never arrive without an ending, and that the only ending which
-    # carries ids is `chose`.
-    assert body["outcome"] in {"chose", "declined", "unavailable", "failed"}
+    # And the empty answer says which ending produced it. Asserted as a set rather than
+    # pinned to one value, because *which* ending a test installation reaches depends on
+    # whether a model is configured for it and on what the caller reaches — the property
+    # that must hold on every installation is that ids never arrive without an ending, and
+    # that the only ending which carries ids is `chose`.
+    #
+    # The literal set is the wire contract, written out rather than derived from `Outcome`:
+    # a comprehension over the enum would agree with any rename and prove nothing. The
+    # member here reaches only the default label, which is filtered out of the candidates, so
+    # the ending this particular caller gets is `no_folders` — and *not* `unavailable`, which
+    # would have blamed a model that may well be configured and working.
+    assert body["outcome"] in {
+        "chose",
+        "declined",
+        "unavailable",
+        "no_folders",
+        "too_many_folders",
+        "failed",
+    }
     assert bool(body["label_ids"]) == (body["outcome"] == "chose")
 
 
