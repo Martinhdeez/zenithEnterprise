@@ -85,21 +85,29 @@ async def test_what_the_provider_said_is_what_the_person_is_told() -> None:
     Google returns `429` for a depleted prepayment balance as well as for too many
     requests, so the status alone cannot tell them apart — and this codebase guessed the
     wrong one. The sentence naming which it was had been on the wire the whole time.
+
+    The body is the one that came out of `generation_rejected` on the installation, list
+    wrapper and all. Written from the documented object shape it was a passing test of the
+    wrong thing.
     """
 
     def depleted(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             429,
-            json={
-                "error": {
-                    "code": 429,
-                    "message": (
-                        "Your prepayment credits are depleted. Please go to AI Studio at "
-                        "https://ai.studio/projects to manage your project and billing."
-                    ),
-                    "status": "RESOURCE_EXHAUSTED",
+            json=[
+                {
+                    "error": {
+                        "code": 429,
+                        "message": (
+                            "Your prepayment credits are depleted. Please go to AI Studio "
+                            "at https://ai.studio/projects to manage your project and "
+                            "billing. Learn more at "
+                            "https://ai.google.dev/gemini-api/docs/billing#prepay. "
+                        ),
+                        "status": "RESOURCE_EXHAUSTED",
+                    }
                 }
-            },
+            ],
         )
 
     with pytest.raises(GenerationUnavailableError) as raised:
@@ -224,6 +232,12 @@ def test_a_provider_sentence_is_taken_from_the_shapes_providers_actually_use() -
     from app.features.generation.adapters.openai_compatible import said_by
 
     assert said_by('{"error": {"message": "quota exceeded"}}') == "quota exceeded"
+    # A list of one. This is what Google's OpenAI-compatible endpoint actually sends, read
+    # off the wire of the installation this fix was written for — and the object-only
+    # version of `said_by` passed every other assertion here while still producing the
+    # generic advice against the real 429. The shape came from the wire, not a
+    # specification, which is the argument for running the fix against a live failure.
+    assert said_by('[{"error": {"message": "quota exceeded"}}]') == "quota exceeded"
     assert said_by('{"error": "model not found"}') == "model not found"
     assert said_by('{"message": "unauthorised"}') == "unauthorised"
     assert said_by('{"detail": "Not Found"}') == "Not Found"

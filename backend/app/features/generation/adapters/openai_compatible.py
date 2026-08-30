@@ -119,20 +119,30 @@ def said_by(body: str) -> str | None:
     A body that is not JSON returns `None` rather than its first 300 characters. An HTML
     error page from a load balancer has no sentence to lift, and lifting its markup would
     replace the advice with noise.
+
+    **A top-level array is unwrapped, and that is not a hypothetical.** Google's
+    OpenAI-compatible endpoint answers a 429 with `[{"error": {...}}]` — the object every
+    other provider sends, inside a list of one. This was written for the object alone,
+    passed its tests, and produced the generic advice against the live installation, which
+    is the exact failure it exists to remove. The shape came off the wire, not out of a
+    specification, and it is the reason the fix was run against a real depleted account.
     """
     try:
         payload: object = json.loads(body)
     except ValueError:
         return None
 
-    for path in _MESSAGE_PATHS:
-        value: object = payload
-        for key in path:
-            value = _field(value, key)
-        if isinstance(value, str) and value.strip():
-            # Collapsed rather than kept verbatim: a message with newlines in it becomes one
-            # line in a problem document and three in a log, and neither is what was written.
-            return " ".join(value.split())
+    candidates = cast(list[object], payload) if isinstance(payload, list) else [payload]
+    for candidate in candidates:
+        for path in _MESSAGE_PATHS:
+            value: object = candidate
+            for key in path:
+                value = _field(value, key)
+            if isinstance(value, str) and value.strip():
+                # Collapsed rather than kept verbatim: a message with newlines in it becomes
+                # one line in a problem document and three in a log, and neither is what was
+                # written.
+                return " ".join(value.split())
     return None
 
 
