@@ -24,7 +24,7 @@ import { Check, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LabelPicker, TagChips, type Label } from "@/features/labels";
 import { excerpt } from "./excerpt";
-import { applySuggestion, noteFor, suggestFor, type Suggested } from "./suggestion";
+import { applySuggestion, noteFor, suggestFor } from "./suggestion";
 import { useT } from "@/shared/i18n/useT";
 import {
   addToSelected,
@@ -99,12 +99,17 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
     let updated = rows;
     for (const [index, row] of targets.entries()) {
       const text = await excerpt(row.file);
-      // No readable text is the server's `unavailable` reached one step earlier: nothing was
-      // asked, so nothing broke, and the document is filed as any untagged one is.
-      const suggested: Suggested = text
-        ? await suggestFor(token, text)
-        : { outcome: "unavailable", labelIds: [] };
-      updated = applySuggestion(updated, row.id, suggested);
+      // A file `excerpt` could not read — a scan with no text layer, an encrypted PDF — is
+      // never asked about, and the row is left saying only that it is untagged. It is
+      // emphatically *not* stamped `unavailable`: that means "no model configured", which
+      // would be a false statement about the installation made on the evidence of one bad
+      // file. Nothing here can tell the person why that file was skipped; saying nothing is
+      // the honest version of not knowing.
+      if (!text) {
+        setSuggesting({ done: index + 1, total: targets.length });
+        continue;
+      }
+      updated = applySuggestion(updated, row.id, await suggestFor(token, text));
       onChange(updated);
       setSuggesting({ done: index + 1, total: targets.length });
     }
