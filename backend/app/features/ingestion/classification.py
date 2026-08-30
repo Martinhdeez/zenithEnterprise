@@ -63,6 +63,16 @@ None of the three is a failure and none of them quarantines a document: all thre
 into the tenant default, exactly as before, and `FAILED` remains the only ending that does
 not. What changed is that the caller is told which one it was instead of guessing, and the
 note written on the document gives the true reason rather than the comfortable one.
+
+**And all three are settled before the model is spoken to, which means they can be answered
+in advance.** `Classifier.availability` is that question, and it is the front half of `file`
+rather than a copy of it: `file` calls it and continues from what it returns. So the staging
+area can ask whether automatic filing is available to *this person* before offering the
+button, instead of running a hundred files to write the same note on every row — which on
+this installation is the ordinary first experience, since four of the six tenants in
+`eval/label-shortlist.json` hold labels and no offerable ones. `CHOSE`, `DECLINED` and
+`FAILED` are endings of a call and stay unpredictable; the other three were never about the
+call at all.
 """
 
 from __future__ import annotations
@@ -191,6 +201,37 @@ class Offer:
     refusal: Outcome | None
 
 
+@dataclass(frozen=True, slots=True)
+class Refused:
+    """Nobody can be asked on this person's behalf, and which of the three reasons that is.
+
+    Always one of `UNAVAILABLE`, `NO_FOLDERS` or `TOO_MANY_FOLDERS` — the endings that are
+    settled before any call is made, and therefore the only ones knowable in advance. The
+    other three describe how a call went and cannot be predicted by anything short of making
+    it.
+    """
+
+    reason: Outcome
+
+
+@dataclass(frozen=True, slots=True)
+class Ready:
+    """It can be asked: this list, that model.
+
+    Holding both is what makes `Classifier.availability` usable as the front half of
+    `Classifier.file` rather than a second opinion beside it. A pre-flight that recomputed
+    the same predicate would be free to disagree with the call it predicts; this one cannot,
+    because the call is the thing that consumes it.
+    """
+
+    folders: list[tuple[UUID, str]]
+    provider: BaseLLMProvider
+
+
+#: Whether automatic filing can be offered to one person at all. See `Classifier.availability`.
+Availability = Refused | Ready
+
+
 class Classifier:
     def __init__(self, context: TenantContext, provider: BaseLLMProvider | None = None) -> None:
         self.context = context
@@ -213,41 +254,29 @@ class Classifier:
             # saying otherwise sends an operator to inspect a working connector.
             return Filing([], Outcome.NO_FOLDERS)
 
+        # `availability` is the front half of this method, not a second opinion about it.
+        # Everything decided before the model is spoken to is decided there, once.
         try:
-            offer = await self._candidates(uploaded_by)
+            state = await self.availability(uploaded_by)
         except Exception as error:  # noqa: BLE001 - filing must never fail an ingestion
             log.warning("classification_failed", document_id=str(document_id), error=str(error))
             return Filing([], Outcome.FAILED)
 
-        if offer.refusal is not None:
+        if isinstance(state, Refused):
             # Nothing to ask about, and *which* nothing decides what an administrator does
             # next: widen somebody's reach, or accept a ceiling that measurement says stays.
             log.info(
                 "classification_not_offered",
                 document_id=str(document_id),
-                outcome=offer.refusal.value,
+                outcome=state.reason.value,
             )
-            return Filing([], offer.refusal)
-        candidates = offer.folders
-
-        # Resolving the provider is separated from calling it, and that is the whole point of
-        # this arrangement: "there is no model configured" and "the model broke" are different
-        # facts about the installation, and since 0017 they lead to different access outcomes.
-        # Folded into one `try`, an unconfigured installation would look like a broken one and
-        # quarantine every document it ever ingests.
-        #
-        # This is now the *only* site that reports `UNAVAILABLE`, and that is what makes the
-        # word true: it says the installation has no model, and nothing else says it.
-        try:
-            provider = self._provider or await provider_for(self.context)
-        except Exception as error:  # noqa: BLE001
-            log.info("classification_unavailable", document_id=str(document_id), error=str(error))
-            return Filing([], Outcome.UNAVAILABLE)
+            return Filing([], state.reason)
+        candidates = state.folders
 
         try:
             names = [name for _, name in candidates]
             excerpt = text_excerpt[:EXCERPT_CHARACTERS]
-            reply = await provider.complete(SYSTEM, build(names, excerpt))
+            reply = await state.provider.complete(SYSTEM, build(names, excerpt))
             chosen = read(reply.text, len(candidates))
         except Exception as error:  # noqa: BLE001 - filing must never fail an ingestion
             log.warning("classification_failed", document_id=str(document_id), error=str(error))
@@ -263,6 +292,52 @@ class Classifier:
         # An empty `chosen` here is the model answering `NONE`, or writing only numbers that
         # named no folder it was shown. Both are the model declining, not the model failing.
         return Filing(applied, Outcome.CHOSE if applied else Outcome.DECLINED)
+
+    async def availability(self, user_id: UUID) -> Availability:
+        """Whether this person can be offered automatic filing at all — before they ask.
+
+        Everything `file` settles before the model is spoken to, settled here and nowhere
+        else: the uploader's reach, the reserved-label filter, the ceiling, and whether there
+        is a model to resolve. `file` then *continues* from what this returns, so the two
+        cannot hold different opinions about the same person — there is one opinion, and the
+        call consumes it.
+
+        That is the whole reason this is a method on the classifier rather than a rule the
+        client evaluates. "Offerable" is `NOT is_quarantine AND NOT is_default`, `MAX_LABELS`
+        is 60, and a browser that knew both would still be a second implementation of a
+        predicate this repository has already watched drift once. The client asks; it does not
+        re-derive.
+
+        **It answers about a person, never about a tenant.** The ceiling measures the reach of
+        the individual who would press the button, so in one tenant an administrator reaching
+        two hundred labels is refused while a member reaching ten is offered a list.
+
+        Raises where `file` returns `FAILED`: an unreadable reach is a broken request, not a
+        prediction, and a caller that cannot answer the question must not answer it with a
+        refusal. `FAILED`, `CHOSE` and `DECLINED` are endings of a call and can never be
+        returned here — nothing has been called.
+        """
+        offer = await self._candidates(user_id)
+        if offer.refusal is not None:
+            return Refused(offer.refusal)
+
+        # Resolving the provider is separated from calling it, and that is the whole point of
+        # this arrangement: "there is no model configured" and "the model broke" are different
+        # facts about the installation, and since 0017 they lead to different access outcomes.
+        # Folded into one `try`, an unconfigured installation would look like a broken one and
+        # quarantine every document it ever ingests.
+        #
+        # This is the *only* site that reports `UNAVAILABLE`, and that is what makes the word
+        # true: it says the installation has no model, and nothing else says it. It is also
+        # why a pre-flight has to resolve a provider rather than assume one — the answer is
+        # per tenant, read from `llm_config`.
+        try:
+            provider = self._provider or await provider_for(self.context)
+        except Exception as error:  # noqa: BLE001
+            log.info("classification_unavailable", error=str(error))
+            return Refused(Outcome.UNAVAILABLE)
+
+        return Ready(offer.folders, provider)
 
     async def suggest(self, user_id: UUID, excerpt: str) -> Filing:
         """The same decision, offered rather than applied.
