@@ -122,12 +122,58 @@ fi
 # A route missing from nginx's list does not 404 — it falls through to the SPA and returns
 # `index.html`, so the browser gets HTML where it expects JSON and reports "the request
 # failed" with a perfectly healthy API behind it. That has happened twice.
+#
+# **And this check passed against a port with nothing behind it**, which is the same class of
+# bug as the one it exists to catch, sitting inside the guard against it.
+# `ZENITH_WEB=http://localhost:9999 ./scripts/demo-check.sh` printed four greens. It asked
+# whether the first fourteen bytes of the body were a doctype, and an empty body is not a
+# doctype — so a refused connection passed, a stopped `frontend` container passed, and so did
+# nginx's own 502 page, which begins `<html>` with no doctype at all. The one thing it could
+# see was the exact byte string it was looking for.
+#
+# There are three situations, and the doctype test could not tell any of them apart:
+#
+#   nothing answered   curl never got a response. The `frontend` container is not serving, or
+#                      `ZENITH_WEB` names the wrong port. Nothing at all is known about the
+#                      proxy list, because nothing was ever asked — and that is the finding.
+#   HTML answered      either the prefix is missing from nginx's list and the SPA took the
+#                      request (the trap: 200, `index.html`), or nginx matched the prefix and
+#                      could not reach the API behind it, and answered its own error page
+#                      (502). Different remedies — edit two config files, or start `api` —
+#                      so they are told apart by the status rather than merged.
+#   JSON answered      the request crossed the proxy and something that speaks this API's
+#                      language replied.
+#
+# **The assertion is that the body parses as JSON, and it is the client's own test.**
+# `request()` in `api/client.ts` calls `response.json()`, and the trap is precisely that call
+# throwing on `<!doctype`. Reproducing it is the only test that cannot pass against nothing:
+# an empty body is not JSON either.
+#
+# Deliberately *not* the status. Every one of these four answers 401 here, because this runs
+# without a token, and a 401 is a pass: the question is where the request arrived, not what it
+# was allowed to do once there. Pinning the status would make the check fail the day one of
+# these routes stops needing a token, which is not what it is watching for. Deliberately not
+# the content type on its own either — it is a header, set by whatever answered, and what the
+# browser chokes on is the bytes. The status is still printed, because an operator reading
+# `401` learns something an operator reading `OK` does not.
 for path in /documents /search /roles /analytics; do
-  body="$(curl -s "${WEB}${path}" | head -c 14)"
-  case "${body}" in
-    *"<!doctype"*|*"<!DOCTYPE"*) bad "${path} falls through to the SPA — missing from the nginx proxy list" ;;
-    *)                           ok  "${path} reaches the API through the proxy" ;;
-  esac
+  # `--max-time`, for the reason the answer check gives: a proxy that accepts the connection
+  # and never replies is a hang, and a check that hangs is one an operator learns to skip.
+  REPLY="$(curl -s --max-time 10 -w '\n%{http_code}' "${WEB}${path}" 2>/dev/null || true)"
+  CODE="${REPLY##*$'\n'}"
+  BODY="${REPLY%$'\n'*}"
+  if printf '%s' "${BODY}" | python3 -c 'import sys, json; json.load(sys.stdin)' 2>/dev/null; then
+    ok "${path} reaches the API through the proxy — it answered ${CODE} in JSON"
+  elif [ -z "${CODE}" ] || [ "${CODE}" = "000" ]; then
+    bad "${path} — nothing answered at ${WEB} at all, so the proxy list was never asked: the frontend container is not serving, or ZENITH_WEB names the wrong port"
+  else
+    case "${BODY}" in
+      *"<!doctype"*|*"<!DOCTYPE"*)
+        bad "${path} falls through to the SPA — missing from the nginx proxy list in docker/nginx.frontend.conf, and from frontend/vite.config.ts with it" ;;
+      *)
+        bad "${path} — ${WEB} answered ${CODE} and not in JSON, so this is the proxy's own error page: nginx matched the prefix and could not reach the API behind it" ;;
+    esac
+  fi
 done
 
 # --- a real question ----------------------------------------------------------------------
