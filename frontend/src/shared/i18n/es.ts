@@ -180,6 +180,8 @@ export const es: Catalogue = {
   "page {page}": "página {page}",
   "Page {page} — cited page {cited}": "Página {page} — la cita está en la {cited}",
   "Back to citation": "Volver a la cita",
+  "Zoom in": "Acercar",
+  "Zoom out": "Alejar",
   "Clear {name}": "Limpiar {name}",
   "Click a citation in an answer to open the page it came from.":
     "Pulsa una cita de una respuesta para abrir la página de la que salió.",
