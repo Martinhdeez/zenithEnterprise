@@ -13,6 +13,10 @@
 # The credentials are only used to ask the API a real question. Without them the checks that
 # need a session are skipped and said to be skipped, rather than passing by omission.
 #
+# Asking a question costs one real model call. `ZENITH_DEMO_SKIP_ANSWER=1` leaves it out —
+# see the reasoning above that check. It runs by default, because the point of it is to catch
+# what everything else here missed.
+#
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -21,6 +25,13 @@ API="${ZENITH_API:-http://localhost:8000}"
 WEB="${ZENITH_WEB:-http://localhost:5173}"
 EMAIL="${1:-}"
 PASSWORD="${2:-}"
+SKIP_ANSWER="${ZENITH_DEMO_SKIP_ANSWER:-}"
+
+# One question, asked twice: once of `/search` and once of `/query`. Two strings here would
+# drift, and the day they did the answer check would stop being able to lean on the search
+# check above it — "the model was given nothing" and "the corpus holds nothing" are different
+# findings, and only one question asked of both endpoints can tell them apart.
+QUESTION="plazo maximo de detencion preventiva"
 
 FAILURES=0
 WARNINGS=0
@@ -121,7 +132,7 @@ done
 
 # --- a real question ----------------------------------------------------------------------
 if [ -z "${EMAIL}" ] || [ -z "${PASSWORD}" ]; then
-  warn "no credentials given — skipping the search check (pass email and password to run it)"
+  warn "no credentials given — skipping the search and answer checks (pass email and password to run them)"
 else
   TOKEN="$(curl -fsS -X POST "${API}/auth/login" -H 'Content-Type: application/json' \
     -d "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\"}" 2>/dev/null \
@@ -131,7 +142,7 @@ else
   else
     ok "signed in as ${EMAIL}"
     RESULT="$(curl -fsS -H "Authorization: Bearer ${TOKEN}" -G \
-      --data-urlencode 'q=plazo maximo de detencion preventiva' "${API}/search" 2>/dev/null || true)"
+      --data-urlencode "q=${QUESTION}" "${API}/search" 2>/dev/null || true)"
     read -r HITS TOOK DEGRADED REASON <<EOF
 $(printf '%s' "${RESULT}" | python3 -c '
 import sys, json
@@ -155,6 +166,163 @@ EOF
     # the cross-encoder was right-sized; anything near it means the wrong model is loaded.
     if [ "${TOOK}" -gt 4000 ]; then
       warn "search took ${TOOK} ms — check which reranker is loaded"
+    fi
+
+    # --- and a real answer ------------------------------------------------------------------
+    #
+    # Everything above this line is retrieval, and retrieval is not what a demonstration is. A
+    # demonstration is somebody typing a question and reading a written answer with citations
+    # under it, and until this block existed that was the one path this script never walked.
+    #
+    # On 30 August every line above it printed green — every container up, both model services
+    # serving the right weights, every prefix reaching the API, signed in, eight passages in
+    # 800 ms, not degraded, the corpus intact, the reranker healthy, the lock budget fine — on
+    # an installation whose `POST /query` was answering 503 because the tenant's model key was
+    # rate-limited. It printed `Ready.` and it would have sent somebody into a room.
+    #
+    # **It writes, and that is not worked around.** `POST /query` records a row in `queries`
+    # and one per citation in `query_citations`. That is the endpoint's contract and there is
+    # no read-only variant of the answer path to substitute, so the row stays: deleting it
+    # would be a second write to the customer's database to hide the first, and a readiness
+    # check has no business editing what it is inspecting. Two consequences worth knowing
+    # before the room — the question shows up in the history panel and in the analytics count,
+    # and it is deliberately the *same* question the search check just asked, so an operator
+    # who opens history sees one recognisable line rather than a mystery.
+    #
+    # **And it costs a real model call** — about nine seconds of model time by F9's
+    # measurement, and on a metered provider a fraction of a cent and one unit of rate-limit
+    # budget. That last one is not hypothetical: the failure this block exists to catch *was*
+    # a rate limit, and a check run in a loop can manufacture the very 429 it reports. Hence
+    # `ZENITH_DEMO_SKIP_ANSWER=1`, for the operator iterating on something else. Hence also
+    # that the default is to run — a check nobody runs catches nothing, and this is the one
+    # that everything else missed — and that skipping announces itself as a warning rather
+    # than passing by omission, exactly as the missing-credentials case does.
+    if [ -n "${SKIP_ANSWER}" ]; then
+      warn "ZENITH_DEMO_SKIP_ANSWER is set — nobody has asked this installation a question"
+    else
+      # `--max-time` rather than curl's default of none: a model that never replies is a hang,
+      # and a check that hangs is one an operator learns to run without. Sixty seconds is
+      # generous against F9's nine, so anything that reaches it is broken and not merely slow.
+      #
+      # `-s` and not `-fsS`, unlike every other call in this file. `-f` throws the body away
+      # on a 4xx or 5xx, and on this endpoint the body *is* the finding — the difference
+      # between the four endings below is written in it.
+      ANSWER="$(curl -s --max-time 60 -w '\n%{http_code}' -X POST "${API}/query" \
+        -H "Authorization: Bearer ${TOKEN}" -H 'Content-Type: application/json' \
+        --data "$(python3 -c 'import json,sys;print(json.dumps({"question": sys.argv[1]}))' \
+          "${QUESTION}")" 2>/dev/null || true)"
+      CODE="${ANSWER##*$'\n'}"
+      BODY="${ANSWER%$'\n'*}"
+
+      # Six endings, named separately, because collapsing them is the bug this part of the
+      # product has been bitten by three times — the `Outcome` enum in
+      # `features/ingestion/classification.py` is the same argument for the same reason, and
+      # its docstring is worth reading before touching this.
+      #
+      #   CITED         an answer with at least one citation. What a demonstration shows.
+      #   ABSTAINED     it read the passages and would not answer. Correct behaviour, and a
+      #                 pass — the safeguard doing its job is not a fault to report.
+      #   UNCITED       an answer citing nothing. Invariant 5 says this cannot happen, so
+      #                 seeing it says this *installation* is not running the binder that
+      #                 enforces it. No test built from the code can see that.
+      #   NOTHING_READ  it abstained having retrieved nothing, so no model was ever asked.
+      #                 Distinct from the search check above it, which cannot stand in for
+      #                 this: `/query` rewrites the question through `routing.resolve` before
+      #                 retrieving, so the two can disagree and only one of them is the path
+      #                 the room will use.
+      #   UNAVAILABLE   503. Two facts wearing one status code; split below.
+      #   everything else — throttled, forbidden, unreadable — said as itself.
+      #
+      # No ending is allowed to be silent, and none of them defaults to "fine": a check that
+      # reports health when it cannot tell is worse than one that cries wolf, because nobody
+      # switches it off and nobody looks again.
+      VERDICT="$(printf '%s' "${BODY}" | python3 -c '
+import sys, json
+status = sys.argv[1]
+raw = sys.stdin.read().strip()
+if status in ("000", ""):
+    print("NO_REPLY /query did not reply within 60s — the model call is hanging, not slow")
+    sys.exit(0)
+try:
+    body = json.loads(raw)
+except Exception:
+    print("UNREADABLE /query answered " + status + " with something that is not JSON: " + raw[:120])
+    sys.exit(0)
+detail = body.get("detail") or body.get("message") or "with no detail given"
+if status != "200":
+    print({"503": "UNAVAILABLE ", "429": "THROTTLED ", "403": "FORBIDDEN "}.get(
+        status, "REFUSED /query answered " + status + ": ") + detail)
+    sys.exit(0)
+citations = body.get("citations") or []
+consulted = body.get("consulted") or []
+model = body.get("model") or "an unnamed model"
+if body.get("abstained"):
+    if consulted:
+        print("ABSTAINED it read " + str(len(consulted)) + " passage(s) and would not answer from them")
+    else:
+        print("NOTHING_READ /query retrieved nothing for this question, so no model was asked")
+elif citations:
+    print("CITED " + model + " answered in " + str(body.get("took_generation_ms") or 0)
+          + " ms, citing " + str(len(citations)) + " of " + str(len(consulted)) + " passage(s)")
+else:
+    print("UNCITED /query returned an answer that cites nothing, which invariant 5 forbids")
+' "${CODE:-000}" 2>/dev/null || printf 'UNREADABLE the answer could not be read at all\n')"
+
+      case "${VERDICT}" in
+        CITED\ *)        ok   "${VERDICT#* }" ;;
+        # A pass, and it has to read like one. An abstention is the product working: the
+        # model was shown the passages and declined, which is the behaviour invariant 5
+        # exists to produce. It is also why the question cannot be chosen to guarantee a
+        # citation — nothing this script can do makes a model answer — so the check is built
+        # so that it does not need to. What it asserts is that the whole path ran: retrieval,
+        # prompt, model, citation binding. Which of the two legitimate endings it reached is
+        # reported, not graded.
+        ABSTAINED\ *)    ok   "the model abstained rather than answer — ${VERDICT#* }" ;;
+        UNCITED\ *)      bad  "${VERDICT#* }" ;;
+        NOTHING_READ\ *) bad  "${VERDICT#* }" ;;
+        NO_REPLY\ *)     bad  "${VERDICT#* }" ;;
+        # This installation's own limiter, not the model's, and the two are easy to confuse
+        # because both are 429: the model's arrives as the 503 below, quoting a number from
+        # somebody else's API. A warning, because it says the endpoint works and this account
+        # has asked too often — which running this script repeatedly is one way to achieve.
+        THROTTLED\ *)    warn "the API throttled the question — its own rate limit, not the model's: ${VERDICT#* }" ;;
+        FORBIDDEN\ *)    warn "${EMAIL} may not ask questions — run this as the account that will be demonstrated: ${VERDICT#* }" ;;
+        UNAVAILABLE\ *)
+          # 503 is two facts wearing one status code. `GenerationUnavailableError` is raised
+          # both by an installation nobody configured a model for and by a model that is
+          # configured and broken, and those have nothing in common except the number.
+          #
+          # Split by asking `/llm-config`, which answers it structurally, rather than by
+          # matching words in the detail: the detail is prose written for the person who asked
+          # the question, and a check that greps it breaks the day somebody improves the
+          # sentence. The test is the same one `connector/providers.build` applies — an
+          # endpoint and a model name, both non-empty — so the two cannot drift apart.
+          #
+          # **When it cannot be established, it fails.** `/llm-config` needs
+          # `llm_config.manage` and the demonstrating account may not hold it. A false alarm
+          # costs somebody two minutes on the admin screen; being wrong the other way is what
+          # happened on 30 August.
+          CONFIGURED="$(curl -fsS --max-time 10 -H "Authorization: Bearer ${TOKEN}" \
+            "${API}/llm-config" 2>/dev/null | python3 -c '
+import sys, json
+config = json.load(sys.stdin)
+print("yes" if config.get("endpoint_url") and config.get("model_name") else "no")
+' 2>/dev/null || true)"
+          case "${CONFIGURED}" in
+            # An ordinary, supported installation — search and ingestion and isolation all
+            # work without generation, and a demonstration of those is a real demonstration.
+            # A warning and not a failure for the reason the leftover-organisations check
+            # below is one: what this room is about is somebody else's decision, and a script
+            # that declares NOT READY is telling them not to walk in. It is also the only
+            # ending here that cannot ambush anybody — it says the same sentence to the first
+            # question and the hundredth, and its remedy is an admin form.
+            no)  warn "no language model is configured — this installation can search but cannot answer, so the chat is not demonstrable. Configure one under Admin, or plan to show search: ${VERDICT#* }" ;;
+            yes) bad  "a language model IS configured and it is not answering: ${VERDICT#* }" ;;
+            *)   bad  "the answer path is down and this check could not establish whether a model is configured — /llm-config needs llm_config.manage. Read it as broken until somebody looks: ${VERDICT#* }" ;;
+          esac
+          ;;
+        *)               warn "${VERDICT#UNREADABLE }" ;;
+      esac
     fi
   fi
 fi
