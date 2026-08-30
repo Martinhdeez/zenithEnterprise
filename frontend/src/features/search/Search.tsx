@@ -348,7 +348,7 @@ export function Search({
           <div className="space-y-1.5">
             <h2 className="headline text-foreground">{t("Search your corpus")}</h2>
             <p className="headline-sub mx-auto max-w-md text-muted-foreground">
-              {t("Keyword and meaning at once — passages come back ranked, with the page they came from. Nothing is generated here; use Chat for a written answer.")}
+              {t("Keyword and meaning at once — passages come back ranked, with the page they came from. Nothing is generated here: open a result and ask about that document for a written answer.")}
             </p>
           </div>
           <div className="space-y-2">

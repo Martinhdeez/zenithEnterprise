@@ -70,8 +70,8 @@ export const es: Catalogue = {
   // --- search -------------------------------------------------------------------------
   "Search your corpus": "Busca en tu corpus",
   "Search passages by keyword and meaning": "Busca pasajes por palabra y por significado",
-  "Keyword and meaning at once — passages come back ranked, with the page they came from. Nothing is generated here; use Chat for a written answer.":
-    "Palabra y significado a la vez: los pasajes vuelven ordenados y con la página de la que salen. Aquí no se genera nada; para una respuesta redactada usa el Chat.",
+  "Keyword and meaning at once — passages come back ranked, with the page they came from. Nothing is generated here: open a result and ask about that document for a written answer.":
+    "Palabra y significado a la vez: los pasajes vuelven ordenados y con la página de la que salen. Aquí no se genera nada: abre un resultado y pregunta sobre ese documento para obtener una respuesta redactada.",
   Clear: "Limpiar",
   Stop: "Parar",
   "Try again": "Reintentar",
