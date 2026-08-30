@@ -46,8 +46,11 @@ class Document:
         return DOCUMENTS / f"{self.id}.pdf"
 
 
-def load_manifest() -> list[Document]:
-    raw: dict[str, Any] = tomllib.loads(MANIFEST.read_text())
+def load_manifest(manifest: Path = MANIFEST) -> list[Document]:
+    """Read the corpus manifest. The path is a parameter so that a test can exercise the
+    recording code against a copy — writing the repository's own manifest makes every other
+    reader in the run race a truncated file."""
+    raw: dict[str, Any] = tomllib.loads(manifest.read_text())
     return [
         Document(
             id=entry["id"],
