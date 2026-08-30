@@ -89,9 +89,14 @@ done
 # restart count, and those are exactly the two states worth asking about here.
 RERANK_ID="$(${COMPOSE} ps -aq tei-rerank 2>/dev/null | head -1)"
 if [ -n "${RERANK_ID}" ]; then
+  # `unreadable` rather than `unknown`, and the word is load-bearing: it must be a token
+  # Docker can never itself return, because the arms below dispatch on the state name and the
+  # one thing that must not happen is a real state and a failure to read one arriving as the
+  # same string. `unknown` was not safe on that count and was not treated as a finding either;
+  # see below.
   read -r STATE RESTARTS STARTED <<EOF
 $(docker inspect --format '{{.State.Status}} {{.RestartCount}} {{.State.StartedAt}}' \
-    "${RERANK_ID}" 2>/dev/null || echo "unknown 0 -")
+    "${RERANK_ID}" 2>/dev/null || echo "unreadable 0 -")
 EOF
   # Seconds since the *current* process started. Docker's timestamp carries nanoseconds,
   # which `fromisoformat` will not parse, so the fraction is dropped rather than rounded —
@@ -102,15 +107,42 @@ stamp = sys.argv[1].split(".")[0].rstrip("Z")
 started = datetime.datetime.fromisoformat(stamp).replace(tzinfo=datetime.timezone.utc)
 print(int((datetime.datetime.now(datetime.timezone.utc) - started).total_seconds()))
 ' "${STARTED}" 2>/dev/null || echo -1)"
-  if [ "${STATE}" = "restarting" ]; then
+  if [ "${STATE}" = "unreadable" ]; then
+    # `docker inspect` failed, and until 30 August that was the quietest outcome in this
+    # block. The fallback said `unknown`, `unknown` is not `running`, so it landed on the
+    # silent arm below whose comment asserts the container was *already reported as not
+    # running by the loop above* — and the loop above had reported it **up**. That loop asks
+    # `compose ps -q` for an id and prints `up` when it gets one, which is the whole reason
+    # this block exists. So the one outcome meaning "this check learned nothing" was the one
+    # outcome that said nothing, on top of a green line claiming the opposite.
+    #
+    # A failure and not a warning, for the reason the 503 split further down gives in the same
+    # words: when it cannot be established, it fails. What is unknown here is exactly the
+    # thing 28 August turned on.
+    bad "tei-rerank is listed but 'docker inspect' could not read it — its restart count is unknown, and the line above only knows the container has an id"
+  elif [ "${STATE}" = "restarting" ]; then
     # The state the loop above cannot see. A container caught between kills is listed like
     # any other, so that loop calls it up — which is precisely how 28 August went unnoticed.
     bad "tei-rerank is restarting — it is in a loop right now, and the check above still calls it up"
+  elif [ "${STATE}" = "exited" ] || [ "${STATE}" = "dead" ] || [ "${STATE}" = "created" ] || [ "${STATE}" = "removing" ]; then
+    : # Already reported as not running, by name, in the loop above — these are the states
+      # `compose ps` without `-a` leaves out, which is what makes that claim true.
   elif [ "${STATE}" != "running" ]; then
-    : # Already reported as not running, by name, in the loop above.
+    # Anything else. `paused` is the one that exists today and it is not hypothetical enough
+    # to ignore: a paused container is listed by `compose ps` like a healthy one, so the loop
+    # above calls it up, and it answers nothing. A state named neither here nor above is not a
+    # pass either — the same rule the diagnose reader applies to a status it has never seen.
+    bad "tei-rerank is ${STATE}, and the line above still calls it up — it is not serving"
   elif [ "${RESTARTS}" -eq 0 ] 2>/dev/null; then
     ok "tei-rerank has not restarted since it was created"
-  elif [ "${AGE}" -ge 0 ] && [ "${AGE}" -lt 1800 ]; then
+  elif [ "${AGE}" -lt 0 ]; then
+    # The container has restarted and the timestamp could not be parsed, so *when* has no
+    # answer. This used to fall through to the `warn` below and print "restarted 3 time(s),
+    # but has been up for 0m", because bash truncates `-1 / 60` toward zero — and "up for 0m"
+    # is the recent-restart case, the one this block calls a failure. The worst reading of the
+    # evidence was printed in the words of the mildest one.
+    bad "tei-rerank has restarted ${RESTARTS} time(s) and this check could not read when it last started (${STARTED}) — 'docker logs' it and look for exit 137"
+  elif [ "${AGE}" -lt 1800 ]; then
     bad "tei-rerank has restarted ${RESTARTS} time(s), the last $(( AGE / 60 ))m ago — 'docker logs' it and look for exit 137"
   else
     warn "tei-rerank has restarted ${RESTARTS} time(s), but has been up for $(( AGE / 60 ))m"
