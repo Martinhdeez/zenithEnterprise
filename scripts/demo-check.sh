@@ -412,14 +412,35 @@ fi
 # and summing across tenants is exactly how this project once published a passage count
 # (21,295) that described no installation that existed. Grouping by tenant also makes a
 # second corpus visible as a second corpus rather than as inflation of the first.
+#
+# **`active`, not "anything but purged".** The lifecycle is
+# `active <-> suspended -> purging -> purged` (`features/tenancy/model.py`), and only the
+# first of those four is a corpus anybody can search: `AuthService` refuses the login of an
+# account in a suspended organisation and every route but `/system` with it, and a `purging`
+# organisation is having its rows deleted underneath the count. Excluding only the tombstone
+# meant a suspended organisation's documents were reported as `corpus: 42 documents ready`,
+# which is the one number in this script an operator reads as "there is something to
+# demonstrate". The leftover-organisations query below has always said `= 'active'`; this one
+# now agrees with it.
+#
+# **And "no rows" is not "could not ask".** `|| true` swallowed psql's exit status, so an
+# empty result was the only evidence left and both outcomes printed `could not read the
+# corpus`: a `db` container that is not answering, and an installation that holds no
+# documents at all. Both are failures — a demonstration needs a corpus — but the first is
+# fixed by starting a container and the second by uploading something, and a message that
+# cannot tell an operator which sends them to the wrong one. The exit status is now kept and
+# read, which is the only thing that distinguishes them.
 STATUSES="$(${COMPOSE} exec -T db psql -U "${POSTGRES_USER:-zenith}" -d "${POSTGRES_DB:-zenith}" -tAc \
   "SELECT d.status, count(*), t.name
      FROM documents d JOIN tenants t ON t.id = d.tenant_id
-    WHERE t.status <> 'purged'
+    WHERE t.status = 'active'
     GROUP BY d.status, t.name
-    ORDER BY count(*) DESC" 2>/dev/null || true)"
-if [ -z "${STATUSES}" ]; then
-  bad "could not read the corpus"
+    ORDER BY count(*) DESC" 2>/dev/null)"
+ASKED=$?
+if [ "${ASKED}" -ne 0 ]; then
+  bad "could not read the corpus — psql exited ${ASKED}: the db container is not answering, or POSTGRES_USER/POSTGRES_DB do not name this installation"
+elif [ -z "${STATUSES}" ]; then
+  bad "the corpus is empty — no active organisation holds a single document, so there is nothing to search in the room"
 else
   while IFS='|' read -r status count tenant; do
     [ -n "${status}" ] || continue
