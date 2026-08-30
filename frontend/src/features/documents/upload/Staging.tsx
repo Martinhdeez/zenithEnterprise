@@ -24,7 +24,7 @@ import { Check, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LabelPicker, TagChips, type Label } from "@/features/labels";
 import { excerpt } from "./excerpt";
-import { suggestLabels } from "../api";
+import { applySuggestion, noteFor, suggestFor, type Suggested } from "./suggestion";
 import { useT } from "@/shared/i18n/useT";
 import {
   addToSelected,
@@ -32,7 +32,6 @@ import {
   removeSelected,
   stage,
   summarise,
-  tagSelected,
   type StagedFile,
 } from "./stagingState";
 
@@ -86,6 +85,11 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
    * the server; running a hundred at once would compete with itself for the worker and
    * take the API's connection pool from every other user of the installation. The counter
    * is what makes a slow, ordered pass tolerable to watch.
+   *
+   * **A file that fails does not stop the pass, and it does not pretend to have succeeded
+   * either.** Both properties are needed at once, which is why `suggestFor` never rejects
+   * and returns an ending instead — the old `.catch(() => [])` bought the first at the cost
+   * of the second.
    */
   const autoTag = useCallback(async () => {
     const targets = rows.filter((row) => selected.has(row.id));
@@ -95,13 +99,12 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
     let updated = rows;
     for (const [index, row] of targets.entries()) {
       const text = await excerpt(row.file);
-      if (text) {
-        const suggested = await suggestLabels(token, text).catch(() => [] as string[]);
-        if (suggested.length) {
-          updated = tagSelected(updated, new Set([row.id]), suggested);
-        }
-      }
-      updated = updated.map((one) => (one.id === row.id ? { ...one, suggested: true } : one));
+      // No readable text is the server's `unavailable` reached one step earlier: nothing was
+      // asked, so nothing broke, and the document is filed as any untagged one is.
+      const suggested: Suggested = text
+        ? await suggestFor(token, text)
+        : { outcome: "unavailable", labelIds: [] };
+      updated = applySuggestion(updated, row.id, suggested);
       onChange(updated);
       setSuggesting({ done: index + 1, total: targets.length });
     }
@@ -237,8 +240,11 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
                   short
                 />
               ) : (
+                /* One neutral treatment for all five endings: they have to be *told
+                   apart*, and what they look like — colour, icon, weight — is not decided
+                   here. */
                 <span className="text-xs text-muted-foreground">
-                  {row.suggested ? "no match — server will file it" : "untagged"}
+                  {noteFor(t, row.suggestion)}
                 </span>
               )}
             </span>

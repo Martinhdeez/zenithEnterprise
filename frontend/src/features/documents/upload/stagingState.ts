@@ -16,14 +16,37 @@
  * the one RLS enforces, and the two would disagree.
  */
 
+import type { SuggestionOutcome } from "../api";
+
+/**
+ * How the suggestion for one row ended — the server's four, plus one only a client has.
+ *
+ * `unreachable` is the call itself not completing: no reply, a 500, an expired token. The
+ * server cannot report it, because a server that could report it would have answered. It is
+ * named after the same ending in `uploadWatch.ts`, which exists for the same reason.
+ *
+ * It is deliberately not folded into `failed`. `failed` is the *model* breaking, which is a
+ * statement about the installation; `unreachable` is this browser's request breaking, which
+ * is a statement about this browser. Somebody reading the row can act on the second one.
+ */
+export type StagedOutcome = SuggestionOutcome | "unreachable";
+
 export interface StagedFile {
   /** Stable for the row's life. `File` has no id, and two files may share a name. */
   id: string;
   file: File;
   /** What this file will be filed under. Empty means "let the server decide". */
   labelIds: string[];
-  /** True once a suggestion has been asked for, so the button can report progress. */
-  suggested?: boolean;
+  /**
+   * How the suggestion for this row ended, once one has been asked for. Undefined means
+   * nobody has asked yet, which is what drives the button's progress count.
+   *
+   * A `boolean` until it caused a bug: it recorded only that the loop had been past the row,
+   * and the row then said `no match — server will file it` for all three of the endings that
+   * come back with no ids. Under `failed` that is the opposite of what happens to the
+   * document.
+   */
+  suggestion?: StagedOutcome;
 }
 
 export function stage(files: File[], existing: StagedFile[] = []): StagedFile[] {

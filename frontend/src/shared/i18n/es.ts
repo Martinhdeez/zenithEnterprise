@@ -130,6 +130,17 @@ export const es: Catalogue = {
   "Suggest tags from each file's opening pages, using the configured model":
     "Sugerir etiquetas leyendo las primeras páginas de cada fichero con el modelo configurado",
 
+  // How a staged row's suggestion ended. Five sentences rather than one, because the four
+  // the server distinguishes and the one only the browser can see mean different things for
+  // the document — and only the first of them means the server has filed it.
+  untagged: "sin etiquetar",
+  "no match — server will file it": "sin coincidencia — el servidor lo archivará",
+  "not offered — no model configured": "no se ofreció — no hay modelo configurado",
+  "suggestion failed — tag it, or it may be held for review":
+    "la sugerencia falló — etiquétalo o podría quedar retenido para revisión",
+  "suggestion failed — the server could not be reached":
+    "la sugerencia falló — no se pudo contactar con el servidor",
+
   // --- labels -------------------------------------------------------------------------
   Labels: "Etiquetas",
   "Recently used": "Uso reciente",

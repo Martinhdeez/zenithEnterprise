@@ -227,6 +227,23 @@ export function folders(token: string): Promise<FolderTree> {
 }
 
 /**
+ * How the server's classifier ended, as `POST /labels/suggest` reports it.
+ *
+ * The server's `Outcome`, name for name — `backend/app/features/ingestion/classification.py`
+ * is where the reasoning lives and it is worth reading rather than paraphrasing here. What
+ * matters on this side is that **three of the four carry no ids**, and they are not the same
+ * fact: `declined` is the model reading the document and finding no folder that fits,
+ * `unavailable` is nobody having been asked, `failed` is the call breaking.
+ */
+export type SuggestionOutcome = "chose" | "declined" | "unavailable" | "failed";
+
+export interface Suggestion {
+  outcome: SuggestionOutcome;
+  /** Non-empty only under `chose`. */
+  labelIds: string[];
+}
+
+/**
  * Which of *your* labels this text belongs under, according to the configured model.
  *
  * A suggestion, not an assignment: nothing is written. The staging area sends an excerpt
@@ -234,15 +251,23 @@ export function folders(token: string): Promise<FolderTree> {
  * considered never leaves the machine.
  *
  * The server resolves candidates from the caller's own reach, so this can only ever name
- * labels they already hold — and answers with an empty list rather than an error when no
+ * labels they already hold — and answers `200` with no ids rather than an error when no
  * model is configured, because an installation without generation still uploads documents.
+ *
+ * **Returns the ending as well as the ids.** It used to return `string[]`, which made those
+ * three empty endings one value and left the caller to guess — and the caller guessed the
+ * comfortable one. See `upload/suggestion.ts`.
+ *
+ * Still rejects on a transport failure, like every other function here. Turning a rejection
+ * into a fifth outcome is the *caller's* decision and it is made in one named place, not
+ * hidden behind a client that quietly reports success.
  */
-export function suggestLabels(token: string, excerpt: string): Promise<string[]> {
-  return request<{ label_ids: string[] }>("/labels/suggest", token, {
+export function suggestLabels(token: string, excerpt: string): Promise<Suggestion> {
+  return request<{ label_ids: string[]; outcome: SuggestionOutcome }>("/labels/suggest", token, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ excerpt }),
-  }).then((response) => response.label_ids);
+  }).then((response) => ({ outcome: response.outcome, labelIds: response.label_ids }));
 }
 
 /** What a document is made of, and how much it has been used. */
