@@ -631,12 +631,27 @@ EOF
 #
 # A warning and never a failure: the fix is a decision about somebody's data, and this
 # script does not get to make it.
+#
+# **The same `|| true` as the corpus block, and here it produced a green line rather than a
+# confused one.** An unreachable `db` made this query empty, empty was the only evidence, and
+# empty read as good news — so `the system panel lists no empty organisations` printed on an
+# installation nobody had been able to ask. That is the sentence this whole file argues
+# against: a check that reports health when it cannot tell is worse than one that cries wolf,
+# because nobody switches it off and nobody looks again.
+#
+# A warning and not a failure, and for once that is not the block's own leniency doing the
+# work: not knowing whether there are leftovers is at most as serious as knowing there are,
+# which is a warning by the paragraph above. The cause is not softened either — a `db` that
+# cannot answer this query could not answer the corpus one, and that block fails.
 LEFTOVERS="$(${COMPOSE} exec -T db psql -U "${POSTGRES_USER:-zenith}" -d "${POSTGRES_DB:-zenith}" -tAc \
   "SELECT t.name FROM tenants t
     WHERE t.status = 'active'
       AND NOT EXISTS (SELECT 1 FROM users u WHERE u.tenant_id = t.id)
-      AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.tenant_id = t.id)" 2>/dev/null || true)"
-if [ -z "${LEFTOVERS}" ]; then
+      AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.tenant_id = t.id)" 2>/dev/null)"
+ASKED=$?
+if [ "${ASKED}" -ne 0 ]; then
+  warn "could not read the organisation list — psql exited ${ASKED}, so what the system panel will show is unknown rather than empty"
+elif [ -z "${LEFTOVERS}" ]; then
   ok "the system panel lists no empty organisations"
 else
   COUNT="$(printf '%s\n' "${LEFTOVERS}" | grep -c .)"
