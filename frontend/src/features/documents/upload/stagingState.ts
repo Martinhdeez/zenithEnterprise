@@ -47,6 +47,21 @@ export interface StagedFile {
    * document.
    */
   suggestion?: StagedOutcome;
+  /**
+   * Label ids the model proposed and **nobody has accepted yet**. Deliberately not
+   * `labelIds`.
+   *
+   * In this product a label is a permission — the policy is
+   * `label_ids && zenith_current_labels()` — so accepting one of these decides who can read
+   * the document. Writing the model's answer straight into `labelIds`, which is what used to
+   * happen, made a machine's guess indistinguishable from a person's decision the moment it
+   * landed: same array, same chips, no way to tell them apart on a screen of a hundred rows
+   * an hour later.
+   *
+   * Two arrays, so the difference survives being looked at cold. Nothing here is filed until
+   * `acceptProposed` moves it across.
+   */
+  proposed?: string[];
 }
 
 export function stage(files: File[], existing: StagedFile[] = []): StagedFile[] {
@@ -120,4 +135,35 @@ export function summarise(rows: StagedFile[]): StagingSummary {
     untagged: rows.length - tagged,
     bytes: rows.reduce((sum, row) => sum + row.file.size, 0),
   };
+}
+
+/**
+ * A person agreeing with the model. The only path from `proposed` to `labelIds`.
+ *
+ * Union rather than replacement: somebody may have ticked a label by hand before running
+ * the classifier, and the suggestion is an addition to their judgement rather than a
+ * correction of it. Silently dropping what they chose would be the interface overruling
+ * them on the one screen where it must not.
+ */
+export function acceptProposed(rows: StagedFile[], ids?: Set<string>): StagedFile[] {
+  return rows.map((row) => {
+    if (ids && !ids.has(row.id)) return row;
+    if (!row.proposed?.length) return row;
+    const merged = [...new Set([...row.labelIds, ...row.proposed])];
+    return { ...row, labelIds: merged, proposed: [] };
+  });
+}
+
+/** A person disagreeing. The outcome stays, so the row still says what the model answered. */
+export function dismissProposed(rows: StagedFile[], ids?: Set<string>): StagedFile[] {
+  return rows.map((row) => {
+    if (ids && !ids.has(row.id)) return row;
+    if (!row.proposed?.length) return row;
+    return { ...row, proposed: [] };
+  });
+}
+
+/** How many rows are holding a proposal nobody has answered yet. */
+export function awaitingReview(rows: StagedFile[]): number {
+  return rows.filter((row) => row.proposed?.length).length;
 }
