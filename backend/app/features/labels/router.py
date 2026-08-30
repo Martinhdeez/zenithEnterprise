@@ -224,13 +224,21 @@ async def suggest_labels(request: LabelSuggestion, profile: CurrentProfile) -> S
     Answers `200` with no ids rather than an error when no model is configured. An
     installation without generation still uploads documents.
 
-    **And it says which of the four endings it reached**, because three of them have no ids
-    to return and they are not the same fact. `declined` is the model reading the document
-    and finding no folder that fits — an answer. `unavailable` is nobody having been asked.
-    `failed` is the call breaking, which on the ingestion path is the one ending that leaves
-    a document quarantined. A client given an empty list and nothing else has to guess, and
-    the staging area guessed wrong in the expensive direction: it said the server would file
-    a document that was in fact going to sit in quarantine.
+    **And it says which ending it reached**, because every one but `chose` has no ids to
+    return and they are not the same fact. `declined` is the model reading the document and
+    finding no folder that fits — an answer. `failed` is the call breaking, which on the
+    ingestion path is the one ending that leaves a document quarantined. A client given an
+    empty list and nothing else has to guess, and the staging area guessed wrong in the
+    expensive direction: it said the server would file a document that was in fact going to
+    sit in quarantine.
+
+    "Nobody was asked" is three endings, not one, and it used to be reported as `unavailable`
+    for all three. `unavailable` now says the *installation* has no model — an operator
+    configures one. `no_folders` says the *caller* reaches no label that could be suggested;
+    the model is fine and an administrator grants them a compartment. `too_many_folders` says
+    their reach is past the ceiling, which `eval/label-shortlist.json` established is
+    permanent. Reporting the last two as "no model configured" sends whoever reads it to a
+    connector that is working, which is the same cost the other two collapses had.
     """
     from app.features.ingestion.classification import Classifier
 
