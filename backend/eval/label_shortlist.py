@@ -425,6 +425,7 @@ def _arm(
     scores = doc_matrix @ label_matrix.T
 
     ranks: list[int] = []
+    best_ranks: list[int] = []
     per_document: list[float] = []
     misses: list[dict[str, Any]] = []
     for position, document in enumerate(documents):
@@ -433,6 +434,7 @@ def _arm(
         place[order] = np.arange(1, len(pool) + 1)
         own = [int(place[index[label]]) for label in document.truth]
         ranks.extend(own)
+        best_ranks.append(min(own))
         per_document.append(sum(rank <= PROPOSED_K for rank in own) / len(own))
         for label, rank in zip(document.truth, own, strict=True):
             if rank > PROPOSED_K:
@@ -454,9 +456,16 @@ def _arm(
         "pool_labels": len(pool),
         "ground_truth_pairs": len(ranks),
         "micro_recall_at": {str(k): _recall(ranks, k) for k in K_VALUES},
+        # The kinder reading, and the one the feature actually needs. A document is filed
+        # usefully if *one* of the labels a human chose is on the list — the model may pick
+        # three, and this corpus carries labels that nobody would defend (`eu-ai-act.pdf` is
+        # filed under `finance/2026/invoices`). Micro recall counts those as misses and is
+        # therefore the harsh reading; both are reported rather than one being chosen.
+        "any_true_label_at": {str(k): _recall(best_ranks, k) for k in K_VALUES},
         "macro_recall_at_proposed_k": round(statistics.mean(per_document), 4),
         "documents_fully_covered_at_proposed_k": sum(value == 1.0 for value in per_document),
         "documents": len(documents),
+        "best_rank_median": statistics.median(best_ranks),
         "rank_median": statistics.median(ranks),
         "rank_p90": sorted(ranks)[max(0, int(len(ranks) * 0.9) - 1)],
         "rank_max": max(ranks),
@@ -510,9 +519,14 @@ async def _query_cost(
             f"SELECT name FROM {schema}.label_vectors "
             "ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"
         )
-        for arm, index in (("sequential", False), ("hnsw", True)):
+        arms: tuple[tuple[str, bool, bool], ...] = (
+            ("no_index", False, False),
+            ("hnsw_planner_choice", True, False),
+            ("hnsw_forced", True, True),
+        )
+        for arm, index, force in arms:
             async with engine.begin() as conn:
-                if index:
+                if index and arm == "hnsw_planner_choice":
                     await conn.execute(
                         text(
                             f"CREATE INDEX ON {schema}.label_vectors "
@@ -520,6 +534,12 @@ async def _query_cost(
                         )
                     )
                     await conn.execute(text(f"ANALYZE {schema}.label_vectors"))
+                if force:
+                    # Not a tuning knob, a way of separating two questions. Two thousand
+                    # rows is small enough that the planner sorts them and is right to;
+                    # forcing the index says what the index would cost if the pool were
+                    # large enough to need one.
+                    await conn.execute(text("SET LOCAL enable_seqscan = off"))
                 times: list[float] = []
                 for probe in probes:
                     literal = _vector_literal(probe)
@@ -532,10 +552,14 @@ async def _query_cost(
                         {"q": _vector_literal(probes[0]), "k": PROPOSED_K},
                     )
                 ).scalars()
+                # Truncated: the plan repeats the whole 1024-dimension probe as a literal,
+                # which is a quarter of a megabyte of report saying nothing.
+                lines = [line.split("'[")[0].rstrip() for line in plan][:3]
                 out[arm] = {
                     "median_ms": round(statistics.median(times), 3),
                     "p95_ms": round(sorted(times)[max(0, int(len(times) * 0.95) - 1)], 3),
-                    "plan": [line for line in plan][:3],
+                    "plan": lines,
+                    "index_used": any("Index Scan" in line for line in lines),
                 }
     finally:
         async with engine.begin() as conn:
@@ -662,6 +686,7 @@ async def _run() -> int:
             print(
                 f"  {name:<12} pool {size:<5} "
                 f"recall@{PROPOSED_K}={measured['micro_recall_at'][str(PROPOSED_K)]:.4f} "
+                f"any@{PROPOSED_K}={measured['any_true_label_at'][str(PROPOSED_K)]:.4f} "
                 f"random={measured['control_random_shortlist']:.4f} "
                 f"median rank={measured['rank_median']}"
             )
@@ -732,10 +757,23 @@ async def _run() -> int:
             >= ceiling["micro_recall_at"][str(PROPOSED_K)] - 0.05
         ),
         "b5_cost_is_noise_beside_the_call_it_precedes": (
-            float(query_cost["hnsw"]["median_ms"]) <= 100
+            float(query_cost["hnsw_planner_choice"]["median_ms"]) <= 100
         ),
     }
-    report["run"] = {"started_at": started_at, "seed": SEED, "k_values": list(K_VALUES)}
+    report["run"] = {
+        "started_at": started_at,
+        "seed": SEED,
+        "k_values": list(K_VALUES),
+        "metrics_added_after_the_first_run": (
+            "`any_true_label_at` and `best_rank_median` were added after the first run, "
+            "which reported micro recall only. The reason is in the misses the first run "
+            "printed: this corpus files `eu-ai-act.pdf` under `finance/2026/invoices` and "
+            "`irs-form-1040.pdf` under `Research Papers`, so micro recall charges the "
+            "shortlist for not surfacing labels nobody would defend. No bar was written "
+            "against the new metric and none has been added to BAR, which stands as it "
+            "was written; it is reported beside the bar, not in place of it."
+        ),
+    }
     report["status"] = "complete"
 
     REPORT.write_text(json.dumps(report, indent=2) + "\n")

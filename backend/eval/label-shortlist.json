@@ -8,5 +8,1799 @@
     "b4_recall_does_not_decay_with_label_count": "micro recall@25 at pool 2000 >= (micro recall@25 at pool 60) - 0.05. The claim under test is that cost and quality stop depending on the label count; a decaying curve refutes it.",
     "b5_cost_is_noise_beside_the_call_it_precedes": "median per-document shortlist query at pool 2000 <= 100 ms, against a measured answer-path median of 10544.7 ms in eval/answer-report.json."
   },
-  "status": "not yet run"
+  "installation": {
+    "migration": "0027",
+    "embedding_space": {
+      "model": "BAAI/bge-m3",
+      "version": "1",
+      "dimension": 1024
+    },
+    "documents": 42,
+    "chunks": 13549,
+    "tenants": [
+      {
+        "id": "55e60787-412f-4d4d-acc8-93b2b7482868",
+        "name": "M0 baseline 8bde085b-fd5f-499d-a8ec-46143e43f670",
+        "documents": 26,
+        "chunks": 8273,
+        "labels": 19,
+        "offerable_labels": 17,
+        "ceiling_binds": false
+      },
+      {
+        "id": "36c074a4-9dee-4766-815a-4ff17d0b0ca8",
+        "name": "Cyber Standards Archive",
+        "documents": 16,
+        "chunks": 5276,
+        "labels": 2,
+        "offerable_labels": 0,
+        "ceiling_binds": false
+      },
+      {
+        "id": "b750fb57-9ca8-44aa-bb52-d6eeb108723b",
+        "name": "Prueba Ciclo",
+        "documents": 0,
+        "chunks": 0,
+        "labels": 0,
+        "offerable_labels": 0,
+        "ceiling_binds": false
+      },
+      {
+        "id": "9e3b29ce-d891-4aec-9bf6-ab0a78b164cb",
+        "name": "M0 baseline e40c3d83-17f2-41cf-be2f-4cc132f1d8f3",
+        "documents": 0,
+        "chunks": 0,
+        "labels": 2,
+        "offerable_labels": 0,
+        "ceiling_binds": false
+      },
+      {
+        "id": "a815c7a2-1a0d-41d7-b327-796af7db9ac9",
+        "name": "M0 baseline ce95ea21-5955-4afb-a903-6b0e8857fd2e",
+        "documents": 0,
+        "chunks": 0,
+        "labels": 2,
+        "offerable_labels": 0,
+        "ceiling_binds": false
+      },
+      {
+        "id": "f8359772-af6d-43b6-afb9-0bf49075af64",
+        "name": "M0 baseline 8af8a802-25d8-40cf-8867-ef74ab404b20",
+        "documents": 0,
+        "chunks": 0,
+        "labels": 2,
+        "offerable_labels": 0,
+        "ceiling_binds": false
+      }
+    ],
+    "classifier_history": [
+      {
+        "outcome": "chose",
+        "events": 1,
+        "documents_still_present": 0
+      },
+      {
+        "outcome": "unavailable",
+        "events": 16,
+        "documents_still_present": 16
+      }
+    ]
+  },
+  "ground_truth": {
+    "tenant": "M0 baseline 8bde085b-fd5f-499d-a8ec-46143e43f670",
+    "uploader": "7b1c5fd3-a760-4247-9539-a30dc1d4e179",
+    "reach_offerable_labels": 14,
+    "labels_actually_used": 12,
+    "documents_with_a_human_label": 26,
+    "label_assignments": 44,
+    "labels_per_document_median": 1.0,
+    "most_common_label": {
+      "name": "Legal & Regulatory",
+      "documents": 16
+    },
+    "weakness": "42 documents in the installation, of which these are the ones carrying a human-chosen offerable label. One label covers most of them. The labels were applied by whoever built this corpus, not by a records manager filing their own work, and a 26-document sample cannot separate a shortlist that is right from one that is lucky. It is the only ground truth available."
+  },
+  "arms": {
+    "full_mean": {
+      "14": {
+        "pool_labels": 14,
+        "ground_truth_pairs": 44,
+        "micro_recall_at": {
+          "5": 0.7045,
+          "10": 0.9091,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0
+        },
+        "any_true_label_at": {
+          "5": 0.8846,
+          "10": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0
+        },
+        "macro_recall_at_proposed_k": 1.0,
+        "documents_fully_covered_at_proposed_k": 26,
+        "documents": 26,
+        "best_rank_median": 3.0,
+        "rank_median": 3.0,
+        "rank_p90": 10,
+        "rank_max": 13,
+        "control_random_shortlist": 1.0,
+        "control_whole_pool": 1.0,
+        "selectivity_at_proposed_k": -0.7857,
+        "misses_at_proposed_k": [],
+        "misses_total": 0
+      },
+      "60": {
+        "pool_labels": 60,
+        "ground_truth_pairs": 44,
+        "micro_recall_at": {
+          "5": 0.3864,
+          "10": 0.5,
+          "25": 0.75,
+          "50": 0.8409,
+          "100": 1.0
+        },
+        "any_true_label_at": {
+          "5": 0.5385,
+          "10": 0.6923,
+          "25": 0.9231,
+          "50": 0.9615,
+          "100": 1.0
+        },
+        "macro_recall_at_proposed_k": 0.8372,
+        "documents_fully_covered_at_proposed_k": 19,
+        "documents": 26,
+        "best_rank_median": 4.5,
+        "rank_median": 10.5,
+        "rank_p90": 53,
+        "rank_max": 59,
+        "control_random_shortlist": 0.4091,
+        "control_whole_pool": 1.0,
+        "selectivity_at_proposed_k": 0.5833,
+        "misses_at_proposed_k": [
+          {
+            "document": "economia_digital.pdf",
+            "label": "Research Papers",
+            "rank": 35,
+            "shortlist_head": [
+              "finance",
+              "Finance/manuals/restricted",
+              "legal/policies",
+              "Finance/appraisals/2021",
+              "Information Security/reports/2023"
+            ]
+          },
+          {
+            "document": "eu-ai-act.pdf",
+            "label": "finance/2026/invoices",
+            "rank": 34,
+            "shortlist_head": [
+              "legal/policies",
+              "Legal & Regulatory",
+              "Quality Assurance/claims/APAC",
+              "Finance/manuals/restricted",
+              "Finance/appraisals/2021"
+            ]
+          },
+          {
+            "document": "eu-ai-act.pdf",
+            "label": "Contratos 2027",
+            "rank": 58,
+            "shortlist_head": [
+              "legal/policies",
+              "Legal & Regulatory",
+              "Quality Assurance/claims/APAC",
+              "Finance/manuals/restricted",
+              "Finance/appraisals/2021"
+            ]
+          },
+          {
+            "document": "eu-digital-services-act.pdf",
+            "label": "Tax",
+            "rank": 57,
+            "shortlist_head": [
+              "legal/policies",
+              "legal/contracts",
+              "Legal & Regulatory",
+              "Sales/policies/restricted",
+              "Finance/manuals/restricted"
+            ]
+          },
+          {
+            "document": "eu-digital-services-act.pdf",
+            "label": "Contratos 2027",
+            "rank": 53,
+            "shortlist_head": [
+              "legal/policies",
+              "legal/contracts",
+              "Legal & Regulatory",
+              "Sales/policies/restricted",
+              "Finance/manuals/restricted"
+            ]
+          },
+          {
+            "document": "irs-form-1040.pdf",
+            "label": "Research Papers",
+            "rank": 57,
+            "shortlist_head": [
+              "finance/2026/invoices",
+              "Tax",
+              "Finance/appraisals/2021",
+              "invoices",
+              "Payroll/statements/2027"
+            ]
+          },
+          {
+            "document": "nasa-scanned-report.pdf",
+            "label": "Government Reports",
+            "rank": 59,
+            "shortlist_head": [
+              "Internal Audit/claims/drafts",
+              "Finance/manuals/restricted",
+              "Finance/appraisals/2021",
+              "finance/2026/invoices",
+              "Quality Assurance/minutes/2026"
+            ]
+          },
+          {
+            "document": "nasa-scanned-report.pdf",
+            "label": "Research Papers",
+            "rank": 53,
+            "shortlist_head": [
+              "Internal Audit/claims/drafts",
+              "Finance/manuals/restricted",
+              "Finance/appraisals/2021",
+              "finance/2026/invoices",
+              "Quality Assurance/minutes/2026"
+            ]
+          },
+          {
+            "document": "nasa-technical-report.pdf",
+            "label": "Government Reports",
+            "rank": 56,
+            "shortlist_head": [
+              "Internal Audit/claims/drafts",
+              "Finance/manuals/restricted",
+              "Quality Assurance/claims/APAC",
+              "Finance/appraisals/2021",
+              "Formaci\u00f3n/reclamaciones/Q2"
+            ]
+          },
+          {
+            "document": "nasa-technical-report.pdf",
+            "label": "Research Papers",
+            "rank": 45,
+            "shortlist_head": [
+              "Internal Audit/claims/drafts",
+              "Finance/manuals/restricted",
+              "Quality Assurance/claims/APAC",
+              "Finance/appraisals/2021",
+              "Formaci\u00f3n/reclamaciones/Q2"
+            ]
+          },
+          {
+            "document": "nuevo-irs.pdf",
+            "label": "Government Reports",
+            "rank": 45,
+            "shortlist_head": [
+              "finance/2026/invoices",
+              "invoices",
+              "Tax",
+              "Finance/appraisals/2021",
+              "Finance/records/drafts"
+            ]
+          }
+        ],
+        "misses_total": 11
+      },
+      "200": {
+        "pool_labels": 200,
+        "ground_truth_pairs": 44,
+        "micro_recall_at": {
+          "5": 0.2727,
+          "10": 0.3636,
+          "25": 0.4545,
+          "50": 0.6136,
+          "100": 0.75
+        },
+        "any_true_label_at": {
+          "5": 0.3846,
+          "10": 0.5,
+          "25": 0.6538,
+          "50": 0.8462,
+          "100": 0.9231
+        },
+        "macro_recall_at_proposed_k": 0.5282,
+        "documents_fully_covered_at_proposed_k": 11,
+        "documents": 26,
+        "best_rank_median": 11.5,
+        "rank_median": 35.0,
+        "rank_p90": 185,
+        "rank_max": 199,
+        "control_random_shortlist": 0.0909,
+        "control_whole_pool": 1.0,
+        "selectivity_at_proposed_k": 0.875,
+        "misses_at_proposed_k": [
+          {
+            "document": "ACTUACI\u00d3N ADMINISTRATIVA Y GARANT\u00cdA JUR\u00cdDICA.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 36,
+            "shortlist_head": [
+              "Asesor\u00eda Jur\u00eddica/manuales/restricted",
+              "Asesor\u00eda Jur\u00eddica/auditor\u00edas/restricted",
+              "Internal Audit/claims/drafts",
+              "legal/policies",
+              "Corporate Communications/appraisals/restricted"
+            ]
+          },
+          {
+            "document": "attention-is-all-you-need.pdf",
+            "label": "Research Papers",
+            "rank": 49,
+            "shortlist_head": [
+              "Research/appraisals/2025",
+              "Research/agreements/2027",
+              "Research/contracts",
+              "Finance/manuals/restricted",
+              "Research/claims/Q2"
+            ]
+          },
+          {
+            "document": "boe-monetary-policy.pdf",
+            "label": "Government Reports",
+            "rank": 81,
+            "shortlist_head": [
+              "Finance/appraisals/2021",
+              "Human Resources/forecasts/Q2",
+              "Research/appraisals/2025",
+              "finance",
+              "Finance/reports/Q3"
+            ]
+          },
+          {
+            "document": "codigo-civil.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 36,
+            "shortlist_head": [
+              "legal/policies",
+              "legal/contracts",
+              "Asesor\u00eda Jur\u00eddica/manuales/restricted",
+              "Seguridad/licitaciones/signed",
+              "Tesorer\u00eda/licitaciones"
+            ]
+          },
+          {
+            "document": "economia_digital.pdf",
+            "label": "Economic",
+            "rank": 70,
+            "shortlist_head": [
+              "finance",
+              "Finance/manuals/restricted",
+              "Finance/reports/Q3",
+              "legal/policies",
+              "Finance/appraisals/2021"
+            ]
+          },
+          {
+            "document": "economia_digital.pdf",
+            "label": "Digital",
+            "rank": 80,
+            "shortlist_head": [
+              "finance",
+              "Finance/manuals/restricted",
+              "Finance/reports/Q3",
+              "legal/policies",
+              "Finance/appraisals/2021"
+            ]
+          },
+          {
+            "document": "economia_digital.pdf",
+            "label": "Research Papers",
+            "rank": 119,
+            "shortlist_head": [
+              "finance",
+              "Finance/manuals/restricted",
+              "Finance/reports/Q3",
+              "legal/policies",
+              "Finance/appraisals/2021"
+            ]
+          },
+          {
+            "document": "eu-ai-act.pdf",
+            "label": "finance/2026/invoices",
+            "rank": 132,
+            "shortlist_head": [
+              "legal/policies",
+              "Compliance/manuals/signed",
+              "Information Security/statements/EMEA",
+              "Legal & Regulatory",
+              "Corporate Communications/appraisals/restricted"
+            ]
+          },
+          {
+            "document": "eu-ai-act.pdf",
+            "label": "Contratos 2027",
+            "rank": 190,
+            "shortlist_head": [
+              "legal/policies",
+              "Compliance/manuals/signed",
+              "Information Security/statements/EMEA",
+              "Legal & Regulatory",
+              "Corporate Communications/appraisals/restricted"
+            ]
+          },
+          {
+            "document": "eu-ai-act.pdf",
+            "label": "legal/contracts",
+            "rank": 34,
+            "shortlist_head": [
+              "legal/policies",
+              "Compliance/manuals/signed",
+              "Information Security/statements/EMEA",
+              "Legal & Regulatory",
+              "Corporate Communications/appraisals/restricted"
+            ]
+          },
+          {
+            "document": "eu-digital-services-act.pdf",
+            "label": "Tax",
+            "rank": 185,
+            "shortlist_head": [
+              "legal/policies",
+              "Corporate Communications/appraisals/restricted",
+              "legal/contracts",
+              "Legal & Regulatory",
+              "Legal/agreements/2018"
+            ]
+          },
+          {
+            "document": "eu-digital-services-act.pdf",
+            "label": "Contratos 2027",
+            "rank": 177,
+            "shortlist_head": [
+              "legal/policies",
+              "Corporate Communications/appraisals/restricted",
+              "legal/contracts",
+              "Legal & Regulatory",
+              "Legal/agreements/2018"
+            ]
+          }
+        ],
+        "misses_total": 24
+      },
+      "2000": {
+        "pool_labels": 2000,
+        "ground_truth_pairs": 44,
+        "micro_recall_at": {
+          "5": 0.0455,
+          "10": 0.1136,
+          "25": 0.1364,
+          "50": 0.25,
+          "100": 0.3409
+        },
+        "any_true_label_at": {
+          "5": 0.0769,
+          "10": 0.1923,
+          "25": 0.2308,
+          "50": 0.3462,
+          "100": 0.4615
+        },
+        "macro_recall_at_proposed_k": 0.1103,
+        "documents_fully_covered_at_proposed_k": 1,
+        "documents": 26,
+        "best_rank_median": 107.5,
+        "rank_median": 317.5,
+        "rank_p90": 1817,
+        "rank_max": 1984,
+        "control_random_shortlist": 0.0227,
+        "control_whole_pool": 1.0,
+        "selectivity_at_proposed_k": 0.9875,
+        "misses_at_proposed_k": [
+          {
+            "document": "ACTUACI\u00d3N ADMINISTRATIVA Y GARANT\u00cdA JUR\u00cdDICA.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 306,
+            "shortlist_head": [
+              "Asesor\u00eda Jur\u00eddica/reclamaciones/2018",
+              "Asesor\u00eda Jur\u00eddica/correspondencia/APAC",
+              "Asesor\u00eda Jur\u00eddica/reclamaciones/archive",
+              "Asesor\u00eda Jur\u00eddica/auditor\u00edas/APAC",
+              "Legal/claims/restricted"
+            ]
+          },
+          {
+            "document": "attention-is-all-you-need.pdf",
+            "label": "Research Papers",
+            "rank": 501,
+            "shortlist_head": [
+              "Calidad/previsiones/restricted",
+              "Research/reports/restricted",
+              "Research/agreements/external",
+              "Research/appraisals/archive",
+              "Engineering/receipts/external"
+            ]
+          },
+          {
+            "document": "boe-monetary-policy.pdf",
+            "label": "Economic",
+            "rank": 51,
+            "shortlist_head": [
+              "Treasury/forecasts/2022",
+              "Finance/forecasts/Q3",
+              "Treasury/forecasts/2023",
+              "Internal Audit/forecasts/2021",
+              "Finance/appraisals/2021"
+            ]
+          },
+          {
+            "document": "boe-monetary-policy.pdf",
+            "label": "Government Reports",
+            "rank": 775,
+            "shortlist_head": [
+              "Treasury/forecasts/2022",
+              "Finance/forecasts/Q3",
+              "Treasury/forecasts/2023",
+              "Internal Audit/forecasts/2021",
+              "Finance/appraisals/2021"
+            ]
+          },
+          {
+            "document": "codigo-civil.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 320,
+            "shortlist_head": [
+              "Legal/receipts/restricted",
+              "Legal/claims/restricted",
+              "legal/policies",
+              "Legal/claims/signed",
+              "legal/contracts"
+            ]
+          },
+          {
+            "document": "codigo-penal.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 107,
+            "shortlist_head": [
+              "legal/policies",
+              "Internal Audit/minutes/restricted",
+              "Compliance/minutes",
+              "Legal/receipts/restricted",
+              "Compliance/policies"
+            ]
+          },
+          {
+            "document": "constitucion-espanola.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 41,
+            "shortlist_head": [
+              "legal/policies",
+              "Legal/claims/restricted",
+              "Legal/receipts/restricted",
+              "Asesor\u00eda Jur\u00eddica/correspondencia/consolidated",
+              "Legal/forecasts"
+            ]
+          },
+          {
+            "document": "economia_digital.pdf",
+            "label": "Economic",
+            "rank": 712,
+            "shortlist_head": [
+              "Finance/policies/internal",
+              "Research/policies/confidential",
+              "finance",
+              "Calidad/informes/confidential",
+              "Finance/agreements"
+            ]
+          },
+          {
+            "document": "economia_digital.pdf",
+            "label": "Digital",
+            "rank": 797,
+            "shortlist_head": [
+              "Finance/policies/internal",
+              "Research/policies/confidential",
+              "finance",
+              "Calidad/informes/confidential",
+              "Finance/agreements"
+            ]
+          },
+          {
+            "document": "economia_digital.pdf",
+            "label": "Research Papers",
+            "rank": 1174,
+            "shortlist_head": [
+              "Finance/policies/internal",
+              "Research/policies/confidential",
+              "finance",
+              "Calidad/informes/confidential",
+              "Finance/agreements"
+            ]
+          },
+          {
+            "document": "EL PROCEDIMIENTO ADMINISTRATIVO.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 139,
+            "shortlist_head": [
+              "Asesor\u00eda Jur\u00eddica/correspondencia/APAC",
+              "legal/policies",
+              "Asesor\u00eda Jur\u00eddica/auditor\u00edas/APAC",
+              "Internal Audit/statements/APAC",
+              "Legal/receipts/restricted"
+            ]
+          },
+          {
+            "document": "eu-ai-act.pdf",
+            "label": "finance/2026/invoices",
+            "rank": 1294,
+            "shortlist_head": [
+              "Information Security/appraisals/EMEA",
+              "Compliance/policies",
+              "Information Security/appraisals/external",
+              "Compliance/manuals/2018",
+              "Compliance/manuals/confidential"
+            ]
+          }
+        ],
+        "misses_total": 38
+      }
+    },
+    "head_mean": {
+      "14": {
+        "pool_labels": 14,
+        "ground_truth_pairs": 44,
+        "micro_recall_at": {
+          "5": 0.75,
+          "10": 0.9318,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0
+        },
+        "any_true_label_at": {
+          "5": 0.9615,
+          "10": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0
+        },
+        "macro_recall_at_proposed_k": 1.0,
+        "documents_fully_covered_at_proposed_k": 26,
+        "documents": 26,
+        "best_rank_median": 3.0,
+        "rank_median": 3.0,
+        "rank_p90": 9,
+        "rank_max": 12,
+        "control_random_shortlist": 1.0,
+        "control_whole_pool": 1.0,
+        "selectivity_at_proposed_k": -0.7857,
+        "misses_at_proposed_k": [],
+        "misses_total": 0
+      },
+      "60": {
+        "pool_labels": 60,
+        "ground_truth_pairs": 44,
+        "micro_recall_at": {
+          "5": 0.4091,
+          "10": 0.5682,
+          "25": 0.75,
+          "50": 0.8864,
+          "100": 1.0
+        },
+        "any_true_label_at": {
+          "5": 0.5385,
+          "10": 0.7308,
+          "25": 0.9231,
+          "50": 1.0,
+          "100": 1.0
+        },
+        "macro_recall_at_proposed_k": 0.8179,
+        "documents_fully_covered_at_proposed_k": 18,
+        "documents": 26,
+        "best_rank_median": 4.5,
+        "rank_median": 8.0,
+        "rank_p90": 48,
+        "rank_max": 58,
+        "control_random_shortlist": 0.4091,
+        "control_whole_pool": 1.0,
+        "selectivity_at_proposed_k": 0.5833,
+        "misses_at_proposed_k": [
+          {
+            "document": "economia_digital.pdf",
+            "label": "Research Papers",
+            "rank": 42,
+            "shortlist_head": [
+              "finance",
+              "Finance/manuals/restricted",
+              "Finance/appraisals/2021",
+              "Tesorer\u00eda/previsiones/confidential",
+              "legal/policies"
+            ]
+          },
+          {
+            "document": "eu-ai-act.pdf",
+            "label": "finance/2026/invoices",
+            "rank": 29,
+            "shortlist_head": [
+              "legal/policies",
+              "Legal & Regulatory",
+              "Sales/policies/restricted",
+              "Finance/appraisals/2021",
+              "legal/contracts"
+            ]
+          },
+          {
+            "document": "eu-ai-act.pdf",
+            "label": "Contratos 2027",
+            "rank": 58,
+            "shortlist_head": [
+              "legal/policies",
+              "Legal & Regulatory",
+              "Sales/policies/restricted",
+              "Finance/appraisals/2021",
+              "legal/contracts"
+            ]
+          },
+          {
+            "document": "eu-digital-services-act.pdf",
+            "label": "Tax",
+            "rank": 51,
+            "shortlist_head": [
+              "legal/policies",
+              "legal/contracts",
+              "Sales/policies/restricted",
+              "Legal & Regulatory",
+              "Finance/manuals/restricted"
+            ]
+          },
+          {
+            "document": "eu-digital-services-act.pdf",
+            "label": "Contratos 2027",
+            "rank": 48,
+            "shortlist_head": [
+              "legal/policies",
+              "legal/contracts",
+              "Sales/policies/restricted",
+              "Legal & Regulatory",
+              "Finance/manuals/restricted"
+            ]
+          },
+          {
+            "document": "irs-form-1040.pdf",
+            "label": "Research Papers",
+            "rank": 57,
+            "shortlist_head": [
+              "finance/2026/invoices",
+              "Tax",
+              "Payroll/statements/2027",
+              "Finance/records/drafts",
+              "Finance/appraisals/2021"
+            ]
+          },
+          {
+            "document": "nasa-scanned-report.pdf",
+            "label": "Government Reports",
+            "rank": 58,
+            "shortlist_head": [
+              "Finance/manuals/restricted",
+              "Internal Audit/claims/drafts",
+              "Finance/appraisals/2021",
+              "finance/2026/invoices",
+              "Quality Assurance/minutes/2026"
+            ]
+          },
+          {
+            "document": "nasa-scanned-report.pdf",
+            "label": "Research Papers",
+            "rank": 43,
+            "shortlist_head": [
+              "Finance/manuals/restricted",
+              "Internal Audit/claims/drafts",
+              "Finance/appraisals/2021",
+              "finance/2026/invoices",
+              "Quality Assurance/minutes/2026"
+            ]
+          },
+          {
+            "document": "nasa-technical-report.pdf",
+            "label": "Government Reports",
+            "rank": 54,
+            "shortlist_head": [
+              "Quality Assurance/claims/APAC",
+              "Internal Audit/claims/drafts",
+              "Finance/manuals/restricted",
+              "Human Resources/receipts/Q4",
+              "legal/policies"
+            ]
+          },
+          {
+            "document": "nuevo-bert.pdf",
+            "label": "Research Papers",
+            "rank": 31,
+            "shortlist_head": [
+              "Finance/manuals/restricted",
+              "Asesor\u00eda Jur\u00eddica/previsiones/LATAM",
+              "Internal Audit/claims/drafts",
+              "Research/tenders/Q3",
+              "Producci\u00f3n/previsiones/signed"
+            ]
+          },
+          {
+            "document": "nuevo-irs.pdf",
+            "label": "Government Reports",
+            "rank": 43,
+            "shortlist_head": [
+              "finance/2026/invoices",
+              "Finance/appraisals/2021",
+              "Internal Audit/claims/drafts",
+              "Contabilidad/permisos/drafts",
+              "invoices"
+            ]
+          }
+        ],
+        "misses_total": 11
+      },
+      "200": {
+        "pool_labels": 200,
+        "ground_truth_pairs": 44,
+        "micro_recall_at": {
+          "5": 0.2273,
+          "10": 0.3636,
+          "25": 0.5227,
+          "50": 0.6591,
+          "100": 0.75
+        },
+        "any_true_label_at": {
+          "5": 0.2692,
+          "10": 0.5,
+          "25": 0.6538,
+          "50": 0.8846,
+          "100": 0.9231
+        },
+        "macro_recall_at_proposed_k": 0.5679,
+        "documents_fully_covered_at_proposed_k": 13,
+        "documents": 26,
+        "best_rank_median": 11.0,
+        "rank_median": 22.0,
+        "rank_p90": 161,
+        "rank_max": 197,
+        "control_random_shortlist": 0.0909,
+        "control_whole_pool": 1.0,
+        "selectivity_at_proposed_k": 0.875,
+        "misses_at_proposed_k": [
+          {
+            "document": "ACTUACI\u00d3N ADMINISTRATIVA Y GARANT\u00cdA JUR\u00cdDICA.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 26,
+            "shortlist_head": [
+              "Asesor\u00eda Jur\u00eddica/auditor\u00edas/restricted",
+              "Asesor\u00eda Jur\u00eddica/manuales/restricted",
+              "legal/policies",
+              "Internal Audit/claims/drafts",
+              "Internal Audit/permits/drafts"
+            ]
+          },
+          {
+            "document": "economia_digital.pdf",
+            "label": "Economic",
+            "rank": 30,
+            "shortlist_head": [
+              "finance",
+              "Finance/reports/Q3",
+              "Finance/manuals/restricted",
+              "Finance/appraisals/2021",
+              "Procurement/records/confidential"
+            ]
+          },
+          {
+            "document": "economia_digital.pdf",
+            "label": "Digital",
+            "rank": 60,
+            "shortlist_head": [
+              "finance",
+              "Finance/reports/Q3",
+              "Finance/manuals/restricted",
+              "Finance/appraisals/2021",
+              "Procurement/records/confidential"
+            ]
+          },
+          {
+            "document": "economia_digital.pdf",
+            "label": "Research Papers",
+            "rank": 143,
+            "shortlist_head": [
+              "finance",
+              "Finance/reports/Q3",
+              "Finance/manuals/restricted",
+              "Finance/appraisals/2021",
+              "Procurement/records/confidential"
+            ]
+          },
+          {
+            "document": "eu-ai-act.pdf",
+            "label": "finance/2026/invoices",
+            "rank": 111,
+            "shortlist_head": [
+              "legal/policies",
+              "Legal & Regulatory",
+              "Information Security/statements/EMEA",
+              "Legal/manuals/Q1",
+              "Internal Audit/permits/drafts"
+            ]
+          },
+          {
+            "document": "eu-ai-act.pdf",
+            "label": "Contratos 2027",
+            "rank": 193,
+            "shortlist_head": [
+              "legal/policies",
+              "Legal & Regulatory",
+              "Information Security/statements/EMEA",
+              "Legal/manuals/Q1",
+              "Internal Audit/permits/drafts"
+            ]
+          },
+          {
+            "document": "eu-digital-services-act.pdf",
+            "label": "Tax",
+            "rank": 170,
+            "shortlist_head": [
+              "legal/policies",
+              "legal/contracts",
+              "Corporate Communications/appraisals/restricted",
+              "Internal Audit/contracts",
+              "Sales/policies/restricted"
+            ]
+          },
+          {
+            "document": "eu-digital-services-act.pdf",
+            "label": "Contratos 2027",
+            "rank": 161,
+            "shortlist_head": [
+              "legal/policies",
+              "legal/contracts",
+              "Corporate Communications/appraisals/restricted",
+              "Internal Audit/contracts",
+              "Sales/policies/restricted"
+            ]
+          },
+          {
+            "document": "facturacion-trimestral.pdf",
+            "label": "finance",
+            "rank": 60,
+            "shortlist_head": [
+              "Finance/reports/Q3",
+              "Research/tenders/Q3",
+              "Atenci\u00f3n al Cliente/reclamaciones/Q1",
+              "Tesorer\u00eda/contratos/Q4",
+              "Sales/audits/Q3"
+            ]
+          },
+          {
+            "document": "facturacion-trimestral.pdf",
+            "label": "invoices",
+            "rank": 37,
+            "shortlist_head": [
+              "Finance/reports/Q3",
+              "Research/tenders/Q3",
+              "Atenci\u00f3n al Cliente/reclamaciones/Q1",
+              "Tesorer\u00eda/contratos/Q4",
+              "Sales/audits/Q3"
+            ]
+          },
+          {
+            "document": "irs-form-1040.pdf",
+            "label": "Research Papers",
+            "rank": 194,
+            "shortlist_head": [
+              "finance/2026/invoices",
+              "Payroll/statements/restricted",
+              "Tax",
+              "Payroll/statements/2027",
+              "Contabilidad/informes/2018"
+            ]
+          },
+          {
+            "document": "nasa-scanned-report.pdf",
+            "label": "Government Reports",
+            "rank": 197,
+            "shortlist_head": [
+              "Finance/manuals/restricted",
+              "Internal Audit/claims/drafts",
+              "Finance/appraisals/2021",
+              "Quality Assurance/claims/internal",
+              "Research/appraisals/2025"
+            ]
+          }
+        ],
+        "misses_total": 21
+      },
+      "2000": {
+        "pool_labels": 2000,
+        "ground_truth_pairs": 44,
+        "micro_recall_at": {
+          "5": 0.0682,
+          "10": 0.1136,
+          "25": 0.1818,
+          "50": 0.2045,
+          "100": 0.3636
+        },
+        "any_true_label_at": {
+          "5": 0.1154,
+          "10": 0.1538,
+          "25": 0.2308,
+          "50": 0.2692,
+          "100": 0.5
+        },
+        "macro_recall_at_proposed_k": 0.1372,
+        "documents_fully_covered_at_proposed_k": 1,
+        "documents": 26,
+        "best_rank_median": 98.5,
+        "rank_median": 204.5,
+        "rank_p90": 1612,
+        "rank_max": 1955,
+        "control_random_shortlist": 0.0227,
+        "control_whole_pool": 1.0,
+        "selectivity_at_proposed_k": 0.9875,
+        "misses_at_proposed_k": [
+          {
+            "document": "ACTUACI\u00d3N ADMINISTRATIVA Y GARANT\u00cdA JUR\u00cdDICA.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 211,
+            "shortlist_head": [
+              "Asesor\u00eda Jur\u00eddica/auditor\u00edas/APAC",
+              "Asesor\u00eda Jur\u00eddica/auditor\u00edas/restricted",
+              "Asesor\u00eda Jur\u00eddica/correspondencia/APAC",
+              "Asesor\u00eda Jur\u00eddica/manuales/restricted",
+              "Auditor\u00eda Interna/pol\u00edticas/APAC"
+            ]
+          },
+          {
+            "document": "attention-is-all-you-need.pdf",
+            "label": "Research Papers",
+            "rank": 220,
+            "shortlist_head": [
+              "Research/reports/restricted",
+              "Calidad/previsiones/restricted",
+              "Research/agreements/external",
+              "agreements drafts",
+              "Research/tenders/restricted"
+            ]
+          },
+          {
+            "document": "boe-monetary-policy.pdf",
+            "label": "Government Reports",
+            "rank": 149,
+            "shortlist_head": [
+              "Finance/policies/2023",
+              "Treasury/policies/Q3",
+              "Treasury/forecasts/2022",
+              "Treasury/policies/2023",
+              "Treasury/policies/restricted"
+            ]
+          },
+          {
+            "document": "codigo-civil.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 53,
+            "shortlist_head": [
+              "Legal/manuals/2024",
+              "Legal/claims/signed",
+              "legal/policies",
+              "Legal/claims/restricted",
+              "Legal/certificates"
+            ]
+          },
+          {
+            "document": "codigo-penal.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 57,
+            "shortlist_head": [
+              "Seguridad/previsiones/restricted",
+              "legal/policies",
+              "Legal/manuals/2021",
+              "Seguridad/manuales/restricted",
+              "Legal/manuals/2024"
+            ]
+          },
+          {
+            "document": "constitucion-espanola.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 102,
+            "shortlist_head": [
+              "Compliance/statements/consolidated",
+              "legal/policies",
+              "Seguridad/pol\u00edticas/consolidated",
+              "Auditor\u00eda Interna/informes/consolidated",
+              "N\u00f3minas/previsiones/consolidated"
+            ]
+          },
+          {
+            "document": "economia_digital.pdf",
+            "label": "Economic",
+            "rank": 318,
+            "shortlist_head": [
+              "finance",
+              "Finance/policies/internal",
+              "Calidad/informes/confidential",
+              "Finance/audits/confidential",
+              "Research/policies/confidential"
+            ]
+          },
+          {
+            "document": "economia_digital.pdf",
+            "label": "Digital",
+            "rank": 600,
+            "shortlist_head": [
+              "finance",
+              "Finance/policies/internal",
+              "Calidad/informes/confidential",
+              "Finance/audits/confidential",
+              "Research/policies/confidential"
+            ]
+          },
+          {
+            "document": "economia_digital.pdf",
+            "label": "Research Papers",
+            "rank": 1411,
+            "shortlist_head": [
+              "finance",
+              "Finance/policies/internal",
+              "Calidad/informes/confidential",
+              "Finance/audits/confidential",
+              "Research/policies/confidential"
+            ]
+          },
+          {
+            "document": "EL PROCEDIMIENTO ADMINISTRATIVO.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 178,
+            "shortlist_head": [
+              "Asesor\u00eda Jur\u00eddica/correspondencia/APAC",
+              "Asesor\u00eda Jur\u00eddica/auditor\u00edas/APAC",
+              "Internal Audit/manuals/APAC",
+              "Auditor\u00eda Interna/pol\u00edticas/APAC",
+              "Servicios Generales/actas"
+            ]
+          },
+          {
+            "document": "eu-ai-act.pdf",
+            "label": "finance/2026/invoices",
+            "rank": 1097,
+            "shortlist_head": [
+              "Engineering/policies",
+              "legal/policies",
+              "Information Security/appraisals/EMEA",
+              "Engineering/policies/2024",
+              "Finance/policies/internal"
+            ]
+          },
+          {
+            "document": "eu-ai-act.pdf",
+            "label": "Contratos 2027",
+            "rank": 1921,
+            "shortlist_head": [
+              "Engineering/policies",
+              "legal/policies",
+              "Information Security/appraisals/EMEA",
+              "Engineering/policies/2024",
+              "Finance/policies/internal"
+            ]
+          }
+        ],
+        "misses_total": 36
+      }
+    },
+    "excerpt_tei": {
+      "14": {
+        "pool_labels": 14,
+        "ground_truth_pairs": 44,
+        "micro_recall_at": {
+          "5": 0.7727,
+          "10": 0.9318,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0
+        },
+        "any_true_label_at": {
+          "5": 0.9231,
+          "10": 1.0,
+          "25": 1.0,
+          "50": 1.0,
+          "100": 1.0
+        },
+        "macro_recall_at_proposed_k": 1.0,
+        "documents_fully_covered_at_proposed_k": 26,
+        "documents": 26,
+        "best_rank_median": 2.0,
+        "rank_median": 3.0,
+        "rank_p90": 8,
+        "rank_max": 13,
+        "control_random_shortlist": 1.0,
+        "control_whole_pool": 1.0,
+        "selectivity_at_proposed_k": -0.7857,
+        "misses_at_proposed_k": [],
+        "misses_total": 0
+      },
+      "60": {
+        "pool_labels": 60,
+        "ground_truth_pairs": 44,
+        "micro_recall_at": {
+          "5": 0.4318,
+          "10": 0.5682,
+          "25": 0.7727,
+          "50": 0.9091,
+          "100": 1.0
+        },
+        "any_true_label_at": {
+          "5": 0.5769,
+          "10": 0.7308,
+          "25": 0.9231,
+          "50": 1.0,
+          "100": 1.0
+        },
+        "macro_recall_at_proposed_k": 0.8256,
+        "documents_fully_covered_at_proposed_k": 18,
+        "documents": 26,
+        "best_rank_median": 4.0,
+        "rank_median": 7.0,
+        "rank_p90": 48,
+        "rank_max": 56,
+        "control_random_shortlist": 0.4091,
+        "control_whole_pool": 1.0,
+        "selectivity_at_proposed_k": 0.5833,
+        "misses_at_proposed_k": [
+          {
+            "document": "economia_digital.pdf",
+            "label": "Research Papers",
+            "rank": 52,
+            "shortlist_head": [
+              "finance",
+              "Finance/manuals/restricted",
+              "Economic",
+              "Finance/appraisals/2021",
+              "legal/policies"
+            ]
+          },
+          {
+            "document": "eu-ai-act.pdf",
+            "label": "Contratos 2027",
+            "rank": 50,
+            "shortlist_head": [
+              "legal/policies",
+              "Information Security/reports/2023",
+              "Legal & Regulatory",
+              "Auditor\u00eda Interna/permisos/2022",
+              "Internal Audit/claims/drafts"
+            ]
+          },
+          {
+            "document": "eu-digital-services-act.pdf",
+            "label": "Tax",
+            "rank": 48,
+            "shortlist_head": [
+              "legal/policies",
+              "legal/contracts",
+              "Legal & Regulatory",
+              "Digital",
+              "Information Security/minutes/2023"
+            ]
+          },
+          {
+            "document": "eu-digital-services-act.pdf",
+            "label": "Contratos 2027",
+            "rank": 29,
+            "shortlist_head": [
+              "legal/policies",
+              "legal/contracts",
+              "Legal & Regulatory",
+              "Digital",
+              "Information Security/minutes/2023"
+            ]
+          },
+          {
+            "document": "irs-form-1040.pdf",
+            "label": "Research Papers",
+            "rank": 56,
+            "shortlist_head": [
+              "finance/2026/invoices",
+              "invoices",
+              "Human Resources/tenders/2025",
+              "Tax",
+              "Internal Audit/claims/drafts"
+            ]
+          },
+          {
+            "document": "nasa-scanned-report.pdf",
+            "label": "Government Reports",
+            "rank": 54,
+            "shortlist_head": [
+              "Internal Audit/claims/drafts",
+              "invoices",
+              "Finance/manuals/restricted",
+              "finance/2026/invoices",
+              "Finance/appraisals/2021"
+            ]
+          },
+          {
+            "document": "nasa-scanned-report.pdf",
+            "label": "Research Papers",
+            "rank": 37,
+            "shortlist_head": [
+              "Internal Audit/claims/drafts",
+              "invoices",
+              "Finance/manuals/restricted",
+              "finance/2026/invoices",
+              "Finance/appraisals/2021"
+            ]
+          },
+          {
+            "document": "nasa-technical-report.pdf",
+            "label": "Government Reports",
+            "rank": 53,
+            "shortlist_head": [
+              "Quality Assurance/claims/APAC",
+              "Internal Audit/claims/drafts",
+              "Human Resources/receipts/Q4",
+              "Finance/manuals/restricted",
+              "invoices"
+            ]
+          },
+          {
+            "document": "nuevo-bert.pdf",
+            "label": "Research Papers",
+            "rank": 32,
+            "shortlist_head": [
+              "Internal Audit/claims/drafts",
+              "Research/tenders/Q3",
+              "Finance/manuals/restricted",
+              "Asesor\u00eda Jur\u00eddica/previsiones/LATAM",
+              "Human Resources/tenders/2025"
+            ]
+          },
+          {
+            "document": "nuevo-irs.pdf",
+            "label": "Government Reports",
+            "rank": 39,
+            "shortlist_head": [
+              "finance/2026/invoices",
+              "Contabilidad/permisos/drafts",
+              "invoices",
+              "Internal Audit/claims/drafts",
+              "Finance/appraisals/2021"
+            ]
+          }
+        ],
+        "misses_total": 10
+      },
+      "200": {
+        "pool_labels": 200,
+        "ground_truth_pairs": 44,
+        "micro_recall_at": {
+          "5": 0.2045,
+          "10": 0.3636,
+          "25": 0.5682,
+          "50": 0.6818,
+          "100": 0.7955
+        },
+        "any_true_label_at": {
+          "5": 0.2692,
+          "10": 0.5,
+          "25": 0.7308,
+          "50": 0.8462,
+          "100": 0.9231
+        },
+        "macro_recall_at_proposed_k": 0.6244,
+        "documents_fully_covered_at_proposed_k": 14,
+        "documents": 26,
+        "best_rank_median": 12.0,
+        "rank_median": 16.5,
+        "rank_p90": 163,
+        "rank_max": 192,
+        "control_random_shortlist": 0.0909,
+        "control_whole_pool": 1.0,
+        "selectivity_at_proposed_k": 0.875,
+        "misses_at_proposed_k": [
+          {
+            "document": "constitucion-espanola.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 27,
+            "shortlist_head": [
+              "Legal/manuals/Q1",
+              "legal/policies",
+              "Compras/contratos/consolidated",
+              "Tesorer\u00eda/previsiones/confidential",
+              "Legal/correspondence/North America"
+            ]
+          },
+          {
+            "document": "economia_digital.pdf",
+            "label": "Research Papers",
+            "rank": 172,
+            "shortlist_head": [
+              "finance",
+              "Finance/reports/Q3",
+              "Finance/manuals/restricted",
+              "Procurement/records/confidential",
+              "Insurance/audits/confidential"
+            ]
+          },
+          {
+            "document": "eu-ai-act.pdf",
+            "label": "finance/2026/invoices",
+            "rank": 74,
+            "shortlist_head": [
+              "Auditor\u00eda Interna/actas/2024",
+              "legal/policies",
+              "Internal Audit/permits/drafts",
+              "Internal Audit/permits/2026",
+              "Compliance/permits/2022"
+            ]
+          },
+          {
+            "document": "eu-ai-act.pdf",
+            "label": "Contratos 2027",
+            "rank": 175,
+            "shortlist_head": [
+              "Auditor\u00eda Interna/actas/2024",
+              "legal/policies",
+              "Internal Audit/permits/drafts",
+              "Internal Audit/permits/2026",
+              "Compliance/permits/2022"
+            ]
+          },
+          {
+            "document": "eu-ai-act.pdf",
+            "label": "legal/contracts",
+            "rank": 39,
+            "shortlist_head": [
+              "Auditor\u00eda Interna/actas/2024",
+              "legal/policies",
+              "Internal Audit/permits/drafts",
+              "Internal Audit/permits/2026",
+              "Compliance/permits/2022"
+            ]
+          },
+          {
+            "document": "eu-digital-services-act.pdf",
+            "label": "Tax",
+            "rank": 163,
+            "shortlist_head": [
+              "Information Security/invoices/2027",
+              "Legal/manuals/Q1",
+              "legal/policies",
+              "Internal Audit/contracts",
+              "Information Security/statements/EMEA"
+            ]
+          },
+          {
+            "document": "eu-digital-services-act.pdf",
+            "label": "Contratos 2027",
+            "rank": 84,
+            "shortlist_head": [
+              "Information Security/invoices/2027",
+              "Legal/manuals/Q1",
+              "legal/policies",
+              "Internal Audit/contracts",
+              "Information Security/statements/EMEA"
+            ]
+          },
+          {
+            "document": "facturacion-trimestral.pdf",
+            "label": "finance",
+            "rank": 60,
+            "shortlist_head": [
+              "Finance/reports/Q3",
+              "Research/tenders/Q3",
+              "Atenci\u00f3n al Cliente/reclamaciones/Q1",
+              "Tesorer\u00eda/contratos/Q4",
+              "Sales/audits/Q3"
+            ]
+          },
+          {
+            "document": "facturacion-trimestral.pdf",
+            "label": "invoices",
+            "rank": 37,
+            "shortlist_head": [
+              "Finance/reports/Q3",
+              "Research/tenders/Q3",
+              "Atenci\u00f3n al Cliente/reclamaciones/Q1",
+              "Tesorer\u00eda/contratos/Q4",
+              "Sales/audits/Q3"
+            ]
+          },
+          {
+            "document": "irs-form-1040.pdf",
+            "label": "Research Papers",
+            "rank": 188,
+            "shortlist_head": [
+              "finance/2026/invoices",
+              "Research/claims/2025",
+              "Information Security/invoices/2027",
+              "invoices",
+              "Human Resources/tenders/2025"
+            ]
+          },
+          {
+            "document": "nasa-scanned-report.pdf",
+            "label": "Government Reports",
+            "rank": 192,
+            "shortlist_head": [
+              "Engineering/invoices/2020",
+              "Research/invoices/APAC",
+              "Legal/manuals/Q1",
+              "Internal Audit/claims/drafts",
+              "invoices"
+            ]
+          },
+          {
+            "document": "nasa-scanned-report.pdf",
+            "label": "Research Papers",
+            "rank": 125,
+            "shortlist_head": [
+              "Engineering/invoices/2020",
+              "Research/invoices/APAC",
+              "Legal/manuals/Q1",
+              "Internal Audit/claims/drafts",
+              "invoices"
+            ]
+          }
+        ],
+        "misses_total": 19
+      },
+      "2000": {
+        "pool_labels": 2000,
+        "ground_truth_pairs": 44,
+        "micro_recall_at": {
+          "5": 0.0909,
+          "10": 0.0909,
+          "25": 0.1364,
+          "50": 0.2273,
+          "100": 0.3182
+        },
+        "any_true_label_at": {
+          "5": 0.1154,
+          "10": 0.1154,
+          "25": 0.1538,
+          "50": 0.3077,
+          "100": 0.4231
+        },
+        "macro_recall_at_proposed_k": 0.091,
+        "documents_fully_covered_at_proposed_k": 1,
+        "documents": 26,
+        "best_rank_median": 118.5,
+        "rank_median": 159.5,
+        "rank_p90": 1596,
+        "rank_max": 1940,
+        "control_random_shortlist": 0.0227,
+        "control_whole_pool": 1.0,
+        "selectivity_at_proposed_k": 0.9875,
+        "misses_at_proposed_k": [
+          {
+            "document": "ACTUACI\u00d3N ADMINISTRATIVA Y GARANT\u00cdA JUR\u00cdDICA.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 202,
+            "shortlist_head": [
+              "Asesor\u00eda Jur\u00eddica/auditor\u00edas/APAC",
+              "Auditor\u00eda Interna/pol\u00edticas/APAC",
+              "Auditor\u00eda Interna/permisos/APAC",
+              "Auditor\u00eda Interna/actas/APAC",
+              "Internal Audit/statements/APAC"
+            ]
+          },
+          {
+            "document": "attention-is-all-you-need.pdf",
+            "label": "Research Papers",
+            "rank": 26,
+            "shortlist_head": [
+              "Research/reports/restricted",
+              "Research/licences/external",
+              "Research/licences",
+              "Research/agreements/2027",
+              "agreements drafts"
+            ]
+          },
+          {
+            "document": "boe-monetary-policy.pdf",
+            "label": "Government Reports",
+            "rank": 107,
+            "shortlist_head": [
+              "Finance/policies/2023",
+              "finance",
+              "Economic",
+              "Treasury/policies/Q3",
+              "Payroll/policies/Q2"
+            ]
+          },
+          {
+            "document": "codigo-civil.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 48,
+            "shortlist_head": [
+              "Legal/manuals/2024",
+              "Asesor\u00eda Jur\u00eddica/correspondencia/consolidated",
+              "Legal/claims/signed",
+              "Legal/certificates",
+              "Insurance/policies/consolidated"
+            ]
+          },
+          {
+            "document": "codigo-penal.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 55,
+            "shortlist_head": [
+              "Compliance/statements/consolidated",
+              "Legal/manuals/2021",
+              "Legal/manuals/2024",
+              "N\u00f3minas/previsiones/consolidated",
+              "Auditor\u00eda Interna/informes/consolidated"
+            ]
+          },
+          {
+            "document": "constitucion-espanola.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 307,
+            "shortlist_head": [
+              "Auditor\u00eda Interna/informes/consolidated",
+              "N\u00f3minas/previsiones/consolidated",
+              "Asesor\u00eda Jur\u00eddica/correspondencia/consolidated",
+              "Servicios Generales/contratos/consolidated",
+              "Compliance/statements/consolidated"
+            ]
+          },
+          {
+            "document": "economia_digital.pdf",
+            "label": "Economic",
+            "rank": 49,
+            "shortlist_head": [
+              "finance",
+              "Finance/policies/internal",
+              "Finance/policies/2023",
+              "Information Security/budgets/confidential",
+              "Research/policies/confidential"
+            ]
+          },
+          {
+            "document": "economia_digital.pdf",
+            "label": "Digital",
+            "rank": 108,
+            "shortlist_head": [
+              "finance",
+              "Finance/policies/internal",
+              "Finance/policies/2023",
+              "Information Security/budgets/confidential",
+              "Research/policies/confidential"
+            ]
+          },
+          {
+            "document": "economia_digital.pdf",
+            "label": "Research Papers",
+            "rank": 1693,
+            "shortlist_head": [
+              "finance",
+              "Finance/policies/internal",
+              "Finance/policies/2023",
+              "Information Security/budgets/confidential",
+              "Research/policies/confidential"
+            ]
+          },
+          {
+            "document": "EL PROCEDIMIENTO ADMINISTRATIVO.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 147,
+            "shortlist_head": [
+              "Asesor\u00eda Jur\u00eddica/correspondencia/APAC",
+              "Asesor\u00eda Jur\u00eddica/auditor\u00edas/APAC",
+              "Producci\u00f3n/informes/APAC",
+              "Auditor\u00eda Interna/pol\u00edticas/APAC",
+              "Formaci\u00f3n/convenios/APAC"
+            ]
+          },
+          {
+            "document": "eu-ai-act.pdf",
+            "label": "finance/2026/invoices",
+            "rank": 802,
+            "shortlist_head": [
+              "Legal/manuals/2024",
+              "Engineering/policies/2024",
+              "Internal Audit/budgets/2024",
+              "Internal Audit/agreements/2023",
+              "Information Security/policies/2024"
+            ]
+          },
+          {
+            "document": "eu-ai-act.pdf",
+            "label": "Legal & Regulatory",
+            "rank": 130,
+            "shortlist_head": [
+              "Legal/manuals/2024",
+              "Engineering/policies/2024",
+              "Internal Audit/budgets/2024",
+              "Internal Audit/agreements/2023",
+              "Information Security/policies/2024"
+            ]
+          }
+        ],
+        "misses_total": 38
+      }
+    }
+  },
+  "cost": {
+    "embedding_the_labels_once": {
+      "real_labels": 14,
+      "real_labels_ms": 409.9,
+      "synthetic_labels": 1986,
+      "synthetic_labels_ms": 101552.9,
+      "per_label_ms": 50.98,
+      "note": "tei-embed caps a client batch at 4, so this is round trips rather than model time. In the product a label is embedded when it is created \u2014 one name, once \u2014 so the per-label figure is the one that would be paid."
+    },
+    "embedding_the_document": {
+      "mean_of_passage_vectors_ms": 0.0,
+      "note": "Zero, and that is the finding. The pipeline embeds before it classifies, so the passage vectors already exist and their mean is an aggregate. Embedding the excerpt separately, which the proposal does not require, cost 6700.2 ms per document here.",
+      "excerpt_via_tei_ms_per_document": 6700.2
+    },
+    "shortlist_query_at_pool_2000": {
+      "rows": 2000,
+      "no_index": {
+        "median_ms": 2.912,
+        "p95_ms": 3.099,
+        "plan": [
+          "Limit  (cost=97.29..97.36 rows=25 width=40)",
+          "  ->  Sort  (cost=97.29..101.79 rows=1800 width=40)",
+          "        Sort Key: ((embedding <=>"
+        ],
+        "index_used": false
+      },
+      "hnsw_planner_choice": {
+        "median_ms": 3.132,
+        "p95_ms": 3.413,
+        "plan": [
+          "Limit  (cost=105.44..105.50 rows=25 width=36)",
+          "  ->  Sort  (cost=105.44..110.44 rows=2000 width=36)",
+          "        Sort Key: ((embedding <=>"
+        ],
+        "index_used": false
+      },
+      "hnsw_forced": {
+        "median_ms": 1.033,
+        "p95_ms": 1.231,
+        "plan": [
+          "Limit  (cost=27.33..128.74 rows=25 width=36)",
+          "  ->  Index Scan using label_vectors_embedding_idx on label_vectors  (cost=27.33..8140.00 rows=2000 width=36)",
+          "        Order By: (embedding <=>"
+        ],
+        "index_used": true
+      }
+    },
+    "shortlist_in_process_numpy_ms": 0.227,
+    "what_it_precedes": {
+      "answer_path_median_ms": 10544.7,
+      "source": "eval/answer-report.json summary.median_latency_ms",
+      "retrieval_median_ms": 873.44,
+      "retrieval_source": "eval/latency.json total_median_ms",
+      "note": "The brief quoted a generation median of 5085 ms. No run under eval/ records that figure; the two above are what is on disk, so they are what this comparison uses."
+    }
+  },
+  "bar_result": {
+    "representation_scored": "head_mean",
+    "b0_the_shortlist_is_actually_a_shortlist": true,
+    "b1_random_control_is_near_zero": true,
+    "b2_whole_pool_control_is_exactly_one": true,
+    "b3_recall_at_25_holds_at_scale": false,
+    "b4_recall_does_not_decay_with_label_count": false,
+    "b5_cost_is_noise_beside_the_call_it_precedes": true
+  },
+  "run": {
+    "started_at": "2026-08-30T11:35:43.938606+00:00",
+    "seed": 20260830,
+    "k_values": [
+      5,
+      10,
+      25,
+      50,
+      100
+    ],
+    "metrics_added_after_the_first_run": "`any_true_label_at` and `best_rank_median` were added after the first run, which reported micro recall only. The reason is in the misses the first run printed: this corpus files `eu-ai-act.pdf` under `finance/2026/invoices` and `irs-form-1040.pdf` under `Research Papers`, so micro recall charges the shortlist for not surfacing labels nobody would defend. No bar was written against the new metric and none has been added to BAR, which stands as it was written; it is reported beside the bar, not in place of it."
+  },
+  "status": "complete"
 }
