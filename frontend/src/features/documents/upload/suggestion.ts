@@ -68,8 +68,11 @@ export function applySuggestion(
 ): StagedFile[] {
   return rows.map((row) => {
     if (row.id !== rowId) return row;
-    const labelIds = suggested.outcome === "chose" ? [...suggested.labelIds] : row.labelIds;
-    return { ...row, labelIds, suggestion: suggested.outcome };
+    // Into `proposed`, never into `labelIds`. A suggestion that lands in the same array as
+    // a person's own ticks is a machine's guess wearing a human decision's clothes, and on
+    // this screen that decision is who may read the document.
+    const proposed = suggested.outcome === "chose" ? [...suggested.labelIds] : [];
+    return { ...row, proposed, suggestion: suggested.outcome };
   });
 }
 

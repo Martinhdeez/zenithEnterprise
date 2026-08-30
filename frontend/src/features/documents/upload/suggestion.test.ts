@@ -38,16 +38,20 @@ const t = (key: string) => key;
 beforeEach(() => asked.mockReset());
 
 describe("the four endings the server reports", () => {
-  it("chose: the ids it named reach the row", async () => {
+  it("chose: the ids it named are proposed, and nothing is filed", async () => {
     asked.mockResolvedValueOnce({ outcome: "chose", labelIds: ["finance"] });
 
     const suggested = await suggestFor("token", "an invoice");
     const rows = applySuggestion([row("a"), row("b")], "a", suggested);
 
     expect(suggested.outcome).toBe("chose");
-    expect(rows[0]).toMatchObject({ labelIds: ["finance"], suggestion: "chose" });
+    // `proposed`, not `labelIds`. A label is a permission here, so a model's answer must not
+    // land in the array a person's own ticks live in — accepting it is a separate act, and
+    // this assertion is what stops the two collapsing back together.
+    expect(rows[0]).toMatchObject({ proposed: ["finance"], suggestion: "chose" });
+    expect(rows[0]!.labelIds).toEqual([]);
     // Only the row that was asked about. The pass runs one file at a time.
-    expect(rows[1]!.labelIds).toEqual([]);
+    expect(rows[1]!.proposed).toBeUndefined();
     expect(rows[1]!.suggestion).toBeUndefined();
   });
 

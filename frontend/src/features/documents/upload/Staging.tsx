@@ -19,15 +19,23 @@
  */
 
 import { useCallback, useMemo, useState } from "react";
-import { Check, Loader2, Sparkles, Trash2 } from "lucide-react";
+import { Check, Sparkles, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { LabelPicker, TagChips, type Label } from "@/features/labels";
 import { excerpt } from "./excerpt";
 import { applySuggestion, noteFor, suggestFor } from "./suggestion";
+
+/** Ids to names, dropping any the picker has not loaded. */
+function namesOf(ids: string[], known: Map<string, Label>): string[] {
+  return ids.map((id) => known.get(id)?.name).filter((name): name is string => name !== undefined);
+}
 import { useT } from "@/shared/i18n/useT";
 import {
+  acceptProposed,
   addToSelected,
+  awaitingReview,
+  dismissProposed,
   range,
   removeSelected,
   stage,
@@ -153,22 +161,32 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
 
         <div className="flex-1" />
 
+        {/* The one action on this bar that is not a plain control, and the only one that
+            spends the accent. Everything else here selects, clears or deletes what is
+            already on screen; this is the only thing that goes and asks a model. It is
+            filled rather than outlined for that reason and no other — a toolbar where every
+            button looks the same is one where nothing tells you where to start.
+
+            The sparkle wakes on hover and while it runs. Not at rest: a control that
+            glitters continuously in a toolbar is an alarm, and this is an offer. */}
         <Button
-          variant="outline"
           size="sm"
           disabled={!selected.size || !!suggesting}
           onClick={() => void autoTag()}
           title={t("Suggest tags from each file's opening pages, using the configured model")}
+          data-running={suggesting ? "true" : undefined}
+          className="ai-spark relative overflow-hidden bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-45"
         >
-          {suggesting ? (
-            <>
-              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-              {suggesting.done}/{suggesting.total}
-            </>
-          ) : (
-            <>
-              <Sparkles className="mr-1.5 size-3.5" />{t("Auto-tag")}</>
+          {suggesting && (
+            /* A sweep rather than a spinner. A spinner says "wait"; this pass is sequential
+               by design and the count beside it is already saying how far along it is, so
+               the movement only has to say that it has not stalled. */
+            <span aria-hidden className="thinking-sweep absolute inset-0" />
           )}
+          <Sparkles className="sparkle relative mr-1.5 size-3.5" />
+          <span className="relative">
+            {suggesting ? `${suggesting.done}/${suggesting.total}` : t("Label with AI")}
+          </span>
         </Button>
 
         <Button
@@ -213,6 +231,36 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
         </div>
       )}
 
+      {/* Nothing is filed until somebody says so, and this is where they say it. It appears
+          only while proposals are outstanding, so the bar is not a permanent fixture
+          reminding people of a feature they are not using. */}
+      {awaitingReview(rows) > 0 && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-primary/40 bg-primary/[0.05] px-3 py-2 text-sm"
+        >
+          <Sparkles aria-hidden className="size-4 shrink-0 text-primary" />
+          <span className="text-foreground">
+            {t("{count} suggested, none applied yet", { count: awaitingReview(rows) })}
+          </span>
+          <span className="flex-1" />
+          <button
+            type="button"
+            onClick={() => onChange(acceptProposed(rows))}
+            className="rounded-full border border-input px-3 py-1 text-xs font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-secondary"
+          >
+            {t("Apply all")}
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange(dismissProposed(rows))}
+            className="rounded-full px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {t("Dismiss all")}
+          </button>
+        </div>
+      )}
+
       <ul className="max-h-96 divide-y divide-border overflow-y-auto rounded-md border border-input">
         {painted.map((row) => (
           <li key={row.id} className="flex items-center gap-3 px-3 py-2 text-sm">
@@ -236,21 +284,55 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
               {selected.has(row.id) && <Check className="size-2.5" strokeWidth={3.5} />}
             </button>
             <span className="min-w-0 flex-1 truncate text-foreground">{row.file.name}</span>
-            <span className="shrink-0">
-              {row.labelIds.length > 0 ? (
-                <TagChips
-                  names={row.labelIds
-                    .map((id) => known.get(id)?.name)
-                    .filter((name): name is string => name !== undefined)}
-                  short
-                />
+            <span className="flex shrink-0 items-center gap-1.5">
+              {row.labelIds.length > 0 && (
+                <TagChips names={namesOf(row.labelIds, known)} short />
+              )}
+
+              {/* Proposals sit beside what the person already chose, not instead of it, and
+                  carry their own accept and dismiss. A single "accept all" at the top would
+                  be one click to hand a hundred documents to whoever holds those labels. */}
+              {row.proposed?.length ? (
+                <>
+                  <TagChips names={namesOf(row.proposed, known)} short proposed />
+                  <button
+                    type="button"
+                    title={t("Apply the suggestion")}
+                    aria-label={t("Apply the suggestion")}
+                    onClick={() => onChange(acceptProposed(rows, new Set([row.id])))}
+                    className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
+                  >
+                    <Check className="size-3.5" strokeWidth={3} />
+                  </button>
+                  <button
+                    type="button"
+                    title={t("Dismiss the suggestion")}
+                    aria-label={t("Dismiss the suggestion")}
+                    onClick={() => onChange(dismissProposed(rows, new Set([row.id])))}
+                    className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  >
+                    <X className="size-3.5" strokeWidth={3} />
+                  </button>
+                </>
               ) : (
-                /* One neutral treatment for all five endings: they have to be *told
-                   apart*, and what they look like — colour, icon, weight — is not decided
-                   here. */
-                <span className="text-xs text-muted-foreground">
-                  {noteFor(t, row.suggestion)}
-                </span>
+                row.labelIds.length === 0 && (
+                  /* Five endings, two treatments. `failed` and `unreachable` take the amber
+                     this product already spends on "a component is missing, go and fix it" —
+                     the same ink as Search's `degraded` notice, because it is the same claim
+                     and reusing it is what makes an interface learnable. The other three are
+                     ordinary answers and stay quiet: a model that read the document and found
+                     no folder has done its job, and an installation with no model configured
+                     is a supported installation, not a fault. */
+                  <span
+                    className={`text-xs ${
+                      row.suggestion === "failed" || row.suggestion === "unreachable"
+                        ? "text-zenith-amber"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {noteFor(t, row.suggestion)}
+                  </span>
+                )
               )}
             </span>
           </li>

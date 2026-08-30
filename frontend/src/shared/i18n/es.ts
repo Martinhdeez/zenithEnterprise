@@ -72,6 +72,16 @@ export const es: Catalogue = {
   "Search passages by keyword and meaning": "Busca pasajes por palabra y por significado",
   "Keyword and meaning at once — passages come back ranked, with the page they came from. Nothing is generated here: open a result and ask about that document for a written answer.":
     "Palabra y significado a la vez: los pasajes vuelven ordenados y con la página de la que salen. Aquí no se genera nada: abre un resultado y pregunta sobre ese documento para obtener una respuesta redactada.",
+  "Label with AI": "Etiquetar con IA",
+  "{count} suggested, none applied yet": {
+    one: "1 sugerencia, ninguna aplicada todavía",
+    other: "{count} sugerencias, ninguna aplicada todavía",
+  },
+  "Apply all": "Aplicar todas",
+  "Dismiss all": "Descartar todas",
+  "Apply the suggestion": "Aplicar la sugerencia",
+  "Dismiss the suggestion": "Descartar la sugerencia",
+  "Suggested — not yet applied": "Sugerida — todavía sin aplicar",
   Clear: "Limpiar",
   Stop: "Parar",
   "Try again": "Reintentar",
@@ -124,7 +134,6 @@ export const es: Catalogue = {
     "(opcional — si lo dejas vacío, se usa el nombre del fichero)",
   "What is this document, or why does it matter?": "¿Qué es este documento, o por qué importa?",
   "Cancel remaining": "Cancelar lo que queda",
-  "Auto-tag": "Etiquetar solo",
   "Tag selected": "Etiquetar la selección",
   "Select all staged files": "Seleccionar todos los ficheros preparados",
   "Suggest tags from each file's opening pages, using the configured model":

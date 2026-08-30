@@ -26,6 +26,8 @@
  * out-shouts the sentence it labels has stopped being a label.
  */
 
+import { Sparkle } from "lucide-react";
+
 import { useT } from "@/shared/i18n/useT";
 import { leaf } from "../namespace";
 
@@ -143,17 +145,38 @@ interface Props {
    */
   short?: boolean;
   uncategorised?: boolean;
+  /**
+   * A label a model has put forward and nobody has accepted. Drawn dashed, unfilled, and
+   * dimmed — the same hue as the filed chip, so it is recognisably the same label, and
+   * unmistakably not the same state.
+   *
+   * The distinction is carried by shape rather than by colour or motion on purpose. An
+   * animation is seen once; a screen of a hundred rows is read cold, hours later, possibly
+   * by somebody who cannot separate the hues, possibly from a screenshot. A dashed outline
+   * survives all four of those, and it means "provisional" in every interface anybody has
+   * already used.
+   */
+  proposed?: boolean;
 }
 
-export function TagChip({ name, onClick, short = false, uncategorised = false }: Props) {
+export function TagChip({
+  name,
+  onClick,
+  short = false,
+  uncategorised = false,
+  proposed = false,
+}: Props) {
   const t = useT();
   const label = short ? leaf(name) : name;
   const tone = uncategorised ? UNCATEGORISED : hue(name);
-  const shared = `inline-flex max-w-48 items-center rounded-full border px-2 py-0.5 text-xs ${tone.chip}`;
+  const shared = proposed
+    ? `inline-flex max-w-48 items-center gap-1 rounded-full border border-dashed bg-transparent px-2 py-0.5 text-xs opacity-90 ${tone.edge} ${tone.icon}`
+    : `inline-flex max-w-48 items-center rounded-full border px-2 py-0.5 text-xs ${tone.chip}`;
 
   if (!onClick) {
     return (
-      <span className={shared} title={name}>
+      <span className={shared} title={proposed ? t("Suggested — not yet applied") : name}>
+        {proposed && <Sparkle aria-hidden className="size-3 shrink-0" />}
         <span className="truncate">{label}</span>
       </span>
     );
@@ -181,18 +204,22 @@ export function TagChips({
   names,
   onSelect,
   short,
+  proposed,
 }: {
   names: string[];
   onSelect?: (name: string) => void;
   short?: boolean;
+  /** Renders every chip as a proposal. No uncategorised pill: an empty proposal is nothing
+      to show, not a state to name. */
+  proposed?: boolean;
 }) {
   if (names.length === 0) {
-    return <TagChip name="Uncategorized" uncategorised />;
+    return proposed ? null : <TagChip name="Uncategorized" uncategorised />;
   }
   return (
     <>
       {names.map((name) => (
-        <TagChip key={name} name={name} onClick={onSelect} short={short} />
+        <TagChip key={name} name={name} onClick={onSelect} short={short} proposed={proposed} />
       ))}
     </>
   );
