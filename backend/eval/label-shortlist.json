@@ -1,0 +1,12 @@
+{
+  "bar": {
+    "written_before_the_run": true,
+    "b0_the_shortlist_is_actually_a_shortlist": "at pool 2000, k=25 must discard at least 98% of candidates. A shortlist that keeps nearly everything would score well and prove nothing.",
+    "b1_random_control_is_near_zero": "a random shortlist of 25 from 2000 must score below 0.05 micro recall. If chance scores well, the measurement is not measuring the shortlist.",
+    "b2_whole_pool_control_is_exactly_one": "recall at k = pool size must be 1.0000. Anything else means a ground-truth label has no vector and the harness is broken.",
+    "b3_recall_at_25_holds_at_scale": "micro recall@25 >= 0.95 at pool 2000. Below that the model never sees one human label in twenty and cannot choose it, however good the prompt is.",
+    "b4_recall_does_not_decay_with_label_count": "micro recall@25 at pool 2000 >= (micro recall@25 at pool 60) - 0.05. The claim under test is that cost and quality stop depending on the label count; a decaying curve refutes it.",
+    "b5_cost_is_noise_beside_the_call_it_precedes": "median per-document shortlist query at pool 2000 <= 100 ms, against a measured answer-path median of 10544.7 ms in eval/answer-report.json."
+  },
+  "status": "not yet run"
+}
