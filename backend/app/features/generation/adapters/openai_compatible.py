@@ -19,6 +19,7 @@ line `common/llm.py` exists to hold.
 """
 
 import json
+import re
 from collections.abc import AsyncIterator
 from typing import cast
 
@@ -39,6 +40,127 @@ TIMEOUT = 120.0
 # drifts off them. Not zero because several servers treat 0 as "unset".
 TEMPERATURE = 0.1
 
+# What to say when the provider rejected the request and said nothing a person can use.
+# Still good advice — for a 401 with an empty body, or a 404 from a gateway that answers in
+# HTML, these really are the three things to check. It is the fallback and not the default:
+# said when the provider is silent, and *replaced* when it is not, because sending somebody
+# to inspect an endpoint, a model name and a key that are all correct costs half an hour and
+# ends with them no closer.
+ADVICE = "Check the endpoint, model name and key configured for this tenant."
+
+# How much of the provider's own sentence survives. `error.message` is written for a human
+# and is short by nature: Google's depleted-credit sentence is 140 characters. A body that
+# puts a stack trace, a rendered page or an echoed request where the sentence goes is not
+# writing to a person, and this ceiling is what stops one of those from becoming the error
+# message a user reads.
+MAX_PROVIDER_MESSAGE = 300
+
+# Where the sentence lives, most specific first. `{"error": {"message": ...}}` is OpenAI's
+# shape and Google's; `{"error": "..."}` is Ollama's and vLLM's; `detail` is what a FastAPI
+# gateway in front of either produces. Anything else is a body with no sentence in it.
+_MESSAGE_PATHS: tuple[tuple[str, ...], ...] = (
+    ("error", "message"),
+    ("error",),
+    ("message",),
+    ("detail",),
+)
+
+REDACTED = "[redacted]"
+
+# Shapes a credential takes when a system echoes back the request it could not serve.
+#
+# Every one of them errs towards redacting too much: "Bearer token expired" loses two words
+# it did not have to. That trade is deliberate and it is not close — an over-redacted error
+# message is a slightly worse error message, and an under-redacted one puts a tenant's key
+# in an HTTP response and a log file.
+_SECRETS = (
+    # An `Authorization` header quoted back, which is how a proxy reports what it forwarded.
+    re.compile(r"(?i)\bbearer\s+\S+"),
+    # A key in a query string. Google's own REST endpoint takes one that way, so an echoed
+    # URL carries it in plain sight with no header to strip.
+    re.compile(r"(?i)\b(?:api[-_]?key|key|access[-_]?token)=[^\s&\"']+"),
+    # The two prefixes that announce themselves: OpenAI's and Google's.
+    re.compile(r"\bsk-\S+"),
+    re.compile(r"\bAIza\S+"),
+)
+
+
+def scrubbed(value: str, api_key: str | None = None) -> str:
+    """Anything that could be a credential, replaced — the tenant's own key first.
+
+    Two layers, because they fail differently. The **exact key** is the one match that
+    cannot be wrong: this adapter is holding the secret the request was signed with, so a
+    body echoing it back is caught whatever shape it took, including one no pattern
+    anticipates. The **patterns** catch what the exact key cannot — a gateway echoing *its*
+    upstream key rather than ours, or a key already truncated by the provider.
+
+    Applied before the message is shortened, never after. Cutting a body at 300 characters
+    first can split a key in two, and half a key that no pattern matches any more is still
+    half a key in a support ticket.
+    """
+    # A key short enough for this to be a coincidence is a key that would redact ordinary
+    # words out of the sentence. Nothing this adapter authenticates with is that short.
+    if api_key and len(api_key) >= 8:
+        value = value.replace(api_key, REDACTED)
+    for pattern in _SECRETS:
+        value = pattern.sub(REDACTED, value)
+    return value
+
+
+def said_by(body: str) -> str | None:
+    """The provider's own sentence, or `None` when the body does not carry one.
+
+    Only the sentence — never the body. The body is a JSON object with a status enum, a
+    code, sometimes a request id and, on a gateway, whatever it was handed; `error.message`
+    is the one member written *to be read*, and it is the only one lifted. Forwarding the
+    rest would put a vendor's internal vocabulary in front of a person asking a question
+    about a contract, and would widen the leak surface for no gain.
+
+    A body that is not JSON returns `None` rather than its first 300 characters. An HTML
+    error page from a load balancer has no sentence to lift, and lifting its markup would
+    replace the advice with noise.
+    """
+    try:
+        payload: object = json.loads(body)
+    except ValueError:
+        return None
+
+    for path in _MESSAGE_PATHS:
+        value: object = payload
+        for key in path:
+            value = _field(value, key)
+        if isinstance(value, str) and value.strip():
+            # Collapsed rather than kept verbatim: a message with newlines in it becomes one
+            # line in a problem document and three in a log, and neither is what was written.
+            return " ".join(value.split())
+    return None
+
+
+def rejection(status: int, body: str, api_key: str | None = None) -> str:
+    """What a person is told when the provider refused the request.
+
+    **The status stays, whatever else happens.** `429` names the class of problem before a
+    word of prose is read, it is the one token that means the same thing across every
+    provider, and it is what a runbook and a log filter key on. It costs three characters.
+
+    But `429` alone is a guess, and this codebase made the wrong one: Google returns it for
+    a depleted prepayment balance as well as for too many requests, so the status cannot
+    tell those apart and the sentence that guessed sent an operator to check an endpoint, a
+    model name and a key that were all correct. The provider had already said which it was —
+    *"Your prepayment credits are depleted"* — on the wire, in the log, and thrown away one
+    layer before the person who had to act on it.
+    """
+    said = said_by(body)
+    if said is None:
+        return f"the language model returned {status}. {ADVICE}"
+    return f"the language model returned {status}: {_shortened(scrubbed(said, api_key))}"
+
+
+def _shortened(said: str) -> str:
+    if len(said) <= MAX_PROVIDER_MESSAGE:
+        return said
+    return said[: MAX_PROVIDER_MESSAGE - 1].rstrip() + "…"
+
 
 class OpenAIProvider(BaseLLMProvider):
     name = "openai"
@@ -57,6 +179,23 @@ class OpenAIProvider(BaseLLMProvider):
         self.model = model
         self.api_key = api_key
         self.transport = transport
+
+    def _rejected(self, status: int, body: str) -> GenerationUnavailableError:
+        """One place both refusal paths go through, so they cannot say different things.
+
+        `complete` and `stream` are the only two calls this adapter makes and they used to
+        build their own sentence — the buffered one with the advice, the streamed one with
+        the status and a full stop. The same provider, the same failure, two different
+        accounts of it depending on which endpoint the user happened to be on.
+
+        **The log line is scrubbed too, and that is not belt-and-braces.** It carries the
+        whole body rather than the one sentence, so it is the *more* exposed of the two
+        surfaces: a message may be read by one operator, a log is shipped, indexed and kept.
+        It was logging `response.text[:500]` unredacted, and the paragraph directly above it
+        explaining that a body can echo the API key back is what makes that hard to defend.
+        """
+        log.warning("generation_rejected", status=status, body=scrubbed(body, self.api_key)[:500])
+        return GenerationUnavailableError(rejection(status, body, self.api_key))
 
     async def complete(self, system: str, user: str) -> GenerationResponse:
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
@@ -84,16 +223,7 @@ class OpenAIProvider(BaseLLMProvider):
             ) from exc
 
         if response.status_code >= 400:
-            # The body is not forwarded. It is written by a system the customer configured,
-            # it can contain the API key echoed back, and this message reaches an end user
-            # asking a question about a contract.
-            log.warning(
-                "generation_rejected", status=response.status_code, body=response.text[:500]
-            )
-            raise GenerationUnavailableError(
-                f"the language model returned {response.status_code}. Check the endpoint, "
-                f"model name and key configured for this tenant."
-            )
+            raise self._rejected(response.status_code, response.text)
 
         payload: object = response.json()
         prompt_tokens, completion_tokens = usage_of(payload)
@@ -151,9 +281,13 @@ class OpenAIProvider(BaseLLMProvider):
                 ) as response,
             ):
                 if response.status_code >= 400:
-                    raise GenerationUnavailableError(
-                        f"the language model returned {response.status_code}."
-                    )
+                    # Read explicitly. Nothing has touched the body yet — that is what
+                    # `client.stream` is for — so `response.text` is empty until it is, and
+                    # this path said `the language model returned 429.` and stopped. It is
+                    # the path the chat uses, so it was the surface with the least to say
+                    # about the failure people met most often.
+                    await response.aread()
+                    raise self._rejected(response.status_code, response.text)
                 async for line in response.aiter_lines():
                     payload = decoded(line)
                     if payload is None:
