@@ -357,79 +357,169 @@ fi
 
 # --- what `zenith diagnose` found -----------------------------------------------------------
 #
-# Asked once and read twice. The diagnostic opens the database, walks the storage root and
+# Asked once and read whole. The diagnostic opens the database, walks the storage root and
 # calls both model services; running it once per question would pay for all of that again to
 # learn nothing new.
+#
+# **Read whole is the correction.** Until 30 August this block fetched all eighteen answers
+# and looked at three — `document files`, `reranker health`, `lock budget` — and dropped the
+# other fifteen without a word. One of the fifteen was `migrations`, which is the trap
+# CLAUDE.md names in its own sentence: *a green suite does not mean the database is migrated,
+# and a missing migration is a 500 in production with CI green.* The one command whose whole
+# purpose is to ask whether this **installation** is fit to show was holding that answer in a
+# variable and not looking at it. Another was `hardware profile`, which on this machine says
+# OCR is off — so a scanned PDF handed over in the room is refused rather than ingested, and
+# nobody running this script was told before they were asked for it.
+#
+# So the reading is no longer a list of names. It walks the report, and a check the script has
+# never heard of is reported like any other. That direction is deliberate: a name-by-name
+# reader says nothing about whatever nobody remembered to add to it, and that silence is
+# exactly how fifteen answers went missing. The list that remains is an opt-**out**, it holds
+# only checks a line above already answers, and it can silence nothing but an `ok`.
+#
+# **The severity is the diagnostic's own, and that is a judgement rather than a shortcut.**
+# `demo-check` asks a narrower question than `diagnose` does — "fit to show", not "healthy" —
+# so the two could have disagreed, and check by check they do not. Every `fail` the diagnostic
+# can produce is a reason not to walk in: RLS inactive, a database behind head, an undeclared
+# bypass function, a missing extension, no active vector space, a storage root that cannot be
+# written, a queue that will never ingest what somebody uploads in the room, a document row
+# whose file is gone. And every `warn` it can produce is a thing to know on the way in rather
+# than a reason to cancel: a modulus that could be better, a document stranded out of the
+# queue, a profile with OCR turned off. That last is the sharp case, and it stays a warning
+# for the same reason the leftover-organisations check below is one — the installation works,
+# it works less well, and what this room is about is somebody else's decision to make.
+#
+# Three things the named checks used to carry, kept because the report does not say them:
+#
+#   `reranker health` is the other half of the Docker restart count read near the top of this
+#   file. That block asks how many times the container has died and when; this asks whether
+#   the component is reachable and serving *right now*, and whether the circuit breaker has
+#   been skipping it. Neither answers the other.
+#
+#   `lock budget` is the one failure in the whole report that is not a degradation. A
+#   partitioned installation whose `max_locks_per_transaction` is too small does not answer
+#   worse: Postgres raises `OutOfMemory` while *planning* and an ordinary search is a 500. It
+#   arrives at whatever concurrency the room produces, so the first person to ask a question
+#   sees it work and the fourth does not, and the setting needs a restart — which is not
+#   something to do between slides.
+#
+#   `document files` was a warning here and is now the diagnostic's own failure. A row whose
+#   PDF is gone lists, searches and cites perfectly, and then the viewer says "That document
+#   is no longer available" in front of the audience. That is not a degradation to mention on
+#   the way in; it is the demonstration breaking while somebody watches. The warning was never
+#   argued for — the sentence above it argued for a failure and the code said `warn`.
 #
 # The reading of that report defaults to *not knowing*, never to "fine". The first version
 # here parsed the payload as a bare list — it is `{"checks": [...]}` — and its `except` fell
 # through to silence, which this script then printed as "every document row has its file" on
 # an installation with twenty-six broken ones. A check that reports health when it cannot tell
-# is worse than one that cries wolf: nobody switches it off, and nobody looks again.
+# is worse than one that cries wolf: nobody switches it off, and nobody looks again. So an
+# unreadable report is now a failure rather than three warnings, and an **empty** one is too:
+# both mean this script learned nothing at all from a command it has already paid for.
 REPORT="$(${COMPOSE} exec -T api zenith diagnose --json 2>/dev/null || true)"
 
-# One named check, as `STATUS detail`, or `UNREADABLE why`. Never empty and never silent.
-report_check() {
-  printf '%s' "${REPORT}" | python3 -c '
+# One line per check, as `STATUS<tab>name<tab>detail`. Never empty and never silent.
+#
+# `QUIET` is the whole of the discrimination, and every entry is there because a line above
+# this one already answers it better — not because the detail is long:
+#
+#   `configuration` and `database (application role)` have no failing branch to report. The
+#   first prints redacted connection strings, token lifetimes and pool sizes; the second
+#   prints the role name and the server version. If the database were unreachable, `content`,
+#   `migrations` and the corpus block would all say so first and louder.
+#
+#   `content` counts rows across every tenant. The corpus block above counts them *per tenant*
+#   on purpose, and its comment says why: a total is the wrong number twice over, and this
+#   project once published one — 21,295 passages — that described no installation that
+#   existed. Printing it here would put that number back.
+#
+#   `embedding service` and `reranking service` ask what the `/info` loop at the top of this
+#   file already asks, and that loop asks it harder: it holds the served model against the
+#   name the deployment intends. What these two add is the vantage point — they call from
+#   inside the API container, so they disagree with that loop precisely when the container
+#   network is broken and the host's port mapping is not. A disagreement is never an `ok`, so
+#   it is never quiet.
+#
+# `REQUIRED` is not a list of what to report; the report decides that. It is the list of names
+# this file's own prose leans on, so that a check quietly *disappearing* from the diagnostic
+# is caught. That is the same failure as one that was never read, arriving from the other
+# direction, and `migrations` is the one it must never happen to.
+DIAGNOSIS="$(printf '%s' "${REPORT}" | python3 -c '
 import sys, json
-wanted = sys.argv[1]
-try:
-    checks = {c["name"]: c for c in json.load(sys.stdin)["checks"]}
-except Exception as error:
-    print(f"UNREADABLE could not read the diagnostic report: {error}")
-    sys.exit(0)
-found = checks.get(wanted)
-if found is None:
-    print(f"UNREADABLE the diagnostic report has no {wanted} check")
-else:
-    print(found["status"].upper(), found["detail"])
-' "$1" 2>/dev/null || printf 'UNREADABLE could not read the diagnostic report\n'
+
+QUIET = {
+    "configuration",
+    "database (application role)",
+    "content",
+    "embedding service",
+    "reranking service",
 }
+REQUIRED = ("migrations", "document files", "reranker health", "lock budget")
 
-# Documents that will fail when clicked. A row whose PDF is gone still lists, still searches
-# and still cites — and then the viewer says "That document is no longer available" in front
-# of the audience, on a corpus that reports itself complete everywhere else.
-FILES="$(report_check "document files")"
-case "${FILES}" in
-  UNREADABLE\ *)  warn "${FILES#UNREADABLE }" ;;
-  OK\ *)          ok   "every document row has its file" ;;
-  *)              warn "${FILES#* }" ;;
-esac
+# Every line carries all three fields, always. A tab is IFS *whitespace* to the shell builtin
+# that reads these back, so two of them in a row collapse into one delimiter and a line that
+# skipped the middle field arrives with its detail in the name — which is how the count line
+# below went missing the first time it was written.
+SUBJECT = "zenith diagnose"
 
-# The reranker, from inside the container. The block near the top of this script already read
-# Docker's restart count, which is the exact answer; this is the other half — is the component
-# reachable and serving *right now*, and has the circuit breaker been skipping it. A missing
-# reranker is a failure here for the same reason it is one there: the installation still
-# answers, and it answers with a recall number nobody in the room can reproduce.
-RERANKER="$(report_check "reranker health")"
-case "${RERANKER}" in
-  UNREADABLE\ *)  warn "${RERANKER#UNREADABLE }" ;;
-  FAIL\ *)        bad  "${RERANKER#* }" ;;
-  WARN\ *)        warn "${RERANKER#* }" ;;
-  OK\ *)          ok   "${RERANKER#* }" ;;
-  *)              warn "the diagnostic report said nothing usable about the reranker" ;;
-esac
+raw = sys.stdin.read().strip()
+if not raw:
+    print(f"UNREADABLE\t{SUBJECT}\tit produced no output at all")
+    sys.exit(0)
+try:
+    checks = json.loads(raw)["checks"]
+except Exception as error:
+    print(f"UNREADABLE\t{SUBJECT}\tits report could not be read: {error}")
+    sys.exit(0)
+if not checks:
+    print(f"UNREADABLE\t{SUBJECT}\tits report is empty — it ran and checked nothing")
+    sys.exit(0)
 
-# The lock budget, which is the one failure in this script that is *not* a degradation. A
-# partitioned installation whose `max_locks_per_transaction` is too small does not answer
-# worse: Postgres raises `OutOfMemory` while planning and the search is a 500. It arrives at
-# whatever concurrency the room produces, so the first person to ask a question sees it work
-# and the fourth does not — which is the worst possible order for it to happen in.
-#
-# Read from the diagnostic rather than asked here, because the number it compares against is
-# computed from the live schema: partitions times relations per partition. A copy of that
-# arithmetic in this file would be a second place to update the day the index set changes.
-#
-# `max_locks_per_transaction` needs a restart, so a failure here is not something to fix
-# between slides. It is a failure and not a warning for exactly that reason.
-LOCKS="$(report_check "lock budget")"
-case "${LOCKS}" in
-  UNREADABLE\ *)  warn "${LOCKS#UNREADABLE }" ;;
-  FAIL\ *)        bad  "${LOCKS#* }" ;;
-  WARN\ *)        warn "${LOCKS#* }" ;;
-  OK\ *)          ok   "${LOCKS#* }" ;;
-  *)              warn "the diagnostic report said nothing usable about the lock budget" ;;
-esac
+lines = []
+quiet = 0
+for check in checks:
+    name = str(check.get("name") or "an unnamed check")
+    status = str(check.get("status") or "").lower()
+    detail = str(check.get("detail") or "") or "with no detail given"
+    if status == "ok" and name in QUIET:
+        quiet += 1
+    elif status in ("ok", "warn", "fail"):
+        lines.append(f"{status.upper()}\t{name}\t{detail}")
+    else:
+        # A status this script has never seen is not a pass. Reported as a warning, and with
+        # the word itself, so whoever added the tier can see where it arrives.
+        lines.append(f"WARN\t{name}\treported an unrecognised status {status!r}: {detail}")
+
+present = {str(c.get("name")) for c in checks}
+for name in REQUIRED:
+    if name not in present:
+        lines.append(
+            f"FAIL\t{name}\tthe diagnostic report no longer has a {name} check, "
+            f"and this script was written expecting one"
+        )
+
+counted = f"{len(checks)} check(s) read from the report"
+print(f"NOTE\t{SUBJECT}\t{counted}, {quiet} of them quiet because a line above answers them"
+      if quiet else f"NOTE\t{SUBJECT}\t{counted}, all of them reported")
+if lines:
+    print("\n".join(lines))
+' 2>/dev/null || printf 'UNREADABLE\tzenith diagnose\tits report could not be read at all\n')"
+
+while IFS="$(printf '\t')" read -r STATUS NAME DETAIL; do
+  case "${STATUS}" in
+    OK)         ok   "${NAME}: ${DETAIL}" ;;
+    WARN)       warn "${NAME}: ${DETAIL}" ;;
+    FAIL)       bad  "${NAME}: ${DETAIL}" ;;
+    UNREADABLE) bad  "${NAME}: ${DETAIL}" ;;
+    # Indented to the detail column, like the leftover organisations below: it is not a check
+    # and must not read as one. It exists so the count is visible — the day `diagnose` grows a
+    # nineteenth check this line says nineteen, and the day one stops being read it is how
+    # somebody notices.
+    NOTE)       printf '        %s\n' "${DETAIL}" ;;
+  esac
+done <<EOF
+${DIAGNOSIS}
+EOF
 
 # --- what the system panel will show ------------------------------------------------------
 #
