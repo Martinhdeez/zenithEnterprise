@@ -1,6 +1,6 @@
 # Labelling with a model — the plan
 
-**Date:** 2026-08-30 · **Status:** todo, stages 1 and 2 done
+**Date:** 2026-08-30 · **Status:** todo, stages 1, 2 and 2b done
 
 The request: a button that reads a file and decides its labels, possibly inventing new ones,
 with a worry about being slow at two thousand labels.
@@ -79,6 +79,70 @@ from its name. Different proposal; this run says nothing about it.
 
 ---
 
+## Stage 2b — the client learns it before the button, not after · **done**
+
+Stage 1 made the suggestion say which ending it hit, and a later branch split `UNAVAILABLE`
+into three. Both are *per row, after the pass*. So the first thing a new customer met was: a
+prominent accented button, a hundred rows ticking past, and the same note on every one saying
+nothing could ever have happened.
+
+**Three of the six endings are settled before a model is spoken to** — `UNAVAILABLE`,
+`NO_FOLDERS`, `TOO_MANY_FOLDERS` — so they can be answered in advance. `CHOSE`, `DECLINED`
+and `FAILED` describe how a call went and cannot be. And this is not an edge case:
+`eval/label-shortlist.json` records six tenants on this installation, **four of which hold
+labels of which none is offerable**, which is the ordinary state of a fresh tenant.
+
+The fix is the one already accepted for `UNAVAILABLE` in the table below — **do not offer the
+button** — and it applies more strongly here because this is the common case.
+
+### The shape, and the one that was rejected
+
+**Rejected: `LabelResponse.offerable` plus a published `MAX_LABELS`, with the client
+counting.** Two reasons.
+
+1. It puts `NOT is_quarantine AND NOT is_default AND reach <= MAX_LABELS` in two places, one
+   of which no test on the server side can reach. That is this repository's recurring
+   failure, not a hypothetical.
+2. **It would count the wrong set.** `GET /labels` returns `all_in_tenant()` to a caller
+   holding `labels.manage` and `reachable()` to everyone else, while the classifier offers
+   only what that person *reaches*. So an administrator's count would be wrong — for exactly
+   the person most likely to press the button, and wrong in the direction that offers a dead
+   action.
+
+**Built: `GET /labels/suggest/availability`**, answering `{"reason": Outcome | null}`.
+
+The part that carries the argument is not the endpoint, it is that
+**`Classifier.availability` is the front half of `Classifier.file`, not a second opinion
+beside it.** `file` calls it and continues from the `Ready(folders, provider)` it returns, so
+there is one evaluation of the predicate and the call is what consumes it. A pre-flight that
+recomputed the rule — in the browser or on the server — would be free to drift from the pass
+it predicts.
+
+`reason` is `Outcome` itself, not a translation, so the pre-flight and `POST /labels/suggest`
+are compared value to value rather than through a mapping that could itself be wrong.
+
+**`too_many_folders` is a fact about a person, not an organisation.** `len(reachable) >
+MAX_LABELS` measures the reach of whoever would press the button: in one tenant an
+administrator reaching 200 is refused while a member reaching 10 is filed normally. Any
+sentence written about it has to say *your reach*, never *your tenant's labels*.
+
+Errors are left to fail as errors. A refusal invented out of a broken request is
+indistinguishable from a real one and would hide a working button, so `availability` raises
+where `file` returns `FAILED`.
+
+**Gates met:** a test per reason, each asserting it is not the other two; the boundary at
+exactly `MAX_LABELS`; two people in one tenant answered differently; and agreement with
+`POST /labels/suggest` in both directions, at the object level and over HTTP. Both HTTP
+agreement tests were confirmed to fail against a router deliberately made to disagree. No
+migration — nothing about this is stored.
+
+**Left for the designer:** `suggestionAvailability(token)` in
+`frontend/src/features/documents/api.ts`, returning `{ reason: SuggestionRefusal | null }`.
+Calling it, deciding what the button does with each of the three, and every sentence a person
+reads are stage 3's and untouched here.
+
+---
+
 ## Stage 3 — the button, the sparkle, and the review · **in flight, designer**
 
 The mechanism exists and does not look like anything. `suggestLabels` is already called per
@@ -100,7 +164,8 @@ Five endings, five looks:
 | `CHOSE` | dashed chips, accept or dismiss per file, accept-all for bulk |
 | `DECLINED` | a muted line — a real answer, not an error, not an empty state |
 | `UNAVAILABLE` | the button is not offered; the Admin connector is one click away |
-| `UNAVAILABLE` **above 60 labels** | its own sentence — the model is fine, the taxonomy is too large |
+| `NO_FOLDERS` | the button is not offered; the remedy is an administrator, not an operator |
+| `TOO_MANY_FOLDERS` | its own sentence — the model is fine, *this person's reach* is too wide |
 | `FAILED` | `--zenith-amber`, the same ink as `degraded` in Search, for the same reason: a component is missing. The only ending that leaves a document quarantined |
 
 **The deeper client work is provenance.** `autoTag` puts the model's ids straight into
@@ -145,6 +210,8 @@ Gates:
 
 1. ~~Stage 1~~ · done, and it unblocked stage 3.
 2. ~~Stage 2~~ · done; the answer was no, and it removed stage 4's original trigger.
+2b. ~~Stage 2b~~ · done. Three of the endings are now knowable before the button is drawn,
+   which is what lets stage 3 not draw it.
 3. **Stage 3** · in flight with the designer. Independent of stage 4 for the first four looks.
 4. **Stage 4** · backend can start now that the trigger is settled; its chip state waits on 3.
 
