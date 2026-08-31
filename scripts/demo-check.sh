@@ -761,6 +761,35 @@ if [ -n "${TOKEN}" ]; then
   elif [ -z "${ELSEWHERE}" ]; then
     warn "isolation: no organisation but ${EMAIL}'s holds a ready document, so there was nothing for this account to be kept out of and this check asked nothing — the isolation argument has no live evidence behind it on this installation"
   else
+    # **A 404 is evidence only if this route can answer anything else.** Every other check in
+    # this file asserts that something arrived; this one asserts that nothing did, and that
+    # inverts the usual risk — a `GET /documents/<id>` broken for every id in the installation
+    # would refuse the other organisation for a reason that has nothing to do with isolation,
+    # and print the strongest sentence in this report on the strength of it. The same trap the
+    # proxy probes fell into when an empty body passed a check for a doctype, one endpoint over.
+    #
+    # So the account is asked for a document it *is* allowed to have, first, and the refusals
+    # below count for nothing unless that one comes back 200. Only the row is controlled for:
+    # `/documents/<id>/file` is fetched for real by the block further down and a 404 there is
+    # already a failure, while this singular route is called nowhere else in this script.
+    #
+    # `?status=ready&limit=1` is the same question the document fetch below opens with, and the
+    # same reasoning: a document chosen through the API is one this account can certainly
+    # reach, and no id has to be written down or read out of the database to find it.
+    OWN_ID="$(curl -fsS --max-time 20 -H "Authorization: Bearer ${TOKEN}" \
+      "${API}/documents?status=ready&limit=1" 2>/dev/null | python3 -c '
+import sys, json
+items = json.load(sys.stdin).get("items") or []
+print(items[0]["id"] if items else "")
+' 2>/dev/null || true)"
+    # Guarded rather than interpolated blind: an empty id would make this `GET /documents/`,
+    # which is the *list* route and answers 200, so the control would confirm itself.
+    if [ -z "${OWN_ID}" ]; then
+      CONTROL=""
+    else
+      CONTROL="$(curl -s --max-time 20 -o /dev/null -w '%{http_code}' \
+        -H "Authorization: Bearer ${TOKEN}" "${API}/documents/${OWN_ID}" 2>/dev/null || echo 000)"
+    fi
     # Grouped by class and not by organisation, like the proxy probes above: the remedy belongs
     # to the class, one broken policy is one finding however many tenants it spans, and the pass
     # is one line because "every one of them refused" is the whole of what an operator needs.
@@ -789,14 +818,23 @@ if [ -n "${TOKEN}" ]; then
     done <<EOF
 ${ELSEWHERE}
 EOF
+    # A leak is read first and judged on its own: a 200 for another organisation's document is
+    # the finding whatever the control says about anything else.
     if [ -n "${LEAKED}" ]; then
       bad "isolation: ${EMAIL} can read documents belonging to another organisation —${LEAKED#,} came back 200. This is a cross-tenant read: invariant 1 is not holding on this path, and it is the one finding in this whole report that is not a degradation"
+    elif [ -z "${CONTROL}" ]; then
+      # Not a second failure for one cause: the corpus block above has already failed if this
+      # account retrieves nothing, and this line exists to say that the refusals were therefore
+      # never worth reading rather than to count the same problem twice.
+      warn "isolation: ${EMAIL} retrieved no document of its own to control with, so the refusals above it prove nothing — the corpus lines say why the list came back empty"
+    elif [ "${CONTROL}" != "200" ]; then
+      bad "isolation: GET /documents/<id> answered ${CONTROL} for a document of ${EMAIL}'s *own* organisation, one this account retrieves from the list. Every refusal this check can report would be that same fault rather than a policy doing its job, so nothing about isolation was established here"
     elif [ -n "${UNCLEAR}" ]; then
       bad "isolation: asking as ${EMAIL} for a document held elsewhere answered neither a refusal this check recognises nor a document —${UNCLEAR#,}. Whether the account is kept out of the other organisations was not established, and when it cannot be established it fails"
     elif [ -n "${DISCLOSED}" ]; then
       warn "isolation: withheld from ${EMAIL}, but as 403 —${DISCLOSED#,}. Nothing crossed the boundary; the refusal itself confirms the row exists, which is what the 404 in download_document's docstring is there to prevent"
     else
-      ok "isolation: ${ORGS} other organisation(s) —${ORG_NAMES#,} — and ${EMAIL} is refused a document of each, the row and its bytes both 404, indistinguishable from an id that never existed"
+      ok "isolation: ${ORGS} other organisation(s) —${ORG_NAMES#,} — and ${EMAIL} is refused a document of each, row and bytes both 404, while the same route answers 200 for one of its own"
     fi
   fi
 fi
