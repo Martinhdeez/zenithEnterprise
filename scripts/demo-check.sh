@@ -33,6 +33,11 @@ SKIP_ANSWER="${ZENITH_DEMO_SKIP_ANSWER:-}"
 # findings, and only one question asked of both endpoints can tell them apart.
 QUESTION="plazo maximo de detencion preventiva"
 
+# Set by the sign-in below and read again by the corpus block, which runs after it. Declared
+# here so that "nobody signed in" is an empty string rather than an unbound variable under
+# `set -u`, and so that the one place it is set is greppable.
+TOKEN=""
+
 FAILURES=0
 WARNINGS=0
 
@@ -281,7 +286,7 @@ fi
 
 # --- a real question ----------------------------------------------------------------------
 if [ -z "${EMAIL}" ] || [ -z "${PASSWORD}" ]; then
-  warn "no credentials given — skipping the search and answer checks (pass email and password to run them)"
+  warn "no credentials given — skipping the search, answer and corpus-visibility checks (pass email and password to run them)"
 else
   TOKEN="$(curl -fsS -X POST "${API}/auth/login" -H 'Content-Type: application/json' \
     -d "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\"}" 2>/dev/null \
@@ -523,6 +528,108 @@ else
   done <<EOF
 ${STATUSES}
 EOF
+fi
+
+# --- and the same corpus, counted as the account that will be demonstrated ------------------
+#
+# **Everything above this line was counted by the database owner, and the owner bypasses
+# every RLS policy.** `42 documents ready` is what the tables hold. It is not what
+# `demo@example.com` can retrieve, and invariant 1 makes the difference silent on purpose:
+# a forgotten filter returns *nothing* rather than everything, so a label the demonstrating
+# account's groups do not reach, or a group membership nobody renewed, produces an empty
+# screen and no error anywhere. Every line in this report stays green and the room is empty.
+#
+# So it is counted twice, and **neither count replaces the other**: the owner's says
+# ingestion worked, this one says the access control lets somebody see the result. They are
+# different questions and the demonstration depends on both.
+#
+# **When they disagree that is the most interesting line in this report**, and it is a
+# failure rather than a warning. A corpus that exists and cannot be reached is the one state
+# that looks healthy from every other angle here — the files are on disk, the rows are in the
+# table, `document files` passes, ingestion passes — and the first evidence anybody gets is a
+# blank document list in front of an audience.
+#
+# Through `GET /documents` rather than by setting the tenant GUCs in psql by hand. The point
+# is to walk the path the client walks: the token, the profile it resolves to, the groups
+# that profile carries and the labels those groups reach. Reproducing that in SQL would be
+# reproducing the thing under test.
+if [ -n "${TOKEN}" ]; then
+  # Paged, because a page is all this endpoint has: `MAX_LIMIT` is 200 and there is no
+  # total — `DocumentPage`'s docstring says why, and counting under RLS is exactly the cost
+  # it declines to pay. So the count is the client's own count, taken the client's own way.
+  #
+  # urllib rather than curl, alone in this file: following an opaque cursor is a loop that
+  # has to carry state between iterations, and ten lines of Python that do it in one place
+  # are easier to read — and to be sure of — than a shell loop reassembling a query string.
+  RETRIEVED="$(python3 -c '
+import json, sys, urllib.request
+
+api, token = sys.argv[1], sys.argv[2]
+
+count, cursor = 0, None
+# A bound rather than `while True`. 200 pages of 200 is 40,000 documents, well past the
+# 5,000 per tenant the configuration permits, so reaching it means the cursor stopped
+# advancing — and an unfinished count is said to be unfinished rather than reported.
+for _ in range(200):
+    url = api + "/documents?status=ready&limit=200" + (("&cursor=" + cursor) if cursor else "")
+    ask = urllib.request.Request(url, headers={"Authorization": "Bearer " + token})
+    try:
+        with urllib.request.urlopen(ask, timeout=20) as response:
+            page = json.load(response)
+    except Exception as error:
+        print("UNREADABLE " + str(error))
+        sys.exit(0)
+    count += len(page.get("items") or [])
+    cursor = page.get("next_cursor")
+    if not cursor:
+        print("COUNT " + str(count))
+        sys.exit(0)
+print("TRUNCATED " + str(count))
+' "${API}" "${TOKEN}" 2>/dev/null || printf "UNREADABLE the document list could not be read at all\n")"
+
+  # The owner's count for *this account's* organisation, not the sum printed above: the
+  # comparison is only meaningful inside one tenant, and an installation holding two corpora
+  # would otherwise always disagree with itself.
+  #
+  # `:'email'` rather than the address interpolated into the string. psql quotes the variable
+  # as a literal itself, so an address containing a quote is a value and never syntax — this
+  # is an operator's own argument rather than a stranger's, but a readiness check has no
+  # business being the one place in the repository that builds SQL by concatenation.
+  #
+  # Fed on standard input (`-f -`) and not with `-c`, which is what makes that possible:
+  # psql substitutes its variables while parsing a script and hands a `-c` string to the
+  # server untouched, so `:'email'` inside `-c` reaches Postgres verbatim and is a syntax
+  # error at the colon.
+  HELD="$(printf '%s' \
+    "SELECT count(*)
+       FROM documents d JOIN users u ON u.tenant_id = d.tenant_id
+      WHERE lower(u.email) = lower(:'email') AND d.status = 'ready'" \
+    | ${COMPOSE} exec -T db psql -U "${POSTGRES_USER:-zenith}" -d "${POSTGRES_DB:-zenith}" \
+        -v email="${EMAIL}" -tA -f - 2>/dev/null)"
+  ASKED=$?
+  KIND="${RETRIEVED%% *}"
+  DETAIL="${RETRIEVED#* }"
+  case "${KIND}" in
+    COUNT)
+      if [ "${ASKED}" -ne 0 ] || [ -z "${HELD}" ]; then
+        # Half the answer, said as half. The corpus block above has already failed on the
+        # same psql, so this is a warning rather than a second failure for one cause.
+        warn "corpus: ${EMAIL} retrieves ${DETAIL} ready document(s) through GET /documents, and psql could not say how many its organisation holds — the two counts were not compared"
+      elif [ "${DETAIL}" -eq "${HELD}" ]; then
+        ok "corpus: ${EMAIL} retrieves all ${HELD} of the ready documents its organisation holds"
+      elif [ "${DETAIL}" -lt "${HELD}" ]; then
+        bad "corpus: ${EMAIL} retrieves ${DETAIL} of the ${HELD} ready documents its organisation holds — $(( HELD - DETAIL )) are invisible to the account that will be demonstrated. Labels or group membership, not ingestion: the count above is the owner's, and the owner bypasses RLS"
+      else
+        # Not reachable through RLS, which is why it is worth printing: a session that sees
+        # more rows than its own tenant holds would be invariant 1 broken the dangerous way
+        # round, and the likelier reading is that one of these two queries is wrong.
+        bad "corpus: ${EMAIL} retrieves ${DETAIL} ready documents while its organisation holds ${HELD} — a session cannot see more than its tenant has, so one of these two counts is wrong"
+      fi ;;
+    TRUNCATED)
+      warn "corpus: stopped counting what ${EMAIL} retrieves at ${DETAIL} documents — GET /documents kept handing back a cursor, so it was never compared with what the tables hold" ;;
+    *)
+      bad "corpus: could not ask GET /documents what ${EMAIL} can retrieve, so the number above is the owner's and nobody has checked the account can see it — ${DETAIL}" ;;
+  esac
 fi
 
 # --- what `zenith diagnose` found -----------------------------------------------------------
