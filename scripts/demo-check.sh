@@ -48,13 +48,135 @@ bad()  { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; FAILURES=$(( FAILURES + 1 ))
 echo "Demo readiness — ${API}"
 
 # --- the services ---------------------------------------------------------------------
+#
+# **Not "is the container listed".** This loop used to ask `compose ps -q` for an id and print
+# `up` when it got one, and three states answer that question with a yes while serving
+# nothing: a container restarting in a loop has an id like any other, a paused one is listed
+# like a healthy one, and a container that has just come back from a kill looks exactly like
+# one that has been up for a week.
+#
+# It is the question nobody was asking on 28 August. `tei-rerank` was killed for memory
+# (exit 137), came back, and search kept answering from the fused order about fifteen points
+# of recall worse in between, marked `degraded` in a field nobody was reading. Every check
+# that only asked "is the container listed" said yes.
+#
+# **And until today only `tei-rerank` was asked properly.** The other five were counted by
+# id, which makes `worker` the indefensible one: a worker in a restart loop prints `worker up`
+# — the exact 28-August failure mode, in the service that ingests — and `job queue: 0 job(s)
+# waiting` below reads identically whether the queue is idle or nothing is draining it. No
+# service here deserves less than the reranker got. A `db` that has restarted twice in ten
+# minutes has dropped every connection twice; an `api` in a loop answers one request in
+# three; a `frontend` restarting is the proxy disappearing between two slides.
+#
+# This is also the one question `zenith diagnose` cannot answer. The diagnostic runs inside
+# the API container, where Docker's restart count is out of reach, so it has to infer a
+# restart from TEI's own counters — which reset with the process and cannot say how many
+# times or when. This script runs on the host with the Docker CLI, so it can simply ask.
+#
+# A failure, not a warning, when a restart is recent. A service that is up now but died twice
+# in the last ten minutes is not fit to demonstrate — what the audience sees depends on which
+# side of a kill their question lands on.
+#
+# `-aq` rather than `-q`: a container that is stopped or looping still has an id and a restart
+# count, and those are exactly the two states worth asking about.
 for service in db tei-embed tei-rerank api worker frontend; do
-  if [ "$(${COMPOSE} ps -q "${service}" 2>/dev/null | wc -l | tr -d '[:space:]')" -eq 0 ]; then
-    bad "${service} is not running"
+  CONTAINER="$(${COMPOSE} ps -aq "${service}" 2>/dev/null | head -1)"
+  if [ -z "${CONTAINER}" ]; then
+    bad "${service} has no container at all — it was never created, or 'compose down' removed it"
+    continue
+  fi
+  # `unreadable` rather than `unknown`, and the word is load-bearing: it must be a token
+  # Docker can never itself return, because the arms below dispatch on the state name and the
+  # one thing that must not happen is a real state and a failure to read one arriving as the
+  # same string. `unknown` was not safe on that count and was not treated as a finding either;
+  # see below.
+  read -r STATE RESTARTS STARTED <<EOF
+$(docker inspect --format '{{.State.Status}} {{.RestartCount}} {{.State.StartedAt}}' \
+    "${CONTAINER}" 2>/dev/null || echo "unreadable 0 -")
+EOF
+  # Seconds since the *current* process started. Docker's timestamp carries nanoseconds,
+  # which `fromisoformat` will not parse, so the fraction is dropped rather than rounded —
+  # this is a "how long ago, roughly" and a second either way changes nothing.
+  AGE="$(python3 -c '
+import datetime, sys
+stamp = sys.argv[1].split(".")[0].rstrip("Z")
+started = datetime.datetime.fromisoformat(stamp).replace(tzinfo=datetime.timezone.utc)
+print(int((datetime.datetime.now(datetime.timezone.utc) - started).total_seconds()))
+' "${STARTED}" 2>/dev/null || echo -1)"
+  if [ "${STATE}" = "unreadable" ]; then
+    # `docker inspect` failed, and until 30 August that was the quietest outcome in this
+    # block. The fallback said `unknown`, `unknown` is not `running`, so it landed on a silent
+    # arm on top of a green line claiming the container was up. The one outcome meaning "this
+    # check learned nothing" was the one outcome that said nothing.
+    #
+    # A failure and not a warning, for the reason the 503 split further down gives in the same
+    # words: when it cannot be established, it fails.
+    bad "${service} is listed but 'docker inspect' could not read it — its state and restart count are unknown, and all this check knows is that a container has an id"
+  elif [ "${STATE}" = "restarting" ]; then
+    bad "${service} is restarting — it is in a loop right now, and an id is all a container in a loop needs to look healthy"
+  elif [ "${STATE}" = "exited" ] || [ "${STATE}" = "dead" ] || [ "${STATE}" = "created" ] || [ "${STATE}" = "removing" ]; then
+    bad "${service} is ${STATE} — it is not running"
+  elif [ "${STATE}" != "running" ]; then
+    # Anything else. `paused` is the one that exists today and it is not hypothetical enough
+    # to ignore: a paused container is listed by `compose ps` like a healthy one and answers
+    # nothing. A state named neither here nor above is not a pass either — the same rule the
+    # diagnose reader applies to a status it has never seen.
+    bad "${service} is ${STATE} — it is listed, and it is not serving"
+  elif [ "${RESTARTS}" -eq 0 ] 2>/dev/null; then
+    ok "${service} up, no restarts since it was created"
+  elif [ "${AGE}" -lt 0 ]; then
+    # It has restarted and the timestamp could not be parsed, so *when* has no answer. This
+    # used to fall through to the `warn` below and print "restarted 3 time(s), but has been up
+    # for 0m", because bash truncates `-1 / 60` toward zero — and "up for 0m" is the
+    # recent-restart case, the one this block calls a failure. The worst reading of the
+    # evidence was printed in the words of the mildest one.
+    bad "${service} has restarted ${RESTARTS} time(s) and this check could not read when it last started (${STARTED}) — 'docker compose logs ${service}'; a container killed for memory exits 137"
+  elif [ "${AGE}" -lt 1800 ]; then
+    bad "${service} has restarted ${RESTARTS} time(s), the last $(( AGE / 60 ))m ago — 'docker compose logs ${service}'; a container killed for memory exits 137"
   else
-    ok "${service} up"
+    warn "${service} has restarted ${RESTARTS} time(s), but has been up for $(( AGE / 60 ))m"
   fi
 done
+
+# --- and is the worker consuming anything? ------------------------------------------------
+#
+# The loop above knows the container is running and has not been dying. Neither fact says the
+# process inside it is doing its job, and `job queue: 0 job(s) waiting` further down cannot
+# help: an empty queue reads identically whether a healthy worker has drained it or a dead one
+# never touched it, because nothing was asked of it either way. What that leaves unguarded is
+# a document uploaded in the room that stays `pending` for ever with every line here green.
+#
+# procrastinate's own heartbeat answers it, and it is a fact about the process rather than
+# about the queue. A worker registers a row in `procrastinate_workers` and updates
+# `last_heartbeat` every ten seconds; a worker that stops leaves the row behind with a
+# timestamp that stops moving, because the pruning of stale workers is done by *another*
+# running worker. So a stale heartbeat is the shape of a worker that died, and no heartbeat at
+# all is the shape of one that never started — and the two want different sentences.
+#
+# Sixty seconds is six missed beats: wide enough that a worker busy inside one long embedding
+# call is not called dead, narrow enough to catch one killed on the way into the room.
+#
+# The owner connection, for the reason `_job_queue` in `core/diagnostics.py` gives: the queue
+# tables are procrastinate's own, they carry no RLS, and `zenith_app` holds no privilege on
+# them by design — asking with the application role reports `permission denied` on a perfectly
+# healthy installation.
+HEARTBEAT="$(${COMPOSE} exec -T db psql -U "${POSTGRES_USER:-zenith}" -d "${POSTGRES_DB:-zenith}" -tAc \
+  "SELECT coalesce(max(extract(epoch FROM now() - last_heartbeat))::bigint, -1)
+     FROM procrastinate_workers" 2>/dev/null)"
+ASKED=$?
+if [ "${ASKED}" -ne 0 ]; then
+  # A warning rather than a second failure, for the same reason the corpus comparison below
+  # is: every cause of this — a `db` that will not answer, queue tables that were never
+  # installed — is already a failure somewhere else in this report, and one cause counted
+  # twice reads at the bottom like two problems.
+  warn "could not ask whether a worker is consuming the queue — psql exited ${ASKED}; the 'job queue' check below says whether procrastinate's tables are installed at all"
+elif [ "${HEARTBEAT}" -lt 0 ] 2>/dev/null; then
+  bad "no worker has ever registered a heartbeat — nothing is draining the queue, so a document uploaded in the room stays 'pending' and is never searchable"
+elif [ "${HEARTBEAT}" -gt 60 ]; then
+  bad "the last worker heartbeat was ${HEARTBEAT}s ago — the container is up and the process inside it has stopped consuming the queue"
+else
+  ok "worker heartbeat ${HEARTBEAT}s old — it is consuming the queue"
+fi
 
 # --- what the models actually are ------------------------------------------------------
 #
@@ -73,86 +195,6 @@ for pair in "embed:8081:BAAI/bge-m3" "rerank:8082:"; do
     ok "${name} serving ${served}"
   fi
 done
-
-# --- has the reranker been dying and coming back? -----------------------------------------
-#
-# The one question this script can answer and `zenith diagnose` cannot. The diagnostic runs
-# inside the API container, where Docker's restart count is out of reach, so it has to infer a
-# restart from TEI's own counters — which reset with the process and cannot say how many times
-# or when. This script runs on the host with the Docker CLI, so it can simply ask.
-#
-# It is the question nobody was asking on 28 August. `tei-rerank` was killed for memory
-# (exit 137), came back, and search kept answering from the fused order about fifteen points
-# of recall worse in between. Every check that only asked "is the container listed" said yes:
-# a container that is restarting in a loop has an id like any other, and the loop above would
-# have called it up.
-#
-# A failure, not a warning, when it is recent. A service that is up now but died twice in the
-# last ten minutes is not fit to demonstrate — the recall the audience sees depends on which
-# side of a kill their question lands on.
-# `-a`, unlike the loop above: a container that is stopped or looping still has an id and a
-# restart count, and those are exactly the two states worth asking about here.
-RERANK_ID="$(${COMPOSE} ps -aq tei-rerank 2>/dev/null | head -1)"
-if [ -n "${RERANK_ID}" ]; then
-  # `unreadable` rather than `unknown`, and the word is load-bearing: it must be a token
-  # Docker can never itself return, because the arms below dispatch on the state name and the
-  # one thing that must not happen is a real state and a failure to read one arriving as the
-  # same string. `unknown` was not safe on that count and was not treated as a finding either;
-  # see below.
-  read -r STATE RESTARTS STARTED <<EOF
-$(docker inspect --format '{{.State.Status}} {{.RestartCount}} {{.State.StartedAt}}' \
-    "${RERANK_ID}" 2>/dev/null || echo "unreadable 0 -")
-EOF
-  # Seconds since the *current* process started. Docker's timestamp carries nanoseconds,
-  # which `fromisoformat` will not parse, so the fraction is dropped rather than rounded —
-  # this is a "how long ago, roughly" and a second either way changes nothing.
-  AGE="$(python3 -c '
-import datetime, sys
-stamp = sys.argv[1].split(".")[0].rstrip("Z")
-started = datetime.datetime.fromisoformat(stamp).replace(tzinfo=datetime.timezone.utc)
-print(int((datetime.datetime.now(datetime.timezone.utc) - started).total_seconds()))
-' "${STARTED}" 2>/dev/null || echo -1)"
-  if [ "${STATE}" = "unreadable" ]; then
-    # `docker inspect` failed, and until 30 August that was the quietest outcome in this
-    # block. The fallback said `unknown`, `unknown` is not `running`, so it landed on the
-    # silent arm below whose comment asserts the container was *already reported as not
-    # running by the loop above* — and the loop above had reported it **up**. That loop asks
-    # `compose ps -q` for an id and prints `up` when it gets one, which is the whole reason
-    # this block exists. So the one outcome meaning "this check learned nothing" was the one
-    # outcome that said nothing, on top of a green line claiming the opposite.
-    #
-    # A failure and not a warning, for the reason the 503 split further down gives in the same
-    # words: when it cannot be established, it fails. What is unknown here is exactly the
-    # thing 28 August turned on.
-    bad "tei-rerank is listed but 'docker inspect' could not read it — its restart count is unknown, and the line above only knows the container has an id"
-  elif [ "${STATE}" = "restarting" ]; then
-    # The state the loop above cannot see. A container caught between kills is listed like
-    # any other, so that loop calls it up — which is precisely how 28 August went unnoticed.
-    bad "tei-rerank is restarting — it is in a loop right now, and the check above still calls it up"
-  elif [ "${STATE}" = "exited" ] || [ "${STATE}" = "dead" ] || [ "${STATE}" = "created" ] || [ "${STATE}" = "removing" ]; then
-    : # Already reported as not running, by name, in the loop above — these are the states
-      # `compose ps` without `-a` leaves out, which is what makes that claim true.
-  elif [ "${STATE}" != "running" ]; then
-    # Anything else. `paused` is the one that exists today and it is not hypothetical enough
-    # to ignore: a paused container is listed by `compose ps` like a healthy one, so the loop
-    # above calls it up, and it answers nothing. A state named neither here nor above is not a
-    # pass either — the same rule the diagnose reader applies to a status it has never seen.
-    bad "tei-rerank is ${STATE}, and the line above still calls it up — it is not serving"
-  elif [ "${RESTARTS}" -eq 0 ] 2>/dev/null; then
-    ok "tei-rerank has not restarted since it was created"
-  elif [ "${AGE}" -lt 0 ]; then
-    # The container has restarted and the timestamp could not be parsed, so *when* has no
-    # answer. This used to fall through to the `warn` below and print "restarted 3 time(s),
-    # but has been up for 0m", because bash truncates `-1 / 60` toward zero — and "up for 0m"
-    # is the recent-restart case, the one this block calls a failure. The worst reading of the
-    # evidence was printed in the words of the mildest one.
-    bad "tei-rerank has restarted ${RESTARTS} time(s) and this check could not read when it last started (${STARTED}) — 'docker logs' it and look for exit 137"
-  elif [ "${AGE}" -lt 1800 ]; then
-    bad "tei-rerank has restarted ${RESTARTS} time(s), the last $(( AGE / 60 ))m ago — 'docker logs' it and look for exit 137"
-  else
-    warn "tei-rerank has restarted ${RESTARTS} time(s), but has been up for $(( AGE / 60 ))m"
-  fi
-fi
 
 # --- the proxy ---------------------------------------------------------------------------
 #
