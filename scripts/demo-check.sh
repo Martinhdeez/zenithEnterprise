@@ -674,6 +674,133 @@ print("TRUNCATED " + str(count))
   esac
 fi
 
+# --- and what that account must not be able to reach -----------------------------------------
+#
+# **Isolation between customers is the product; everything else is negotiable.** The block above
+# counts what the demonstrating account *can* retrieve and says not one word about the rows
+# another organisation holds — and those are different questions, because a policy that returns
+# everything and a policy that returns the right thing agree exactly as long as there is only
+# one corpus to disagree about. A cross-tenant read is the one failure worse in the room than an
+# empty screen: an empty screen is embarrassing and this is the end of the meeting.
+#
+# **A count is weak evidence; an identity is strong evidence.** The comparison above would
+# already fail if the list endpoint handed back somebody else's rows in bulk — the account would
+# retrieve more than its own organisation holds, and the last branch up there says so. What no
+# count can see is a direct read by id. `GET /documents/<id>` and `GET /documents/<id>/file`
+# take the id straight out of the URL, and both are asked, because **a row hidden while its
+# bytes are served is exactly the shape of failure that matters here**: the document list stays
+# convincingly empty and the citation viewer hands over the file. One real document is asked for
+# per other organisation, because a policy can hold for one tenant and not the next — a
+# partition carrying no row-level security of its own is that failure exactly, and invariant 1
+# names it.
+#
+# The id comes from psql as the owner, because the owner is the only thing in this installation
+# that can see across tenants, and that is the whole of what it is used for here. **The question
+# itself is asked through the API with the demonstrating token**, never by setting the tenant
+# GUCs in psql by hand: the corpus block above gives the reason and it is the same one —
+# reproducing the policy in SQL would be reproducing the thing under test.
+#
+# Of `${API}` and not `${WEB}`, unlike the document fetch below. Access control lives in the
+# API; a proxy fault asked through the frontend would arrive here dressed as an isolation
+# finding, which is the most expensive sentence in this file to get wrong.
+#
+# A **`ready`** document, so the bytes are on disk. A refusal of something that could not have
+# been served anyway proves nothing, and the constructed failure that has to be able to break
+# this check is a real file reaching the wrong account.
+#
+# **404 is the pass, and 403 is a finding.** RLS makes an invisible row indistinguishable from
+# one that never existed, deliberately, and `download_document`'s own docstring is the ruling:
+# a document that does not appear in the list "is a 404 here too, never a 403, because the
+# difference between them confirms that it exists". So a 403 has leaked no document — and it has
+# told this account that another organisation holds a row with that id, which is the disclosure
+# the 404 exists to prevent. Reported rather than accepted, and as a warning rather than a
+# failure: nothing crossed the boundary, the contract about what a refusal may reveal did.
+# Anything else — a 401, a 500, no reply — establishes nothing, and when it cannot be
+# established it fails, in the words the 503 split above uses.
+#
+# **A 200 is the only outright catastrophe in this file.** Everything else here is a
+# degradation, a container, or a number disagreeing with another number.
+#
+# One organisation with documents is not a failed check but an unaskable one: there is nobody to
+# be kept out of. A warning, never a silent pass — the same rule the missing credentials get.
+if [ -n "${TOKEN}" ]; then
+  # **One document per other organisation, not one document.** `DISTINCT ON (d.tenant_id)` is
+  # the whole of the difference and it is worth the word: a policy can be broken for one tenant
+  # and sound for the next — a partition without RLS of its own is exactly that failure, and
+  # invariant 1 names it — so a check that asks about one organisation and reports "isolation
+  # holds" is making a claim four organisations wider than its evidence. `ORDER BY` before it so
+  # that repeated runs ask about the same documents and two reports are comparable.
+  #
+  # The tenant lifecycle is deliberately not filtered on, unlike both corpus counts above. A
+  # suspended organisation's rows are exactly as much somebody else's, and the question here is
+  # what the policy hides rather than what this installation can demonstrate.
+  #
+  # `btrim` because `normalise_email` in `features/auth/service.py` strips before it lowercases,
+  # and an address is stored the way login normalised it. Without it an operator who typed a
+  # trailing space would sign in successfully and match no user here — and the finding would be
+  # printed as "no other organisation", which is a wrong sentence rather than a missing one.
+  # That a user is found at all is guaranteed by `TOKEN` above: this block does not run unless
+  # this address signed in.
+  #
+  # `:'email'` and `-f -` for the reasons the corpus query above sets out in full.
+  ELSEWHERE="$(printf '%s' \
+    "SELECT DISTINCT ON (d.tenant_id) d.id, t.name
+       FROM documents d JOIN tenants t ON t.id = d.tenant_id
+      WHERE d.status = 'ready'
+        AND d.tenant_id <> (SELECT u.tenant_id FROM users u
+                             WHERE lower(u.email) = lower(btrim(:'email')))
+      ORDER BY d.tenant_id, d.id" \
+    | ${COMPOSE} exec -T db psql -U "${POSTGRES_USER:-zenith}" -d "${POSTGRES_DB:-zenith}" \
+        -v email="${EMAIL}" -tA -f - 2>/dev/null)"
+  ASKED=$?
+  if [ "${ASKED}" -ne 0 ]; then
+    # A warning and not a failure for the reason the heartbeat block gives: every cause of this
+    # is already a failure in the corpus block, and one cause counted twice reads at the bottom
+    # like two problems.
+    warn "isolation: psql could not name a document held by another organisation, so nobody has asked what ${EMAIL} is refused — the corpus lines above say why psql is not answering"
+  elif [ -z "${ELSEWHERE}" ]; then
+    warn "isolation: no organisation but ${EMAIL}'s holds a ready document, so there was nothing for this account to be kept out of and this check asked nothing — the isolation argument has no live evidence behind it on this installation"
+  else
+    # Grouped by class and not by organisation, like the proxy probes above: the remedy belongs
+    # to the class, one broken policy is one finding however many tenants it spans, and the pass
+    # is one line because "every one of them refused" is the whole of what an operator needs.
+    ORGS=0; PROBED=""; LEAKED=""; DISCLOSED=""; UNCLEAR=""
+    # Redirected rather than piped, so the counters survive the loop: a pipeline would run this
+    # in a subshell and every finding would be discarded at the `done`.
+    while IFS='|' read -r OTHER_ID OTHER_NAME; do
+      [ -n "${OTHER_ID}" ] || continue
+      ORGS=$(( ORGS + 1 ))
+      PROBED="${PROBED}, ${OTHER_NAME}"
+      SEEN="$(curl -s --max-time 20 -o /dev/null -w '%{http_code}' \
+        -H "Authorization: Bearer ${TOKEN}" "${API}/documents/${OTHER_ID}" 2>/dev/null || echo 000)"
+      FETCHED="$(curl -s --max-time 20 -o /dev/null -w '%{http_code}' \
+        -H "Authorization: Bearer ${TOKEN}" "${API}/documents/${OTHER_ID}/file" 2>/dev/null || echo 000)"
+      # The organisation is named in each entry rather than in the summary: with two of them
+      # leaking and three sound, which is which is the finding.
+      for probe in "the row of ${OTHER_NAME}:${SEEN}" "the bytes of ${OTHER_NAME}:${FETCHED}"; do
+        part="${probe%:*}"; code="${probe##*:}"
+        case "${code}" in
+          404) ;;
+          200) LEAKED="${LEAKED}, ${part}" ;;
+          403) DISCLOSED="${DISCLOSED}, ${part}" ;;
+          *)   UNCLEAR="${UNCLEAR}, ${part} (${code})" ;;
+        esac
+      done
+    done <<EOF
+${ELSEWHERE}
+EOF
+    if [ -n "${LEAKED}" ]; then
+      bad "isolation: ${EMAIL} can read documents belonging to another organisation —${LEAKED#,} came back 200. This is a cross-tenant read: invariant 1 is not holding on this path, and it is the one finding in this whole report that is not a degradation"
+    elif [ -n "${UNCLEAR}" ]; then
+      bad "isolation: asking as ${EMAIL} for a document held elsewhere answered neither a refusal this check recognises nor a document —${UNCLEAR#,}. Whether the account is kept out of the other organisations was not established, and when it cannot be established it fails"
+    elif [ -n "${DISCLOSED}" ]; then
+      warn "isolation: withheld from ${EMAIL}, but as 403 —${DISCLOSED#,}. Nothing crossed the boundary; the refusal itself confirms the row exists, which is what the 404 in download_document's docstring is there to prevent"
+    else
+      ok "isolation: ${ORGS} other organisation(s) —${PROBED#,} — and ${EMAIL} is refused a document of each, the row and its bytes both 404, indistinguishable from an id that never existed"
+    fi
+  fi
+fi
+
 # --- the application the browser has to load before any of that ------------------------------
 #
 # The block below pulls a real document through the proxy, and **a document that arrives
