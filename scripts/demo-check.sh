@@ -674,6 +674,108 @@ print("TRUNCATED " + str(count))
   esac
 fi
 
+# --- one document, pulled the way the viewer pulls it ---------------------------------------
+#
+# `document files` in the report below is a row-versus-disk comparison made *inside* the API
+# container: it walks the storage root and asks whether every row's file is there. That is a
+# real check and it is not this one, because the path an audience uses is none of it. The
+# citation viewer fetches `/documents/<id>/file` from a browser, through nginx, and that
+# stretch has broken twice with everything here green:
+#
+#   the `.mjs` MIME bug     nginx's stock mime.types has no `.mjs` entry, so the PDF worker
+#                           script was served as application/octet-stream and the browser's
+#                           module-script check refused to execute it. Every preview and every
+#                           citation click failed with "The document could not be rendered",
+#                           on files that were present and correct on disk.
+#   `client_max_body_size`  nginx's own 1 MB default answered its own HTML error page before
+#                           the request reached the API at all.
+#
+# Both live between the browser and the API, and every other check in this file asks either
+# the API directly or the database. So: one real document, chosen from what the account can
+# actually retrieve, pulled through `ZENITH_WEB` with the demonstrating token.
+#
+# Four assertions, and the last is the one nothing else can make. That it is not the SPA —
+# `/documents` missing from the proxy list answers `index.html` with a 200. That it is not
+# nginx's own error page. That the bytes are a PDF, which is what `PdfViewer.tsx` hands to
+# pdf.js and what an octet-stream is not. And that **all** of them arrived: a truncated body
+# is a 200 with a correct content type, so no status code and no header carries it — only the
+# count, held against the size the row records.
+#
+# **It reads and does not write, so it covers one direction.** The `client_max_body_size`
+# ceiling is a limit on request bodies: this download would have passed while every upload
+# over 1 MB failed. Constructing the other direction means uploading to the customer's
+# installation, which a readiness check has no business doing — the same reasoning the answer
+# check gives for keeping the row it writes rather than deleting it afterwards.
+if [ -n "${TOKEN}" ]; then
+  # Chosen through the API rather than named here or picked from psql: a document this script
+  # knows about is a document somebody has to keep up to date, and one read out of the
+  # database might be one the demonstrating account cannot reach — which would make this
+  # check fail for the reason the block above already reports.
+  read -r DOC_ID DOC_TYPE DOC_SIZE DOC_NAME <<EOF
+$(curl -fsS --max-time 20 -H "Authorization: Bearer ${TOKEN}" \
+    "${API}/documents?status=ready&limit=1" 2>/dev/null | python3 -c '
+import sys, json
+
+items = json.load(sys.stdin).get("items") or []
+if not items:
+    print("- - - -")
+else:
+    first = items[0]
+    # The filename last: it is the one field that can hold a space.
+    print(first["id"], first["media_type"], first["size_bytes"], first["filename"])
+' 2>/dev/null || echo "- - - -")
+EOF
+  if [ "${DOC_ID}" = "-" ]; then
+    warn "no ready document this session can retrieve, so nothing was pulled through the proxy — the corpus lines above say why"
+  else
+    BYTES="$(mktemp)"
+    # `content_type` last: an answer that carries no type at all would otherwise shift the
+    # fields left and put a header where a byte count belongs.
+    read -r CODE SIZE SERVED <<EOF
+$(curl -s --max-time 60 -o "${BYTES}" -w '%{http_code} %{size_download} %{content_type}' \
+    -H "Authorization: Bearer ${TOKEN}" "${WEB}/documents/${DOC_ID}/file" 2>/dev/null \
+    || echo "000 0 -")
+EOF
+    VERDICT="$(python3 -c '
+import sys
+
+path, code, size, served, want_type, want_size = sys.argv[1:7]
+head = open(path, "rb").read(16)
+html = head.lstrip()[:9].lower().startswith((b"<!doctype", b"<html"))
+
+if code in ("000", ""):
+    print("NO_REPLY nothing answered at all — the frontend container is not serving, or ZENITH_WEB names the wrong port")
+elif html and code == "200":
+    print("SPA it answered index.html with a 200 — /documents is missing from the nginx proxy "
+          "list in docker/nginx.frontend.conf, so the viewer gets HTML where it expects a file")
+elif html:
+    print("PROXY_ERROR it answered " + code + " with an error page instead of the file, so "
+          "nginx matched the path and could not reach the API behind it")
+elif code != "200":
+    print("REFUSED it answered " + code + ", so the file never left the API")
+elif want_type == "application/pdf" and not head.startswith(b"%PDF-"):
+    print("NOT_A_PDF it answered 200 and the body does not begin with %PDF- "
+          "(" + repr(head[:8]) + "), which is not something pdf.js can render")
+elif int(size) != int(want_size):
+    print("TRUNCATED " + size + " bytes arrived of the " + want_size + " the row records — "
+          "a short body is a 200 with the right content type, so nothing else here sees it")
+elif not served.startswith(want_type):
+    print("WRONG_TYPE it arrived whole and typed " + served + " rather than " + want_type
+          + " — the browser dispatches on this header, and the .mjs bug was exactly it")
+else:
+    print("SERVED " + size + " bytes of " + served + ", whole and typed as the row records")
+' "${BYTES}" "${CODE}" "${SIZE}" "${SERVED}" "${DOC_TYPE}" "${DOC_SIZE}" 2>/dev/null \
+      || printf 'UNREADABLE the reply could not be examined at all\n')"
+    rm -f "${BYTES}"
+    case "${VERDICT}" in
+      SERVED\ *) ok  "${DOC_NAME} through the proxy: ${VERDICT#* }" ;;
+      # Every other ending is a failure, including the one meaning this check learned
+      # nothing: the file the audience opens either arrives or it does not.
+      *)         bad "${DOC_NAME} through the proxy — ${VERDICT#* }" ;;
+    esac
+  fi
+fi
+
 # --- what `zenith diagnose` found -----------------------------------------------------------
 #
 # Asked once and read whole. The diagnostic opens the database, walks the storage root and
