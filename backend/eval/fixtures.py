@@ -43,13 +43,19 @@ PAGE_COUNT = 6
 DPI = 150
 
 
-def build(force: bool = False) -> Path:
-    """Rasterise the first pages of a corpus document into a text-free PDF."""
+def build(destination: Path = FIXTURE, force: bool = False) -> Path:
+    """Rasterise the first pages of a corpus document into a text-free PDF.
+
+    The destination is a parameter so the test for this function can build into `tmp_path`.
+    It used to write `FIXTURE` unconditionally, which made the test the one place in the
+    suite that wrote a fixed repository path another reader opens — and two `make check`
+    runs in one checkout is the ordinary case now that several agents share a tree.
+    """
     import pypdfium2
     from PIL import Image
 
-    if FIXTURE.exists() and not force:
-        return FIXTURE
+    if destination.exists() and not force:
+        return destination
 
     source = next(document for document in load_manifest() if document.id == SOURCE_ID)
     if not source.path.exists():
@@ -62,8 +68,15 @@ def build(force: bool = False) -> Path:
         page: Image.Image = rendered.to_pil().convert("RGB")
         images.append(page)
 
-    images[0].save(FIXTURE, save_all=True, append_images=images[1:])
-    return FIXTURE
+    # Written beside the destination and renamed over it, the way `corpus.download` does.
+    # Saving six rasterised pages straight onto the destination truncates it first and then
+    # takes seconds to fill, and the reuse guard above is `exists()` — so a concurrent
+    # reader gets a half-written PDF, and an interrupted build leaves one that every later
+    # run accepts as valid for good.
+    partial = destination.with_suffix(".partial")
+    images[0].save(partial, format="PDF", save_all=True, append_images=images[1:])
+    partial.replace(destination)
+    return destination
 
 
 def extractable_characters(path: Path) -> int:
