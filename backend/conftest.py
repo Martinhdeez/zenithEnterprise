@@ -177,6 +177,84 @@ def isolated_storage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "storage_dir", tmp_path / "documents")
 
 
+# --- The checkout is read-only for the length of a run ------------------------------
+#
+# `isolated_storage` above covers one path, the one the product writes. It cannot cover a
+# test that writes somewhere else, and twice in two days one did: the corpus manifest, and
+# then the image-only fixture. Both were the same mistake — a test writing a path derived
+# from a module constant rather than from `tmp_path` — and both were invisible until two
+# `make check` runs shared a checkout, which is the ordinary case now.
+#
+# The rule that catches them is easy to state and impossible to remember at the moment it
+# matters, so it is checked instead of written down. This is a walk of the tree before and
+# after the session: 359 files, about a millisecond, and it does not care *how* something
+# was written.
+
+#: Names never worth walking into.
+UNWATCHED = frozenset({".venv", "__pycache__", ".pytest_cache", ".ruff_cache", "node_modules"})
+
+#: Paths a test is allowed to write, relative to `backend/`, each with the reason.
+#: Declared rather than inferred, for the reason `AUTHORISED_SECURITY_DEFINERS` is: an
+#: exception nobody can see is an exception nobody reviews.
+PERMITTED_WRITES: dict[str, str] = {
+    # Extracted page text for the whole corpus, driven by `eval/tests/test_questions.py`.
+    # Shared on purpose: a private copy per run would spend minutes re-extracting 1,842
+    # pages to avoid a race that an atomic rename already closes. See `eval/text.py`.
+    ".text-cache": "the page-text cache is shared deliberately and written atomically",
+}
+
+
+def tree(root: Path = BACKEND_DIR) -> dict[Path, tuple[int, int]]:
+    """Every file under `root`, by size and modification time.
+
+    The root is a parameter so the test for this can be given a tree of its own — the same
+    reasoning as everywhere else in this section.
+    """
+    found: dict[Path, tuple[int, int]] = {}
+    for directory, subdirectories, files in os.walk(root):
+        subdirectories[:] = [name for name in subdirectories if name not in UNWATCHED]
+        for name in files:
+            path = Path(directory) / name
+            relative = path.relative_to(root)
+            if any(part in PERMITTED_WRITES for part in relative.parts):
+                continue
+            try:
+                stat = path.stat()
+            except OSError:  # vanished between the walk and the stat; the diff will say so
+                continue
+            found[relative] = (stat.st_size, stat.st_mtime_ns)
+    return found
+
+
+def written_between(
+    before: dict[Path, tuple[int, int]], after: dict[Path, tuple[int, int]]
+) -> list[Path]:
+    """Every path that appeared, vanished, changed size or was rewritten."""
+    return sorted(
+        path for path in before.keys() | after.keys() if before.get(path) != after.get(path)
+    )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def read_only_checkout() -> Iterator[None]:
+    """No test writes into the repository.
+
+    A test that does is a test other runs race, because the path it writes is a path
+    something else reads — and the failure surfaces as a corrupt file in an unrelated test,
+    on someone else's machine, once in every few runs.
+    """
+    before = tree()
+    yield
+    written = written_between(before, tree())
+    if written:
+        pytest.fail(
+            "the test run wrote into the checkout, so a concurrent run would have raced it:\n"
+            + "\n".join(f"  backend/{path}" for path in written)
+            + "\nWrite to `tmp_path` instead, or declare the path in `PERMITTED_WRITES`.",
+            pytrace=False,
+        )
+
+
 @pytest.fixture(autouse=True)
 def fresh_login_allowance() -> None:
     """Reset the login rate limiter before every test.
