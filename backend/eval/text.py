@@ -17,7 +17,13 @@ CACHE = EVAL_DIR / ".text-cache"
 
 
 def extract(document_id: str, force: bool = False) -> list[str]:
-    """Page text for one document, one string per page, cached on disk."""
+    """Page text for one document, one string per page, cached on disk.
+
+    The cache is shared on purpose — three tests in `test_questions.py` walk the whole
+    corpus through it, and giving each run its own copy would cost minutes of extraction
+    per run to avoid a race that a rename closes. So the cache stays where it is and the
+    write is made atomic instead.
+    """
     import pdfplumber
 
     CACHE.mkdir(exist_ok=True)
@@ -33,7 +39,14 @@ def extract(document_id: str, force: bool = False) -> list[str]:
         with pdfplumber.open(document.path) as pdf:
             pages = [(page.extract_text() or "") for page in pdf.pages]
 
-    cached.write_text(json.dumps(pages))
+    # Written beside the entry and renamed over it, so `exists()` above is only ever true
+    # of a complete file. `write_text` truncates first: a second run reading the cache in
+    # that window gets `json.loads("")`, and an interruption leaves a truncated entry that
+    # every later run accepts — `force` defaults to False, so the corpus tests would stay
+    # broken on that machine until someone deleted `.text-cache` by hand.
+    partial = cached.with_suffix(".partial")
+    partial.write_text(json.dumps(pages))
+    partial.replace(cached)
     return pages
 
 
