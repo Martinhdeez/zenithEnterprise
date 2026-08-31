@@ -33,6 +33,11 @@ SKIP_ANSWER="${ZENITH_DEMO_SKIP_ANSWER:-}"
 # findings, and only one question asked of both endpoints can tell them apart.
 QUESTION="plazo maximo de detencion preventiva"
 
+# Set by the sign-in below and read again by the corpus block, which runs after it. Declared
+# here so that "nobody signed in" is an empty string rather than an unbound variable under
+# `set -u`, and so that the one place it is set is greppable.
+TOKEN=""
+
 FAILURES=0
 WARNINGS=0
 
@@ -43,13 +48,135 @@ bad()  { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; FAILURES=$(( FAILURES + 1 ))
 echo "Demo readiness — ${API}"
 
 # --- the services ---------------------------------------------------------------------
+#
+# **Not "is the container listed".** This loop used to ask `compose ps -q` for an id and print
+# `up` when it got one, and three states answer that question with a yes while serving
+# nothing: a container restarting in a loop has an id like any other, a paused one is listed
+# like a healthy one, and a container that has just come back from a kill looks exactly like
+# one that has been up for a week.
+#
+# It is the question nobody was asking on 28 August. `tei-rerank` was killed for memory
+# (exit 137), came back, and search kept answering from the fused order about fifteen points
+# of recall worse in between, marked `degraded` in a field nobody was reading. Every check
+# that only asked "is the container listed" said yes.
+#
+# **And until today only `tei-rerank` was asked properly.** The other five were counted by
+# id, which makes `worker` the indefensible one: a worker in a restart loop prints `worker up`
+# — the exact 28-August failure mode, in the service that ingests — and `job queue: 0 job(s)
+# waiting` below reads identically whether the queue is idle or nothing is draining it. No
+# service here deserves less than the reranker got. A `db` that has restarted twice in ten
+# minutes has dropped every connection twice; an `api` in a loop answers one request in
+# three; a `frontend` restarting is the proxy disappearing between two slides.
+#
+# This is also the one question `zenith diagnose` cannot answer. The diagnostic runs inside
+# the API container, where Docker's restart count is out of reach, so it has to infer a
+# restart from TEI's own counters — which reset with the process and cannot say how many
+# times or when. This script runs on the host with the Docker CLI, so it can simply ask.
+#
+# A failure, not a warning, when a restart is recent. A service that is up now but died twice
+# in the last ten minutes is not fit to demonstrate — what the audience sees depends on which
+# side of a kill their question lands on.
+#
+# `-aq` rather than `-q`: a container that is stopped or looping still has an id and a restart
+# count, and those are exactly the two states worth asking about.
 for service in db tei-embed tei-rerank api worker frontend; do
-  if [ "$(${COMPOSE} ps -q "${service}" 2>/dev/null | wc -l | tr -d '[:space:]')" -eq 0 ]; then
-    bad "${service} is not running"
+  CONTAINER="$(${COMPOSE} ps -aq "${service}" 2>/dev/null | head -1)"
+  if [ -z "${CONTAINER}" ]; then
+    bad "${service} has no container at all — it was never created, or 'compose down' removed it"
+    continue
+  fi
+  # `unreadable` rather than `unknown`, and the word is load-bearing: it must be a token
+  # Docker can never itself return, because the arms below dispatch on the state name and the
+  # one thing that must not happen is a real state and a failure to read one arriving as the
+  # same string. `unknown` was not safe on that count and was not treated as a finding either;
+  # see below.
+  read -r STATE RESTARTS STARTED <<EOF
+$(docker inspect --format '{{.State.Status}} {{.RestartCount}} {{.State.StartedAt}}' \
+    "${CONTAINER}" 2>/dev/null || echo "unreadable 0 -")
+EOF
+  # Seconds since the *current* process started. Docker's timestamp carries nanoseconds,
+  # which `fromisoformat` will not parse, so the fraction is dropped rather than rounded —
+  # this is a "how long ago, roughly" and a second either way changes nothing.
+  AGE="$(python3 -c '
+import datetime, sys
+stamp = sys.argv[1].split(".")[0].rstrip("Z")
+started = datetime.datetime.fromisoformat(stamp).replace(tzinfo=datetime.timezone.utc)
+print(int((datetime.datetime.now(datetime.timezone.utc) - started).total_seconds()))
+' "${STARTED}" 2>/dev/null || echo -1)"
+  if [ "${STATE}" = "unreadable" ]; then
+    # `docker inspect` failed, and until 30 August that was the quietest outcome in this
+    # block. The fallback said `unknown`, `unknown` is not `running`, so it landed on a silent
+    # arm on top of a green line claiming the container was up. The one outcome meaning "this
+    # check learned nothing" was the one outcome that said nothing.
+    #
+    # A failure and not a warning, for the reason the 503 split further down gives in the same
+    # words: when it cannot be established, it fails.
+    bad "${service} is listed but 'docker inspect' could not read it — its state and restart count are unknown, and all this check knows is that a container has an id"
+  elif [ "${STATE}" = "restarting" ]; then
+    bad "${service} is restarting — it is in a loop right now, and an id is all a container in a loop needs to look healthy"
+  elif [ "${STATE}" = "exited" ] || [ "${STATE}" = "dead" ] || [ "${STATE}" = "created" ] || [ "${STATE}" = "removing" ]; then
+    bad "${service} is ${STATE} — it is not running"
+  elif [ "${STATE}" != "running" ]; then
+    # Anything else. `paused` is the one that exists today and it is not hypothetical enough
+    # to ignore: a paused container is listed by `compose ps` like a healthy one and answers
+    # nothing. A state named neither here nor above is not a pass either — the same rule the
+    # diagnose reader applies to a status it has never seen.
+    bad "${service} is ${STATE} — it is listed, and it is not serving"
+  elif [ "${RESTARTS}" -eq 0 ] 2>/dev/null; then
+    ok "${service} up, no restarts since it was created"
+  elif [ "${AGE}" -lt 0 ]; then
+    # It has restarted and the timestamp could not be parsed, so *when* has no answer. This
+    # used to fall through to the `warn` below and print "restarted 3 time(s), but has been up
+    # for 0m", because bash truncates `-1 / 60` toward zero — and "up for 0m" is the
+    # recent-restart case, the one this block calls a failure. The worst reading of the
+    # evidence was printed in the words of the mildest one.
+    bad "${service} has restarted ${RESTARTS} time(s) and this check could not read when it last started (${STARTED}) — 'docker compose logs ${service}'; a container killed for memory exits 137"
+  elif [ "${AGE}" -lt 1800 ]; then
+    bad "${service} has restarted ${RESTARTS} time(s), the last $(( AGE / 60 ))m ago — 'docker compose logs ${service}'; a container killed for memory exits 137"
   else
-    ok "${service} up"
+    warn "${service} has restarted ${RESTARTS} time(s), but has been up for $(( AGE / 60 ))m"
   fi
 done
+
+# --- and is the worker consuming anything? ------------------------------------------------
+#
+# The loop above knows the container is running and has not been dying. Neither fact says the
+# process inside it is doing its job, and `job queue: 0 job(s) waiting` further down cannot
+# help: an empty queue reads identically whether a healthy worker has drained it or a dead one
+# never touched it, because nothing was asked of it either way. What that leaves unguarded is
+# a document uploaded in the room that stays `pending` for ever with every line here green.
+#
+# procrastinate's own heartbeat answers it, and it is a fact about the process rather than
+# about the queue. A worker registers a row in `procrastinate_workers` and updates
+# `last_heartbeat` every ten seconds; a worker that stops leaves the row behind with a
+# timestamp that stops moving, because the pruning of stale workers is done by *another*
+# running worker. So a stale heartbeat is the shape of a worker that died, and no heartbeat at
+# all is the shape of one that never started — and the two want different sentences.
+#
+# Sixty seconds is six missed beats: wide enough that a worker busy inside one long embedding
+# call is not called dead, narrow enough to catch one killed on the way into the room.
+#
+# The owner connection, for the reason `_job_queue` in `core/diagnostics.py` gives: the queue
+# tables are procrastinate's own, they carry no RLS, and `zenith_app` holds no privilege on
+# them by design — asking with the application role reports `permission denied` on a perfectly
+# healthy installation.
+HEARTBEAT="$(${COMPOSE} exec -T db psql -U "${POSTGRES_USER:-zenith}" -d "${POSTGRES_DB:-zenith}" -tAc \
+  "SELECT coalesce(max(extract(epoch FROM now() - last_heartbeat))::bigint, -1)
+     FROM procrastinate_workers" 2>/dev/null)"
+ASKED=$?
+if [ "${ASKED}" -ne 0 ]; then
+  # A warning rather than a second failure, for the same reason the corpus comparison below
+  # is: every cause of this — a `db` that will not answer, queue tables that were never
+  # installed — is already a failure somewhere else in this report, and one cause counted
+  # twice reads at the bottom like two problems.
+  warn "could not ask whether a worker is consuming the queue — psql exited ${ASKED}; the 'job queue' check below says whether procrastinate's tables are installed at all"
+elif [ "${HEARTBEAT}" -lt 0 ] 2>/dev/null; then
+  bad "no worker has ever registered a heartbeat — nothing is draining the queue, so a document uploaded in the room stays 'pending' and is never searchable"
+elif [ "${HEARTBEAT}" -gt 60 ]; then
+  bad "the last worker heartbeat was ${HEARTBEAT}s ago — the container is up and the process inside it has stopped consuming the queue"
+else
+  ok "worker heartbeat ${HEARTBEAT}s old — it is consuming the queue"
+fi
 
 # --- what the models actually are ------------------------------------------------------
 #
@@ -68,86 +195,6 @@ for pair in "embed:8081:BAAI/bge-m3" "rerank:8082:"; do
     ok "${name} serving ${served}"
   fi
 done
-
-# --- has the reranker been dying and coming back? -----------------------------------------
-#
-# The one question this script can answer and `zenith diagnose` cannot. The diagnostic runs
-# inside the API container, where Docker's restart count is out of reach, so it has to infer a
-# restart from TEI's own counters — which reset with the process and cannot say how many times
-# or when. This script runs on the host with the Docker CLI, so it can simply ask.
-#
-# It is the question nobody was asking on 28 August. `tei-rerank` was killed for memory
-# (exit 137), came back, and search kept answering from the fused order about fifteen points
-# of recall worse in between. Every check that only asked "is the container listed" said yes:
-# a container that is restarting in a loop has an id like any other, and the loop above would
-# have called it up.
-#
-# A failure, not a warning, when it is recent. A service that is up now but died twice in the
-# last ten minutes is not fit to demonstrate — the recall the audience sees depends on which
-# side of a kill their question lands on.
-# `-a`, unlike the loop above: a container that is stopped or looping still has an id and a
-# restart count, and those are exactly the two states worth asking about here.
-RERANK_ID="$(${COMPOSE} ps -aq tei-rerank 2>/dev/null | head -1)"
-if [ -n "${RERANK_ID}" ]; then
-  # `unreadable` rather than `unknown`, and the word is load-bearing: it must be a token
-  # Docker can never itself return, because the arms below dispatch on the state name and the
-  # one thing that must not happen is a real state and a failure to read one arriving as the
-  # same string. `unknown` was not safe on that count and was not treated as a finding either;
-  # see below.
-  read -r STATE RESTARTS STARTED <<EOF
-$(docker inspect --format '{{.State.Status}} {{.RestartCount}} {{.State.StartedAt}}' \
-    "${RERANK_ID}" 2>/dev/null || echo "unreadable 0 -")
-EOF
-  # Seconds since the *current* process started. Docker's timestamp carries nanoseconds,
-  # which `fromisoformat` will not parse, so the fraction is dropped rather than rounded —
-  # this is a "how long ago, roughly" and a second either way changes nothing.
-  AGE="$(python3 -c '
-import datetime, sys
-stamp = sys.argv[1].split(".")[0].rstrip("Z")
-started = datetime.datetime.fromisoformat(stamp).replace(tzinfo=datetime.timezone.utc)
-print(int((datetime.datetime.now(datetime.timezone.utc) - started).total_seconds()))
-' "${STARTED}" 2>/dev/null || echo -1)"
-  if [ "${STATE}" = "unreadable" ]; then
-    # `docker inspect` failed, and until 30 August that was the quietest outcome in this
-    # block. The fallback said `unknown`, `unknown` is not `running`, so it landed on the
-    # silent arm below whose comment asserts the container was *already reported as not
-    # running by the loop above* — and the loop above had reported it **up**. That loop asks
-    # `compose ps -q` for an id and prints `up` when it gets one, which is the whole reason
-    # this block exists. So the one outcome meaning "this check learned nothing" was the one
-    # outcome that said nothing, on top of a green line claiming the opposite.
-    #
-    # A failure and not a warning, for the reason the 503 split further down gives in the same
-    # words: when it cannot be established, it fails. What is unknown here is exactly the
-    # thing 28 August turned on.
-    bad "tei-rerank is listed but 'docker inspect' could not read it — its restart count is unknown, and the line above only knows the container has an id"
-  elif [ "${STATE}" = "restarting" ]; then
-    # The state the loop above cannot see. A container caught between kills is listed like
-    # any other, so that loop calls it up — which is precisely how 28 August went unnoticed.
-    bad "tei-rerank is restarting — it is in a loop right now, and the check above still calls it up"
-  elif [ "${STATE}" = "exited" ] || [ "${STATE}" = "dead" ] || [ "${STATE}" = "created" ] || [ "${STATE}" = "removing" ]; then
-    : # Already reported as not running, by name, in the loop above — these are the states
-      # `compose ps` without `-a` leaves out, which is what makes that claim true.
-  elif [ "${STATE}" != "running" ]; then
-    # Anything else. `paused` is the one that exists today and it is not hypothetical enough
-    # to ignore: a paused container is listed by `compose ps` like a healthy one, so the loop
-    # above calls it up, and it answers nothing. A state named neither here nor above is not a
-    # pass either — the same rule the diagnose reader applies to a status it has never seen.
-    bad "tei-rerank is ${STATE}, and the line above still calls it up — it is not serving"
-  elif [ "${RESTARTS}" -eq 0 ] 2>/dev/null; then
-    ok "tei-rerank has not restarted since it was created"
-  elif [ "${AGE}" -lt 0 ]; then
-    # The container has restarted and the timestamp could not be parsed, so *when* has no
-    # answer. This used to fall through to the `warn` below and print "restarted 3 time(s),
-    # but has been up for 0m", because bash truncates `-1 / 60` toward zero — and "up for 0m"
-    # is the recent-restart case, the one this block calls a failure. The worst reading of the
-    # evidence was printed in the words of the mildest one.
-    bad "tei-rerank has restarted ${RESTARTS} time(s) and this check could not read when it last started (${STARTED}) — 'docker logs' it and look for exit 137"
-  elif [ "${AGE}" -lt 1800 ]; then
-    bad "tei-rerank has restarted ${RESTARTS} time(s), the last $(( AGE / 60 ))m ago — 'docker logs' it and look for exit 137"
-  else
-    warn "tei-rerank has restarted ${RESTARTS} time(s), but has been up for $(( AGE / 60 ))m"
-  fi
-fi
 
 # --- the proxy ---------------------------------------------------------------------------
 #
@@ -181,36 +228,107 @@ fi
 # throwing on `<!doctype`. Reproducing it is the only test that cannot pass against nothing:
 # an empty body is not JSON either.
 #
-# Deliberately *not* the status. Every one of these four answers 401 here, because this runs
-# without a token, and a 401 is a pass: the question is where the request arrived, not what it
-# was allowed to do once there. Pinning the status would make the check fail the day one of
-# these routes stops needing a token, which is not what it is watching for. Deliberately not
-# the content type on its own either — it is a header, set by whatever answered, and what the
-# browser chokes on is the bytes. The status is still printed, because an operator reading
-# `401` learns something an operator reading `OK` does not.
-for path in /documents /search /roles /analytics; do
+# Deliberately *not* the status. Every one of these answers 401, 404 or 405 here, because
+# this runs without a token and asks for the bare prefix, and all three are a pass: the
+# question is where the request arrived, not what it was allowed to do once there. Pinning
+# the status would make the check fail the day one of these routes stops needing a token,
+# which is not what it is watching for. Deliberately not the content type on its own either —
+# it is a header, set by whatever answered, and what the browser chokes on is the bytes. The
+# statuses are still printed, because an operator reading `401` learns something an operator
+# reading `OK` does not.
+#
+# **The list of prefixes is no longer written here.** Four were, out of the twelve the API
+# serves, and the two this product has actually shipped broken — `groups` and `system` — were
+# not among the four. Writing twelve down would make this the *third* hand-kept copy of the
+# route table, after nginx's and vite's, and CONTRIBUTING.md's rule about registries applies
+# to it exactly: a file that every new router has to be added to is wrong the one time
+# somebody forgets, and the fix is to make the file discover its entries rather than list
+# them. So the list is asked of the running API, which is also the only source that suits
+# this script. `tests/integration/test_proxy_prefixes.py` already holds the two config
+# *files* to the route table the code declares; that is the declared question. This one is
+# whether the installation that is running right now answers on every prefix it says it
+# serves — and a `frontend` image built before the last router landed fails here and passes
+# there.
+#
+# `health` and the schema documents are excluded for the reason that test excludes them:
+# nginx serves them itself or the SPA does, and neither is proxied.
+PREFIX_ORIGIN="the API says it serves"
+PREFIXES="$(curl -fsS --max-time 10 "${API}/openapi.json" 2>/dev/null | python3 -c '
+import sys, json
+
+NOT_PROXIED = {"health", "openapi.json", "docs", "redoc"}
+prefixes = {
+    segment[0]
+    for path in json.load(sys.stdin)["paths"]
+    if (segment := [part for part in path.split("/") if part])
+    and not segment[0].startswith("{")
+}
+print(" ".join(sorted(prefixes - NOT_PROXIED)))
+' 2>/dev/null || true)"
+if [ -z "${PREFIXES}" ]; then
+  # The fallback is a written-down list, which is the thing the paragraph above refuses to
+  # rely on — so it is used and announced rather than used quietly. The probes below are
+  # still worth running against it; what is not known is whether the API has grown a
+  # thirteenth router since somebody last edited this line.
+  PREFIXES="auth labels documents search query tenant roles groups system analytics llm-config users"
+  PREFIX_ORIGIN="this file lists"
+  warn "could not read ${API}/openapi.json, so the prefixes probed below are this file's own copy of the route table and may be one router behind the API"
+fi
+
+# **Twelve probes, and deliberately not twelve lines.** A line per prefix spends a third of
+# this report saying "yes" twelve times and pushes the answer check off the screen of
+# somebody reading it minutes before a room. What an operator needs from this section is one
+# of two facts — the proxy list is complete, or these names are missing — so the pass is one
+# line carrying the count, and each failing *class* is one line naming the prefixes in it.
+#
+# Grouped by class rather than by prefix because the remedy belongs to the class and not to
+# the prefix: every SPA fall-through is fixed by editing the same two files, and every proxy
+# error page by starting the same container. One missing word in nginx's regex would
+# otherwise produce twelve failures and a summary line reading `NOT READY — 12 failure(s)`,
+# which describes one problem as twelve.
+count() { printf '%s' "$#"; }
+REACHED=""; FELL_THROUGH=""; PROXY_ERROR=""; SILENT=""; CODES=""
+for prefix in ${PREFIXES}; do
   # `--max-time`, for the reason the answer check gives: a proxy that accepts the connection
   # and never replies is a hang, and a check that hangs is one an operator learns to skip.
-  REPLY="$(curl -s --max-time 10 -w '\n%{http_code}' "${WEB}${path}" 2>/dev/null || true)"
+  REPLY="$(curl -s --max-time 10 -w '\n%{http_code}' "${WEB}/${prefix}" 2>/dev/null || true)"
   CODE="${REPLY##*$'\n'}"
   BODY="${REPLY%$'\n'*}"
   if printf '%s' "${BODY}" | python3 -c 'import sys, json; json.load(sys.stdin)' 2>/dev/null; then
-    ok "${path} reaches the API through the proxy — it answered ${CODE} in JSON"
+    REACHED="${REACHED} ${prefix}"
+    case " ${CODES} " in *" ${CODE} "*) ;; *) CODES="${CODES} ${CODE}" ;; esac
   elif [ -z "${CODE}" ] || [ "${CODE}" = "000" ]; then
-    bad "${path} — nothing answered at ${WEB} at all, so the proxy list was never asked: the frontend container is not serving, or ZENITH_WEB names the wrong port"
+    SILENT="${SILENT} ${prefix}"
   else
     case "${BODY}" in
-      *"<!doctype"*|*"<!DOCTYPE"*)
-        bad "${path} falls through to the SPA — missing from the nginx proxy list in docker/nginx.frontend.conf, and from frontend/vite.config.ts with it" ;;
-      *)
-        bad "${path} — ${WEB} answered ${CODE} and not in JSON, so this is the proxy's own error page: nginx matched the prefix and could not reach the API behind it" ;;
+      *"<!doctype"*|*"<!DOCTYPE"*) FELL_THROUGH="${FELL_THROUGH} ${prefix}" ;;
+      *)                           PROXY_ERROR="${PROXY_ERROR} ${prefix} (${CODE})" ;;
     esac
   fi
 done
 
+PROBED="$(count ${PREFIXES})"
+if [ -n "${REACHED}" ]; then
+  if [ "$(count ${REACHED})" -eq "${PROBED}" ]; then
+    ok "all ${PROBED} prefixes ${PREFIX_ORIGIN} reach the API through the proxy — every one answered in JSON (${CODES# })"
+  else
+    # Named, unlike the pass above: in a mixed run the interesting half is which ones worked.
+    ok "${REACHED# } reach the API through the proxy, answering in JSON (${CODES# })"
+  fi
+fi
+if [ -n "${SILENT}" ]; then
+  bad "nothing answered at ${WEB} at all for${SILENT}, so the proxy list was never asked: the frontend container is not serving, or ZENITH_WEB names the wrong port"
+fi
+if [ -n "${FELL_THROUGH}" ]; then
+  bad "${FELL_THROUGH# } fall(s) through to the SPA — missing from the nginx proxy list in docker/nginx.frontend.conf, and from frontend/vite.config.ts with it"
+fi
+if [ -n "${PROXY_ERROR}" ]; then
+  bad "${PROXY_ERROR# } — ${WEB} answered with that status and not in JSON, so this is the proxy's own error page: nginx matched the prefix and could not reach the API behind it"
+fi
+
 # --- a real question ----------------------------------------------------------------------
 if [ -z "${EMAIL}" ] || [ -z "${PASSWORD}" ]; then
-  warn "no credentials given — skipping the search and answer checks (pass email and password to run them)"
+  warn "no credentials given — skipping the search, answer and corpus-visibility checks (pass email and password to run them)"
 else
   TOKEN="$(curl -fsS -X POST "${API}/auth/login" -H 'Content-Type: application/json' \
     -d "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\"}" 2>/dev/null \
@@ -452,6 +570,210 @@ else
   done <<EOF
 ${STATUSES}
 EOF
+fi
+
+# --- and the same corpus, counted as the account that will be demonstrated ------------------
+#
+# **Everything above this line was counted by the database owner, and the owner bypasses
+# every RLS policy.** `42 documents ready` is what the tables hold. It is not what
+# `demo@example.com` can retrieve, and invariant 1 makes the difference silent on purpose:
+# a forgotten filter returns *nothing* rather than everything, so a label the demonstrating
+# account's groups do not reach, or a group membership nobody renewed, produces an empty
+# screen and no error anywhere. Every line in this report stays green and the room is empty.
+#
+# So it is counted twice, and **neither count replaces the other**: the owner's says
+# ingestion worked, this one says the access control lets somebody see the result. They are
+# different questions and the demonstration depends on both.
+#
+# **When they disagree that is the most interesting line in this report**, and it is a
+# failure rather than a warning. A corpus that exists and cannot be reached is the one state
+# that looks healthy from every other angle here — the files are on disk, the rows are in the
+# table, `document files` passes, ingestion passes — and the first evidence anybody gets is a
+# blank document list in front of an audience.
+#
+# Through `GET /documents` rather than by setting the tenant GUCs in psql by hand. The point
+# is to walk the path the client walks: the token, the profile it resolves to, the groups
+# that profile carries and the labels those groups reach. Reproducing that in SQL would be
+# reproducing the thing under test.
+if [ -n "${TOKEN}" ]; then
+  # Paged, because a page is all this endpoint has: `MAX_LIMIT` is 200 and there is no
+  # total — `DocumentPage`'s docstring says why, and counting under RLS is exactly the cost
+  # it declines to pay. So the count is the client's own count, taken the client's own way.
+  #
+  # urllib rather than curl, alone in this file: following an opaque cursor is a loop that
+  # has to carry state between iterations, and ten lines of Python that do it in one place
+  # are easier to read — and to be sure of — than a shell loop reassembling a query string.
+  RETRIEVED="$(python3 -c '
+import json, sys, urllib.request
+
+api, token = sys.argv[1], sys.argv[2]
+
+count, cursor = 0, None
+# A bound rather than `while True`. 200 pages of 200 is 40,000 documents, well past the
+# 5,000 per tenant the configuration permits, so reaching it means the cursor stopped
+# advancing — and an unfinished count is said to be unfinished rather than reported.
+for _ in range(200):
+    url = api + "/documents?status=ready&limit=200" + (("&cursor=" + cursor) if cursor else "")
+    ask = urllib.request.Request(url, headers={"Authorization": "Bearer " + token})
+    try:
+        with urllib.request.urlopen(ask, timeout=20) as response:
+            page = json.load(response)
+    except Exception as error:
+        print("UNREADABLE " + str(error))
+        sys.exit(0)
+    count += len(page.get("items") or [])
+    cursor = page.get("next_cursor")
+    if not cursor:
+        print("COUNT " + str(count))
+        sys.exit(0)
+print("TRUNCATED " + str(count))
+' "${API}" "${TOKEN}" 2>/dev/null || printf "UNREADABLE the document list could not be read at all\n")"
+
+  # The owner's count for *this account's* organisation, not the sum printed above: the
+  # comparison is only meaningful inside one tenant, and an installation holding two corpora
+  # would otherwise always disagree with itself.
+  #
+  # `:'email'` rather than the address interpolated into the string. psql quotes the variable
+  # as a literal itself, so an address containing a quote is a value and never syntax — this
+  # is an operator's own argument rather than a stranger's, but a readiness check has no
+  # business being the one place in the repository that builds SQL by concatenation.
+  #
+  # Fed on standard input (`-f -`) and not with `-c`, which is what makes that possible:
+  # psql substitutes its variables while parsing a script and hands a `-c` string to the
+  # server untouched, so `:'email'` inside `-c` reaches Postgres verbatim and is a syntax
+  # error at the colon.
+  HELD="$(printf '%s' \
+    "SELECT count(*)
+       FROM documents d JOIN users u ON u.tenant_id = d.tenant_id
+      WHERE lower(u.email) = lower(:'email') AND d.status = 'ready'" \
+    | ${COMPOSE} exec -T db psql -U "${POSTGRES_USER:-zenith}" -d "${POSTGRES_DB:-zenith}" \
+        -v email="${EMAIL}" -tA -f - 2>/dev/null)"
+  ASKED=$?
+  KIND="${RETRIEVED%% *}"
+  DETAIL="${RETRIEVED#* }"
+  case "${KIND}" in
+    COUNT)
+      if [ "${ASKED}" -ne 0 ] || [ -z "${HELD}" ]; then
+        # Half the answer, said as half. The corpus block above has already failed on the
+        # same psql, so this is a warning rather than a second failure for one cause.
+        warn "corpus: ${EMAIL} retrieves ${DETAIL} ready document(s) through GET /documents, and psql could not say how many its organisation holds — the two counts were not compared"
+      elif [ "${DETAIL}" -eq "${HELD}" ]; then
+        ok "corpus: ${EMAIL} retrieves all ${HELD} of the ready documents its organisation holds"
+      elif [ "${DETAIL}" -lt "${HELD}" ]; then
+        bad "corpus: ${EMAIL} retrieves ${DETAIL} of the ${HELD} ready documents its organisation holds — $(( HELD - DETAIL )) are invisible to the account that will be demonstrated. Labels or group membership, not ingestion: the count above is the owner's, and the owner bypasses RLS"
+      else
+        # Not reachable through RLS, which is why it is worth printing: a session that sees
+        # more rows than its own tenant holds would be invariant 1 broken the dangerous way
+        # round, and the likelier reading is that one of these two queries is wrong.
+        bad "corpus: ${EMAIL} retrieves ${DETAIL} ready documents while its organisation holds ${HELD} — a session cannot see more than its tenant has, so one of these two counts is wrong"
+      fi ;;
+    TRUNCATED)
+      warn "corpus: stopped counting what ${EMAIL} retrieves at ${DETAIL} documents — GET /documents kept handing back a cursor, so it was never compared with what the tables hold" ;;
+    *)
+      bad "corpus: could not ask GET /documents what ${EMAIL} can retrieve, so the number above is the owner's and nobody has checked the account can see it — ${DETAIL}" ;;
+  esac
+fi
+
+# --- one document, pulled the way the viewer pulls it ---------------------------------------
+#
+# `document files` in the report below is a row-versus-disk comparison made *inside* the API
+# container: it walks the storage root and asks whether every row's file is there. That is a
+# real check and it is not this one, because the path an audience uses is none of it. The
+# citation viewer fetches `/documents/<id>/file` from a browser, through nginx, and that
+# stretch has broken twice with everything here green:
+#
+#   the `.mjs` MIME bug     nginx's stock mime.types has no `.mjs` entry, so the PDF worker
+#                           script was served as application/octet-stream and the browser's
+#                           module-script check refused to execute it. Every preview and every
+#                           citation click failed with "The document could not be rendered",
+#                           on files that were present and correct on disk.
+#   `client_max_body_size`  nginx's own 1 MB default answered its own HTML error page before
+#                           the request reached the API at all.
+#
+# Both live between the browser and the API, and every other check in this file asks either
+# the API directly or the database. So: one real document, chosen from what the account can
+# actually retrieve, pulled through `ZENITH_WEB` with the demonstrating token.
+#
+# Four assertions, and the last is the one nothing else can make. That it is not the SPA —
+# `/documents` missing from the proxy list answers `index.html` with a 200. That it is not
+# nginx's own error page. That the bytes are a PDF, which is what `PdfViewer.tsx` hands to
+# pdf.js and what an octet-stream is not. And that **all** of them arrived: a truncated body
+# is a 200 with a correct content type, so no status code and no header carries it — only the
+# count, held against the size the row records.
+#
+# **It reads and does not write, so it covers one direction.** The `client_max_body_size`
+# ceiling is a limit on request bodies: this download would have passed while every upload
+# over 1 MB failed. Constructing the other direction means uploading to the customer's
+# installation, which a readiness check has no business doing — the same reasoning the answer
+# check gives for keeping the row it writes rather than deleting it afterwards.
+if [ -n "${TOKEN}" ]; then
+  # Chosen through the API rather than named here or picked from psql: a document this script
+  # knows about is a document somebody has to keep up to date, and one read out of the
+  # database might be one the demonstrating account cannot reach — which would make this
+  # check fail for the reason the block above already reports.
+  read -r DOC_ID DOC_TYPE DOC_SIZE DOC_NAME <<EOF
+$(curl -fsS --max-time 20 -H "Authorization: Bearer ${TOKEN}" \
+    "${API}/documents?status=ready&limit=1" 2>/dev/null | python3 -c '
+import sys, json
+
+items = json.load(sys.stdin).get("items") or []
+if not items:
+    print("- - - -")
+else:
+    first = items[0]
+    # The filename last: it is the one field that can hold a space.
+    print(first["id"], first["media_type"], first["size_bytes"], first["filename"])
+' 2>/dev/null || echo "- - - -")
+EOF
+  if [ "${DOC_ID}" = "-" ]; then
+    warn "no ready document this session can retrieve, so nothing was pulled through the proxy — the corpus lines above say why"
+  else
+    BYTES="$(mktemp)"
+    # `content_type` last: an answer that carries no type at all would otherwise shift the
+    # fields left and put a header where a byte count belongs.
+    read -r CODE SIZE SERVED <<EOF
+$(curl -s --max-time 60 -o "${BYTES}" -w '%{http_code} %{size_download} %{content_type}' \
+    -H "Authorization: Bearer ${TOKEN}" "${WEB}/documents/${DOC_ID}/file" 2>/dev/null \
+    || echo "000 0 -")
+EOF
+    VERDICT="$(python3 -c '
+import sys
+
+path, code, size, served, want_type, want_size = sys.argv[1:7]
+head = open(path, "rb").read(16)
+html = head.lstrip()[:9].lower().startswith((b"<!doctype", b"<html"))
+
+if code in ("000", ""):
+    print("NO_REPLY nothing answered at all — the frontend container is not serving, or ZENITH_WEB names the wrong port")
+elif html and code == "200":
+    print("SPA it answered index.html with a 200 — /documents is missing from the nginx proxy "
+          "list in docker/nginx.frontend.conf, so the viewer gets HTML where it expects a file")
+elif html:
+    print("PROXY_ERROR it answered " + code + " with an error page instead of the file, so "
+          "nginx matched the path and could not reach the API behind it")
+elif code != "200":
+    print("REFUSED it answered " + code + ", so the file never left the API")
+elif want_type == "application/pdf" and not head.startswith(b"%PDF-"):
+    print("NOT_A_PDF it answered 200 and the body does not begin with %PDF- "
+          "(" + repr(head[:8]) + "), which is not something pdf.js can render")
+elif int(size) != int(want_size):
+    print("TRUNCATED " + size + " bytes arrived of the " + want_size + " the row records — "
+          "a short body is a 200 with the right content type, so nothing else here sees it")
+elif not served.startswith(want_type):
+    print("WRONG_TYPE it arrived whole and typed " + served + " rather than " + want_type
+          + " — the browser dispatches on this header, and the .mjs bug was exactly it")
+else:
+    print("SERVED " + size + " bytes of " + served + ", whole and typed as the row records")
+' "${BYTES}" "${CODE}" "${SIZE}" "${SERVED}" "${DOC_TYPE}" "${DOC_SIZE}" 2>/dev/null \
+      || printf 'UNREADABLE the reply could not be examined at all\n')"
+    rm -f "${BYTES}"
+    case "${VERDICT}" in
+      SERVED\ *) ok  "${DOC_NAME} through the proxy: ${VERDICT#* }" ;;
+      # Every other ending is a failure, including the one meaning this check learned
+      # nothing: the file the audience opens either arrives or it does not.
+      *)         bad "${DOC_NAME} through the proxy — ${VERDICT#* }" ;;
+    esac
+  fi
 fi
 
 # --- what `zenith diagnose` found -----------------------------------------------------------
