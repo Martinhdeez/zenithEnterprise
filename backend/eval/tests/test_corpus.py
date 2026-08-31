@@ -68,7 +68,7 @@ def test_there_are_confusable_documents() -> None:
     not (DOCUMENTS / "gdpr.pdf").exists(),
     reason="corpus not downloaded; run `python -m eval fetch`",
 )
-def test_the_image_only_fixture_has_no_extractable_text() -> None:
+def test_the_image_only_fixture_has_no_extractable_text(tmp_path: Path) -> None:
     """The property the whole fixture exists for.
 
     A PDF with no text layer ingests successfully, produces zero chunks and retrieves
@@ -78,10 +78,18 @@ def test_the_image_only_fixture_has_no_extractable_text() -> None:
     Every scan we could find had been OCR'd by its publisher, so this case had to be
     constructed. If it ever gains a text layer, this fixture stops testing anything and the
     guarantee in `technical-decisions.md` §7 loses its only witness.
+
+    Built into `tmp_path`. It used to call `build(force=True)`, which rasterised six pages
+    straight onto `backend/eval/documents/image-only.pdf` — a fixed path `build` itself
+    reads back, and `Image.save` truncates before it writes. Two runs in one checkout and
+    one reads the other's half-written PDF. Invisible on a machine without the corpus,
+    because this test skips there; the first developer to fetch it would have owned the
+    flake. The corpus source is still the repository's own, because that is what the
+    fixture is made of — read, never written.
     """
     from eval.fixtures import build, extractable_characters
 
-    assert extractable_characters(build(force=True)) == 0
+    assert extractable_characters(build(tmp_path / "image-only.pdf")) == 0
 
 
 def test_recording_checksums_is_idempotent(tmp_path: Path) -> None:
