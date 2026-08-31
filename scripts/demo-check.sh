@@ -38,6 +38,13 @@ QUESTION="plazo maximo de detencion preventiva"
 # `set -u`, and so that the one place it is set is greppable.
 TOKEN=""
 
+# How many passages the search check below got back for `QUESTION`. Read again by the
+# label-isolation block, which uses it as a fallback control: that block asserts that a passage
+# did *not* come back, and a `/search` answering nothing to every question in the installation
+# would satisfy it for a reason that has nothing to do with labels. Declared here so that
+# "nobody searched" is a zero rather than an unbound variable under `set -u`.
+HITS=0
+
 FAILURES=0
 WARNINGS=0
 
@@ -674,6 +681,44 @@ print("TRUNCATED " + str(count))
   esac
 fi
 
+# --- the control the two questions below lean on ---------------------------------------------
+#
+# **A refusal is evidence only if the route can answer anything else.** Every other check in
+# this file asserts that something arrived; the two blocks below assert that nothing did, and
+# that inverts the usual risk — a `GET /documents/<id>` broken for every id in the installation
+# would refuse another organisation's document, and the labelled one after it, for a reason that
+# has nothing to do with isolation, and print the strongest sentences in this report on the
+# strength of it. The same trap the proxy probes fell into when an empty body passed a check for
+# a doctype, one endpoint over.
+#
+# So the account is asked for a document it *is* allowed to have, first, and every refusal below
+# counts for nothing unless that one comes back 200. Only the row is controlled for:
+# `/documents/<id>/file` is fetched for real by the block further down and a 404 there is
+# already a failure, while this singular route is called nowhere else in this script.
+#
+# Asked once and read by both, because both halves of the policy template need exactly this
+# control and a second request could only disagree with this one.
+#
+# `?status=ready&limit=1` is the same question the document fetch below opens with, and the
+# same reasoning: a document chosen through the API is one this account can certainly reach,
+# and no id has to be written down or read out of the database to find it.
+OWN_ID=""
+CONTROL=""
+if [ -n "${TOKEN}" ]; then
+  OWN_ID="$(curl -fsS --max-time 20 -H "Authorization: Bearer ${TOKEN}" \
+    "${API}/documents?status=ready&limit=1" 2>/dev/null | python3 -c '
+import sys, json
+items = json.load(sys.stdin).get("items") or []
+print(items[0]["id"] if items else "")
+' 2>/dev/null || true)"
+  # Guarded rather than interpolated blind: an empty id would make this `GET /documents/`,
+  # which is the *list* route and answers 200, so the control would confirm itself.
+  if [ -n "${OWN_ID}" ]; then
+    CONTROL="$(curl -s --max-time 20 -o /dev/null -w '%{http_code}' \
+      -H "Authorization: Bearer ${TOKEN}" "${API}/documents/${OWN_ID}" 2>/dev/null || echo 000)"
+  fi
+fi
+
 # --- and what that account must not be able to reach -----------------------------------------
 #
 # **Isolation between customers is the product; everything else is negotiable.** The block above
@@ -761,35 +806,10 @@ if [ -n "${TOKEN}" ]; then
   elif [ -z "${ELSEWHERE}" ]; then
     warn "isolation: no organisation but ${EMAIL}'s holds a ready document, so there was nothing for this account to be kept out of and this check asked nothing — the isolation argument has no live evidence behind it on this installation"
   else
-    # **A 404 is evidence only if this route can answer anything else.** Every other check in
-    # this file asserts that something arrived; this one asserts that nothing did, and that
-    # inverts the usual risk — a `GET /documents/<id>` broken for every id in the installation
-    # would refuse the other organisation for a reason that has nothing to do with isolation,
-    # and print the strongest sentence in this report on the strength of it. The same trap the
-    # proxy probes fell into when an empty body passed a check for a doctype, one endpoint over.
+    # The control is `CONTROL`, asked once above this block: a `GET /documents/<id>` broken for
+    # every id would refuse the other organisation for a reason that has nothing to do with
+    # isolation, and the refusals below count for nothing until that one has answered 200.
     #
-    # So the account is asked for a document it *is* allowed to have, first, and the refusals
-    # below count for nothing unless that one comes back 200. Only the row is controlled for:
-    # `/documents/<id>/file` is fetched for real by the block further down and a 404 there is
-    # already a failure, while this singular route is called nowhere else in this script.
-    #
-    # `?status=ready&limit=1` is the same question the document fetch below opens with, and the
-    # same reasoning: a document chosen through the API is one this account can certainly
-    # reach, and no id has to be written down or read out of the database to find it.
-    OWN_ID="$(curl -fsS --max-time 20 -H "Authorization: Bearer ${TOKEN}" \
-      "${API}/documents?status=ready&limit=1" 2>/dev/null | python3 -c '
-import sys, json
-items = json.load(sys.stdin).get("items") or []
-print(items[0]["id"] if items else "")
-' 2>/dev/null || true)"
-    # Guarded rather than interpolated blind: an empty id would make this `GET /documents/`,
-    # which is the *list* route and answers 200, so the control would confirm itself.
-    if [ -z "${OWN_ID}" ]; then
-      CONTROL=""
-    else
-      CONTROL="$(curl -s --max-time 20 -o /dev/null -w '%{http_code}' \
-        -H "Authorization: Bearer ${TOKEN}" "${API}/documents/${OWN_ID}" 2>/dev/null || echo 000)"
-    fi
     # Grouped by class and not by organisation, like the proxy probes above: the remedy belongs
     # to the class, one broken policy is one finding however many tenants it spans, and the pass
     # is one line because "every one of them refused" is the whole of what an operator needs.
@@ -835,6 +855,218 @@ EOF
       warn "isolation: withheld from ${EMAIL}, but as 403 —${DISCLOSED#,}. Nothing crossed the boundary; the refusal itself confirms the row exists, which is what the 404 in download_document's docstring is there to prevent"
     else
       ok "isolation: ${ORGS} other organisation(s) —${ORG_NAMES#,} — and ${EMAIL} is refused a document of each, row and bytes both 404, while the same route answers 200 for one of its own"
+    fi
+  fi
+fi
+
+# --- and the other half of the same policy ---------------------------------------------------
+#
+# The policy template is a conjunction and the block above exercises the left half of it:
+#
+#   tenant_id = zenith_current_tenant() AND (label_ids = '{}' OR label_ids && zenith_current_labels())
+#
+# **Cross-label leakage inside one organisation is the second MVP acceptance gate.**
+# CONTRIBUTING.md names the two leak tests in one breath and says neither gets skipped or
+# weakened; this report has been asking one of them. Of the two it is also the likelier to be
+# wrong in a live installation. A tenant boundary is one column, written once at upload and
+# never edited by anybody. A label is a graph — roles, groups, clearances and direct grants —
+# that an administrator maintains by hand and changes weekly, and `UserRepository.label_ids`
+# resolves it through two independent routes whose union is what the session is handed. Nothing
+# in this file has ever asked whether that union is the one the database then enforces.
+#
+# **And until now isolation was asked of documents and of nothing else, which is the narrower
+# of the two gaps.** A document withheld from the list is a click that never happens; a passage
+# of it returned by `/search` is read aloud in the room, and one cited by `/query` is read aloud
+# in the product's own voice. `documents` and `chunks` carry the same clause on two different
+# tables — and `chunks` is partitioned, so it carries it on every partition separately — which
+# means the row being hidden says nothing whatever about the passage. Both doors are asked here.
+#
+# **The labels the account reaches come from `GET /auth/me`, not from a copy of the union query
+# in SQL.** That is not convenience. `/auth/me` returns `profile.context.label_ids`, which is
+# the exact array `core/database.py` hands to `set_config('zenith.label_ids')` and therefore the
+# exact array `zenith_current_labels()` reads back inside the policy. Rebuilding the roles-and-
+# groups union here would be reproducing the thing under test — the corpus block makes the same
+# argument about setting the GUCs by hand — and it would go stale the next time clearance grows
+# a rule. It also fails in the safe direction: if `/auth/me` overstated the reach, the document
+# picked below would be one this account may legitimately read and the check would fail loudly
+# rather than pass quietly.
+#
+# The document itself comes from psql as the owner, because under this half of the policy the
+# owner is once again the only thing in the installation that can see what is being withheld.
+# The question is asked through the API with the demonstrating token, for the same reason.
+#
+# **One document, not one per label**, unlike the per-organisation loop above. That loop asks
+# once per tenant because row-level security can be present on one partition and absent on the
+# next, and invariant 1 names that failure. There is nothing analogous across labels: the clause
+# is a single array overlap evaluated on the row itself, so it cannot hold for one label of a
+# row and fail for another.
+#
+# **404 is the pass here too, and whether the two halves agree about that is itself a finding.**
+# `download_document`'s docstring is the ruling for both — a document that does not appear in
+# the list "is a 404 here too, never a 403, because the difference between them confirms that it
+# exists" — and RLS does not record which conjunct hid a row, so the label half has no way to
+# answer differently unless something above the policy is deciding label access on its own. A
+# 403 would be that something, and it would be telling this account that the row exists.
+#
+# **`/query` is asked by scoping it to the withheld document rather than by asking a second
+# question.** `SearchService._reachable` looks the ids up inside a `tenant_session` and raises
+# before any retrieval runs, so a healthy installation answers 403 without a model call and
+# without writing a `queries` row — this probe is free, which is why it runs even when
+# `ZENITH_DEMO_SKIP_ANSWER` has turned the answer check off. A 200 is only reachable if the
+# policy released the row, and it costs a model call on precisely the installation that has
+# already lost the argument. That 403 is a different shape from the 404 the row returns and is
+# not a disagreement: `_reachable`'s docstring settles it, because an id in another tenant and
+# an id that never existed produce the same 403 there, so it confirms nothing about anything.
+#
+# **The retrieval probe controls for itself.** Asking whether a passage came back is another
+# assertion that nothing arrived, and a `/search` that answers nothing to every question would
+# satisfy it for a reason that has nothing to do with labels. Hits that are *not* the withheld
+# document are the control, taken from the same request: the route answered, and it answered
+# without this document in it. When the phrase turns out to live only in the withheld document
+# the account gets nothing back at all, which is the strongest possible pass and carries no
+# control of its own — so `HITS` from the search check above stands in, and if that found
+# nothing either the check says the refusal proved nothing rather than counting it as one.
+#
+# **No document under a label this account cannot reach is not a failed check but an unaskable
+# one**, and it says so as a warning — never a silent pass, the same rule the missing
+# credentials get. It takes a real document filed under a real label the demonstrating account's
+# roles and groups do not open, and a readiness check does not get to create either.
+if [ -n "${TOKEN}" ]; then
+  REACH="$(curl -fsS --max-time 20 -H "Authorization: Bearer ${TOKEN}" "${API}/auth/me" 2>/dev/null \
+    | python3 -c '
+import sys, json
+print("REACHES", ",".join(str(label) for label in json.load(sys.stdin).get("label_ids") or []))
+' 2>/dev/null || true)"
+  # An account that reaches no label at all is a real state and prints an empty list here, so
+  # the sentinel word is what separates it from a route that could not be read. `REACH` empty
+  # means nobody answered; the labels themselves may legitimately be nothing.
+  HELD_LABELS="${REACH#REACHES }"
+
+  # `nullif`/`coalesce` around `string_to_array` is `zenith_current_labels()`'s own body, copied
+  # deliberately: an account reaching nothing must produce `'{}'` and not `{""}`, which is what
+  # the bare `string_to_array('', ',')` yields and what the uuid cast then chokes on.
+  #
+  # `LEFT JOIN LATERAL` for the passage rather than a scalar subquery, so the ordering can
+  # prefer a document that has one: a `ready` document with no chunks exists — an image-only PDF
+  # is one — and it can answer the row question while leaving the retrieval question unaskable.
+  # `ch.tenant_id = d.tenant_id` is not redundant on a partitioned `chunks`; it is what lets the
+  # planner read one partition instead of all of them.
+  #
+  # The passage is squeezed to one line and cut to 200 characters: it becomes a query string and
+  # a JSON body, `q` is capped at 1000 either way, and a passage carrying newlines would arrive
+  # here as three fields rather than one.
+  #
+  # `:'email'`, `:'labels'` and `-f -` for the reasons the corpus query above sets out in full.
+  # The passage is read last because it is the field that can contain the delimiter.
+  WITHHELD="$(printf '%s' \
+    "SELECT d.id,
+            coalesce((SELECT string_agg(l.name, ' + ' ORDER BY l.name)
+                        FROM access_labels l WHERE l.id = ANY(d.label_ids)), 'a label'),
+            coalesce(passage.snippet, '')
+       FROM documents d
+       LEFT JOIN LATERAL (
+            SELECT btrim(regexp_replace(left(ch.text, 200), '\s+', ' ', 'g')) AS snippet
+              FROM chunks ch
+             WHERE ch.document_id = d.id AND ch.tenant_id = d.tenant_id
+             ORDER BY length(ch.text) DESC, ch.id
+             LIMIT 1) AS passage ON true
+      WHERE d.status = 'ready'
+        AND d.label_ids <> '{}'::uuid[]
+        AND d.tenant_id = (SELECT u.tenant_id FROM users u
+                            WHERE lower(u.email) = lower(btrim(:'email')))
+        AND NOT (d.label_ids && coalesce(
+                   string_to_array(nullif(:'labels', ''), ',')::uuid[], '{}'::uuid[]))
+      ORDER BY (passage.snippet IS NULL), d.id
+      LIMIT 1" \
+    | ${COMPOSE} exec -T db psql -U "${POSTGRES_USER:-zenith}" -d "${POSTGRES_DB:-zenith}" \
+        -v email="${EMAIL}" -v labels="${HELD_LABELS}" -tA -f - 2>/dev/null)"
+  ASKED=$?
+  IFS='|' read -r HIDDEN_ID HIDDEN_LABELS HIDDEN_TEXT <<EOF
+${WITHHELD}
+EOF
+
+  if [ -z "${REACH}" ]; then
+    warn "isolation: ${API}/auth/me would not say which labels ${EMAIL} reaches, so the label half of the policy was never asked — cross-label leakage is the second MVP acceptance gate and it has no evidence in this report"
+  elif [ "${ASKED}" -ne 0 ]; then
+    # A warning and not a failure for the reason the block above gives: every cause of this is
+    # already a failure in the corpus block, and one cause counted twice reads like two problems.
+    warn "isolation: psql could not name a document carrying a label ${EMAIL} does not reach, so the label half of the policy was never asked — the corpus lines above say why psql is not answering"
+  elif [ -z "${HIDDEN_ID}" ]; then
+    warn "isolation: every label with a ready document behind it in ${EMAIL}'s own organisation is one this account reaches, so there was nothing for the label half of the policy to withhold and this check asked nothing. Cross-label leakage is the second MVP acceptance gate and it has no live evidence on this installation — it needs a document filed under a label this account's roles and groups do not open"
+  else
+    ROW="$(curl -s --max-time 20 -o /dev/null -w '%{http_code}' \
+      -H "Authorization: Bearer ${TOKEN}" "${API}/documents/${HIDDEN_ID}" 2>/dev/null || echo 000)"
+    BLOB="$(curl -s --max-time 20 -o /dev/null -w '%{http_code}' \
+      -H "Authorization: Bearer ${TOKEN}" "${API}/documents/${HIDDEN_ID}/file" 2>/dev/null || echo 000)"
+    LEAKED=""; DISCLOSED=""; UNCLEAR=""; UNPROVEN=""
+    for probe in "its row:${ROW}" "its bytes:${BLOB}"; do
+      part="${probe%:*}"; code="${probe##*:}"
+      case "${code}" in
+        404) ;;
+        200) LEAKED="${LEAKED}, ${part}" ;;
+        403) DISCLOSED="${DISCLOSED}, ${part}" ;;
+        *)   UNCLEAR="${UNCLEAR}, ${part} (${code})" ;;
+      esac
+    done
+
+    # The passage, asked of `/search` as an ordinary question. The assertion is on the
+    # `document_id` each hit carries and not on the hit count, for the reason the block above
+    # gives about identities and counts: a fused, reranked order can drop a passage for a dozen
+    # innocent reasons, and only the id says whether the policy released it.
+    if [ -z "${HIDDEN_TEXT}" ]; then
+      # A ready document with no chunk to quote. The row question above was still asked and
+      # answered; this one has no subject, and says so rather than passing.
+      UNPROVEN=", no passage of it exists to search for, so /search and /query were not asked"
+    else
+      FOUND="$(curl -fsS --max-time 30 -H "Authorization: Bearer ${TOKEN}" -G \
+        --data-urlencode "q=${HIDDEN_TEXT}" "${API}/search" 2>/dev/null | python3 -c '
+import sys, json
+hits = json.load(sys.stdin).get("hits") or []
+print("HITS", len(hits), sum(1 for hit in hits if str(hit.get("document_id")) == sys.argv[1]))
+' "${HIDDEN_ID}" 2>/dev/null || true)"
+      read -r _ RETURNED SURFACED <<EOF
+${FOUND}
+EOF
+      if [ -z "${FOUND}" ]; then
+        UNCLEAR="${UNCLEAR}, /search would not answer the withheld document's own passage at all"
+      elif [ "${SURFACED}" -gt 0 ] 2>/dev/null; then
+        LEAKED="${LEAKED}, ${SURFACED} passage(s) of it from /search"
+      elif [ "${RETURNED}" -eq 0 ] 2>/dev/null && [ "${HITS}" -eq 0 ] 2>/dev/null; then
+        UNPROVEN=", /search returned nothing for the withheld passage and nothing for the question above it either, so its silence is not evidence"
+      fi
+
+      # Scoped to the withheld document rather than asked as a second question: 403 before any
+      # model call on a healthy installation, and no `queries` row written.
+      ANSWERED="$(curl -s --max-time 60 -o /dev/null -w '%{http_code}' -X POST "${API}/query" \
+        -H "Authorization: Bearer ${TOKEN}" -H 'Content-Type: application/json' \
+        --data "$(python3 -c 'import json,sys;print(json.dumps({"question": sys.argv[1], "documents": [sys.argv[2]]}))' \
+          "${HIDDEN_TEXT}" "${HIDDEN_ID}")" 2>/dev/null || echo 000)"
+      case "${ANSWERED}" in
+        403) ;;
+        200) LEAKED="${LEAKED}, an answer from /query scoped to it" ;;
+        # This installation's own limiter, and the answer check above is the likeliest thing to
+        # have spent the budget. Not a finding about labels, and not counted as one.
+        429) UNPROVEN=", /query throttled the scoped question before it could refuse it" ;;
+        *)   UNCLEAR="${UNCLEAR}, /query scoped to it answered ${ANSWERED}" ;;
+      esac
+    fi
+
+    # A leak is read first and judged on its own, exactly as above: a document reaching an
+    # account whose labels do not open it is the finding whatever the control says.
+    if [ -n "${LEAKED}" ]; then
+      bad "isolation: ${EMAIL} can reach a document filed under ${HIDDEN_LABELS}, which none of its labels open —${LEAKED#,}. This is a cross-label read inside one organisation: it is the second MVP acceptance gate and the right half of the policy in invariant 1 is not holding on this path"
+    elif [ -z "${CONTROL}" ]; then
+      warn "isolation: ${EMAIL} retrieved no document of its own to control with, so what ${HIDDEN_LABELS} withheld from it proves nothing — the corpus lines say why the list came back empty"
+    elif [ "${CONTROL}" != "200" ]; then
+      bad "isolation: GET /documents/<id> answered ${CONTROL} for a document of ${EMAIL}'s own that it retrieves from the list, so the refusal of the one filed under ${HIDDEN_LABELS} is that same fault rather than a policy doing its job, and nothing about the label half was established"
+    elif [ -n "${UNCLEAR}" ]; then
+      bad "isolation: asking as ${EMAIL} for a document filed under ${HIDDEN_LABELS} answered neither a refusal this check recognises nor a document —${UNCLEAR#,}. Whether the label half of the policy holds was not established, and when it cannot be established it fails"
+    elif [ -n "${DISCLOSED}" ]; then
+      warn "isolation: a document under ${HIDDEN_LABELS} is withheld from ${EMAIL}, but as 403 —${DISCLOSED#,}. Nothing crossed the boundary; the two halves of the policy disagree about what a refusal may reveal, and the tenant half's 404 is the one download_document's docstring rules for"
+    elif [ -n "${UNPROVEN}" ]; then
+      warn "isolation: a document under ${HIDDEN_LABELS} is refused to ${EMAIL} as a row and as bytes${UNPROVEN}"
+    else
+      ok "isolation: ${EMAIL} is refused a document filed under ${HIDDEN_LABELS}, which none of its labels open — row and bytes both 404, no passage of it back from /search, and /query refuses to be scoped to it — while the same route answers 200 for one of its own"
     fi
   fi
 fi
