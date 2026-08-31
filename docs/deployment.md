@@ -137,6 +137,14 @@ A green test suite does not mean the deployed database is migrated: pytest build
 throwaway Postgres per run and migrates it from zero. Migration 0007 passed the suite and
 left every `POST /labels` answering `500 UndefinedColumn` in the running app.
 
+`zenith diagnose` answers it in one line — `at head`, or the revision the database is actually
+at, the one the code expects, and the command that closes the gap. So does
+`scripts/demo-check.sh`, which runs the diagnostic and, **since 30 August, reads all of it**.
+Before that it took three answers out of the report and dropped the other fifteen,
+`migrations` among them: the one command whose whole purpose is to ask whether a running
+installation is fit to show was holding the answer to this paragraph in a variable and not
+looking at it.
+
 ## Backups
 
 Purging an organisation is irreversible by design; a disk failure is irreversible by

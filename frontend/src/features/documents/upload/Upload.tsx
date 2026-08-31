@@ -18,13 +18,20 @@
  * later in the product ever lets you attach to a document again. Several files at once skip
  * the review: nobody wants to hand-title twenty PDFs one dialog at a time, and the sha256
  * dedup makes "just fix the name after" cheap if it turns out to matter for one of them.
+ *
+ * **That review step used to be the one place automatic labelling could not be reached** —
+ * the staging table had the button and the single file, the most ordinary upload there is,
+ * had nothing. It does not get a button either: the label picker is already open above it,
+ * and a second control that goes and asks a model is a competing offer beside a decision
+ * somebody is in the middle of making. The panel asks by itself and puts the answer forward
+ * as a proposal, which nothing applies until it is accepted.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileText, UploadCloud, X } from "lucide-react";
+import { Check, FileText, Sparkles, UploadCloud, X } from "lucide-react";
 
 import { uploadDocument, type DocumentSummary } from "../api";
-import { LabelPicker, labels as fetchLabels, type Label } from "@/features/labels";
+import { LabelPicker, TagChips, labels as fetchLabels, type Label } from "@/features/labels";
 import { PROCESSING, formatEta, formatRate, processing, progress } from "./uploadProgress";
 import {
   CONCURRENCY,
@@ -38,8 +45,9 @@ import {
   type QueueItem,
 } from "./uploadQueue";
 import { phaseFor, untilSettled } from "./uploadWatch";
-import { Staging } from "./Staging";
-import { stage, type StagedFile } from "./stagingState";
+import { Staging, namesOf } from "./Staging";
+import { accepted, stage, type StagedFile, type StagedOutcome } from "./stagingState";
+import { noteFor, offerable, proposalFrom, suggestForFile } from "./suggestion";
 import { ApiError } from "@/shared/api/http";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +64,25 @@ interface Staged {
   file: File;
   filename: string;
   description: string;
+  /**
+   * True while the model is being asked where this file belongs. The panel asks on its own
+   * as soon as a file is staged, so this is not the result of anybody pressing anything.
+   */
+  asking?: boolean;
+  /**
+   * Label ids the model put forward and **nobody has accepted yet**. Deliberately not
+   * `selected`, which is the picker's state and therefore the person's own decision.
+   *
+   * Writing a model's answer into a picker somebody is in the middle of using is worse here
+   * than it was in the bulk path: a single-file upload reads as a form the person filled in
+   * themselves, so a label that appeared on its own is indistinguishable afterwards from one
+   * they chose. `accepted` is the only path across.
+   */
+  proposed?: string[];
+  /** How the suggestion ended, once one has been asked for. */
+  suggestion?: StagedOutcome;
+  /** Under `failed`, what the provider said about why. */
+  reason?: string;
 }
 
 export function Upload({ token, onUploaded }: Props) {
@@ -69,6 +96,21 @@ export function Upload({ token, onUploaded }: Props) {
   // chips can render even when the current search does not contain them.
   const [known, setKnown] = useState<Map<string, Label>>(new Map());
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  /**
+   * Whether anything in `selected` got there because a person put it there.
+   *
+   * The tenant's default is pre-checked on load, so `selected` is non-empty before anybody
+   * has said a word — and a guard reading "carries no labels" therefore read "has already
+   * decided" from the first render onwards. Every tenant has a default, so the panel's note
+   * was suppressed on every installation, every time, while eleven tests passed against a
+   * fixture whose labels were all `is_default: false`.
+   *
+   * Set by the three acts that are a person answering "where does this document go" — ticking
+   * or creating a label, and accepting or dismissing the proposal. Deliberately **not** set by
+   * `removed`: deleting a label from the tenant is a statement about the tenant, not about
+   * this document, and it must not be able to pass a pre-check off as a decision.
+   */
+  const [decided, setDecided] = useState(false);
   const [staged, setStaged] = useState<Staged | null>(null);
   // One row per file. Replaces the single progress bar: a batch has no one percentage
   // worth showing, and the question during a migration is which files are stuck, not how
@@ -90,6 +132,8 @@ export function Upload({ token, onUploaded }: Props) {
         setKnown(new Map(result.map((label) => [label.id, label])));
         // Pre-check the tenant's default so the common case — one label, everyone files
         // under it — is a single click, not a click to open the list plus one to check it.
+        // `decided` stays false: this is the panel filling in an answer, not a person giving
+        // one, and anything downstream that asks "have they chosen" must be able to tell.
         const fallback = result.find((label) => label.is_default);
         if (fallback) setSelected(new Set([fallback.id]));
       })
@@ -99,11 +143,95 @@ export function Upload({ token, onUploaded }: Props) {
     };
   }, [token]);
 
+  /**
+   * Where does this one belong? Asked as soon as the file is staged, with nothing pressed.
+   *
+   * The bulk path offers a button because a hundred files is a hundred model calls and
+   * several minutes, so it has to be somebody's decision to start. One file is one call and
+   * about five seconds, and the picker is already open above this panel — a second control
+   * beside it, competing for the same field, is two ways to answer one question. So the panel
+   * asks on its own and puts the answer forward as a proposal, which is the case where an
+   * unrequested suggestion costs least and is worth most: nothing has been picked yet, so a
+   * dashed chip sitting there is an offer rather than an interruption.
+   *
+   * **`offerable` first, and silence when it refuses.** Four of the six tenants on this
+   * installation hold labels of which none can be suggested, so a refusal is the ordinary
+   * first experience rather than an edge — and this panel has a job that does not depend on
+   * the model. A sentence explaining a feature nobody asked for is noise on a form; the three
+   * refusals are visible where somebody has pressed something and is owed an answer.
+   *
+   * Keyed on the `File` itself. Typing in the name field replaces `staged` on every
+   * keystroke, and an effect that watched the object would ask the model once per character.
+   */
+  const pending = staged?.file;
+  useEffect(() => {
+    if (!pending) return;
+    let cancelled = false;
+    void (async () => {
+      if (await offerable(token)) return;
+      // Only now, so a refusal never flashes a line saying it is looking.
+      if (cancelled) return;
+      setStaged((current) => (current?.file === pending ? { ...current, asking: true } : current));
+      const suggested = await suggestForFile(token, pending);
+      if (cancelled) return;
+      setStaged((current) => {
+        if (current?.file !== pending) return current;
+        // `null` is a file whose text could not be read. Nothing was asked, so nothing is
+        // recorded: an ending here would be a claim about the model on the evidence of one
+        // unreadable PDF.
+        return { ...current, asking: false, ...(suggested ? proposalFrom(suggested) : {}) };
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pending, token]);
+
+  /**
+   * The person agreeing with the model — the only path from `proposed` into the picker.
+   *
+   * `accepted` is the staging table's own rule: added to what they chose, never in place of
+   * it. Somebody who ticked a label by hand before the answer arrived keeps it.
+   *
+   * **And so does the pre-checked default, which is the harder case.** It is not a decision —
+   * that is the whole point of `decided` — so the argument that protects a hand-picked label
+   * does not reach it, and dropping it once a real folder is accepted is defensible: the
+   * default is the fallback for "nobody said", and the person has now said. It is kept
+   * anyway, for two reasons that are about access rather than tidiness. A label is a
+   * permission and the policy is a union — `label_ids && zenith_current_labels()` — so
+   * removing the default *narrows* who can read the document, and the interface would be
+   * revoking a readership nobody asked it to touch. Keeping it widens nothing: the default is
+   * exactly where this document was going if the suggestion had never been accepted, so the
+   * union is bounded by the do-nothing outcome. And the asymmetry decides it — the ticks are
+   * in the picker directly above, so a default that should not be there is one visible click
+   * from gone, whereas a default we removed silently is an absence, and nobody notices an
+   * absence.
+   */
+  const acceptSuggestion = useCallback(() => {
+    const proposed = staged?.proposed;
+    if (!proposed?.length) return;
+    setSelected((chosen) => new Set(accepted(chosen, proposed)));
+    // Agreeing with the model is deciding. Without this the panel would follow an accepted
+    // suggestion with the note for a cleared `chose` — the word `untagged`, over two labels.
+    setDecided(true);
+    setStaged((current) => current && { ...current, proposed: [] });
+  }, [staged]);
+
+  /** Disagreeing. The outcome stays, so the panel still says what the model answered. */
+  const dismissSuggestion = useCallback(() => {
+    // Also an answer. Saying nothing further is the point of pressing it.
+    setDecided(true);
+    setStaged((current) => current && { ...current, proposed: [] });
+  }, []);
+
   // Takes the whole label so a pick out of a search result is remembered by name — the
   // picker paginates server-side, so the row that produced this click may be gone from the
   // list by the time the selected chips render.
   const toggle = useCallback((label: Label) => {
     setKnown((current) => (current.has(label.id) ? current : new Map(current).set(label.id, label)));
+    // Including an untick. Clearing the pre-checked default and stopping there is a person
+    // saying "not that one, and nothing yet" — the note is owed to them more than to anyone.
+    setDecided(true);
     setSelected((current) => {
       const next = new Set(current);
       if (next.has(label.id)) next.delete(label.id);
@@ -118,9 +246,15 @@ export function Upload({ token, onUploaded }: Props) {
   // into an upload form meant to file this document under it.
   const added = useCallback((label: Label) => {
     setKnown((current) => new Map(current).set(label.id, label));
+    setDecided(true);
     setSelected((current) => new Set(current).add(label.id));
   }, []);
 
+  // No `setDecided` here, unlike its two neighbours: this is a label being deleted from the
+  // tenant, and the id leaving `selected` is a consequence rather than a choice about this
+  // document. Deleting some unrelated folder must not turn the pre-checked default into a
+  // decision. It errs the safe way regardless — if the deletion empties the selection, the
+  // note appears on the `selected.size` half of the guard.
   const removed = useCallback((id: string) => {
     setKnown((current) => {
       const next = new Map(current);
@@ -385,6 +519,81 @@ export function Upload({ token, onUploaded }: Props) {
               className="rounded-md border-input bg-background text-foreground focus-visible:border-primary focus-visible:ring-primary/40"
             />
           </div>
+
+          {/* Nothing here is filed. The picker above holds what this person decided; this
+              holds what a model put forward, and Apply is the only way across. */}
+          {staged.asking && (
+            <p
+              className="ai-spark flex items-center gap-2 text-xs text-muted-foreground"
+              data-running="true"
+            >
+              {/* The same pair the bulk button spends — `ai-spark` around a `sparkle`, awake
+                  only while it is running. No second treatment invented for this panel: the
+                  sweep belongs to a filled button and has nothing to sweep across here. */}
+              <Sparkles aria-hidden className="sparkle size-3.5 shrink-0 text-primary" />
+              {t("Looking for a folder for this document…")}
+            </p>
+          )}
+
+          {staged.proposed?.length ? (
+            <div
+              role="status"
+              className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-primary/40 bg-primary/[0.05] px-3 py-2"
+            >
+              <Sparkles aria-hidden className="size-4 shrink-0 text-primary" />
+              <span className="flex flex-wrap items-center gap-1.5">
+                {/* Dashed and unfilled, in the label's own hue — the same chip the staging
+                    rows draw for the same state. Same label, same colour, different shape. */}
+                <TagChips names={namesOf(staged.proposed, known)} proposed />
+              </span>
+              <span className="flex-1" />
+              <button
+                type="button"
+                onClick={acceptSuggestion}
+                className="flex items-center gap-1 rounded-full border border-input px-3 py-1 text-xs font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-secondary"
+              >
+                <Check aria-hidden className="size-3" strokeWidth={3} />
+                {t("Apply the suggestion")}
+              </button>
+              <button
+                type="button"
+                onClick={dismissSuggestion}
+                className="rounded-full px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {t("Dismiss the suggestion")}
+              </button>
+            </div>
+          ) : (
+            // Only once something has been asked, and only while nobody has answered the
+            // question the note is about. A note saying the model found nothing is worth
+            // reading beside a picker nobody has touched and is noise beside a label somebody
+            // chose themselves. `unavailable` cannot arrive here: `offerable` settles it
+            // before anything is asked.
+            //
+            // **This read `selected.size === 0` and was therefore never true.** The staging
+            // rows can ask "carries no labels", because a staged row starts empty and only a
+            // person puts anything in it. This panel shares the page's label picker, which
+            // pre-checks the tenant's default on load — so the same question here means "the
+            // labels list came back", and the note was suppressed on every tenant that has a
+            // default, which is all of them.
+            //
+            // Both halves are needed and neither alone is right. `decided` alone goes quiet
+            // when somebody unticks the default and picks nothing, which is precisely the
+            // document that will arrive carrying nothing and the person most owed the
+            // sentence. `selected.size` alone is what was here.
+            (!decided || selected.size === 0) &&
+            staged.suggestion && (
+              <p
+                className={`text-xs ${
+                  staged.suggestion === "failed" || staged.suggestion === "unreachable"
+                    ? "text-zenith-amber"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {noteFor(t, staged.suggestion, staged.reason)}
+              </p>
+            )
+          )}
 
           <div className="flex justify-end border-t border-input pt-4">
             <Button type="button" variant="outline" onClick={() => setStaged(null)} disabled={busy} className="rounded-md">

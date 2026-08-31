@@ -15,12 +15,13 @@ from dataclasses import dataclass
 
 from app.common.llm import BaseLLMProvider, GenerationUnavailableError
 from app.core.config import settings
+from app.features.generation.adapters.gemini_native import GeminiProvider
 from app.features.generation.adapters.mock import MockProvider
 from app.features.generation.adapters.openai_compatible import OpenAIProvider
 
 # Keyed by `BaseLLMProvider.name`. Anthropic, Bedrock and a local llama.cpp binding join
 # this dict and change nothing else — that is the whole return on the abstraction.
-PROVIDERS = (OpenAIProvider, MockProvider)
+PROVIDERS = (OpenAIProvider, GeminiProvider, MockProvider)
 BY_NAME = {provider.name: provider for provider in PROVIDERS}
 
 
@@ -65,6 +66,18 @@ def build(configuration: Configuration) -> BaseLLMProvider:
         raise GenerationUnavailableError(
             "no language model is configured for this tenant, and the installation default "
             "is incomplete. Someone holding llm_config.manage has to configure one."
+        )
+
+    # Written out rather than `provider(**fields)`. The two HTTP adapters happen to take the
+    # same three arguments today, and constructing whichever one the registry returned would
+    # read as though that were guaranteed — it is not, and the first adapter that needs a
+    # fourth would fail at a call site instead of here. `MockProvider` above is already the
+    # proof that the signatures are not uniform.
+    if provider is GeminiProvider:
+        return GeminiProvider(
+            endpoint_url=configuration.endpoint_url,
+            model=configuration.model,
+            api_key=configuration.api_key,
         )
     return OpenAIProvider(
         endpoint_url=configuration.endpoint_url,

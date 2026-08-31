@@ -46,8 +46,19 @@ class Document:
         return DOCUMENTS / f"{self.id}.pdf"
 
 
-def load_manifest() -> list[Document]:
-    raw: dict[str, Any] = tomllib.loads(MANIFEST.read_text())
+def load_manifest(manifest: Path = MANIFEST) -> list[Document]:
+    """Read the corpus manifest. The path is a parameter so that a test can exercise the
+    recording code against a copy — writing the repository's own manifest makes every other
+    reader in the run race a truncated file."""
+    raw: dict[str, Any] = tomllib.loads(manifest.read_text())
+    if "document" not in raw:
+        # `KeyError: 'document'` names a dict key rather than the file it came from, and
+        # six sweeps and the CLI all surface it identically. The byte count is here because
+        # an empty manifest and a mis-edited one are different problems with the same
+        # symptom, and telling them apart took a day once.
+        raise ValueError(
+            f"{manifest} holds no [[document]] entries ({manifest.stat().st_size} bytes)"
+        )
     return [
         Document(
             id=entry["id"],

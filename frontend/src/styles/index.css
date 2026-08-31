@@ -601,6 +601,68 @@
   }
 }
 
+/* The label-with-AI control, and the two things it has to say without words: that pressing
+   it goes and asks a model, and that it has not stalled while it does.
+
+   The sparkle wakes on hover and while the pass runs, and is still the rest of the time. A
+   control that glitters continuously in a toolbar reads as an alarm, and this is an offer;
+   the movement is the answer to "is this doing anything", which is only a question once the
+   pointer is on it or the work has started.
+
+   A sweep rather than a spinner while it runs. The pass is sequential by design — a hundred
+   parallel calls would compete with the ingestion worker and take the API's pool from
+   everyone else on the installation — and the `12/100` beside it already reports progress
+   honestly, so the movement only has to say the thing the number cannot: that it is still
+   going. A spinner on top of a real count is two claims where one is true. */
+@keyframes ai-sparkle {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.85;
+  }
+  45% {
+    transform: scale(1.18) rotate(18deg);
+    opacity: 1;
+  }
+}
+
+.ai-spark:hover .sparkle,
+.ai-spark[data-running="true"] .sparkle {
+  animation: ai-sparkle 1.6s ease-in-out infinite;
+}
+
+@keyframes thinking-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.thinking-sweep {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--primary-foreground) 28%, transparent),
+    transparent
+  );
+  animation: thinking-sweep 1.4s ease-in-out infinite;
+}
+
+/* Both are about a wait, and a wait that cannot be perceived is one the reader is told
+   about in the count and the label instead. */
+@media (prefers-reduced-motion: reduce) {
+  .ai-spark:hover .sparkle,
+  .ai-spark[data-running="true"] .sparkle,
+  .thinking-sweep {
+    animation: none;
+  }
+  .thinking-sweep {
+    display: none;
+  }
+}
+
 /* The indeterminate sweep in `ProgressBar`. A plain Tailwind utility can't express "slide
    past both edges and loop", so this is the one hand-written keyframe in the app. */
 @keyframes progress-sweep {

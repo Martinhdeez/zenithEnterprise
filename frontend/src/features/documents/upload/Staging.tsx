@@ -18,16 +18,53 @@
  * because they operate on the array and not on what is painted.
  */
 
-import { useCallback, useMemo, useState } from "react";
-import { Check, Loader2, Sparkles, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Check, Sparkles, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { LabelPicker, TagChips, type Label } from "@/features/labels";
-import { excerpt } from "./excerpt";
-import { applySuggestion, noteFor, suggestFor } from "./suggestion";
-import { useT } from "@/shared/i18n/useT";
+import { applySuggestion, noteFor, offerable, suggestForFile } from "./suggestion";
+import type { SuggestionRefusal } from "../api";
+
+/**
+ * Ids to names, dropping any the picker has not loaded.
+ *
+ * Exported because the single-file review panel renders the same proposed chips from the
+ * same `known` map, and a chip whose name is missing must be dropped in both places rather
+ * than drawn as a raw uuid in one of them.
+ */
+export function namesOf(ids: string[], known: Map<string, Label>): string[] {
+  return ids.map((id) => known.get(id)?.name).filter((name): name is string => name !== undefined);
+}
+
+/**
+ * Why the button is off, in the words of the person who can do something about it.
+ *
+ * Written out as literals rather than assembled, because the Spanish catalogue test scans
+ * the source for translation calls and cannot see a key built from a variable — which is
+ * also why this is a switch and not a lookup table.
+ */
+function refusalNote(t: T, reason: SuggestionRefusal): string {
+  switch (reason) {
+    // The installation, not this person. An administrator configures a model.
+    case "unavailable":
+      return t("No model is configured for this organisation");
+    // This person's own reach. Somebody has to grant them a folder — and on a new tenant
+    // that is everybody, because the only labels that exist are the reserved ones.
+    case "no_folders":
+      return t("You have no folders to file into yet");
+    // Their reach again, in the other direction, and permanent: the shortlist that would
+    // have rescued it was measured and refuted, so "try again later" would be false.
+    default:
+      return t("You reach too many folders for a model to choose between");
+  }
+}
+import { useT, type T } from "@/shared/i18n/useT";
 import {
+  acceptProposed,
   addToSelected,
+  awaitingReview,
+  dismissProposed,
   range,
   removeSelected,
   stage,
@@ -53,6 +90,24 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
   const [anchor, setAnchor] = useState<string | null>(null);
   const [picking, setPicking] = useState<Set<string>>(new Set());
   const [suggesting, setSuggesting] = useState<{ done: number; total: number } | null>(null);
+  /**
+   * Why the model cannot be asked, if it cannot. Asked once, before the button is drawn,
+   * because the alternative is what this installation actually does today: four of its six
+   * tenants hold only the quarantine and default labels, so they reach nothing offerable,
+   * and pressing the brightest control on the bar walks a hundred rows past to arrive at a
+   * hundred identical notes. That is the first thing a new customer would see.
+   */
+  const [refusal, setRefusal] = useState<SuggestionRefusal | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    void offerable(token).then((reason) => {
+      if (live) setRefusal(reason);
+    });
+    return () => {
+      live = false;
+    };
+  }, [token]);
 
   const summary = useMemo(() => summarise(rows), [rows]);
   const painted = rows.slice(0, RENDER_CAP);
@@ -98,19 +153,14 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
     setSuggesting({ done: 0, total: targets.length });
     let updated = rows;
     for (const [index, row] of targets.entries()) {
-      const text = await excerpt(row.file);
-      // A file `excerpt` could not read — a scan with no text layer, an encrypted PDF — is
-      // never asked about, and the row is left saying only that it is untagged. It is
-      // emphatically *not* stamped `unavailable`: that means "no model configured", which
-      // would be a false statement about the installation made on the evidence of one bad
-      // file. Nothing here can tell the person why that file was skipped; saying nothing is
-      // the honest version of not knowing.
-      if (!text) {
-        setSuggesting({ done: index + 1, total: targets.length });
-        continue;
+      // `null` is a file that could not be read, which is never asked about and never
+      // stamped with an ending — `suggestForFile` says why, and says it once for both the
+      // screens that ask.
+      const suggested = await suggestForFile(token, row.file);
+      if (suggested) {
+        updated = applySuggestion(updated, row.id, suggested);
+        onChange(updated);
       }
-      updated = applySuggestion(updated, row.id, await suggestFor(token, text));
-      onChange(updated);
       setSuggesting({ done: index + 1, total: targets.length });
     }
     setSuggesting(null);
@@ -153,23 +203,44 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
 
         <div className="flex-1" />
 
+        {/* The one action on this bar that is not a plain control, and the only one that
+            spends the accent. Everything else here selects, clears or deletes what is
+            already on screen; this is the only thing that goes and asks a model. It is
+            filled rather than outlined for that reason and no other — a toolbar where every
+            button looks the same is one where nothing tells you where to start.
+
+            The sparkle wakes on hover and while it runs. Not at rest: a control that
+            glitters continuously in a toolbar is an alarm, and this is an offer. */}
         <Button
-          variant="outline"
           size="sm"
-          disabled={!selected.size || !!suggesting}
+          disabled={!selected.size || !!suggesting || refusal !== null}
           onClick={() => void autoTag()}
           title={t("Suggest tags from each file's opening pages, using the configured model")}
+          data-running={suggesting ? "true" : undefined}
+          className="ai-spark relative overflow-hidden bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-45"
         >
-          {suggesting ? (
-            <>
-              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-              {suggesting.done}/{suggesting.total}
-            </>
-          ) : (
-            <>
-              <Sparkles className="mr-1.5 size-3.5" />{t("Auto-tag")}</>
+          {suggesting && (
+            /* A sweep rather than a spinner. A spinner says "wait"; this pass is sequential
+               by design and the count beside it is already saying how far along it is, so
+               the movement only has to say that it has not stalled. */
+            <span aria-hidden className="thinking-sweep absolute inset-0" />
           )}
+          <Sparkles className="sparkle relative mr-1.5 size-3.5" />
+          <span className="relative">
+            {suggesting ? `${suggesting.done}/${suggesting.total}` : t("Label with AI")}
+          </span>
         </Button>
+
+        {/* Disabled and explained, rather than gone. On the single-file panel silence is
+            right — it has a job of its own and an unasked-for sentence is noise there. Here
+            it is the opposite: labelling is what somebody came to this bar to do, so a
+            control that quietly vanishes leaves them hunting for a feature they were told
+            about, with nothing to read and nobody to ask. Three sentences and not one,
+            because each refusal has a different remedy and a different person who can act
+            on it. */}
+        {refusal && (
+          <span className="text-xs text-muted-foreground">{refusalNote(t, refusal)}</span>
+        )}
 
         <Button
           variant="outline"
@@ -213,6 +284,36 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
         </div>
       )}
 
+      {/* Nothing is filed until somebody says so, and this is where they say it. It appears
+          only while proposals are outstanding, so the bar is not a permanent fixture
+          reminding people of a feature they are not using. */}
+      {awaitingReview(rows) > 0 && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-primary/40 bg-primary/[0.05] px-3 py-2 text-sm"
+        >
+          <Sparkles aria-hidden className="size-4 shrink-0 text-primary" />
+          <span className="text-foreground">
+            {t("{count} suggested, none applied yet", { count: awaitingReview(rows) })}
+          </span>
+          <span className="flex-1" />
+          <button
+            type="button"
+            onClick={() => onChange(acceptProposed(rows))}
+            className="rounded-full border border-input px-3 py-1 text-xs font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-secondary"
+          >
+            {t("Apply all")}
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange(dismissProposed(rows))}
+            className="rounded-full px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {t("Dismiss all")}
+          </button>
+        </div>
+      )}
+
       <ul className="max-h-96 divide-y divide-border overflow-y-auto rounded-md border border-input">
         {painted.map((row) => (
           <li key={row.id} className="flex items-center gap-3 px-3 py-2 text-sm">
@@ -236,21 +337,55 @@ export function Staging({ token, rows, known, onChange, onConfirm, busy }: Props
               {selected.has(row.id) && <Check className="size-2.5" strokeWidth={3.5} />}
             </button>
             <span className="min-w-0 flex-1 truncate text-foreground">{row.file.name}</span>
-            <span className="shrink-0">
-              {row.labelIds.length > 0 ? (
-                <TagChips
-                  names={row.labelIds
-                    .map((id) => known.get(id)?.name)
-                    .filter((name): name is string => name !== undefined)}
-                  short
-                />
+            <span className="flex shrink-0 items-center gap-1.5">
+              {row.labelIds.length > 0 && (
+                <TagChips names={namesOf(row.labelIds, known)} short />
+              )}
+
+              {/* Proposals sit beside what the person already chose, not instead of it, and
+                  carry their own accept and dismiss. A single "accept all" at the top would
+                  be one click to hand a hundred documents to whoever holds those labels. */}
+              {row.proposed?.length ? (
+                <>
+                  <TagChips names={namesOf(row.proposed, known)} short proposed />
+                  <button
+                    type="button"
+                    title={t("Apply the suggestion")}
+                    aria-label={t("Apply the suggestion")}
+                    onClick={() => onChange(acceptProposed(rows, new Set([row.id])))}
+                    className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
+                  >
+                    <Check className="size-3.5" strokeWidth={3} />
+                  </button>
+                  <button
+                    type="button"
+                    title={t("Dismiss the suggestion")}
+                    aria-label={t("Dismiss the suggestion")}
+                    onClick={() => onChange(dismissProposed(rows, new Set([row.id])))}
+                    className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  >
+                    <X className="size-3.5" strokeWidth={3} />
+                  </button>
+                </>
               ) : (
-                /* One neutral treatment for all five endings: they have to be *told
-                   apart*, and what they look like — colour, icon, weight — is not decided
-                   here. */
-                <span className="text-xs text-muted-foreground">
-                  {noteFor(t, row.suggestion)}
-                </span>
+                row.labelIds.length === 0 && (
+                  /* Five endings, two treatments. `failed` and `unreachable` take the amber
+                     this product already spends on "a component is missing, go and fix it" —
+                     the same ink as Search's `degraded` notice, because it is the same claim
+                     and reusing it is what makes an interface learnable. The other three are
+                     ordinary answers and stay quiet: a model that read the document and found
+                     no folder has done its job, and an installation with no model configured
+                     is a supported installation, not a fault. */
+                  <span
+                    className={`text-xs ${
+                      row.suggestion === "failed" || row.suggestion === "unreachable"
+                        ? "text-zenith-amber"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {noteFor(t, row.suggestion, row.reason)}
+                  </span>
+                )
               )}
             </span>
           </li>

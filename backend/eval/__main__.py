@@ -12,7 +12,15 @@ from pathlib import Path
 
 import httpx
 
-from eval.corpus import USER_AGENT, checksum, download, load_manifest, page_count, verify
+from eval.corpus import (
+    MANIFEST,
+    USER_AGENT,
+    checksum,
+    download,
+    load_manifest,
+    page_count,
+    verify,
+)
 
 
 def fetch(record: bool) -> int:
@@ -48,21 +56,23 @@ def fetch(record: bool) -> int:
     return 1 if failures else 0
 
 
-def record_checksums(updates: dict[str, tuple[str, int, int]]) -> None:
+def record_checksums(updates: dict[str, tuple[str, int, int]], manifest: Path = MANIFEST) -> None:
     """Write checksums back into the manifest.
 
     Edited as text rather than re-serialised, because `tomllib` reads but does not write,
     and a round-trip through another library would reformat the comments that carry the
     reason each document is in the set. Those comments are the useful part.
-    """
-    from eval.corpus import MANIFEST
 
+    The destination is a parameter so the test for this function can be given a copy. It
+    used to write the repository's own manifest and put it back afterwards, which left a
+    window in which the file on disk was empty.
+    """
     recorded = ("sha256 = ", "pages = ", "bytes = ")
     output: list[str] = []
     current: str | None = None
     written = False
 
-    for line in MANIFEST.read_text().splitlines():
+    for line in manifest.read_text().splitlines():
         if line.startswith("id = "):
             current = line.split("=", 1)[1].strip().strip('"')
             written = False
@@ -87,7 +97,13 @@ def record_checksums(updates: dict[str, tuple[str, int, int]]) -> None:
 
         output.append(line)
 
-    MANIFEST.write_text("\n".join(output) + "\n")
+    # Written beside the manifest and renamed over it, for the reason `download` does the
+    # same: a plain `write_text` truncates first, so for the length of the write the only
+    # committed record of what the baseline was measured against is a zero-byte file. An
+    # interrupted `fetch --record` would leave it that way.
+    partial = manifest.with_suffix(".partial")
+    partial.write_text("\n".join(output) + "\n")
+    partial.replace(manifest)
 
 
 def layout(limit: int | None) -> int:

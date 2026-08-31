@@ -72,6 +72,19 @@ export const es: Catalogue = {
   "Search passages by keyword and meaning": "Busca pasajes por palabra y por significado",
   "Keyword and meaning at once — passages come back ranked, with the page they came from. Nothing is generated here: open a result and ask about that document for a written answer.":
     "Palabra y significado a la vez: los pasajes vuelven ordenados y con la página de la que salen. Aquí no se genera nada: abre un resultado y pregunta sobre ese documento para obtener una respuesta redactada.",
+  "Label with AI": "Etiquetar con IA",
+  "No model is configured for this organisation": "No hay ningún modelo configurado en esta organización",
+  "You have no folders to file into yet": "Todavía no tienes carpetas donde archivar",
+  "You reach too many folders for a model to choose between": "Alcanzas demasiadas carpetas para que un modelo pueda elegir",
+  "{count} suggested, none applied yet": {
+    one: "1 sugerencia, ninguna aplicada todavía",
+    other: "{count} sugerencias, ninguna aplicada todavía",
+  },
+  "Apply all": "Aplicar todas",
+  "Dismiss all": "Descartar todas",
+  "Apply the suggestion": "Aplicar la sugerencia",
+  "Dismiss the suggestion": "Descartar la sugerencia",
+  "Suggested — not yet applied": "Sugerida — todavía sin aplicar",
   Clear: "Limpiar",
   Stop: "Parar",
   "Try again": "Reintentar",
@@ -124,11 +137,13 @@ export const es: Catalogue = {
     "(opcional — si lo dejas vacío, se usa el nombre del fichero)",
   "What is this document, or why does it matter?": "¿Qué es este documento, o por qué importa?",
   "Cancel remaining": "Cancelar lo que queda",
-  "Auto-tag": "Etiquetar solo",
   "Tag selected": "Etiquetar la selección",
   "Select all staged files": "Seleccionar todos los ficheros preparados",
   "Suggest tags from each file's opening pages, using the configured model":
     "Sugerir etiquetas leyendo las primeras páginas de cada fichero con el modelo configurado",
+  // The single-file review panel asks on its own, so this is the only thing that says a
+  // model is being spoken to at all.
+  "Looking for a folder for this document…": "Buscando una carpeta para este documento…",
 
   // How a staged row's suggestion ended. Five sentences rather than one, because the four
   // the server distinguishes and the one only the browser can see mean different things for

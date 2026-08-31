@@ -47,6 +47,32 @@ export interface StagedFile {
    * document.
    */
   suggestion?: StagedOutcome;
+  /**
+   * Under `failed`, what the provider said about why. Undefined for every other ending.
+   *
+   * Beside `suggestion` rather than folded into it, because they answer different questions
+   * and only one of them is a fixed set of values. The outcome says what happens to the
+   * document — that is the part the row must not lie about. This says what a person can do
+   * about it, and it is a sentence only the provider can write: `the language model returned
+   * 429` and `your prepayment credits are depleted` are the same outcome and two different
+   * afternoons.
+   */
+  reason?: string;
+  /**
+   * Label ids the model proposed and **nobody has accepted yet**. Deliberately not
+   * `labelIds`.
+   *
+   * In this product a label is a permission — the policy is
+   * `label_ids && zenith_current_labels()` — so accepting one of these decides who can read
+   * the document. Writing the model's answer straight into `labelIds`, which is what used to
+   * happen, made a machine's guess indistinguishable from a person's decision the moment it
+   * landed: same array, same chips, no way to tell them apart on a screen of a hundred rows
+   * an hour later.
+   *
+   * Two arrays, so the difference survives being looked at cold. Nothing here is filed until
+   * `acceptProposed` moves it across.
+   */
+  proposed?: string[];
 }
 
 export function stage(files: File[], existing: StagedFile[] = []): StagedFile[] {
@@ -120,4 +146,45 @@ export function summarise(rows: StagedFile[]): StagingSummary {
     untagged: rows.length - tagged,
     bytes: rows.reduce((sum, row) => sum + row.file.size, 0),
   };
+}
+
+/**
+ * A person agreeing with the model: what they had chosen, plus what was proposed.
+ *
+ * **Union rather than replacement.** Somebody may have ticked a label by hand before the
+ * classifier ran, and the suggestion is an addition to their judgement rather than a
+ * correction of it. Silently dropping what they chose would be the interface overruling them
+ * on the one screen where it must not — and since a label is a permission here, the label it
+ * dropped is a permission it revoked without being asked.
+ *
+ * One function rather than one per screen. The staging table accepts per row and the
+ * single-file review panel accepts into the label picker's own selection; they hold their
+ * decisions in different shapes, but "added to, never in place of" is the same rule and a
+ * second copy of it is how the two come to disagree.
+ */
+export function accepted(chosen: Iterable<string>, proposed: Iterable<string>): string[] {
+  return [...new Set([...chosen, ...proposed])];
+}
+
+/** A person agreeing with the model. The only path from `proposed` to `labelIds`. */
+export function acceptProposed(rows: StagedFile[], ids?: Set<string>): StagedFile[] {
+  return rows.map((row) => {
+    if (ids && !ids.has(row.id)) return row;
+    if (!row.proposed?.length) return row;
+    return { ...row, labelIds: accepted(row.labelIds, row.proposed), proposed: [] };
+  });
+}
+
+/** A person disagreeing. The outcome stays, so the row still says what the model answered. */
+export function dismissProposed(rows: StagedFile[], ids?: Set<string>): StagedFile[] {
+  return rows.map((row) => {
+    if (ids && !ids.has(row.id)) return row;
+    if (!row.proposed?.length) return row;
+    return { ...row, proposed: [] };
+  });
+}
+
+/** How many rows are holding a proposal nobody has answered yet. */
+export function awaitingReview(rows: StagedFile[]): number {
+  return rows.filter((row) => row.proposed?.length).length;
 }

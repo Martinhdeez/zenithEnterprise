@@ -6,6 +6,8 @@ manifest that no longer parses, an id that stopped being unique, a fixture that 
 grew a text layer.
 """
 
+from pathlib import Path
+
 import pytest
 
 from eval.corpus import DOCUMENTS, load_manifest
@@ -82,7 +84,7 @@ def test_the_image_only_fixture_has_no_extractable_text() -> None:
     assert extractable_characters(build(force=True)) == 0
 
 
-def test_recording_checksums_is_idempotent() -> None:
+def test_recording_checksums_is_idempotent(tmp_path: Path) -> None:
     """Running `fetch --record` twice must not corrupt the manifest.
 
     It did. The second run appended a second set of `sha256`/`pages`/`bytes` keys to every
@@ -94,21 +96,29 @@ def test_recording_checksums_is_idempotent() -> None:
     cleared the current-document marker immediately after inserting, which switched the
     de-duplication off for exactly the lines it was meant to remove. Two runs looked clean;
     three were corrupt. Hence four here.
+
+    Recorded against a copy in `tmp_path`. It used to record against the repository's own
+    manifest and restore it in a `finally`, which made this the only test in the suite that
+    wrote a file every other reader of the corpus opens by a fixed path. `write_text`
+    truncates before it writes, so for the length of each of these four writes
+    `backend/eval/corpus.toml` was zero bytes on disk, and anything reading it in that
+    window got `tomllib` returning `{}` and `load_manifest` raising `KeyError: 'document'`.
+    Two `make check` runs in one checkout is enough — it failed roughly one run in three,
+    always in this test, and passed on the immediate re-run.
     """
     from eval.__main__ import record_checksums
     from eval.corpus import MANIFEST
 
-    original = MANIFEST.read_text()
-    try:
-        updates = {
-            document.id: (document.sha256 or "x", document.pages or 1, document.bytes or 1)
-            for document in load_manifest()
-        }
-        written: set[str] = set()
-        for _ in range(4):
-            record_checksums(updates)
-            written.add(MANIFEST.read_text())
-            assert len(load_manifest()) == len(updates)
-        assert len(written) == 1, "recording is not idempotent"
-    finally:
-        MANIFEST.write_text(original)
+    manifest = tmp_path / "corpus.toml"
+    manifest.write_text(MANIFEST.read_text())
+
+    updates = {
+        document.id: (document.sha256 or "x", document.pages or 1, document.bytes or 1)
+        for document in load_manifest(manifest)
+    }
+    written: set[str] = set()
+    for _ in range(4):
+        record_checksums(updates, manifest)
+        written.add(manifest.read_text())
+        assert len(load_manifest(manifest)) == len(updates)
+    assert len(written) == 1, "recording is not idempotent"

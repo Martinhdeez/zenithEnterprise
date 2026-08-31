@@ -38,7 +38,7 @@ from app.features.documents.storage import DocumentStorage
 from app.features.embeddings.client import DIMENSION, MODEL, VERSION, TeiClient
 from app.features.embeddings.model import ChunkEmbedding, EmbeddingSpace
 from app.features.ingestion.chunking.chunker import Chunk, chunk_page, chunk_stream
-from app.features.ingestion.classification import Classifier, Outcome
+from app.features.ingestion.classification import MAX_LABELS, Classifier, Outcome
 from app.features.ingestion.parsers.base import ParsedPage, Parser
 from app.features.ingestion.parsers.pdfplumber_parser import PdfPlumberParser, page_count
 from app.features.ingestion.parsers.text_parser import TextParser
@@ -47,6 +47,25 @@ from app.features.labels.repository import LabelRepository
 from app.features.tenancy.context import TenantContext
 
 log = structlog.get_logger()
+
+#: What the document's status says when the classifier named nothing and it was released
+#: into the tenant default. One sentence per ending, because they have one remedy each and a
+#: shared sentence sends an administrator after the wrong one.
+#:
+#: `DECLINED` is absent on purpose: the model read the document and no folder fitted, which
+#: is the classifier working, and a note would be a complaint about a correct answer.
+#: `FAILED` is absent because it never reaches here — it returns above, quarantined.
+_NOT_FILED: dict[Outcome, str] = {
+    Outcome.UNAVAILABLE: "filed under the default label: no classification model is configured",
+    Outcome.NO_FOLDERS: (
+        "filed under the default label: the uploader reaches no labels that could be "
+        "suggested, so there was nothing to offer the classifier"
+    ),
+    Outcome.TOO_MANY_FOLDERS: (
+        f"filed under the default label: the uploader reaches more than {MAX_LABELS} labels, "
+        "which is more than a classifier can choose between reliably"
+    ),
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -248,6 +267,14 @@ class IngestionPipeline:
         existed. A model that was configured and broke leaves it quarantined: nobody has
         vouched for the document, and a timeout is not a reason to publish it.
 
+        `FAILED` is still the only ending that quarantines, and splitting "never asked" into
+        `UNAVAILABLE`, `NO_FOLDERS` and `TOO_MANY_FOLDERS` did not change that: the test that
+        each of them releases the document into the default is the one that would catch it if
+        it ever did. What the split changed is the *note*. All three used to write "no
+        classification model is configured", which is false for two of them and points an
+        administrator at a connector that is working, when the actual remedy is to grant that
+        uploader a compartment or to accept a ceiling measurement says stays.
+
         A document the uploader *did* label is never touched. Not out of deference to manual
         choice — because there is no rearrangement of somebody's deliberate compartments
         that a guess is allowed to make.
@@ -288,11 +315,19 @@ class IngestionPipeline:
         if filing.outcome is Outcome.FAILED:
             # The one case that stays put. An administrator files it by hand, and the status
             # says so rather than leaving them to wonder why it is not in a folder.
-            await self._note(
-                document_id,
+            #
+            # **And why it failed, when the provider said.** This note is what an
+            # administrator opening the documents list actually reads, so it is where the
+            # difference between "the model broke" and "the billing account is empty" is
+            # worth the most: one of those is a document to file by hand and forget, the
+            # other is every document from now until somebody tops up an account. `detail`
+            # is `None` unless the failure was a `GenerationUnavailableError`, whose message
+            # the adapter built for a person and scrubbed of credentials.
+            note = (
                 "automatic filing failed; this document is waiting for an administrator "
-                "to choose its access labels",
+                "to choose its access labels"
             )
+            await self._note(document_id, f"{note} ({filing.detail})" if filing.detail else note)
             return False
 
         # Never the label it is already waiting in. `_candidates` no longer offers it, and
@@ -317,11 +352,14 @@ class IngestionPipeline:
                 )
                 return False
             applied = [row.default_id]
-            if filing.outcome is Outcome.UNAVAILABLE:
-                await self._note(
-                    document_id,
-                    "filed under the default label: no classification model is configured",
-                )
+            # The document goes to the default under every one of these; only the sentence
+            # differs, and the sentence is the whole point. An administrator reading "no
+            # classification model is configured" on an installation whose model answers
+            # every question goes and inspects the connector — which is exactly the cost the
+            # collapsed `UNAVAILABLE` was paying, three times over.
+            note = _NOT_FILED.get(filing.outcome)
+            if note is not None:
+                await self._note(document_id, note)
 
         async with tenant_session(self.context) as session:
             for label_id in applied:

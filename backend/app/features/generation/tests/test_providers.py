@@ -10,6 +10,7 @@ import pytest
 
 from app.common.llm import BaseLLMProvider, GenerationResponse, GenerationUnavailableError
 from app.core.config import settings
+from app.features.generation.adapters.gemini_native import GeminiProvider
 from app.features.generation.adapters.mock import MockProvider
 from app.features.generation.adapters.openai_compatible import OpenAIProvider
 from app.features.generation.connector import providers
@@ -38,6 +39,13 @@ def test_the_provider_is_chosen_by_configuration(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(settings, "llm_model", "a-model")
 
     assert isinstance(providers.build(providers.from_settings()), OpenAIProvider)
+
+    # Same endpoint, same model, a different wire protocol. Which adapter speaks to an
+    # endpoint is an operator's decision about the installation — a tenant configures a URL
+    # and a model name and never an adapter, which is what `resolve.provider_for` relies on.
+    monkeypatch.setattr(settings, "llm_provider", "gemini")
+
+    assert isinstance(providers.build(providers.from_settings()), GeminiProvider)
 
 
 def test_an_unknown_provider_lists_the_valid_ones(monkeypatch: pytest.MonkeyPatch) -> None:
