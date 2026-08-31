@@ -674,6 +674,150 @@ print("TRUNCATED " + str(count))
   esac
 fi
 
+# --- the application the browser has to load before any of that ------------------------------
+#
+# The block below pulls a real document through the proxy, and **a document that arrives
+# perfectly is still not a demonstration**: what renders it is a script, and a script the
+# browser refuses to run leaves the same "The document could not be rendered" on screen as a
+# missing file would. That is not a hypothesis here — it is the live half of the `.mjs` MIME bug
+# the block below recounts. nginx's stock mime.types has no `.mjs` entry, so
+# `pdf.worker.min-<hash>.mjs` was served as `application/octet-stream`, the browser's strict
+# module-script MIME check refused it, and every citation click and every preview failed on
+# files that were present, correct, and served with a perfect content type of their own. The
+# fetch below would have passed throughout.
+#
+# `docker/nginx.frontend.conf` fixes it with one `default_type text/javascript` on `\.mjs$`,
+# and that line is one edit, one base-image bump or one reordering of `try_files` away from
+# being gone again — with every other line in this report green, because until now nothing here
+# ever asked the frontend for a file of its own.
+#
+# Three requests, in the order the browser makes them, because they fail for different reasons
+# and want different remedies:
+#
+#   index.html        the document itself. If it is not HTML, or names no script, there is no
+#                     application on this port to demonstrate.
+#   the entry bundle  the `/assets/index-<hash>.js` index.html names. It comes out of the same
+#                     image, so a 404 here is the two halves of one build disagreeing — a page
+#                     that loads and an application that never does.
+#   the worker        `pdf.worker.min-<hash>.mjs`, and its **content type is the assertion**.
+#
+# **No filename is written down here**, because the one string this check needs is the one that
+# rots fastest: Vite content-hashes every built asset, so a name copied into this file is wrong
+# at the next `npm run build`. It is the argument that made the proxy prefixes above be asked of
+# the running API rather than listed, applied to the other side of the same installation. So
+# index.html is read for the entry it names and the entry is read for the worker it loads: the
+# build states its own filenames and this file states none of them.
+#
+# **Which is why "no worker found" is a warning and "not this application" is a failure.** They
+# are the two ways the discovery can end with nothing, and they are not the same finding. An
+# index.html that is not HTML, or that names no script at all, means the port is serving
+# something else entirely and there is nothing to demonstrate. An index.html and an entry bundle
+# that both serve correctly and simply do not mention a worker mean the build now splits its
+# chunks differently — the renderer moved, this check can no longer see it, and what it must say
+# is that it did not ask rather than that the answer was yes.
+#
+# urllib rather than curl, for the reason the corpus count above gives: each URL here is read
+# out of the body of the request before it, and a chain that carries state is clearer in one
+# place than in three shell variables. Nothing needs a token — whether the application loads is
+# not a question about an account.
+SPA="$(python3 -c '
+import re, sys, urllib.error, urllib.request
+
+web = sys.argv[1]
+
+# The JavaScript MIME essences of the HTML specification, without the 1990s spellings no
+# server in this decade emits. Under-listing is the safe direction and chosen deliberately: a
+# type wrongly left out costs somebody two minutes reading a header, and one wrongly admitted
+# is the bug this check exists for. What must be excluded is what nginx sends with no .mjs
+# rule at all, application/octet-stream, and text/plain beside it.
+JAVASCRIPT = {
+    "text/javascript",
+    "application/javascript",
+    "text/ecmascript",
+    "application/ecmascript",
+    "text/x-javascript",
+    "application/x-javascript",
+}
+
+
+def fetch(url):
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url), timeout=20) as answer:
+            return answer.status, answer.headers.get_content_type(), answer.read()
+    except urllib.error.HTTPError as refusal:
+        # A 404 is an answer and not an error here: the status is the finding.
+        return refusal.code, refusal.headers.get_content_type(), refusal.read()
+    except Exception as error:
+        return 0, str(error), b""
+
+
+code, kind, body = fetch(web + "/index.html")
+if code == 0:
+    print("GONE nothing answered for index.html at all (" + kind + ") — the frontend "
+          "container is not serving, or ZENITH_WEB names the wrong port")
+    sys.exit(0)
+page = body.decode("utf-8", "replace")
+if code != 200 or not page.lstrip()[:9].lower().startswith(("<!doctype", "<html")):
+    print("ALIEN index.html answered " + str(code) + " as " + kind + " and does not begin as "
+          "HTML — whatever is serving this port, it is not a build of this application")
+    sys.exit(0)
+
+entries = re.findall("/assets/[A-Za-z0-9._-]+\\.js", page)
+if not entries:
+    print("ALIEN index.html loads and names no /assets script at all — this is a different "
+          "index.html, or the stock nginx page, and not a build of this application")
+    sys.exit(0)
+
+entry = entries[0]
+name = entry.rsplit("/", 1)[-1]
+code, kind, body = fetch(web + entry)
+if code != 200:
+    print("SPLIT_BUILD index.html asks for " + name + " and it answers " + str(code)
+          + " — index.html and the assets beside it did not come out of one build, so the page "
+          "loads and the application never does")
+    sys.exit(0)
+if kind not in JAVASCRIPT:
+    print("WRONG_TYPE " + name + " arrives typed " + kind + " rather than as JavaScript, so "
+          "the browser refuses the entry module and the room watches an empty page")
+    sys.exit(0)
+
+workers = re.findall("/assets/pdf\\.worker[A-Za-z0-9._-]*\\.mjs",
+                     body.decode("utf-8", "replace"))
+if not workers:
+    print("NO_WORKER " + name + " names no pdf.worker mjs, so the module type this check "
+          "exists to assert was not asked of anything. index.html and the entry bundle both "
+          "serve correctly, so this is the build splitting its chunks differently rather than "
+          "a frontend serving the wrong thing — follow the worker into whichever chunk now "
+          "carries it")
+    sys.exit(0)
+
+worker = workers[0]
+short = worker.rsplit("/", 1)[-1]
+code, kind, body = fetch(web + worker)
+if code != 200:
+    print("NO_RENDERER " + name + " loads " + short + " and it answers " + str(code)
+          + " — the script that renders every PDF is not in the image beside the bundle that "
+          "asks for it, and every citation click will say the document cannot be rendered")
+elif kind not in JAVASCRIPT:
+    print("WRONG_TYPE " + short + " arrives typed " + kind + " rather than as JavaScript — a "
+          "module the browser refuses to execute, which is every citation click failing with "
+          "The document could not be rendered on files that are present and correct. The .mjs "
+          "rule in docker/nginx.frontend.conf is what is missing")
+else:
+    print("SERVED the SPA loads: index.html, " + name + " and " + short
+          + ", both scripts typed as JavaScript")
+' "${WEB}" 2>/dev/null || printf 'UNREADABLE the SPA could not be examined at all\n')"
+
+case "${SPA}" in
+  SERVED\ *)    ok   "${SPA#* }" ;;
+  # The one ending that means this check could not find its subject rather than that its
+  # subject is broken. Everything else — including the endings that mean it learned nothing —
+  # is a failure, for the reason the document fetch below gives in the same words: the page the
+  # audience loads either works or it does not.
+  NO_WORKER\ *) warn "${SPA#* }" ;;
+  *)            bad  "${SPA#* }" ;;
+esac
+
 # --- one document, pulled the way the viewer pulls it ---------------------------------------
 #
 # `document files` in the report below is a row-versus-disk comparison made *inside* the API
