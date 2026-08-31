@@ -181,32 +181,103 @@ fi
 # throwing on `<!doctype`. Reproducing it is the only test that cannot pass against nothing:
 # an empty body is not JSON either.
 #
-# Deliberately *not* the status. Every one of these four answers 401 here, because this runs
-# without a token, and a 401 is a pass: the question is where the request arrived, not what it
-# was allowed to do once there. Pinning the status would make the check fail the day one of
-# these routes stops needing a token, which is not what it is watching for. Deliberately not
-# the content type on its own either — it is a header, set by whatever answered, and what the
-# browser chokes on is the bytes. The status is still printed, because an operator reading
-# `401` learns something an operator reading `OK` does not.
-for path in /documents /search /roles /analytics; do
+# Deliberately *not* the status. Every one of these answers 401, 404 or 405 here, because
+# this runs without a token and asks for the bare prefix, and all three are a pass: the
+# question is where the request arrived, not what it was allowed to do once there. Pinning
+# the status would make the check fail the day one of these routes stops needing a token,
+# which is not what it is watching for. Deliberately not the content type on its own either —
+# it is a header, set by whatever answered, and what the browser chokes on is the bytes. The
+# statuses are still printed, because an operator reading `401` learns something an operator
+# reading `OK` does not.
+#
+# **The list of prefixes is no longer written here.** Four were, out of the twelve the API
+# serves, and the two this product has actually shipped broken — `groups` and `system` — were
+# not among the four. Writing twelve down would make this the *third* hand-kept copy of the
+# route table, after nginx's and vite's, and CONTRIBUTING.md's rule about registries applies
+# to it exactly: a file that every new router has to be added to is wrong the one time
+# somebody forgets, and the fix is to make the file discover its entries rather than list
+# them. So the list is asked of the running API, which is also the only source that suits
+# this script. `tests/integration/test_proxy_prefixes.py` already holds the two config
+# *files* to the route table the code declares; that is the declared question. This one is
+# whether the installation that is running right now answers on every prefix it says it
+# serves — and a `frontend` image built before the last router landed fails here and passes
+# there.
+#
+# `health` and the schema documents are excluded for the reason that test excludes them:
+# nginx serves them itself or the SPA does, and neither is proxied.
+PREFIX_ORIGIN="the API says it serves"
+PREFIXES="$(curl -fsS --max-time 10 "${API}/openapi.json" 2>/dev/null | python3 -c '
+import sys, json
+
+NOT_PROXIED = {"health", "openapi.json", "docs", "redoc"}
+prefixes = {
+    segment[0]
+    for path in json.load(sys.stdin)["paths"]
+    if (segment := [part for part in path.split("/") if part])
+    and not segment[0].startswith("{")
+}
+print(" ".join(sorted(prefixes - NOT_PROXIED)))
+' 2>/dev/null || true)"
+if [ -z "${PREFIXES}" ]; then
+  # The fallback is a written-down list, which is the thing the paragraph above refuses to
+  # rely on — so it is used and announced rather than used quietly. The probes below are
+  # still worth running against it; what is not known is whether the API has grown a
+  # thirteenth router since somebody last edited this line.
+  PREFIXES="auth labels documents search query tenant roles groups system analytics llm-config users"
+  PREFIX_ORIGIN="this file lists"
+  warn "could not read ${API}/openapi.json, so the prefixes probed below are this file's own copy of the route table and may be one router behind the API"
+fi
+
+# **Twelve probes, and deliberately not twelve lines.** A line per prefix spends a third of
+# this report saying "yes" twelve times and pushes the answer check off the screen of
+# somebody reading it minutes before a room. What an operator needs from this section is one
+# of two facts — the proxy list is complete, or these names are missing — so the pass is one
+# line carrying the count, and each failing *class* is one line naming the prefixes in it.
+#
+# Grouped by class rather than by prefix because the remedy belongs to the class and not to
+# the prefix: every SPA fall-through is fixed by editing the same two files, and every proxy
+# error page by starting the same container. One missing word in nginx's regex would
+# otherwise produce twelve failures and a summary line reading `NOT READY — 12 failure(s)`,
+# which describes one problem as twelve.
+count() { printf '%s' "$#"; }
+REACHED=""; FELL_THROUGH=""; PROXY_ERROR=""; SILENT=""; CODES=""
+for prefix in ${PREFIXES}; do
   # `--max-time`, for the reason the answer check gives: a proxy that accepts the connection
   # and never replies is a hang, and a check that hangs is one an operator learns to skip.
-  REPLY="$(curl -s --max-time 10 -w '\n%{http_code}' "${WEB}${path}" 2>/dev/null || true)"
+  REPLY="$(curl -s --max-time 10 -w '\n%{http_code}' "${WEB}/${prefix}" 2>/dev/null || true)"
   CODE="${REPLY##*$'\n'}"
   BODY="${REPLY%$'\n'*}"
   if printf '%s' "${BODY}" | python3 -c 'import sys, json; json.load(sys.stdin)' 2>/dev/null; then
-    ok "${path} reaches the API through the proxy — it answered ${CODE} in JSON"
+    REACHED="${REACHED} ${prefix}"
+    case " ${CODES} " in *" ${CODE} "*) ;; *) CODES="${CODES} ${CODE}" ;; esac
   elif [ -z "${CODE}" ] || [ "${CODE}" = "000" ]; then
-    bad "${path} — nothing answered at ${WEB} at all, so the proxy list was never asked: the frontend container is not serving, or ZENITH_WEB names the wrong port"
+    SILENT="${SILENT} ${prefix}"
   else
     case "${BODY}" in
-      *"<!doctype"*|*"<!DOCTYPE"*)
-        bad "${path} falls through to the SPA — missing from the nginx proxy list in docker/nginx.frontend.conf, and from frontend/vite.config.ts with it" ;;
-      *)
-        bad "${path} — ${WEB} answered ${CODE} and not in JSON, so this is the proxy's own error page: nginx matched the prefix and could not reach the API behind it" ;;
+      *"<!doctype"*|*"<!DOCTYPE"*) FELL_THROUGH="${FELL_THROUGH} ${prefix}" ;;
+      *)                           PROXY_ERROR="${PROXY_ERROR} ${prefix} (${CODE})" ;;
     esac
   fi
 done
+
+PROBED="$(count ${PREFIXES})"
+if [ -n "${REACHED}" ]; then
+  if [ "$(count ${REACHED})" -eq "${PROBED}" ]; then
+    ok "all ${PROBED} prefixes ${PREFIX_ORIGIN} reach the API through the proxy — every one answered in JSON (${CODES# })"
+  else
+    # Named, unlike the pass above: in a mixed run the interesting half is which ones worked.
+    ok "${REACHED# } reach the API through the proxy, answering in JSON (${CODES# })"
+  fi
+fi
+if [ -n "${SILENT}" ]; then
+  bad "nothing answered at ${WEB} at all for${SILENT}, so the proxy list was never asked: the frontend container is not serving, or ZENITH_WEB names the wrong port"
+fi
+if [ -n "${FELL_THROUGH}" ]; then
+  bad "${FELL_THROUGH# } fall(s) through to the SPA — missing from the nginx proxy list in docker/nginx.frontend.conf, and from frontend/vite.config.ts with it"
+fi
+if [ -n "${PROXY_ERROR}" ]; then
+  bad "${PROXY_ERROR# } — ${WEB} answered with that status and not in JSON, so this is the proxy's own error page: nginx matched the prefix and could not reach the API behind it"
+fi
 
 # --- a real question ----------------------------------------------------------------------
 if [ -z "${EMAIL}" ] || [ -z "${PASSWORD}" ]; then
