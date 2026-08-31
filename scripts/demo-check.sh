@@ -764,13 +764,13 @@ if [ -n "${TOKEN}" ]; then
     # Grouped by class and not by organisation, like the proxy probes above: the remedy belongs
     # to the class, one broken policy is one finding however many tenants it spans, and the pass
     # is one line because "every one of them refused" is the whole of what an operator needs.
-    ORGS=0; PROBED=""; LEAKED=""; DISCLOSED=""; UNCLEAR=""
+    ORGS=0; ORG_NAMES=""; LEAKED=""; DISCLOSED=""; UNCLEAR=""
     # Redirected rather than piped, so the counters survive the loop: a pipeline would run this
     # in a subshell and every finding would be discarded at the `done`.
     while IFS='|' read -r OTHER_ID OTHER_NAME; do
       [ -n "${OTHER_ID}" ] || continue
       ORGS=$(( ORGS + 1 ))
-      PROBED="${PROBED}, ${OTHER_NAME}"
+      ORG_NAMES="${ORG_NAMES}, ${OTHER_NAME}"
       SEEN="$(curl -s --max-time 20 -o /dev/null -w '%{http_code}' \
         -H "Authorization: Bearer ${TOKEN}" "${API}/documents/${OTHER_ID}" 2>/dev/null || echo 000)"
       FETCHED="$(curl -s --max-time 20 -o /dev/null -w '%{http_code}' \
@@ -796,7 +796,7 @@ EOF
     elif [ -n "${DISCLOSED}" ]; then
       warn "isolation: withheld from ${EMAIL}, but as 403 —${DISCLOSED#,}. Nothing crossed the boundary; the refusal itself confirms the row exists, which is what the 404 in download_document's docstring is there to prevent"
     else
-      ok "isolation: ${ORGS} other organisation(s) —${PROBED#,} — and ${EMAIL} is refused a document of each, the row and its bytes both 404, indistinguishable from an id that never existed"
+      ok "isolation: ${ORGS} other organisation(s) —${ORG_NAMES#,} — and ${EMAIL} is refused a document of each, the row and its bytes both 404, indistinguishable from an id that never existed"
     fi
   fi
 fi
