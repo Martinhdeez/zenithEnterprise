@@ -814,8 +814,15 @@ export function App() {
             onClick={() => open("profile")}
             title={collapsed ? t("Profile") : undefined}
             aria-label={collapsed ? t("Profile") : undefined}
-            className={`flex items-center rounded-lg transition-colors ${
-              collapsed ? "justify-center p-1.5" : "min-w-0 gap-2.5 px-2 py-1.5"
+            // `rounded-full`, matching the theme row above it and the language pair beside
+            // it rather than approximating them. At `rounded-lg` this was the only control
+            // in the footer with corners, and because it hugs its text instead of filling
+            // the row, its hover ended in a square edge halfway across — which reads as a
+            // clipped block rather than as a pill. The asymmetric padding is part of the
+            // same fix: a circular end needs more room after the word than before the
+            // avatar, or the text sits against the curve.
+            className={`flex items-center rounded-full transition-colors ${
+              collapsed ? "justify-center p-1.5" : "min-w-0 gap-2.5 py-1.5 pl-1.5 pr-3"
             } ${
               view === "profile"
                 ? "bg-primary/10 text-primary"
