@@ -1,5 +1,11 @@
 # Zenith Enterprise
 
+[![CI](https://github.com/Martinhdeez/zenithEnterprise/actions/workflows/ci.yml/badge.svg)](https://github.com/Martinhdeez/zenithEnterprise/actions/workflows/ci.yml)
+[![Licence: Apache-2.0](https://img.shields.io/badge/licence-Apache--2.0-blue.svg)](LICENSE)
+![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
+![PostgreSQL row-level security](https://img.shields.io/badge/PostgreSQL-row--level%20security-4169E1?logo=postgresql&logoColor=white)
+![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+
 Multi-tenant retrieval-augmented search over a private document corpus. FastAPI, Postgres
 (ParadeDB), React, deployed on-premise with Docker Compose.
 
@@ -11,6 +17,11 @@ else is negotiable.
 > it is tested, and it has been installed and measured — but it has no release, no upgrade path
 > between versions, and no support commitment. Treat it as a reference implementation you can
 > run, not as a product you can buy.
+
+![A search opens its best passage on its own: the page is zoomed to the passage's column, centred, and the highlighted lines are framed in the panel](docs/images/search-preview.jpg)
+
+<sub>The corpus in these screenshots is public Spanish legislation from the BOE; the interface is
+in English. Nothing shown belongs to anybody.</sub>
 
 ---
 
@@ -50,6 +61,27 @@ given are stripped, and an answer left with no valid citation is discarded rathe
 
 ## How it works
 
+```mermaid
+flowchart LR
+    Q([Question]) --> API["FastAPI<br/>tenant_session()"]
+    API -- "sets tenant + labels" --> PG[("Postgres<br/>row-level security")]
+    PG --> D["Dense<br/>HNSW"]
+    PG --> L["Lexical"]
+    PG --> X["Exact<br/>identifier"]
+    D --> F["RRF fusion"]
+    L --> F
+    X --> F
+    F --> R["Cross-encoder rerank<br/>circuit breaker"]
+    R --> G["Any OpenAI-compatible<br/>model"]
+    G --> C{"citations.py<br/>every marker valid?"}
+    C -- "yes" --> A([Answer with<br/>page highlights])
+    C -- "no citation left" --> N([Abstain])
+```
+
+Every arrow after the first runs inside one `tenant_session()`, so a passage the caller may not
+read never reaches retrieval, the model, or the page.
+
+
 **Ingestion.** `pending → parsing → chunking → embedding → classifying → ready | failed`. PDFs are
 parsed with layout awareness, chunked at 1,200 characters with 150 of overlap, embedded with
 bge-m3 at 1024 dimensions, and stored with the normalised bounding boxes that later let a citation
@@ -64,6 +96,21 @@ it does not matter.
 **Generation.** Provider-agnostic: anything speaking OpenAI-compatible `/v1/chat/completions`,
 including a local Ollama or vLLM. The citation gate runs after the model, in code, regardless of
 which one it is.
+
+## What it looks like
+
+![Two questions about the same document: the first is answered in two sentences, each carrying a citation marker; the second asks something the document does not contain, and the product says so instead of answering](docs/images/abstention.jpg)
+
+Every sentence of an answer carries a marker that resolves to a passage the caller was allowed to
+read. Ask something the document does not say and the answer is not a guess — it is an
+abstention, decided in code after the model has spoken.
+
+<details>
+<summary>Dark theme</summary>
+
+![The same search in the dark theme](docs/images/search-preview-dark.jpg)
+
+</details>
 
 ## Quick start
 
