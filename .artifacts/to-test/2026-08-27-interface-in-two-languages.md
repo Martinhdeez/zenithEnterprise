@@ -2,8 +2,8 @@
 
 **Status:** implemented, `make check` green, not yet exercised in front of an audience.
 
-The demonstration is given in Spanish, to a Spanish buyer, over a corpus that is 59.4%
-Spanish by passage — and every button said `Upload`. The answers were already Spanish:
+An installation may be used in Spanish, over a corpus that is mostly Spanish — and every
+button said `Upload`. The answers were already Spanish:
 prompt rule 11 fixes the answer to the language of the question. Only the chrome was English.
 
 ---

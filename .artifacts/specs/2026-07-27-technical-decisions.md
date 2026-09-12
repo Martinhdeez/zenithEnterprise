@@ -337,7 +337,7 @@ This data is only available during parsing: omitting it forces a **re-parse** of
 
 ## 11. VRAM management and concurrency
 
-Reference hardware: **one 24 GB GPU** (RTX 4090 or A10). Between €1,500 and €2,000, or a modest cloud instance. It is the number that makes the commercial argument credible: zero marginal cost per document, on an upfront investment any SME can absorb.
+Reference hardware: **one 24 GB GPU** (RTX 4090 or A10), or a modest cloud instance. The point of sizing to one commodity card is that there is no marginal cost per document once it is bought.
 
 Resident consumption:
 

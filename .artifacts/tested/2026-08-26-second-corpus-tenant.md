@@ -102,4 +102,4 @@ anyone uploads a corpus in front of an audience: this is a background job, not a
 
 **What this corpus is not.** It has no measured recall figure and no verified question set.
 Do not quote a percentage against it. The measured baseline belongs to the other tenant, and
-`.artifacts/specs/2026-08-26-what-this-demo-claims.md` still governs what may be claimed.
+Figures below describe one installation's corpus and are not a benchmark of the software.

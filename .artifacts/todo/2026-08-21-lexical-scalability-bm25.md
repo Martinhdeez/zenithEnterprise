@@ -370,24 +370,20 @@ the accurate engine wins and the fast one is a path nobody takes.
 
 ## 10. Sequencing
 
-This plan is not the most valuable thing to do before the the client presentation, and it would
-be dishonest to file it as though it were.
+This plan is not the most valuable work available, and it would be dishonest to file it as
+though it were. Three things come first:
 
-**Before the presentation**, in this order:
+1. **A realistic corpus.** Fourteen documents is the weakest part of any evaluation, ahead
+   of anything in this document: retrieval on a handful of files is easy because there is
+   nothing to confuse it with. A few thousand public documents is the highest-value hour
+   available.
+2. **The 20-second query has to go.** That number makes every other property irrelevant.
+3. **Backups.** An installation holding other people's documents without a tested restore
+   is not finished, whatever its recall is.
 
-1. **A realistic corpus in the demo.** 14 documents is the weakest part of the
-   presentation, ahead of anything in this document. Nobody will ask about `ts_rank_cd`;
-   they will assume it collapses at 10,000 and stop listening. A few thousand public
-   documents (BOE, EUR-Lex) is the highest-value hour available.
-2. **The 20-second query has to go.** That number sinks a demo regardless of answer
-   quality.
-3. **Backups.** An enterprise buyer asks inside five minutes and "there are none" ends the
-   conversation.
-
-**This plan is what makes the claim true afterwards**, and its value in the meantime is
-that it converts "we think it will scale" into "the bottleneck is identified, measured, and
-has a proven path with a 130× factor". That sentence is worth more in the room than a
-finished implementation nobody asked to see.
+**This plan is what makes the scalability claim true afterwards.** Its value in the meantime
+is that it converts "we think it will scale" into "the bottleneck is identified, measured,
+and has a proven path with a 130× factor" — which is a claim that can be checked.
 
 ---
 

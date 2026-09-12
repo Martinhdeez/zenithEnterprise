@@ -113,9 +113,8 @@ Only the generation of the final answer is interchangeable. The customer plugs i
 |---|---|
 | Deployment model | Hybrid (SaaS + on-premise option) |
 | Hybrid strategy | Architecture ready for both from day 1, but **only one mode deployed** until iteration 3 |
-| Development and demo environment | **Our own VPS**, Docker Compose. This is where the product is built and shown |
-| Deployment at design partners | **TBD — pending a commercial conversation.** Not fixed until there is a yes |
-| Design partners | **TBD.** Candidates sounded out, none confirmed |
+| Development environment | A single box, Docker Compose — the same artifact that gets installed |
+| Deployment mode at a pilot installation | **TBD.** Not fixed until there is one |
 | MVP language | **English** |
 | Embedding model | Multilingual despite the English start, to avoid reindexing when Spanish opens up |
 | Embedder reversibility | Hot reindexing pipeline from day 1 |
@@ -289,7 +288,7 @@ Measurement rules:
 - **Always percentiles, never averages.** The average hides exactly the cases that drive users away. The p95 is the user who is leaving.
 - **With the full corpus loaded.** Measuring latency with 50 documents indexed says nothing about behaviour with 100,000. In M0 latency is a measurement; the real scale gate arrives in iteration 4 with RNF-03.
 
-This split also has commercial value: we commit contractually to the phase we control and document the rest as dependent on the model the customer chooses.
+The split is also what makes a commitment possible at all: the phase under our control can be committed to, and the rest documented as dependent on the model the operator chooses.
 
 ---
 
@@ -303,7 +302,7 @@ This split also has commercial value: we commit contractually to the phase we co
 
 **Open.** None of these blocks the start.
 
-1. **Design partners and deployment mode at the customer** — **TBD, pending a commercial conversation.** Not fixed in the document until there is an explicit yes. In the meantime, development runs on **our own VPS** with Docker Compose, which is the same artifact that would be installed at a customer. The M0 corpus uses public equivalents, depending on no specific partner.
+1. **Deployment mode at a pilot installation** — **TBD.** Not fixed in the document until there is one. In the meantime development runs on a single box with Docker Compose, which is the same artifact that would be installed. The M0 corpus is built from public documents, depending on no specific installation.
 2. **Support role** — does it exist, and does it see customer content or only state and logs? Recommendation: never content, and in writing. With no partner confirmed it is not blocking, but the permission catalogue in mvp.md §2.1 closes in M3.
 3. **Outstanding compliance requirements**: retention and scheduled purge, exposed audit, feedback on answers. Needed before iteration 4.
 4. **Duration estimates** for iterations 2 to 4.

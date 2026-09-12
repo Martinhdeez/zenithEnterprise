@@ -7,9 +7,9 @@
  * what you operate, what you paused, what is gone — is the same distinction the status
  * column already makes; the list was just not using it.
  *
- * Inside a group, the organisation with the most behind it comes first. A buyer opening
- * this panel should land on the customer, not on whichever eval run happened to be
- * created first.
+ * Inside a group, the organisation with the most behind it comes first. Opening this panel
+ * should land on the organisation that is actually in use, not on whichever eval run
+ * happened to be created first.
  */
 
 import type { Organisation } from "./api";

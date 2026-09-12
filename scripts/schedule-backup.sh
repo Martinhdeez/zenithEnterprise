@@ -2,9 +2,9 @@
 #
 # Make the backup happen without anybody remembering to run it.
 #
-# `backup.sh` has been correct and unscheduled for weeks, which is the same as absent on the
-# morning it is needed: on 25 August a Docker reset discarded the database volume, and what
-# saved the installation was a backup somebody had taken by hand four days earlier. That is
+# A backup script that is correct and unscheduled is the same as absent on the morning it is
+# needed. This one exists because a container runtime reset discarded a database volume, and
+# what saved the installation was a copy somebody had taken by hand four days earlier. That is
 # not a recovery plan, it is luck with a shell script attached.
 #
 #   ./scripts/schedule-backup.sh install [destination]   # daily at 03:00

@@ -242,8 +242,8 @@ PROFILES: Final[dict[str, Profile]] = {
     # the smaller ef returned.
     #
     # Recorded because the temptation is to raise it. The three questions this corpus misses
-    # are missed for reasons that live nowhere near the index, and turning this knob during
-    # demonstration week would buy a changed number in a report and nothing a buyer can see.
+    # are missed for reasons that live nowhere near the index, so turning this knob buys a
+    # changed number in a report and nothing anybody using the product would notice.
     "cpu": Profile(
         name="cpu",
         max_batch_tokens=2048,

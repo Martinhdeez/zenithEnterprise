@@ -1485,12 +1485,12 @@ EOF
 
 # --- what the system panel will show ------------------------------------------------------
 #
-# Everything above asks whether the product works. This asks what a buyer reads, which is a
-# different question and the only one with no test behind it. `/system` lists every
-# organisation in the installation by name, and this installation grew four of them called
-# `M0 baseline <uuid>` during development — three empty. Nothing is broken; the panel is
-# doing exactly its job. It is just that opening it in the room shows a page of test
-# artefacts, and an evaluator reads that as the state of the product.
+# Everything above asks whether the product works. This asks what a reader of the system
+# panel sees, which is a different question and the only one with no test behind it.
+# `/system` lists every organisation in the installation by name, and a development
+# installation accumulates empty ones. Nothing is broken; the panel is doing exactly its job.
+# It is just that opening it shows a page of test artefacts, and anyone looking reads that as
+# the state of the product.
 #
 # A warning and never a failure: the fix is a decision about somebody's data, and this
 # script does not get to make it.
@@ -1519,8 +1519,8 @@ elif [ -z "${LEFTOVERS}" ]; then
 else
   COUNT="$(printf '%s\n' "${LEFTOVERS}" | grep -c .)"
   warn "the system panel will show ${COUNT} active organisation(s) with no users and no documents:"
-  # Quoted through a here-doc: an organisation may legitimately be called "Example Group",
-  # and an unquoted expansion prints that as two organisations.
+  # Quoted through a here-doc: an organisation name may legitimately contain a space, and an
+  # unquoted expansion prints that as two organisations.
   while IFS= read -r leftover; do
     [ -n "${leftover}" ] && printf '        %s\n' "${leftover}"
   done <<EOF

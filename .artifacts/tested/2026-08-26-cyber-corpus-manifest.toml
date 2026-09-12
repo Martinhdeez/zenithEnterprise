@@ -9,7 +9,7 @@
 # public domain; CISA publishes its guidance openly.
 #
 # This corpus has **no measured recall figure** and must never be quoted as if it did. The
-# measured baseline is the other tenant's — see `.artifacts/specs/2026-08-26-what-this-demo-claims.md`.
+# measured baseline is the other tenant's.
 
 [[document]]
 id = "nist-csf-2"
@@ -63,7 +63,7 @@ why = "Authentication assurance levels. Specific numeric requirements — entrop
 id = "nist-ai-rmf-100-1"
 url = "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf"
 sha256 = "7576edb531d9848825814ee88e28b1795d3a84b435b4b797d3670eafdc4a89f1"
-why = "AI risk management. The subject a buyer is most likely to ask an unscripted question about."
+why = "AI risk management. The subject most likely to draw an unscripted question."
 
 [[document]]
 id = "nist-sp-800-30r1-risk"

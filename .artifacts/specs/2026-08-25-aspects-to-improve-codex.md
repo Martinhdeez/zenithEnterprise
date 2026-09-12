@@ -27,7 +27,7 @@ The current product can demonstrate much of this, but several issues could under
 - Generated answers can abstain when the corpus lacks evidence.
 - Backup and restore procedures include the database, files, and database roles.
 
-These controls distinguish Zenith from a generic “chat with PDFs” demo. They should form part of the commercial story.
+These controls are what distinguish Zenith from a generic “chat with PDFs” tool.
 
 ### Archive ingestion
 
@@ -51,8 +51,12 @@ These controls distinguish Zenith from a generic “chat with PDFs” demo. They
 
 The reports establish several useful facts:
 
+Every figure in this section was measured on one installation, on one corpus, on one 4-core
+7.6 GB machine. They describe that installation and are not properties of the software; the
+harness in `backend/eval/` is how you derive the equivalents for yours.
+
 - A 26-document live corpus achieved 85% headline Recall@8, 100% document Recall@8, 768 ms median retrieval, and 898 ms p95 over 30 scored questions.
-- On a 4-core, 7.6 GB VPS with about 19,500 synthetic passages, median retrieval was about 1.15 seconds for one user, 2.88 seconds for five concurrent users, and 5.16 seconds for ten.
+- On that machine with about 19,500 synthetic passages, median retrieval was about 1.15 seconds for one user, 2.88 seconds for five concurrent users, and 5.16 seconds for ten.
 - During continuous ingestion, median retrieval rose to about 3.87 seconds for one user and 4.49 seconds for five.
 - CPU ingestion measured 0.88–1.39 seconds per chunk. At that rate, one million chunks require roughly 10–16 days on one worker.
 - A 300,000-passage experiment measured the current three-term lexical query at 1.123 seconds without real RLS and 5.953 seconds with it.
@@ -296,11 +300,11 @@ Before adding replicas:
 
 Backup and restore logic is unusually careful, but backups remain unscheduled and on-host. Schedule encrypted off-site backups, monitor freshness, measure restore time, and run periodic restore drills. Add coordinated snapshots or PostgreSQL point-in-time recovery if the target recovery objective requires them.
 
-## Product presentation improvements
+## Interface improvements
 
 ### Simplify the default search result
 
-Raw lexical, dense, reranker, and RRF scores help technical debugging but can distract business viewers. Place them behind “Why this result?” Keep filename, page, labels, passage, elapsed time, and source opening prominent.
+Raw lexical, dense, reranker, and RRF scores help technical debugging but are noise for a reader checking an answer. Place them behind “Why this result?” Keep filename, page, labels, passage, elapsed time, and source opening prominent.
 
 ### Make degradation understandable
 
@@ -321,15 +325,15 @@ Show upload rate and estimated time remaining. The calculation already exists in
 
 ## Recommended sequence
 
-### Before the demo
+### First
 
 1. Fix upload/poll separation and false completion.
 2. Make OCR/layout status truthful.
 3. Close the default-label access window.
 4. Fix queue schema installation and readiness.
-5. Prepare a realistic pre-indexed corpus and rehearsed queries.
+5. Prepare a realistic pre-indexed corpus.
 6. Surface deduplication and simplify ranking diagnostics.
-7. Verify backup, restore, and access-isolation talking points.
+7. Verify backup, restore, and access isolation end to end.
 
 ### Before making large-scale claims
 

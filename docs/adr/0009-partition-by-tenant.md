@@ -7,7 +7,9 @@
 
 Every measurement in this record was taken against the same corpus — **42 documents, 13,549
 passages, 322.6 passages per document** (`quantisation.json` `corpus`) — and every figure at
-a larger size is a projection from it. The target is a million documents on one on-premise
+a larger size is a projection from it. That corpus was one installation's, not a benchmark:
+the numbers below are evidence for the decision, not properties of the software, and
+`backend/eval/` is how the equivalents are derived for another one. The target is a million documents on one on-premise
 machine, which at this corpus's density is **322.6M passages**.
 
 At that size one HNSW index over `chunk_embeddings` is **820.2 GiB** of resident graph

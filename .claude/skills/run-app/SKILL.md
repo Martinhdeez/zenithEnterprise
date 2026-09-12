@@ -19,9 +19,10 @@ to know if it's needed again (e.g. after `docker compose down -v`).
    values `ZENITH_JWT_SECRET`, `ZENITH_ENCRYPTION_KEY` from `backend/.env`, plus:
    ```
    POSTGRES_USER=zenith
-   POSTGRES_PASSWORD=zenith
+   POSTGRES_PASSWORD=<choose one>
    POSTGRES_DB=zenith
-   ZENITH_APP_PASSWORD=zenith_app
+   ZENITH_APP_PASSWORD=<choose one>
+   ZENITH_PLATFORM_PASSWORD=<choose one>
    ZENITH_STORAGE_DIR=/data/documents   # path inside the container, not the host
    ZENITH_HARDWARE=low-spec
    ```
@@ -42,7 +43,7 @@ to know if it's needed again (e.g. after `docker compose down -v`).
    in the repo ever gives it a password, so right after that first `alembic upgrade head`:
    ```bash
    docker compose exec db psql -U zenith -d zenith -c \
-     "ALTER ROLE zenith_app LOGIN PASSWORD 'zenith_app';"
+     "ALTER ROLE zenith_app LOGIN PASSWORD '<ZENITH_APP_PASSWORD from .env>';"
    ```
    Must match `ZENITH_APP_PASSWORD` in `.env`. Without this, `api`/`worker` fall back to
    connecting as the schema owner and `verify_rls_active()` refuses to start — by design,
@@ -52,9 +53,9 @@ to know if it's needed again (e.g. after `docker compose down -v`).
    (`app/core/database.py`'s `platform_session`):
    ```bash
    docker compose exec db psql -U zenith -d zenith -c \
-     "ALTER ROLE zenith_platform LOGIN PASSWORD 'zenith_platform';"
+     "ALTER ROLE zenith_platform LOGIN PASSWORD '<ZENITH_PLATFORM_PASSWORD from .env>';"
    ```
-   Must match `ZENITH_PLATFORM_PASSWORD` in `.env` (default `zenith_platform`). Only the
+   Must match `ZENITH_PLATFORM_PASSWORD` in `.env`. Only the
    `/system/*` routes use it, so the rest of the app runs fine without it — the panel is
    where the omission shows up.
 5. Nobody can reach `/system` until somebody is granted it, and it cannot be granted from
@@ -105,7 +106,7 @@ right for both:
 
 ```bash
 CODE=/path/to/the/checkout/whose/code/you/want
-DATA=/path/to/zenithEnterprise   # the one holding backend/.data/documents and .env
+DATA=/path/to/the/checkout/holding/backend/.data/documents/and/.env
 
 # Build with no --project-directory, so `build.context: ..` resolves against $CODE.
 (cd "$CODE/docker" && docker compose -p zenith build api worker frontend)
@@ -125,8 +126,7 @@ mean the same images.
 sense that `SearchService` catches its absence and answers anyway from the fused order,
 marked `degraded` — nothing crashes and no error is logged. It is not optional in the sense
 that matters: `docker/docker-compose.yml`'s own comment records that a reranker which never
-runs costs **about 15 points of recall**, and the demonstration claims Recall@8 of 90.0%
-(`.artifacts/specs/2026-08-26-what-this-demo-claims.md`). Starting the stack without it is
+runs costs **about 15 points of recall**. Starting the stack without it is
 how you demonstrate a number you cannot reproduce, with no symptom in front of you.
 `./scripts/demo-check.sh` fails on it for that reason.
 

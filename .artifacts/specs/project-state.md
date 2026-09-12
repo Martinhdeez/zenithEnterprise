@@ -13,7 +13,6 @@ first — then the three specs, then the code.
 
 | Item | State |
 |---|---|
-| Repository | `github.com/Martinhdeez/zenithEnterprise` (private) |
 | **F0 — Foundations** | **Done.** 6 commits on `main`, CI green |
 | Specs translated to English | Done, `db4d762` |
 | `CONTRIBUTING.md` | Merged, PR #1 |
@@ -258,7 +257,7 @@ Recorded so they are not relitigated. Full reasoning lives in the three specs.
 
 ### Product
 
-- MVP installs at 2-3 design partners. No self-service signup, no billing.
+- MVP is installed by hand at a small number of pilot installations. No self-service signup, no billing.
 - English only. PDF only. No audio (iteration 2), no conversational memory.
 - RBAC is configurable: the administrator invents roles; the software defines the
   permission catalogue.
@@ -282,8 +281,8 @@ Recorded so they are not relitigated. Full reasoning lives in the three specs.
 
 ## 5. Open questions
 
-1. **Design partners and deployment mode** — TBD, pending a commercial conversation.
-   Development runs on the user's own VPS meanwhile.
+1. **Deployment mode at a pilot installation** — TBD. Development runs on a single box
+   meanwhile.
 2. **Support role** — does it exist, and does it see customer content or only state
    and logs? Recommendation: never content, in writing. Closes in M3.
 3. **Manual upload sufficient for the MVP?** The first customer will ask for connectors.

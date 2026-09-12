@@ -94,8 +94,7 @@ fails in Postgres regardless of any bug in the route.
 
 **4. The audit log is append-only at the grant level.** `UPDATE` and `DELETE` on
 `audit_events` are revoked from `zenith_app` *and* from `zenith_platform` — so even the role
-that bypasses RLS cannot rewrite the record. This is demonstrable in one command and it is
-often what decides an enterprise sale; the runbook has it.
+that bypasses RLS cannot rewrite the record. This is demonstrable in one command.
 
 **5. Every answer carries a citation, or there is no answer.** Abstention is enforced in
 code, not requested in a prompt.

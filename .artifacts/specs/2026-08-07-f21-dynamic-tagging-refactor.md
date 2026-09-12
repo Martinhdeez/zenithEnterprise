@@ -26,8 +26,8 @@ endpoints below — it changes what "done" means.
    "thousands": `max_documents_per_tenant` is 5,000 (`core/config.py`), and mvp.md's
    design-partner scope is one tenant, English PDFs, a handful of departments. A tenant
    with thousands of *labels* — as opposed to thousands of *documents* — is a different
-   product shape than what F0–F20 were built for. Worth confirming this is actually where
-   the design partner is headed before building fuzzy search infrastructure for it.
+   product shape than what F0–F20 were built for. Worth confirming that is actually the
+   target before building fuzzy search infrastructure for it.
 
 None of this is a rejection of the underlying complaint — label search *does* get
 unpleasant past a few dozen labels, rendered as an unpaginated chip wall. It's a
@@ -89,13 +89,13 @@ turns ago, the option to build a fuller nested/faceted browsing model was explic
 the table (`AskUserQuestion`), and the answer was "solo mejorar el breadcrumb (rápido)" —
 the lightweight option, specifically not this one.
 
-Building it now would mean re-opening a decision mvp.md already recorded as made with a
-design partner, silently, inside a task framed as a UX cleanup. That's the main reason
+Building it now would mean re-opening a decision mvp.md already records as made, silently,
+inside a task framed as a UX cleanup. That's the main reason
 this needed a spec before code: the request as written is significantly larger than "fix
 the tag search UX," and the largest part of it (§2.2) is the part explicitly out of scope.
 
-**Recommendation: do not build §2.2.** If the design partner's needs have genuinely
-outgrown "a document has a few labels, browse by clicking one," that's worth its own
+**Recommendation: do not build §2.2.** If real use has genuinely outgrown "a document has a
+few labels, browse by clicking one," that's worth its own
 conversation and its own spec — not a rider on a tagging cleanup.
 
 ## 3. What's actually worth building

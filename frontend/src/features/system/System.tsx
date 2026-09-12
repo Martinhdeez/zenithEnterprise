@@ -16,7 +16,7 @@
  * **Destroyed organisations are listed, and not as peers of the live ones.** A tombstone
  * is the record that a purge happened; hiding it would make the irreversible act look as
  * if it had never. Folding it away is what keeps that record from being the first thing
- * a buyer sees.
+ * on the screen.
  */
 
 import { useCallback, useEffect, useState } from "react";
