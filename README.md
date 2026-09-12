@@ -62,7 +62,7 @@ given are stripped, and an answer left with no valid citation is discarded rathe
 ## How it works
 
 ```mermaid
-flowchart LR
+flowchart TB
     Q([Question]) --> API["FastAPI<br/>tenant_session()"]
     API -- "sets tenant + labels" --> PG[("Postgres<br/>row-level security")]
     PG --> D["Dense<br/>HNSW"]
