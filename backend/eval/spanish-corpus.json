@@ -1,0 +1,3726 @@
+{
+  "measured_at": "2026-08-31T18:39:24+00:00",
+  "what_this_is": "An over-HTTP measurement of the live Zenith installation against the Spanish corpus it was rebuilt with on 2026-08-31. It replaces backend/eval/live-recall.json as the source for any figure quoted about this installation: that file was measured against a 26-document English corpus (GDPR, IRS, NASA) that no longer exists here.",
+  "installation": {
+    "api": "http://localhost:8000",
+    "model": "gemini-3.1-flash-lite",
+    "llm_provider": "gemini",
+    "lexical_engine": "tsvector",
+    "text_search_configuration": "zenith_text",
+    "text_search_configuration_dictionaries": [
+      "unaccent",
+      "english_stem"
+    ],
+    "hardware_profile": "cpu",
+    "hardware_profile_settings": {
+      "reranker": true,
+      "hnsw_ef_search": 100,
+      "rerank_candidates": 8,
+      "max_batch_tokens": 2048,
+      "max_client_batch_size": 4,
+      "ingestion_concurrency": 1
+    },
+    "containers_running": [
+      "api",
+      "db",
+      "frontend",
+      "tei-embed",
+      "tei-rerank",
+      "worker"
+    ],
+    "reranker_present": true,
+    "alembic_head_note": "not re-derived by this run"
+  },
+  "corpus": {
+    "totals": {
+      "documents": 59,
+      "pages": 4739,
+      "bytes": 34436771,
+      "chunks": 20476,
+      "chunk_embeddings": 20476,
+      "tenants": 2,
+      "all_documents_ready": true
+    },
+    "by_tenant": [
+      {
+        "tenant": "Empresa Demo",
+        "documents": 55,
+        "pages": 4568,
+        "bytes": 32924879,
+        "chunks": 19738
+      },
+      {
+        "tenant": "Grupo Ardena",
+        "documents": 4,
+        "pages": 171,
+        "bytes": 1511892,
+        "chunks": 738
+      }
+    ],
+    "by_label": [
+      {
+        "tenant": "Empresa Demo",
+        "label": "Contratación y subvenciones",
+        "documents": 6,
+        "pages": 637,
+        "chunks": 2825
+      },
+      {
+        "tenant": "Empresa Demo",
+        "label": "Dirección — confidencial",
+        "documents": 3,
+        "pages": 13,
+        "chunks": 28
+      },
+      {
+        "tenant": "Empresa Demo",
+        "label": "Empleo y personas",
+        "documents": 11,
+        "pages": 942,
+        "chunks": 4278
+      },
+      {
+        "tenant": "Empresa Demo",
+        "label": "Fiscal y presupuestario",
+        "documents": 8,
+        "pages": 902,
+        "chunks": 3976
+      },
+      {
+        "tenant": "Empresa Demo",
+        "label": "General",
+        "documents": 7,
+        "pages": 1194,
+        "chunks": 4698
+      },
+      {
+        "tenant": "Empresa Demo",
+        "label": "Normativa académica",
+        "documents": 13,
+        "pages": 328,
+        "chunks": 1361
+      },
+      {
+        "tenant": "Empresa Demo",
+        "label": "Protección de datos y digital",
+        "documents": 11,
+        "pages": 826,
+        "chunks": 3707
+      },
+      {
+        "tenant": "Empresa Demo",
+        "label": "Sin clasificar",
+        "documents": 0,
+        "pages": 0,
+        "chunks": 0
+      },
+      {
+        "tenant": "Grupo Ardena",
+        "label": "General",
+        "documents": 4,
+        "pages": 171,
+        "chunks": 738
+      },
+      {
+        "tenant": "Grupo Ardena",
+        "label": "Sin clasificar",
+        "documents": 0,
+        "pages": 0,
+        "chunks": 0
+      }
+    ],
+    "documents": [
+      {
+        "tenant": "Empresa Demo",
+        "filename": "acta-consejo-direccion-2026-02.pdf",
+        "pages": 4,
+        "status": "ready",
+        "labels": [
+          "Dirección — confidencial"
+        ],
+        "chunks": 8
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ACTUACIÓN ADMINISTRATIVA Y GARANTÍA JURÍDICA.pdf",
+        "pages": 12,
+        "status": "ready",
+        "labels": [
+          "Normativa académica"
+        ],
+        "chunks": 28
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "codigo-civil.pdf",
+        "pages": 282,
+        "status": "ready",
+        "labels": [
+          "General"
+        ],
+        "chunks": 899
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "codigo-de-comercio-1885.pdf",
+        "pages": 69,
+        "status": "ready",
+        "labels": [
+          "Contratación y subvenciones",
+          "Fiscal y presupuestario"
+        ],
+        "chunks": 239
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "codigo-penal.pdf",
+        "pages": 207,
+        "status": "ready",
+        "labels": [
+          "General"
+        ],
+        "chunks": 818
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "constitucion-espanola.pdf",
+        "pages": 39,
+        "status": "ready",
+        "labels": [
+          "General"
+        ],
+        "chunks": 139
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "convenio-marco-colaboracion-2026.pdf",
+        "pages": 4,
+        "status": "ready",
+        "labels": [
+          "Dirección — confidencial"
+        ],
+        "chunks": 9
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "economia_digital.pdf",
+        "pages": 12,
+        "status": "ready",
+        "labels": [
+          "Protección de datos y digital"
+        ],
+        "chunks": 70
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "EL PROCEDIMIENTO ADMINISTRATIVO.pdf",
+        "pages": 16,
+        "status": "ready",
+        "labels": [
+          "Normativa académica"
+        ],
+        "chunks": 42
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "informe-auditoria-interna-2026.pdf",
+        "pages": 5,
+        "status": "ready",
+        "labels": [
+          "Dirección — confidencial"
+        ],
+        "chunks": 11
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-11-2022-general-telecomunicaciones.pdf",
+        "pages": 147,
+        "status": "ready",
+        "labels": [
+          "Protección de datos y digital"
+        ],
+        "chunks": 717
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+        "pages": 350,
+        "status": "ready",
+        "labels": [
+          "General"
+        ],
+        "chunks": 1594
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-14-2011-ciencia-tecnologia-innovacion.pdf",
+        "pages": 85,
+        "status": "ready",
+        "labels": [
+          "Empleo y personas"
+        ],
+        "chunks": 400
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-15-2007-defensa-competencia.pdf",
+        "pages": 51,
+        "status": "ready",
+        "labels": [
+          "Contratación y subvenciones"
+        ],
+        "chunks": 219
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-15-2022-igualdad-trato-no-discriminacion.pdf",
+        "pages": 39,
+        "status": "ready",
+        "labels": [
+          "Empleo y personas"
+        ],
+        "chunks": 175
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-17-2001-marcas.pdf",
+        "pages": 53,
+        "status": "ready",
+        "labels": [
+          "Protección de datos y digital"
+        ],
+        "chunks": 224
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-19-2013-transparencia-acceso-informacion-publica.pdf",
+        "pages": 31,
+        "status": "ready",
+        "labels": [
+          "Fiscal y presupuestario",
+          "Protección de datos y digital"
+        ],
+        "chunks": 134
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-20-2007-estatuto-trabajo-autonomo.pdf",
+        "pages": 39,
+        "status": "ready",
+        "labels": [
+          "Empleo y personas"
+        ],
+        "chunks": 173
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-24-2015-patentes.pdf",
+        "pages": 79,
+        "status": "ready",
+        "labels": [
+          "Protección de datos y digital"
+        ],
+        "chunks": 341
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-27-2014-impuesto-sociedades.pdf",
+        "pages": 169,
+        "status": "ready",
+        "labels": [
+          "Fiscal y presupuestario"
+        ],
+        "chunks": 788
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-29-1998-jurisdiccion-contencioso-administrativa.pdf",
+        "pages": 75,
+        "status": "ready",
+        "labels": [
+          "General"
+        ],
+        "chunks": 322
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-31-1995-prevencion-riesgos-laborales.pdf",
+        "pages": 41,
+        "status": "ready",
+        "labels": [
+          "Empleo y personas"
+        ],
+        "chunks": 185
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-34-2002-lssi-ce-comercio-electronico.pdf",
+        "pages": 37,
+        "status": "ready",
+        "labels": [
+          "Protección de datos y digital"
+        ],
+        "chunks": 158
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-35-2006-irpf.pdf",
+        "pages": 180,
+        "status": "ready",
+        "labels": [
+          "Fiscal y presupuestario"
+        ],
+        "chunks": 824
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-36-2011-jurisdiccion-social.pdf",
+        "pages": 141,
+        "status": "ready",
+        "labels": [
+          "Empleo y personas"
+        ],
+        "chunks": 652
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-37-1992-iva.pdf",
+        "pages": 161,
+        "status": "ready",
+        "labels": [
+          "Fiscal y presupuestario"
+        ],
+        "chunks": 696
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-38-2003-general-subvenciones.pdf",
+        "pages": 59,
+        "status": "ready",
+        "labels": [
+          "Contratación y subvenciones"
+        ],
+        "chunks": 255
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-39-2015-procedimiento-administrativo.pdf",
+        "pages": 73,
+        "status": "ready",
+        "labels": [
+          "Protección de datos y digital"
+        ],
+        "chunks": 321
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-40-2015-regimen-juridico-sector-publico.pdf",
+        "pages": 123,
+        "status": "ready",
+        "labels": [
+          "Protección de datos y digital"
+        ],
+        "chunks": 544
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-47-2003-general-presupuestaria.pdf",
+        "pages": 98,
+        "status": "ready",
+        "labels": [
+          "Contratación y subvenciones"
+        ],
+        "chunks": 437
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-49-2002-entidades-sin-fines-lucrativos-mecenazgo.pdf",
+        "pages": 30,
+        "status": "ready",
+        "labels": [
+          "Fiscal y presupuestario"
+        ],
+        "chunks": 124
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-50-1997-del-gobierno.pdf",
+        "pages": 19,
+        "status": "ready",
+        "labels": [
+          "General"
+        ],
+        "chunks": 73
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-53-1984-incompatibilidades-personal-administraciones-publicas.pdf",
+        "pages": 15,
+        "status": "ready",
+        "labels": [
+          "Empleo y personas"
+        ],
+        "chunks": 51
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-58-2003-general-tributaria.pdf",
+        "pages": 175,
+        "status": "ready",
+        "labels": [
+          "Fiscal y presupuestario"
+        ],
+        "chunks": 790
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-7-1985-bases-regimen-local.pdf",
+        "pages": 87,
+        "status": "ready",
+        "labels": [
+          "Contratación y subvenciones",
+          "Empleo y personas",
+          "Fiscal y presupuestario"
+        ],
+        "chunks": 381
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-9-2017-contratos-sector-publico.pdf",
+        "pages": 273,
+        "status": "ready",
+        "labels": [
+          "Contratación y subvenciones"
+        ],
+        "chunks": 1294
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-enjuiciamiento-criminal-1882.pdf",
+        "pages": 222,
+        "status": "ready",
+        "labels": [
+          "General"
+        ],
+        "chunks": 853
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "ley-estatuto-trabajadores.pdf",
+        "pages": 97,
+        "status": "ready",
+        "labels": [
+          "Empleo y personas"
+        ],
+        "chunks": 452
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "lo-3-2007-igualdad-efectiva-mujeres-hombres.pdf",
+        "pages": 66,
+        "status": "ready",
+        "labels": [
+          "Empleo y personas"
+        ],
+        "chunks": 278
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "lopdgdd-proteccion-datos.pdf",
+        "pages": 68,
+        "status": "ready",
+        "labels": [
+          "Protección de datos y digital"
+        ],
+        "chunks": 303
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "losu-ley-organica-2-2023-sistema-universitario.pdf",
+        "pages": 74,
+        "status": "ready",
+        "labels": [
+          "Normativa académica"
+        ],
+        "chunks": 340
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "rd-1027-2011-meces-marco-cualificaciones-educacion-superior.pdf",
+        "pages": 8,
+        "status": "ready",
+        "labels": [
+          "Normativa académica"
+        ],
+        "chunks": 31
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "rd-1721-2007-becas-ayudas-al-estudio.pdf",
+        "pages": 29,
+        "status": "ready",
+        "labels": [
+          "Normativa académica"
+        ],
+        "chunks": 117
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "rd-1791-2010-estatuto-estudiante-universitario.pdf",
+        "pages": 30,
+        "status": "ready",
+        "labels": [
+          "Normativa académica"
+        ],
+        "chunks": 122
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "rd-412-2014-admision-ensenanzas-universitarias-grado.pdf",
+        "pages": 19,
+        "status": "ready",
+        "labels": [
+          "Normativa académica"
+        ],
+        "chunks": 76
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "rd-420-2015-creacion-reconocimiento-autorizacion-universidades.pdf",
+        "pages": 17,
+        "status": "ready",
+        "labels": [
+          "Normativa académica"
+        ],
+        "chunks": 66
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "rd-678-2023-acreditacion-estatal-cuerpos-docentes-universitarios.pdf",
+        "pages": 30,
+        "status": "ready",
+        "labels": [
+          "Normativa académica"
+        ],
+        "chunks": 133
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "rd-822-2021-organizacion-ensenanzas-universitarias.pdf",
+        "pages": 42,
+        "status": "ready",
+        "labels": [
+          "Normativa académica"
+        ],
+        "chunks": 197
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "rd-967-2014-homologacion-titulos-extranjeros-educacion-superior.pdf",
+        "pages": 21,
+        "status": "ready",
+        "labels": [
+          "Normativa académica"
+        ],
+        "chunks": 94
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "rd-99-2011-ensenanzas-oficiales-doctorado.pdf",
+        "pages": 20,
+        "status": "ready",
+        "labels": [
+          "Normativa académica"
+        ],
+        "chunks": 90
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "rdl-1-1996-propiedad-intelectual.pdf",
+        "pages": 100,
+        "status": "ready",
+        "labels": [
+          "Protección de datos y digital"
+        ],
+        "chunks": 440
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "rdl-1-2007-consumidores-usuarios.pdf",
+        "pages": 103,
+        "status": "ready",
+        "labels": [
+          "Protección de datos y digital"
+        ],
+        "chunks": 455
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "rdl-5-2015-estatuto-basico-empleado-publico.pdf",
+        "pages": 58,
+        "status": "ready",
+        "labels": [
+          "Empleo y personas"
+        ],
+        "chunks": 250
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "rdl-8-2015-general-seguridad-social.pdf",
+        "pages": 274,
+        "status": "ready",
+        "labels": [
+          "Empleo y personas"
+        ],
+        "chunks": 1281
+      },
+      {
+        "tenant": "Empresa Demo",
+        "filename": "Tema. Libertad, honor, intimidad, imagen. 2024-2025.pdf",
+        "pages": 10,
+        "status": "ready",
+        "labels": [
+          "Normativa académica"
+        ],
+        "chunks": 25
+      },
+      {
+        "tenant": "Grupo Ardena",
+        "filename": "ley-21-2013-evaluacion-ambiental.pdf",
+        "pages": 88,
+        "status": "ready",
+        "labels": [
+          "General"
+        ],
+        "chunks": 395
+      },
+      {
+        "tenant": "Grupo Ardena",
+        "filename": "ley-37-2003-del-ruido.pdf",
+        "pages": 23,
+        "status": "ready",
+        "labels": [
+          "General"
+        ],
+        "chunks": 95
+      },
+      {
+        "tenant": "Grupo Ardena",
+        "filename": "ley-38-1999-ordenacion-edificacion.pdf",
+        "pages": 24,
+        "status": "ready",
+        "labels": [
+          "General"
+        ],
+        "chunks": 99
+      },
+      {
+        "tenant": "Grupo Ardena",
+        "filename": "rdl-1-2016-prevencion-control-contaminacion.pdf",
+        "pages": 36,
+        "status": "ready",
+        "labels": [
+          "General"
+        ],
+        "chunks": 149
+      }
+    ]
+  },
+  "method": {
+    "questions_written_for_this_run": true,
+    "asked_as_primary": "juridico@empresademo.es",
+    "asked_as_secondary": "secretaria@empresademo.es",
+    "primary_is_not_the_admin": "The task specified direccion@empresademo.es (reach 55). That account does not authenticate with the documented password Demo2026! — /auth/login returns 401 and its users.token_version is 3 where every other seeded account is 2, i.e. its password was changed after seeding. It was NOT reset, because resetting is a write to a shared installation and signs out every session. The primary runner is therefore juridico@ (reach 42 of 55).",
+    "reach": {
+      "juridico@empresademo.es": 42,
+      "secretaria@empresademo.es": 20,
+      "direccion@ardena.es": 4
+    },
+    "passes": 2,
+    "pass_of_record": 2,
+    "abstention_disagreements_between_passes": 0,
+    "pause_between_calls_seconds": 1.5,
+    "p95_method": "nearest-rank on small n; treat p95 as indicative, not stable",
+    "kinds": {
+      "paraphrase": "answerable from the runner's reachable documents; wording deliberately absent from the text (exercises the dense half)",
+      "exact-term": "answerable from the runner's reachable documents; names an article or a law by number (exercises the lexical half)",
+      "unanswerable": "not in the corpus at all under any label or tenant; a correct outcome is abstention",
+      "unreachable": "present in the corpus but outside the runner's labels (Empleo y personas, Direccion — confidencial); a correct outcome is abstention, and an answer here is an isolation-adjacent failure even when the citation itself is in reach"
+    },
+    "expected_document_caveat": "`expected_document` is the author's judgement of which document ought to answer, assigned when the questions were written. It is NOT a verified (document, page) anchor. Do not compute recall from it."
+  },
+  "questions": [
+    {
+      "id": "p01",
+      "kind": "paraphrase",
+      "question": "¿Cuánto tiempo tiene una persona para terminar su tesis si la hace a dedicación completa, y qué ocurre si no llega a tiempo?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "rd-99-2011-ensenanzas-oficiales-doctorado.pdf",
+      "answer": "La duración máxima de los estudios de doctorado a tiempo completo es de cuatro años, contados desde la fecha de matrícula hasta el depósito de la tesis [2]. Si antes de finalizar dicho plazo no se hubiera presentado la solicitud de depósito, la Comisión académica responsable del programa podrá autorizar una prórroga de un año más, previa solicitud de la doctoranda o el doctorando y bajo las condiciones establecidas en el programa de doctorado [1].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 2,
+      "citations": [
+        {
+          "filename": "rd-99-2011-ensenanzas-oficiales-doctorado.pdf",
+          "page_num": 6
+        },
+        {
+          "filename": "rd-99-2011-ensenanzas-oficiales-doctorado.pdf",
+          "page_num": 6
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "rd-99-2011-ensenanzas-oficiales-doctorado.pdf",
+          "page_num": 6
+        },
+        {
+          "filename": "rd-99-2011-ensenanzas-oficiales-doctorado.pdf",
+          "page_num": 6
+        },
+        {
+          "filename": "rd-99-2011-ensenanzas-oficiales-doctorado.pdf",
+          "page_num": 12
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 187
+        },
+        {
+          "filename": "rd-99-2011-ensenanzas-oficiales-doctorado.pdf",
+          "page_num": 12
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 301
+        },
+        {
+          "filename": "ley-24-2015-patentes.pdf",
+          "page_num": 56
+        },
+        {
+          "filename": "ley-enjuiciamiento-criminal-1882.pdf",
+          "page_num": 39
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        1,
+        2
+      ],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": true,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 1034,
+      "took_generation_ms": 1750,
+      "wall_ms": 2821
+    },
+    {
+      "id": "p02",
+      "kind": "paraphrase",
+      "question": "Si alguien estudió una carrera fuera de España, ¿qué tiene que hacer para que aquí se le reconozca como equivalente?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "rd-967-2014-homologacion-titulos-extranjeros-educacion-superior.pdf",
+      "answer": "Para obtener la declaración de equivalencia a titulación y a nivel académico universitario oficial, el título extranjero debe cumplir con los siguientes requisitos: haber sido expedido por una autoridad competente del país de origen [2], acreditar que su poseedor cumple los requisitos de nivel de estudios exigidos en España para el acceso a Grado o Máster [2], acreditar la superación de un ciclo completo de estudios postsecundarios con un nivel académico equivalente a los títulos de Grado o Máster [2], y acreditar la obtención de las competencias formativas propias del título al que se solicita la equivalencia [2]. Además, para la equivalencia a Grado, se requiere que el título extranjero permita en el país de procedencia el acceso a estudios oficiales de postgrado [3]. Las resoluciones se adoptan tras examinar la formación adquirida por el alumno y los contenidos formativos superados [3]. Finalmente, el procedimiento debe estructurarse partiendo de los principios del Espacio Europeo de Educación Superior y del Convenio sobre reconocimiento de cualificaciones relativas a la educación superior en la Región Europea [4].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 3,
+      "citations": [
+        {
+          "filename": "rd-967-2014-homologacion-titulos-extranjeros-educacion-superior.pdf",
+          "page_num": 10
+        },
+        {
+          "filename": "rd-967-2014-homologacion-titulos-extranjeros-educacion-superior.pdf",
+          "page_num": 11
+        },
+        {
+          "filename": "losu-ley-organica-2-2023-sistema-universitario.pdf",
+          "page_num": 20
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "rd-412-2014-admision-ensenanzas-universitarias-grado.pdf",
+          "page_num": 16
+        },
+        {
+          "filename": "rd-967-2014-homologacion-titulos-extranjeros-educacion-superior.pdf",
+          "page_num": 10
+        },
+        {
+          "filename": "rd-967-2014-homologacion-titulos-extranjeros-educacion-superior.pdf",
+          "page_num": 11
+        },
+        {
+          "filename": "losu-ley-organica-2-2023-sistema-universitario.pdf",
+          "page_num": 20
+        },
+        {
+          "filename": "rd-967-2014-homologacion-titulos-extranjeros-educacion-superior.pdf",
+          "page_num": 19
+        },
+        {
+          "filename": "rd-967-2014-homologacion-titulos-extranjeros-educacion-superior.pdf",
+          "page_num": 20
+        },
+        {
+          "filename": "rd-967-2014-homologacion-titulos-extranjeros-educacion-superior.pdf",
+          "page_num": 20
+        },
+        {
+          "filename": "rd-967-2014-homologacion-titulos-extranjeros-educacion-superior.pdf",
+          "page_num": 20
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        2,
+        3,
+        4
+      ],
+      "markers_exceed_citation_count": true,
+      "markers_resolve_against_citations": false,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 1093,
+      "took_generation_ms": 1726,
+      "wall_ms": 2854
+    },
+    {
+      "id": "p03",
+      "kind": "paraphrase",
+      "question": "Un estudiante cree que su examen ha sido corregido injustamente. ¿Qué puede hacer al respecto?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "rd-1791-2010-estatuto-estudiante-universitario.pdf",
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [],
+      "consulted_count": 0,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": false,
+      "expected_document_consulted": false,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 927,
+      "took_generation_ms": 0,
+      "wall_ms": 947
+    },
+    {
+      "id": "p04",
+      "kind": "paraphrase",
+      "question": "¿Puede la administración no contestar nunca a una solicitud, o llega un momento en que su silencio significa algo?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "ley-39-2015-procedimiento-administrativo.pdf",
+      "answer": "La Administración tiene la obligación legal de resolver de forma expresa todos los procedimientos y notificar la resolución dentro del plazo máximo establecido [4]. El vencimiento de dicho plazo sin haberse notificado una resolución expresa legitima al interesado para entenderla estimada por silencio administrativo, salvo que una norma con rango de ley o de Derecho de la Unión Europea establezca lo contrario [1]. En ciertos supuestos, el silencio tiene efecto desestimatorio, como en el ejercicio del derecho de petición o cuando la estimación supusiera la transferencia al solicitante de facultades relativas al dominio público o al servicio público [1]. Los actos producidos por silencio administrativo producen efectos desde el vencimiento del plazo máximo en el que debió dictarse la resolución [2].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 3,
+      "citations": [
+        {
+          "filename": "ley-39-2015-procedimiento-administrativo.pdf",
+          "page_num": 26
+        },
+        {
+          "filename": "ley-39-2015-procedimiento-administrativo.pdf",
+          "page_num": 26
+        },
+        {
+          "filename": "EL PROCEDIMIENTO ADMINISTRATIVO.pdf",
+          "page_num": 14
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "ley-39-2015-procedimiento-administrativo.pdf",
+          "page_num": 26
+        },
+        {
+          "filename": "ley-39-2015-procedimiento-administrativo.pdf",
+          "page_num": 26
+        },
+        {
+          "filename": "ACTUACIÓN ADMINISTRATIVA Y GARANTÍA JURÍDICA.pdf",
+          "page_num": 6
+        },
+        {
+          "filename": "EL PROCEDIMIENTO ADMINISTRATIVO.pdf",
+          "page_num": 14
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 301
+        },
+        {
+          "filename": "ley-24-2015-patentes.pdf",
+          "page_num": 56
+        },
+        {
+          "filename": "ley-35-2006-irpf.pdf",
+          "page_num": 79
+        },
+        {
+          "filename": "ley-24-2015-patentes.pdf",
+          "page_num": 64
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        1,
+        2,
+        4
+      ],
+      "markers_exceed_citation_count": true,
+      "markers_resolve_against_citations": false,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 1000,
+      "took_generation_ms": 3128,
+      "wall_ms": 4156
+    },
+    {
+      "id": "p05",
+      "kind": "paraphrase",
+      "question": "¿Qué pasa con el dinero recibido si quien obtuvo una ayuda pública no hace aquello para lo que se la dieron?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "ley-38-2003-general-subvenciones.pdf",
+      "answer": "Si el beneficiario aplica la ayuda a fines distintos de aquellos para los que fue concedida, se le impondrán las penas correspondientes, salvo que lleve a cabo el reintegro de la cuantía [1][2].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 2,
+      "citations": [
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 123
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 123
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 123
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 123
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 156
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 155
+        },
+        {
+          "filename": "ley-9-2017-contratos-sector-publico.pdf",
+          "page_num": 9
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 184
+        },
+        {
+          "filename": "ley-enjuiciamiento-criminal-1882.pdf",
+          "page_num": 116
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 301
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": false,
+      "expected_document_consulted": false,
+      "answer_markers": [
+        1,
+        2
+      ],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": true,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 1062,
+      "took_generation_ms": 2133,
+      "wall_ms": 3224
+    },
+    {
+      "id": "p06",
+      "kind": "paraphrase",
+      "question": "¿Durante cuánto tiempo siguen protegidas las obras de un autor después de su fallecimiento?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "rdl-1-1996-propiedad-intelectual.pdf",
+      "answer": "Los derechos de explotación de las obras duran setenta años desde la muerte o declaración de fallecimiento del autor [1].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 1,
+      "citations": [
+        {
+          "filename": "rdl-1-1996-propiedad-intelectual.pdf",
+          "page_num": 17
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "rdl-1-1996-propiedad-intelectual.pdf",
+          "page_num": 17
+        },
+        {
+          "filename": "rdl-1-1996-propiedad-intelectual.pdf",
+          "page_num": 8
+        },
+        {
+          "filename": "rdl-1-1996-propiedad-intelectual.pdf",
+          "page_num": 93
+        },
+        {
+          "filename": "rdl-1-1996-propiedad-intelectual.pdf",
+          "page_num": 28
+        },
+        {
+          "filename": "rdl-1-1996-propiedad-intelectual.pdf",
+          "page_num": 93
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 205
+        },
+        {
+          "filename": "ley-27-2014-impuesto-sociedades.pdf",
+          "page_num": 15
+        },
+        {
+          "filename": "lopdgdd-proteccion-datos.pdf",
+          "page_num": 58
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        1
+      ],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": true,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 962,
+      "took_generation_ms": 1605,
+      "wall_ms": 2596
+    },
+    {
+      "id": "p07",
+      "kind": "paraphrase",
+      "question": "¿Puede una persona exigir que se borren sus datos personales de un fichero, y en qué condiciones?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "lopdgdd-proteccion-datos.pdf",
+      "answer": "Sí, toda persona tiene derecho a que los motores de búsqueda en Internet eliminen de los resultados de búsqueda los enlaces que contengan información sobre ella cuando esta sea inadecuada, inexacta, no pertinente, no actualizada o excesiva, o cuando haya devenido en tal por el transcurso del tiempo, considerando los fines del tratamiento, el tiempo transcurrido y la naturaleza e interés público de la información [1]. Asimismo, este derecho procede cuando las circunstancias personales invocadas por el afectado evidencien la prevalencia de sus derechos sobre el mantenimiento de los datos o enlaces por parte del servicio [1][2]. Este derecho subsiste incluso si la conservación de la información en el sitio web de origen es lícita y no se ha procedido a su borrado previo o simultáneo [1]. No obstante, se exceptúan de este derecho los datos facilitados por personas físicas en el ejercicio de actividades personales o domésticas [2]. En el caso de personas fallecidas, sus herederos o personas vinculadas por razones familiares o de hecho pueden solicitar la supresión de sus datos, salvo que el fallecido lo hubiera prohibido expresamente o así lo establezca una ley [3].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 3,
+      "citations": [
+        {
+          "filename": "lopdgdd-proteccion-datos.pdf",
+          "page_num": 52
+        },
+        {
+          "filename": "lopdgdd-proteccion-datos.pdf",
+          "page_num": 52
+        },
+        {
+          "filename": "lopdgdd-proteccion-datos.pdf",
+          "page_num": 15
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "lopdgdd-proteccion-datos.pdf",
+          "page_num": 52
+        },
+        {
+          "filename": "lopdgdd-proteccion-datos.pdf",
+          "page_num": 52
+        },
+        {
+          "filename": "lopdgdd-proteccion-datos.pdf",
+          "page_num": 15
+        },
+        {
+          "filename": "lopdgdd-proteccion-datos.pdf",
+          "page_num": 9
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 41
+        },
+        {
+          "filename": "ley-37-1992-iva.pdf",
+          "page_num": 30
+        },
+        {
+          "filename": "ley-9-2017-contratos-sector-publico.pdf",
+          "page_num": 20
+        },
+        {
+          "filename": "ley-37-1992-iva.pdf",
+          "page_num": 60
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        1,
+        2,
+        3
+      ],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": true,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 997,
+      "took_generation_ms": 3160,
+      "wall_ms": 4186
+    },
+    {
+      "id": "p08",
+      "kind": "paraphrase",
+      "question": "Alguien compra un producto por internet y a los pocos días se arrepiente. ¿Puede devolverlo y recuperar su dinero?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "rdl-1-2007-consumidores-usuarios.pdf",
+      "answer": "Sí, el consumidor tiene derecho a desistir del contrato y el empresario está obligado a devolver las sumas abonadas sin retención de gastos en un plazo máximo de 14 días naturales desde que fue informado de la decisión de desistimiento [2]. El consumidor debe devolver los bienes al empresario o a una persona autorizada sin demora indebida y, a más tardar, en el plazo de 14 días naturales a partir de la comunicación de su decisión [1]. El consumidor solo soportará los costes directos de devolución de los bienes, salvo si el empresario ha aceptado asumirlos o no le ha informado de que le corresponde asumirlos [1]. Si transcurrido el plazo de 14 días el consumidor no ha recuperado la suma adeudada, tendrá derecho a reclamarla duplicada, sin perjuicio de la indemnización por daños y perjuicios [2].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 2,
+      "citations": [
+        {
+          "filename": "rdl-1-2007-consumidores-usuarios.pdf",
+          "page_num": 63
+        },
+        {
+          "filename": "rdl-1-2007-consumidores-usuarios.pdf",
+          "page_num": 46
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "rdl-1-2007-consumidores-usuarios.pdf",
+          "page_num": 63
+        },
+        {
+          "filename": "rdl-1-2007-consumidores-usuarios.pdf",
+          "page_num": 46
+        },
+        {
+          "filename": "rdl-1-2007-consumidores-usuarios.pdf",
+          "page_num": 19
+        },
+        {
+          "filename": "rdl-1-2007-consumidores-usuarios.pdf",
+          "page_num": 47
+        },
+        {
+          "filename": "codigo-civil.pdf",
+          "page_num": 272
+        },
+        {
+          "filename": "codigo-civil.pdf",
+          "page_num": 271
+        },
+        {
+          "filename": "ley-9-2017-contratos-sector-publico.pdf",
+          "page_num": 217
+        },
+        {
+          "filename": "constitucion-espanola.pdf",
+          "page_num": 26
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        1,
+        2
+      ],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": true,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 1003,
+      "took_generation_ms": 1758,
+      "wall_ms": 2784
+    },
+    {
+      "id": "p09",
+      "kind": "paraphrase",
+      "question": "¿A partir de qué momento deja de poder reclamarse una deuda con Hacienda por el mero paso del tiempo?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "ley-58-2003-general-tributaria.pdf",
+      "answer": "El derecho al reconocimiento o liquidación por la Hacienda Pública estatal de toda obligación prescribe a los cuatro años, contados desde la fecha en que se concluyó el servicio o la prestación determinante de la obligación o desde el día en que el derecho pudo ejercitarse [4]. Asimismo, el derecho a exigir el pago de las obligaciones ya reconocidas o liquidadas prescribe a los cuatro años desde la fecha de notificación del reconocimiento o liquidación de la respectiva obligación [4]. Por otro lado, el derecho de la Administración para iniciar el procedimiento de comprobación de bases o cuotas compensadas o pendientes de compensación o de deducciones aplicadas o pendientes de aplicación prescribe a los diez años a contar desde el día siguiente a aquel en que finalice el plazo reglamentario para presentar la declaración o autoliquidación correspondiente al ejercicio en que se generó el derecho [3].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 2,
+      "citations": [
+        {
+          "filename": "ley-58-2003-general-tributaria.pdf",
+          "page_num": 41
+        },
+        {
+          "filename": "ley-47-2003-general-presupuestaria.pdf",
+          "page_num": 20
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "ley-35-2006-irpf.pdf",
+          "page_num": 86
+        },
+        {
+          "filename": "ley-58-2003-general-tributaria.pdf",
+          "page_num": 85
+        },
+        {
+          "filename": "ley-58-2003-general-tributaria.pdf",
+          "page_num": 41
+        },
+        {
+          "filename": "ley-47-2003-general-presupuestaria.pdf",
+          "page_num": 20
+        },
+        {
+          "filename": "rdl-1-1996-propiedad-intelectual.pdf",
+          "page_num": 97
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 205
+        },
+        {
+          "filename": "ley-9-2017-contratos-sector-publico.pdf",
+          "page_num": 197
+        },
+        {
+          "filename": "rd-1027-2011-meces-marco-cualificaciones-educacion-superior.pdf",
+          "page_num": 8
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        3,
+        4
+      ],
+      "markers_exceed_citation_count": true,
+      "markers_resolve_against_citations": false,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 1059,
+      "took_generation_ms": 4103,
+      "wall_ms": 5193
+    },
+    {
+      "id": "p10",
+      "kind": "paraphrase",
+      "question": "¿Qué está obligado a enseñar un organismo público a un ciudadano que le pide ver en qué gasta el dinero?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "ley-19-2013-transparencia-acceso-informacion-publica.pdf",
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [],
+      "consulted_count": 0,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": false,
+      "expected_document_consulted": false,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 975,
+      "took_generation_ms": 0,
+      "wall_ms": 992
+    },
+    {
+      "id": "p11",
+      "kind": "paraphrase",
+      "question": "¿Quién responde de los daños cuando una persona perjudica a otra por descuido y no había ningún contrato entre ellas?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "codigo-civil.pdf",
+      "answer": "Los padres son responsables de los daños causados por los hijos que se encuentren bajo su guarda [2]. Los tutores responden de los perjuicios causados por los menores que están bajo su autoridad y habitan en su compañía [2]. Los curadores con facultades de representación plena responden de los perjuicios causados por la persona a quien presten apoyo, siempre que convivan con ella [2]. Los dueños o directores de un establecimiento o empresa responden de los perjuicios causados por sus dependientes en el servicio de los ramos en que los tuvieran empleados, o con ocasión de sus funciones [2]. Las personas o entidades titulares de un Centro docente de enseñanza no superior responden por los daños y perjuicios que causen sus alumnos menores de edad durante los períodos en que se hallen bajo el control o vigilancia del profesorado del Centro, desarrollando actividades escolares, extraescolares o complementarias [2].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 1,
+      "citations": [
+        {
+          "filename": "codigo-civil.pdf",
+          "page_num": 271
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "codigo-civil.pdf",
+          "page_num": 177
+        },
+        {
+          "filename": "codigo-civil.pdf",
+          "page_num": 271
+        },
+        {
+          "filename": "rdl-1-2007-consumidores-usuarios.pdf",
+          "page_num": 78
+        },
+        {
+          "filename": "ley-40-2015-regimen-juridico-sector-publico.pdf",
+          "page_num": 30
+        },
+        {
+          "filename": "ley-29-1998-jurisdiccion-contencioso-administrativa.pdf",
+          "page_num": 19
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 205
+        },
+        {
+          "filename": "ley-9-2017-contratos-sector-publico.pdf",
+          "page_num": 243
+        },
+        {
+          "filename": "ley-27-2014-impuesto-sociedades.pdf",
+          "page_num": 15
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        2
+      ],
+      "markers_exceed_citation_count": true,
+      "markers_resolve_against_citations": false,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 1043,
+      "took_generation_ms": 4056,
+      "wall_ms": 5129
+    },
+    {
+      "id": "p12",
+      "kind": "paraphrase",
+      "question": "¿Cómo se decide qué universidad puede empezar a funcionar y quién lo autoriza?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "rd-420-2015-creacion-reconocimiento-autorizacion-universidades.pdf",
+      "answer": "La creación de universidades públicas y el reconocimiento de universidades privadas se llevan a cabo por ley, previo informe de la Conferencia General de Política Universitaria [5]. Una vez comprobado el cumplimiento de las condiciones y requisitos básicos establecidos por el Gobierno mediante real decreto, corresponde a los órganos competentes de la Comunidad Autónoma en la que radique la universidad otorgar la autorización para el inicio de sus actividades [2]. El procedimiento de autorización se inicia a solicitud del interesado y tiene una duración máxima de seis meses, tras los cuales, si no se ha dictado una resolución, se entenderá autorizada por silencio administrativo [1]. Para obtener dicha autorización, es necesario aportar, como mínimo, la documentación referida en el anexo III del rd-420-2015-creacion-reconocimiento-autorizacion-universidades.pdf [1].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 3,
+      "citations": [
+        {
+          "filename": "rd-420-2015-creacion-reconocimiento-autorizacion-universidades.pdf",
+          "page_num": 9
+        },
+        {
+          "filename": "losu-ley-organica-2-2023-sistema-universitario.pdf",
+          "page_num": 17
+        },
+        {
+          "filename": "rd-420-2015-creacion-reconocimiento-autorizacion-universidades.pdf",
+          "page_num": 5
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "rd-420-2015-creacion-reconocimiento-autorizacion-universidades.pdf",
+          "page_num": 9
+        },
+        {
+          "filename": "losu-ley-organica-2-2023-sistema-universitario.pdf",
+          "page_num": 17
+        },
+        {
+          "filename": "rd-420-2015-creacion-reconocimiento-autorizacion-universidades.pdf",
+          "page_num": 8
+        },
+        {
+          "filename": "losu-ley-organica-2-2023-sistema-universitario.pdf",
+          "page_num": 10
+        },
+        {
+          "filename": "rd-420-2015-creacion-reconocimiento-autorizacion-universidades.pdf",
+          "page_num": 5
+        },
+        {
+          "filename": "ley-enjuiciamiento-criminal-1882.pdf",
+          "page_num": 34
+        },
+        {
+          "filename": "ley-enjuiciamiento-criminal-1882.pdf",
+          "page_num": 116
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 255
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        1,
+        2,
+        5
+      ],
+      "markers_exceed_citation_count": true,
+      "markers_resolve_against_citations": false,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 866,
+      "took_generation_ms": 2369,
+      "wall_ms": 3258
+    },
+    {
+      "id": "e01",
+      "kind": "exact-term",
+      "question": "¿Qué establece el artículo 14 de la Constitución Española?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "constitucion-espanola.pdf",
+      "answer": "El artículo 14 de la constitucion-espanola.pdf establece que los españoles son iguales ante la ley, sin que pueda prevalecer discriminación alguna por razón de nacimiento, raza, sexo, religión, opinión o cualquier otra condición o circunstancia personal o social [1].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 1,
+      "citations": [
+        {
+          "filename": "constitucion-espanola.pdf",
+          "page_num": 5
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "constitucion-espanola.pdf",
+          "page_num": 5
+        },
+        {
+          "filename": "rd-412-2014-admision-ensenanzas-universitarias-grado.pdf",
+          "page_num": 2
+        },
+        {
+          "filename": "losu-ley-organica-2-2023-sistema-universitario.pdf",
+          "page_num": 14
+        },
+        {
+          "filename": "ley-58-2003-general-tributaria.pdf",
+          "page_num": 8
+        },
+        {
+          "filename": "losu-ley-organica-2-2023-sistema-universitario.pdf",
+          "page_num": 73
+        },
+        {
+          "filename": "rd-967-2014-homologacion-titulos-extranjeros-educacion-superior.pdf",
+          "page_num": 2
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 205
+        },
+        {
+          "filename": "rdl-1-1996-propiedad-intelectual.pdf",
+          "page_num": 97
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        1
+      ],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": true,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 1158,
+      "took_generation_ms": 2571,
+      "wall_ms": 3759
+    },
+    {
+      "id": "e02",
+      "kind": "exact-term",
+      "question": "¿Qué dispone el artículo 1902 del Código Civil?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "codigo-civil.pdf",
+      "answer": "El que por acción u omisión causa daño a otro, interviniendo culpa o negligencia, está obligado a reparar el daño causado [1].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 1,
+      "citations": [
+        {
+          "filename": "codigo-civil.pdf",
+          "page_num": 270
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "codigo-civil.pdf",
+          "page_num": 270
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 205
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 199
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 235
+        },
+        {
+          "filename": "ley-9-2017-contratos-sector-publico.pdf",
+          "page_num": 251
+        },
+        {
+          "filename": "ley-9-2017-contratos-sector-publico.pdf",
+          "page_num": 251
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 324
+        },
+        {
+          "filename": "ley-enjuiciamiento-criminal-1882.pdf",
+          "page_num": 59
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        1
+      ],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": true,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 831,
+      "took_generation_ms": 2039,
+      "wall_ms": 2898
+    },
+    {
+      "id": "e03",
+      "kind": "exact-term",
+      "question": "¿Qué establece el artículo 24 de la Constitución Española sobre la tutela judicial efectiva?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "constitucion-espanola.pdf",
+      "answer": "Todas las personas tienen derecho a obtener la tutela efectiva de los jueces y tribunales en el ejercicio de sus derechos e intereses legítimos, sin que, en ningún caso, pueda producirse indefensión [1].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 1,
+      "citations": [
+        {
+          "filename": "constitucion-espanola.pdf",
+          "page_num": 7
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "constitucion-espanola.pdf",
+          "page_num": 7
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 8
+        },
+        {
+          "filename": "ley-19-2013-transparencia-acceso-informacion-publica.pdf",
+          "page_num": 3
+        },
+        {
+          "filename": "rd-1721-2007-becas-ayudas-al-estudio.pdf",
+          "page_num": 3
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 28
+        },
+        {
+          "filename": "ley-27-2014-impuesto-sociedades.pdf",
+          "page_num": 35
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 205
+        },
+        {
+          "filename": "rdl-1-1996-propiedad-intelectual.pdf",
+          "page_num": 97
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        1
+      ],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": true,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 1409,
+      "took_generation_ms": 1223,
+      "wall_ms": 2660
+    },
+    {
+      "id": "e04",
+      "kind": "exact-term",
+      "question": "¿Qué tipos de contratos regula la Ley 9/2017 de Contratos del Sector Público?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "ley-9-2017-contratos-sector-publico.pdf",
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [],
+      "consulted_count": 0,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": false,
+      "expected_document_consulted": false,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 1153,
+      "took_generation_ms": 0,
+      "wall_ms": 1174
+    },
+    {
+      "id": "e05",
+      "kind": "exact-term",
+      "question": "¿Qué establece el Real Decreto 412/2014 sobre la admisión a las enseñanzas universitarias oficiales de Grado?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "rd-412-2014-admision-ensenanzas-universitarias-grado.pdf",
+      "answer": "El Real Decreto 412/2014 establece los requisitos de acceso y la normativa básica relativa a los procedimientos de admisión a las enseñanzas universitarias oficiales de Grado [3].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 1,
+      "citations": [
+        {
+          "filename": "rd-412-2014-admision-ensenanzas-universitarias-grado.pdf",
+          "page_num": 5
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "rd-822-2021-organizacion-ensenanzas-universitarias.pdf",
+          "page_num": 16
+        },
+        {
+          "filename": "rd-412-2014-admision-ensenanzas-universitarias-grado.pdf",
+          "page_num": 1
+        },
+        {
+          "filename": "rd-412-2014-admision-ensenanzas-universitarias-grado.pdf",
+          "page_num": 5
+        },
+        {
+          "filename": "rd-412-2014-admision-ensenanzas-universitarias-grado.pdf",
+          "page_num": 18
+        },
+        {
+          "filename": "rd-1027-2011-meces-marco-cualificaciones-educacion-superior.pdf",
+          "page_num": 8
+        },
+        {
+          "filename": "rdl-1-1996-propiedad-intelectual.pdf",
+          "page_num": 97
+        },
+        {
+          "filename": "rdl-1-1996-propiedad-intelectual.pdf",
+          "page_num": 97
+        },
+        {
+          "filename": "rdl-1-1996-propiedad-intelectual.pdf",
+          "page_num": 97
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        3
+      ],
+      "markers_exceed_citation_count": true,
+      "markers_resolve_against_citations": false,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 1145,
+      "took_generation_ms": 2391,
+      "wall_ms": 3560
+    },
+    {
+      "id": "e06",
+      "kind": "exact-term",
+      "question": "¿Cuál es el tipo general del Impuesto sobre el Valor Añadido según la Ley 37/1992?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "ley-37-1992-iva.pdf",
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [],
+      "consulted_count": 0,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": false,
+      "expected_document_consulted": false,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 1008,
+      "took_generation_ms": 0,
+      "wall_ms": 1029
+    },
+    {
+      "id": "e07",
+      "kind": "exact-term",
+      "question": "¿Qué regula el artículo 305 del Código Penal?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "codigo-penal.pdf",
+      "answer": "El artículo 305 del Código Penal regula los delitos contra la Hacienda Pública [1]. Asimismo, este precepto establece disposiciones relativas a la determinación de la cuota defraudada y las consecuencias penales derivadas de estos delitos [3][4].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 3,
+      "citations": [
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 118
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 120
+        },
+        {
+          "filename": "ley-58-2003-general-tributaria.pdf",
+          "page_num": 144
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 118
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 207
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 120
+        },
+        {
+          "filename": "ley-58-2003-general-tributaria.pdf",
+          "page_num": 144
+        },
+        {
+          "filename": "ley-9-2017-contratos-sector-publico.pdf",
+          "page_num": 251
+        },
+        {
+          "filename": "ley-enjuiciamiento-criminal-1882.pdf",
+          "page_num": 59
+        },
+        {
+          "filename": "ley-9-2017-contratos-sector-publico.pdf",
+          "page_num": 251
+        },
+        {
+          "filename": "ley-enjuiciamiento-criminal-1882.pdf",
+          "page_num": 177
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        1,
+        3,
+        4
+      ],
+      "markers_exceed_citation_count": true,
+      "markers_resolve_against_citations": false,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 867,
+      "took_generation_ms": 3425,
+      "wall_ms": 4315
+    },
+    {
+      "id": "e08",
+      "kind": "exact-term",
+      "question": "¿Qué establece la Ley 34/2002 de servicios de la sociedad de la información sobre las comunicaciones comerciales por vía electrónica?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "ley-34-2002-lssi-ce-comercio-electronico.pdf",
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [
+        {
+          "filename": "ley-11-2022-general-telecomunicaciones.pdf",
+          "page_num": 13
+        },
+        {
+          "filename": "ley-29-1998-jurisdiccion-contencioso-administrativa.pdf",
+          "page_num": 62
+        },
+        {
+          "filename": "ley-34-2002-lssi-ce-comercio-electronico.pdf",
+          "page_num": 1
+        },
+        {
+          "filename": "rdl-1-1996-propiedad-intelectual.pdf",
+          "page_num": 51
+        },
+        {
+          "filename": "ley-11-2022-general-telecomunicaciones.pdf",
+          "page_num": 15
+        },
+        {
+          "filename": "rdl-1-1996-propiedad-intelectual.pdf",
+          "page_num": 86
+        },
+        {
+          "filename": "ley-29-1998-jurisdiccion-contencioso-administrativa.pdf",
+          "page_num": 18
+        },
+        {
+          "filename": "ley-34-2002-lssi-ce-comercio-electronico.pdf",
+          "page_num": 36
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": false,
+      "expected_document_consulted": true,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 1127,
+      "took_generation_ms": 2806,
+      "wall_ms": 3959
+    },
+    {
+      "id": "e09",
+      "kind": "exact-term",
+      "question": "¿Qué plazo de prescripción establece el artículo 66 de la Ley 58/2003 General Tributaria?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "ley-58-2003-general-tributaria.pdf",
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [
+        {
+          "filename": "ley-58-2003-general-tributaria.pdf",
+          "page_num": 42
+        },
+        {
+          "filename": "ley-58-2003-general-tributaria.pdf",
+          "page_num": 42
+        },
+        {
+          "filename": "ley-58-2003-general-tributaria.pdf",
+          "page_num": 42
+        },
+        {
+          "filename": "ley-58-2003-general-tributaria.pdf",
+          "page_num": 142
+        },
+        {
+          "filename": "ley-19-2013-transparencia-acceso-informacion-publica.pdf",
+          "page_num": 22
+        },
+        {
+          "filename": "ley-50-1997-del-gobierno.pdf",
+          "page_num": 19
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 205
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 325
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": false,
+      "expected_document_consulted": true,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 1009,
+      "took_generation_ms": 1823,
+      "wall_ms": 2860
+    },
+    {
+      "id": "e10",
+      "kind": "exact-term",
+      "question": "¿Qué establece el Real Decreto 1721/2007 sobre las becas y ayudas al estudio?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "rd-1721-2007-becas-ayudas-al-estudio.pdf",
+      "answer": "El Real Decreto 1721/2007 establece el régimen de las becas y ayudas al estudio personalizadas [1]. Este real decreto busca garantizar la igualdad en el acceso a las becas en todo el territorio y dar cumplimiento a la jurisprudencia del Tribunal Constitucional, manteniendo la eficacia y eficiencia del sistema [4]. El texto define los conceptos de beca y ayuda al estudio, distinguiendo entre las becas territorializadas, cuya ejecución corresponde a las comunidades autónomas, y las no territorializadas, cuya competencia es del Estado [2]. Asimismo, el real decreto regula las normas generales aplicables a ambos tipos de becas [2].\n\nEn cuanto a los beneficiarios, el real decreto establece que pueden obtener esta condición los estudiantes que perciban el importe directamente, a través de un tercero, mediante la exención del pago de un precio por un servicio escolar o académico, o mediante una prestación en especie [5]. Además, se determina que el Gobierno aprobará anualmente un real decreto que fijará los umbrales económicos y los requisitos necesarios para obtener estas ayudas [2]. Las comunidades autónomas son las encargadas de resolver y proceder al pago de las becas y ayudas concedidas de conformidad con lo previsto en el real decreto y en sus respectivas convocatorias [8]. Finalmente, el real decreto establece que, tras el proceso de adjudicación, las administraciones educativas y las universidades deben verificar al menos un 3 por ciento de las becas y ayudas concedidas [8].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 5,
+      "citations": [
+        {
+          "filename": "rd-1721-2007-becas-ayudas-al-estudio.pdf",
+          "page_num": 1
+        },
+        {
+          "filename": "rd-1721-2007-becas-ayudas-al-estudio.pdf",
+          "page_num": 5
+        },
+        {
+          "filename": "rd-1721-2007-becas-ayudas-al-estudio.pdf",
+          "page_num": 5
+        },
+        {
+          "filename": "rd-1721-2007-becas-ayudas-al-estudio.pdf",
+          "page_num": 8
+        },
+        {
+          "filename": "rd-1721-2007-becas-ayudas-al-estudio.pdf",
+          "page_num": 23
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "rd-1721-2007-becas-ayudas-al-estudio.pdf",
+          "page_num": 1
+        },
+        {
+          "filename": "rd-1721-2007-becas-ayudas-al-estudio.pdf",
+          "page_num": 5
+        },
+        {
+          "filename": "rd-1721-2007-becas-ayudas-al-estudio.pdf",
+          "page_num": 5
+        },
+        {
+          "filename": "rd-1721-2007-becas-ayudas-al-estudio.pdf",
+          "page_num": 5
+        },
+        {
+          "filename": "rd-1721-2007-becas-ayudas-al-estudio.pdf",
+          "page_num": 8
+        },
+        {
+          "filename": "rd-1721-2007-becas-ayudas-al-estudio.pdf",
+          "page_num": 25
+        },
+        {
+          "filename": "rd-1721-2007-becas-ayudas-al-estudio.pdf",
+          "page_num": 23
+        },
+        {
+          "filename": "rd-1721-2007-becas-ayudas-al-estudio.pdf",
+          "page_num": 23
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        1,
+        2,
+        4,
+        5,
+        8
+      ],
+      "markers_exceed_citation_count": true,
+      "markers_resolve_against_citations": false,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 1063,
+      "took_generation_ms": 2525,
+      "wall_ms": 3619
+    },
+    {
+      "id": "e11",
+      "kind": "exact-term",
+      "question": "¿Qué duración tiene la patente según la Ley 24/2015 de Patentes?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "ley-24-2015-patentes.pdf",
+      "answer": "La patente tiene una duración de veinte años improrrogables, contados a partir de la fecha de presentación de la solicitud [1].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 1,
+      "citations": [
+        {
+          "filename": "ley-24-2015-patentes.pdf",
+          "page_num": 30
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "ley-24-2015-patentes.pdf",
+          "page_num": 30
+        },
+        {
+          "filename": "ley-24-2015-patentes.pdf",
+          "page_num": 1
+        },
+        {
+          "filename": "ley-24-2015-patentes.pdf",
+          "page_num": 75
+        },
+        {
+          "filename": "ley-17-2001-marcas.pdf",
+          "page_num": 44
+        },
+        {
+          "filename": "ley-24-2015-patentes.pdf",
+          "page_num": 76
+        },
+        {
+          "filename": "ley-24-2015-patentes.pdf",
+          "page_num": 3
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 205
+        },
+        {
+          "filename": "ley-50-1997-del-gobierno.pdf",
+          "page_num": 19
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        1
+      ],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": true,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 1043,
+      "took_generation_ms": 3646,
+      "wall_ms": 4716
+    },
+    {
+      "id": "e12",
+      "kind": "exact-term",
+      "question": "¿Qué establece la Ley Orgánica 2/2023 del Sistema Universitario sobre los órganos de gobierno de las universidades?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "losu-ley-organica-2-2023-sistema-universitario.pdf",
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [],
+      "consulted_count": 0,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": false,
+      "expected_document_consulted": false,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 1207,
+      "took_generation_ms": 0,
+      "wall_ms": 1228
+    },
+    {
+      "id": "e13",
+      "kind": "exact-term",
+      "question": "¿Qué dispone el Real Decreto 822/2021 sobre la organización de las enseñanzas universitarias y los créditos ECTS?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "rd-822-2021-organizacion-ensenanzas-universitarias.pdf",
+      "answer": "El Real Decreto 822/2021 establece la organización de las enseñanzas universitarias y el procedimiento de aseguramiento de su calidad [1]. El capítulo II de esta norma plantea los principios que deben regir la organización y estructuras de las enseñanzas universitarias [5]. Los documentos proporcionados no contienen información sobre los créditos ECTS.",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 2,
+      "citations": [
+        {
+          "filename": "rd-822-2021-organizacion-ensenanzas-universitarias.pdf",
+          "page_num": 1
+        },
+        {
+          "filename": "rd-822-2021-organizacion-ensenanzas-universitarias.pdf",
+          "page_num": 7
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "rd-822-2021-organizacion-ensenanzas-universitarias.pdf",
+          "page_num": 1
+        },
+        {
+          "filename": "rd-99-2011-ensenanzas-oficiales-doctorado.pdf",
+          "page_num": 10
+        },
+        {
+          "filename": "rd-99-2011-ensenanzas-oficiales-doctorado.pdf",
+          "page_num": 10
+        },
+        {
+          "filename": "rd-99-2011-ensenanzas-oficiales-doctorado.pdf",
+          "page_num": 15
+        },
+        {
+          "filename": "rd-822-2021-organizacion-ensenanzas-universitarias.pdf",
+          "page_num": 7
+        },
+        {
+          "filename": "losu-ley-organica-2-2023-sistema-universitario.pdf",
+          "page_num": 16
+        },
+        {
+          "filename": "rd-1027-2011-meces-marco-cualificaciones-educacion-superior.pdf",
+          "page_num": 8
+        },
+        {
+          "filename": "rdl-1-1996-propiedad-intelectual.pdf",
+          "page_num": 97
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        1,
+        5
+      ],
+      "markers_exceed_citation_count": true,
+      "markers_resolve_against_citations": false,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 1115,
+      "took_generation_ms": 4246,
+      "wall_ms": 5380
+    },
+    {
+      "id": "e14",
+      "kind": "exact-term",
+      "question": "¿Qué establece la Ley 49/2002 sobre el régimen fiscal de las entidades sin fines lucrativos y los incentivos al mecenazgo?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "ley-49-2002-entidades-sin-fines-lucrativos-mecenazgo.pdf",
+      "answer": "La Ley 49/2002 establece el régimen fiscal especial de las entidades sin fines lucrativos [3]. Asimismo, regula los incentivos fiscales al mecenazgo [3]. Las entidades que reúnan las características y cumplan los requisitos previstos en el Título II de dicha ley tendrán el régimen fiscal que en ella se establece [1]. Además, la ley contempla el artículo 27, que regula los acontecimientos excepcionales de interés público [6].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 3,
+      "citations": [
+        {
+          "filename": "ley-27-2014-impuesto-sociedades.pdf",
+          "page_num": 162
+        },
+        {
+          "filename": "ley-49-2002-entidades-sin-fines-lucrativos-mecenazgo.pdf",
+          "page_num": 1
+        },
+        {
+          "filename": "ley-11-2022-general-telecomunicaciones.pdf",
+          "page_num": 131
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "ley-27-2014-impuesto-sociedades.pdf",
+          "page_num": 162
+        },
+        {
+          "filename": "ley-27-2014-impuesto-sociedades.pdf",
+          "page_num": 165
+        },
+        {
+          "filename": "ley-49-2002-entidades-sin-fines-lucrativos-mecenazgo.pdf",
+          "page_num": 1
+        },
+        {
+          "filename": "ley-35-2006-irpf.pdf",
+          "page_num": 149
+        },
+        {
+          "filename": "ley-27-2014-impuesto-sociedades.pdf",
+          "page_num": 162
+        },
+        {
+          "filename": "ley-11-2022-general-telecomunicaciones.pdf",
+          "page_num": 131
+        },
+        {
+          "filename": "ley-49-2002-entidades-sin-fines-lucrativos-mecenazgo.pdf",
+          "page_num": 25
+        },
+        {
+          "filename": "ley-35-2006-irpf.pdf",
+          "page_num": 149
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        1,
+        3,
+        6
+      ],
+      "markers_exceed_citation_count": true,
+      "markers_resolve_against_citations": false,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 1410,
+      "took_generation_ms": 1878,
+      "wall_ms": 3312
+    },
+    {
+      "id": "u01",
+      "kind": "unanswerable",
+      "question": "¿Cuál es el tipo del impuesto de sociedades en Irlanda y cómo se aplica a las filiales españolas?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": null,
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [
+        {
+          "filename": "ley-27-2014-impuesto-sociedades.pdf",
+          "page_num": 13
+        },
+        {
+          "filename": "ley-35-2006-irpf.pdf",
+          "page_num": 157
+        },
+        {
+          "filename": "ley-27-2014-impuesto-sociedades.pdf",
+          "page_num": 80
+        },
+        {
+          "filename": "ley-27-2014-impuesto-sociedades.pdf",
+          "page_num": 15
+        },
+        {
+          "filename": "ley-27-2014-impuesto-sociedades.pdf",
+          "page_num": 4
+        },
+        {
+          "filename": "ley-27-2014-impuesto-sociedades.pdf",
+          "page_num": 15
+        },
+        {
+          "filename": "ley-37-1992-iva.pdf",
+          "page_num": 96
+        },
+        {
+          "filename": "ley-27-2014-impuesto-sociedades.pdf",
+          "page_num": 123
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": null,
+      "expected_document_consulted": null,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 1072,
+      "took_generation_ms": 4175,
+      "wall_ms": 5271
+    },
+    {
+      "id": "u02",
+      "kind": "unanswerable",
+      "question": "¿Qué obligaciones impone el Reglamento (UE) 2024/1689 de Inteligencia Artificial a los sistemas de alto riesgo?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": null,
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [],
+      "consulted_count": 0,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": null,
+      "expected_document_consulted": null,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 1011,
+      "took_generation_ms": 0,
+      "wall_ms": 1033
+    },
+    {
+      "id": "u03",
+      "kind": "unanswerable",
+      "question": "¿Cuántos empleados tiene actualmente Empresa Demo y cuál fue su facturación en el ejercicio 2025?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": null,
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [],
+      "consulted_count": 0,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": null,
+      "expected_document_consulted": null,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 977,
+      "took_generation_ms": 0,
+      "wall_ms": 996
+    },
+    {
+      "id": "u04",
+      "kind": "unanswerable",
+      "question": "¿Qué requisitos exige la normativa japonesa para registrar una marca comercial?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": null,
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [
+        {
+          "filename": "ley-17-2001-marcas.pdf",
+          "page_num": 15
+        },
+        {
+          "filename": "ley-17-2001-marcas.pdf",
+          "page_num": 24
+        },
+        {
+          "filename": "ley-17-2001-marcas.pdf",
+          "page_num": 14
+        },
+        {
+          "filename": "ley-17-2001-marcas.pdf",
+          "page_num": 25
+        },
+        {
+          "filename": "ley-17-2001-marcas.pdf",
+          "page_num": 8
+        },
+        {
+          "filename": "ley-17-2001-marcas.pdf",
+          "page_num": 43
+        },
+        {
+          "filename": "ley-24-2015-patentes.pdf",
+          "page_num": 56
+        },
+        {
+          "filename": "rd-967-2014-homologacion-titulos-extranjeros-educacion-superior.pdf",
+          "page_num": 20
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": null,
+      "expected_document_consulted": null,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 848,
+      "took_generation_ms": 2380,
+      "wall_ms": 3254
+    },
+    {
+      "id": "u05",
+      "kind": "unanswerable",
+      "question": "¿Cuál es el calendario de exámenes de la convocatoria extraordinaria de septiembre de 2026?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": null,
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [],
+      "consulted_count": 0,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": null,
+      "expected_document_consulted": null,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 1041,
+      "took_generation_ms": 0,
+      "wall_ms": 1058
+    },
+    {
+      "id": "u06",
+      "kind": "unanswerable",
+      "question": "¿Qué objetivos de reducción de emisiones fija la Ley 7/2021 de cambio climático y transición energética?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": null,
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [
+        {
+          "filename": "rd-822-2021-organizacion-ensenanzas-universitarias.pdf",
+          "page_num": 10
+        },
+        {
+          "filename": "ley-9-2017-contratos-sector-publico.pdf",
+          "page_num": 141
+        },
+        {
+          "filename": "lopdgdd-proteccion-datos.pdf",
+          "page_num": 61
+        },
+        {
+          "filename": "losu-ley-organica-2-2023-sistema-universitario.pdf",
+          "page_num": 12
+        },
+        {
+          "filename": "lopdgdd-proteccion-datos.pdf",
+          "page_num": 61
+        },
+        {
+          "filename": "ley-35-2006-irpf.pdf",
+          "page_num": 132
+        },
+        {
+          "filename": "lopdgdd-proteccion-datos.pdf",
+          "page_num": 58
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 325
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": null,
+      "expected_document_consulted": null,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 1007,
+      "took_generation_ms": 2471,
+      "wall_ms": 3505
+    },
+    {
+      "id": "x01",
+      "kind": "unreachable",
+      "question": "¿Cuál es la duración máxima del periodo de prueba según el Estatuto de los Trabajadores?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "ley-estatuto-trabajadores.pdf",
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 32
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 32
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 125
+        },
+        {
+          "filename": "ley-9-2017-contratos-sector-publico.pdf",
+          "page_num": 61
+        },
+        {
+          "filename": "losu-ley-organica-2-2023-sistema-universitario.pdf",
+          "page_num": 72
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 22
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 205
+        },
+        {
+          "filename": "rdl-1-1996-propiedad-intelectual.pdf",
+          "page_num": 97
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": false,
+      "expected_document_consulted": false,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 1054,
+      "took_generation_ms": 3046,
+      "wall_ms": 4124
+    },
+    {
+      "id": "x02",
+      "kind": "unreachable",
+      "question": "¿Qué permisos retribuidos reconoce el Estatuto Básico del Empleado Público a los funcionarios?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "rdl-5-2015-estatuto-basico-empleado-publico.pdf",
+      "answer": "El Estatuto Básico del Empleado Público reconoce permisos por parto, adopción o guarda y paternidad [2].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 1,
+      "citations": [
+        {
+          "filename": "ley-35-2006-irpf.pdf",
+          "page_num": 15
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "ley-40-2015-regimen-juridico-sector-publico.pdf",
+          "page_num": 64
+        },
+        {
+          "filename": "ley-35-2006-irpf.pdf",
+          "page_num": 15
+        },
+        {
+          "filename": "ley-7-1985-bases-regimen-local.pdf",
+          "page_num": 46
+        },
+        {
+          "filename": "ley-7-1985-bases-regimen-local.pdf",
+          "page_num": 59
+        },
+        {
+          "filename": "ley-47-2003-general-presupuestaria.pdf",
+          "page_num": 24
+        },
+        {
+          "filename": "ley-9-2017-contratos-sector-publico.pdf",
+          "page_num": 9
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 253
+        },
+        {
+          "filename": "codigo-civil.pdf",
+          "page_num": 133
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": false,
+      "expected_document_consulted": false,
+      "answer_markers": [
+        2
+      ],
+      "markers_exceed_citation_count": true,
+      "markers_resolve_against_citations": false,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 893,
+      "took_generation_ms": 1264,
+      "wall_ms": 2186
+    },
+    {
+      "id": "x03",
+      "kind": "unreachable",
+      "question": "¿Qué obligaciones tiene el empresario en materia de prevención de riesgos laborales según la Ley 31/1995?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "ley-31-1995-prevencion-riesgos-laborales.pdf",
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [
+        {
+          "filename": "lopdgdd-proteccion-datos.pdf",
+          "page_num": 58
+        },
+        {
+          "filename": "ley-24-2015-patentes.pdf",
+          "page_num": 17
+        },
+        {
+          "filename": "ley-35-2006-irpf.pdf",
+          "page_num": 173
+        },
+        {
+          "filename": "ley-24-2015-patentes.pdf",
+          "page_num": 16
+        },
+        {
+          "filename": "ley-40-2015-regimen-juridico-sector-publico.pdf",
+          "page_num": 107
+        },
+        {
+          "filename": "ley-9-2017-contratos-sector-publico.pdf",
+          "page_num": 20
+        },
+        {
+          "filename": "ley-27-2014-impuesto-sociedades.pdf",
+          "page_num": 15
+        },
+        {
+          "filename": "rdl-1-1996-propiedad-intelectual.pdf",
+          "page_num": 97
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": false,
+      "expected_document_consulted": false,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 1111,
+      "took_generation_ms": 966,
+      "wall_ms": 2101
+    },
+    {
+      "id": "x04",
+      "kind": "unreachable",
+      "question": "¿Qué requisitos exige la Ley General de la Seguridad Social para acceder a la pensión de jubilación?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "rdl-8-2015-general-seguridad-social.pdf",
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [
+        {
+          "filename": "ley-35-2006-irpf.pdf",
+          "page_num": 175
+        },
+        {
+          "filename": "ley-35-2006-irpf.pdf",
+          "page_num": 176
+        },
+        {
+          "filename": "ley-35-2006-irpf.pdf",
+          "page_num": 15
+        },
+        {
+          "filename": "ley-47-2003-general-presupuestaria.pdf",
+          "page_num": 33
+        },
+        {
+          "filename": "rd-967-2014-homologacion-titulos-extranjeros-educacion-superior.pdf",
+          "page_num": 20
+        },
+        {
+          "filename": "ley-50-1997-del-gobierno.pdf",
+          "page_num": 19
+        },
+        {
+          "filename": "rd-967-2014-homologacion-titulos-extranjeros-educacion-superior.pdf",
+          "page_num": 20
+        },
+        {
+          "filename": "lopdgdd-proteccion-datos.pdf",
+          "page_num": 58
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": false,
+      "expected_document_consulted": false,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 964,
+      "took_generation_ms": 1214,
+      "wall_ms": 2203
+    },
+    {
+      "id": "x05",
+      "kind": "unreachable",
+      "question": "¿Qué acuerdos adoptó el consejo de dirección en su reunión de febrero de 2026?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "acta-consejo-direccion-2026-02.pdf",
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [
+        {
+          "filename": "ley-37-1992-iva.pdf",
+          "page_num": 4
+        },
+        {
+          "filename": "ley-35-2006-irpf.pdf",
+          "page_num": 135
+        },
+        {
+          "filename": "ley-11-2022-general-telecomunicaciones.pdf",
+          "page_num": 11
+        },
+        {
+          "filename": "ley-37-1992-iva.pdf",
+          "page_num": 96
+        },
+        {
+          "filename": "ley-9-2017-contratos-sector-publico.pdf",
+          "page_num": 20
+        },
+        {
+          "filename": "ley-27-2014-impuesto-sociedades.pdf",
+          "page_num": 131
+        },
+        {
+          "filename": "ley-27-2014-impuesto-sociedades.pdf",
+          "page_num": 132
+        },
+        {
+          "filename": "rdl-1-1996-propiedad-intelectual.pdf",
+          "page_num": 97
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": false,
+      "expected_document_consulted": false,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 1014,
+      "took_generation_ms": 977,
+      "wall_ms": 2012
+    },
+    {
+      "id": "x06",
+      "kind": "unreachable",
+      "question": "¿Qué conclusiones recoge el informe de auditoría interna de 2026?",
+      "asked_as": "juridico@empresademo.es",
+      "expected_document": "informe-auditoria-interna-2026.pdf",
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [],
+      "consulted_count": 0,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": false,
+      "expected_document_consulted": false,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 900,
+      "took_generation_ms": 0,
+      "wall_ms": 921
+    },
+    {
+      "id": "p01",
+      "kind": "paraphrase",
+      "question": "¿Cuánto tiempo tiene una persona para terminar su tesis si la hace a dedicación completa, y qué ocurre si no llega a tiempo?",
+      "asked_as": "secretaria@empresademo.es",
+      "expected_document": "rd-99-2011-ensenanzas-oficiales-doctorado.pdf",
+      "answer": "La duración máxima de los estudios de doctorado a tiempo completo es de cuatro años, contados desde la fecha de matrícula hasta el depósito de la tesis [2]. Si antes de finalizar este plazo no se ha presentado la solicitud de depósito, la Comisión académica responsable del programa podrá autorizar, previa solicitud del doctorando, una prórroga de un año más en las condiciones establecidas por el programa [1].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 2,
+      "citations": [
+        {
+          "filename": "rd-99-2011-ensenanzas-oficiales-doctorado.pdf",
+          "page_num": 6
+        },
+        {
+          "filename": "rd-99-2011-ensenanzas-oficiales-doctorado.pdf",
+          "page_num": 6
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "rd-99-2011-ensenanzas-oficiales-doctorado.pdf",
+          "page_num": 6
+        },
+        {
+          "filename": "rd-99-2011-ensenanzas-oficiales-doctorado.pdf",
+          "page_num": 6
+        },
+        {
+          "filename": "rd-99-2011-ensenanzas-oficiales-doctorado.pdf",
+          "page_num": 12
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 187
+        },
+        {
+          "filename": "rd-99-2011-ensenanzas-oficiales-doctorado.pdf",
+          "page_num": 12
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 301
+        },
+        {
+          "filename": "ley-enjuiciamiento-criminal-1882.pdf",
+          "page_num": 39
+        },
+        {
+          "filename": "losu-ley-organica-2-2023-sistema-universitario.pdf",
+          "page_num": 11
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        1,
+        2
+      ],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": true,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 888,
+      "took_generation_ms": 1597,
+      "wall_ms": 2509
+    },
+    {
+      "id": "p03",
+      "kind": "paraphrase",
+      "question": "Un estudiante cree que su examen ha sido corregido injustamente. ¿Qué puede hacer al respecto?",
+      "asked_as": "secretaria@empresademo.es",
+      "expected_document": "rd-1791-2010-estatuto-estudiante-universitario.pdf",
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [],
+      "consulted_count": 0,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": false,
+      "expected_document_consulted": false,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 830,
+      "took_generation_ms": 0,
+      "wall_ms": 849
+    },
+    {
+      "id": "p05",
+      "kind": "paraphrase",
+      "question": "¿Qué pasa con el dinero recibido si quien obtuvo una ayuda pública no hace aquello para lo que se la dieron?",
+      "asked_as": "secretaria@empresademo.es",
+      "expected_document": "ley-38-2003-general-subvenciones.pdf",
+      "answer": "Si el beneficiario aplica la ayuda a fines distintos de aquellos para los que fue concedida, se le impondrán las penas correspondientes, salvo que lleve a cabo el reintegro de la cuantía [1][2].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 2,
+      "citations": [
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 123
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 123
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 123
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 123
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 156
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 155
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 184
+        },
+        {
+          "filename": "ley-enjuiciamiento-criminal-1882.pdf",
+          "page_num": 40
+        },
+        {
+          "filename": "ley-enjuiciamiento-criminal-1882.pdf",
+          "page_num": 116
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 301
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": false,
+      "expected_document_consulted": false,
+      "answer_markers": [
+        1,
+        2
+      ],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": true,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 973,
+      "took_generation_ms": 1052,
+      "wall_ms": 2053
+    },
+    {
+      "id": "p07",
+      "kind": "paraphrase",
+      "question": "¿Puede una persona exigir que se borren sus datos personales de un fichero, y en qué condiciones?",
+      "asked_as": "secretaria@empresademo.es",
+      "expected_document": "lopdgdd-proteccion-datos.pdf",
+      "answer": "Una vez que se ponga término al procedimiento mediante resolución firme, se ordenará el borrado y eliminación de los registros originales que puedan constar en los sistemas electrónicos e informáticos utilizados en la ejecución de la medida [2].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 1,
+      "citations": [
+        {
+          "filename": "ley-enjuiciamiento-criminal-1882.pdf",
+          "page_num": 121
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "ley-enjuiciamiento-criminal-1882.pdf",
+          "page_num": 127
+        },
+        {
+          "filename": "ley-enjuiciamiento-criminal-1882.pdf",
+          "page_num": 121
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 84
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 41
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 103
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 197
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 34
+        },
+        {
+          "filename": "losu-ley-organica-2-2023-sistema-universitario.pdf",
+          "page_num": 16
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": false,
+      "expected_document_consulted": false,
+      "answer_markers": [
+        2
+      ],
+      "markers_exceed_citation_count": true,
+      "markers_resolve_against_citations": false,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 865,
+      "took_generation_ms": 1921,
+      "wall_ms": 2811
+    },
+    {
+      "id": "e01",
+      "kind": "exact-term",
+      "question": "¿Qué establece el artículo 14 de la Constitución Española?",
+      "asked_as": "secretaria@empresademo.es",
+      "expected_document": "constitucion-espanola.pdf",
+      "answer": "Los españoles son iguales ante la ley, sin que pueda prevalecer discriminación alguna por razón de nacimiento, raza, sexo, religión, opinión o cualquier otra condición o circunstancia personal o social [1].",
+      "abstained": false,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 1,
+      "citations": [
+        {
+          "filename": "constitucion-espanola.pdf",
+          "page_num": 5
+        }
+      ],
+      "consulted": [
+        {
+          "filename": "constitucion-espanola.pdf",
+          "page_num": 5
+        },
+        {
+          "filename": "rd-412-2014-admision-ensenanzas-universitarias-grado.pdf",
+          "page_num": 2
+        },
+        {
+          "filename": "losu-ley-organica-2-2023-sistema-universitario.pdf",
+          "page_num": 14
+        },
+        {
+          "filename": "losu-ley-organica-2-2023-sistema-universitario.pdf",
+          "page_num": 73
+        },
+        {
+          "filename": "rd-967-2014-homologacion-titulos-extranjeros-educacion-superior.pdf",
+          "page_num": 2
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 325
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 205
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 325
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": true,
+      "expected_document_consulted": true,
+      "answer_markers": [
+        1
+      ],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": true,
+      "markers_match_consulted_positions": true,
+      "took_retrieval_ms": 1079,
+      "took_generation_ms": 3937,
+      "wall_ms": 5044
+    },
+    {
+      "id": "e06",
+      "kind": "exact-term",
+      "question": "¿Cuál es el tipo general del Impuesto sobre el Valor Añadido según la Ley 37/1992?",
+      "asked_as": "secretaria@empresademo.es",
+      "expected_document": "ley-37-1992-iva.pdf",
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [],
+      "consulted_count": 0,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": false,
+      "expected_document_consulted": false,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 877,
+      "took_generation_ms": 0,
+      "wall_ms": 898
+    },
+    {
+      "id": "x01",
+      "kind": "unreachable",
+      "question": "¿Cuál es la duración máxima del periodo de prueba según el Estatuto de los Trabajadores?",
+      "asked_as": "secretaria@empresademo.es",
+      "expected_document": "ley-estatuto-trabajadores.pdf",
+      "answer": "The documents provided do not contain an answer to this question.",
+      "abstained": true,
+      "degraded": false,
+      "reason": null,
+      "model": "gemini-3.1-flash-lite",
+      "citation_count": 0,
+      "citations": [],
+      "consulted": [
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 32
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 32
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 125
+        },
+        {
+          "filename": "losu-ley-organica-2-2023-sistema-universitario.pdf",
+          "page_num": 72
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 22
+        },
+        {
+          "filename": "codigo-penal.pdf",
+          "page_num": 205
+        },
+        {
+          "filename": "ley-50-1997-del-gobierno.pdf",
+          "page_num": 19
+        },
+        {
+          "filename": "ley-1-2000-enjuiciamiento-civil.pdf",
+          "page_num": 325
+        }
+      ],
+      "consulted_count": 8,
+      "citations_outside_reach": [],
+      "consulted_outside_reach": [],
+      "expected_document_cited": false,
+      "expected_document_consulted": false,
+      "answer_markers": [],
+      "markers_exceed_citation_count": false,
+      "markers_resolve_against_citations": null,
+      "markers_match_consulted_positions": null,
+      "took_retrieval_ms": 944,
+      "took_generation_ms": 2685,
+      "wall_ms": 3655
+    }
+  ],
+  "summary": {
+    "total_calls": 45,
+    "errors": 0,
+    "degraded_rate_overall": 0.0,
+    "degraded_count_overall": 0,
+    "by_kind_juridico": {
+      "paraphrase": {
+        "n": 12,
+        "abstained": 2,
+        "abstention_rate": 0.167,
+        "degraded": 0,
+        "degraded_rate": 0.0,
+        "answered": 10,
+        "citations_per_answered": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3,
+          "total": 22
+        },
+        "retrieval_ms": {
+          "median": 1001.5,
+          "p95": 1093,
+          "min": 866,
+          "max": 1093
+        },
+        "generation_ms_when_generation_ran": {
+          "median": 2251.0,
+          "p95": 4103,
+          "min": 1605,
+          "max": 4103,
+          "n": 10
+        }
+      },
+      "exact-term": {
+        "n": 14,
+        "abstained": 5,
+        "abstention_rate": 0.357,
+        "degraded": 0,
+        "degraded_rate": 0.0,
+        "answered": 9,
+        "citations_per_answered": {
+          "median": 1,
+          "min": 1,
+          "max": 5,
+          "total": 18
+        },
+        "retrieval_ms": {
+          "median": 1121.0,
+          "p95": 1410,
+          "min": 831,
+          "max": 1410
+        },
+        "generation_ms_when_generation_ran": {
+          "median": 2525,
+          "p95": 4246,
+          "min": 1223,
+          "max": 4246,
+          "n": 11
+        }
+      },
+      "unanswerable": {
+        "n": 6,
+        "abstained": 6,
+        "abstention_rate": 1.0,
+        "degraded": 0,
+        "degraded_rate": 0.0,
+        "answered": 0,
+        "citations_per_answered": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "total": 0
+        },
+        "retrieval_ms": {
+          "median": 1009.0,
+          "p95": 1072,
+          "min": 848,
+          "max": 1072
+        },
+        "generation_ms_when_generation_ran": {
+          "median": 2471,
+          "p95": 4175,
+          "min": 2380,
+          "max": 4175,
+          "n": 3
+        }
+      },
+      "unreachable": {
+        "n": 6,
+        "abstained": 5,
+        "abstention_rate": 0.833,
+        "degraded": 0,
+        "degraded_rate": 0.0,
+        "answered": 1,
+        "citations_per_answered": {
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
+        "retrieval_ms": {
+          "median": 989.0,
+          "p95": 1111,
+          "min": 893,
+          "max": 1111
+        },
+        "generation_ms_when_generation_ran": {
+          "median": 1214,
+          "p95": 3046,
+          "min": 966,
+          "max": 3046,
+          "n": 5
+        }
+      }
+    },
+    "by_kind_secretaria": {
+      "paraphrase": {
+        "n": 4,
+        "abstained": 1,
+        "abstention_rate": 0.25,
+        "degraded": 0,
+        "degraded_rate": 0.0,
+        "answered": 3,
+        "citations_per_answered": {
+          "median": 2,
+          "min": 1,
+          "max": 2,
+          "total": 5
+        },
+        "retrieval_ms": {
+          "median": 876.5,
+          "p95": 973,
+          "min": 830,
+          "max": 973
+        },
+        "generation_ms_when_generation_ran": {
+          "median": 1597,
+          "p95": 1921,
+          "min": 1052,
+          "max": 1921,
+          "n": 3
+        }
+      },
+      "exact-term": {
+        "n": 2,
+        "abstained": 1,
+        "abstention_rate": 0.5,
+        "degraded": 0,
+        "degraded_rate": 0.0,
+        "answered": 1,
+        "citations_per_answered": {
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
+        "retrieval_ms": {
+          "median": 978.0,
+          "p95": 1079,
+          "min": 877,
+          "max": 1079
+        },
+        "generation_ms_when_generation_ran": {
+          "median": 3937,
+          "p95": 3937,
+          "min": 3937,
+          "max": 3937,
+          "n": 1
+        }
+      },
+      "unreachable": {
+        "n": 1,
+        "abstained": 1,
+        "abstention_rate": 1.0,
+        "degraded": 0,
+        "degraded_rate": 0.0,
+        "answered": 0,
+        "citations_per_answered": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "total": 0
+        },
+        "retrieval_ms": {
+          "median": 944,
+          "p95": 944,
+          "min": 944,
+          "max": 944
+        },
+        "generation_ms_when_generation_ran": {
+          "median": 2685,
+          "p95": 2685,
+          "min": 2685,
+          "max": 2685,
+          "n": 1
+        }
+      }
+    },
+    "juridico_all": {
+      "n": 38,
+      "abstained": 18,
+      "abstention_rate": 0.474,
+      "degraded": 0,
+      "degraded_rate": 0.0,
+      "answered": 20,
+      "citations_per_answered": {
+        "median": 2.0,
+        "min": 1,
+        "max": 5,
+        "total": 41
+      },
+      "retrieval_ms": {
+        "median": 1024.0,
+        "p95": 1409,
+        "min": 831,
+        "max": 1410
+      },
+      "generation_ms_when_generation_ran": {
+        "median": 2380,
+        "p95": 4175,
+        "min": 966,
+        "max": 4246,
+        "n": 29
+      }
+    },
+    "secretaria_all": {
+      "n": 7,
+      "abstained": 3,
+      "abstention_rate": 0.429,
+      "degraded": 0,
+      "degraded_rate": 0.0,
+      "answered": 4,
+      "citations_per_answered": {
+        "median": 1.5,
+        "min": 1,
+        "max": 2,
+        "total": 6
+      },
+      "retrieval_ms": {
+        "median": 888,
+        "p95": 1079,
+        "min": 830,
+        "max": 1079
+      },
+      "generation_ms_when_generation_ran": {
+        "median": 1921,
+        "p95": 3937,
+        "min": 1052,
+        "max": 3937,
+        "n": 5
+      }
+    },
+    "abstention": {
+      "answerable_paraphrase_and_exact_term_juridico": {
+        "n": 26,
+        "abstained": 7,
+        "rate": 0.269,
+        "note": "false-abstention rate; should be low"
+      },
+      "unanswerable_juridico": {
+        "n": 6,
+        "abstained": 6,
+        "rate": 1.0,
+        "note": "correct-abstention rate; should be high. 6 of 6 abstained — no fabrication on the unanswerable set."
+      },
+      "unreachable_juridico": {
+        "n": 6,
+        "abstained": 5,
+        "note": "correct outcome is abstention; x02 answered instead — see findings"
+      }
+    },
+    "citation_reachability": {
+      "answers_checked": 24,
+      "citations_total": 47,
+      "citations_outside_the_asker_reach": 0,
+      "consulted_passages_outside_the_asker_reach": 0,
+      "violations": [],
+      "verdict": "PASS — every cited and every consulted passage, on all 45 calls, was inside the asking identity's reachable document set."
+    },
+    "citation_marker_alignment": {
+      "answers_with_markers": 24,
+      "markers_misaligned_with_citations_array": 12,
+      "markers_all_resolve_against_consulted_array": true,
+      "ids_misaligned": [
+        "p02@juridico",
+        "p04@juridico",
+        "p09@juridico",
+        "p11@juridico",
+        "p12@juridico",
+        "e05@juridico",
+        "e07@juridico",
+        "e10@juridico",
+        "e13@juridico",
+        "e14@juridico",
+        "x02@juridico",
+        "p07@secretaria"
+      ],
+      "finding": "The [N] markers in `answer` are indices into `consulted[]`, not into `citations[]`. `citations[]` is the cited subset of `consulted[]`, renumbered from 1. Half the answered responses therefore carry markers that point at the wrong citation, or past the end of the array."
+    },
+    "expected_document_cited_juridico_answerable": {
+      "n": 26,
+      "cited": 18,
+      "consulted_but_not_cited": 2,
+      "caveat": "author-assigned expectation, not a verified anchor. NOT recall."
+    }
+  },
+  "not_measured": {
+    "Recall@8": "NOT MEASURED, and no figure for it may be quoted from this run. Recall requires a labelled question set with verified (document, page) anchors. backend/eval/questions.toml holds 43 questions anchored to the previous English corpus; eval/live.py excludes any question whose document is absent, so against this corpus it would score nothing at all. Building a Spanish anchored set is a separate piece of work. The 43-question set, live.py, corpus.toml and the tests were deliberately left untouched.",
+    "Recall@50 / MRR / nDCG": "Not measured, same reason.",
+    "answer_correctness": "Not measured. Nothing here checks whether an answer is factually right — only whether it abstained, what it cited, and whether what it cited was reachable. x02 and secretaria's p07 are answers that are well-formed and correctly-cited and still wrong about what was asked.",
+    "grounding_faithfulness": "Not measured mechanically; two failures were found by reading (see findings).",
+    "ingestion_and_indexing_time": "Not measured; the corpus was already ingested.",
+    "alembic_current_vs_head": "Not re-derived by this run.",
+    "direccion@empresademo.es (reach 55)": "Not measured — the account does not authenticate. See method.primary_is_not_the_admin."
+  },
+  "findings": [
+    {
+      "severity": "blocker-for-demo",
+      "title": "The admin account direccion@empresademo.es does not authenticate",
+      "detail": "POST /auth/login with the documented password returns 401. users.token_version is 3 for this account and 2 for the other three seeded accounts, so its password was changed after seeding and the documented credential is stale. It is the only account that reaches all 55 documents. Not reset by this run. Remedy: `zenith passwords` (or the invite/reset flow) to set a known password."
+    },
+    {
+      "severity": "high",
+      "title": "The lexical half is analysing Spanish text with an English stemmer",
+      "detail": "`zenith_text` maps asciiword/word to unaccent + english_stem (migration 0018, written when the corpus was English). The corpus is now Spanish. Spanish stopwords are not English stopwords, so el, la, del, es, cual, segun, sobre survive tokenisation; app/features/retrieval/lexical.py ORs the lexemes, so these near-universal terms enter the query. Measured: the OR'd query the app builds for e06 matches 20,384 of 20,476 chunks (99.6%); the same construction under the `spanish` configuration matches 12,454 (60.8%). Across six real questions the live analyser selected 99.5-99.9% of the corpus every time. The lexical half is therefore contributing almost no discrimination — it hands fusion the whole corpus ranked by ts_rank_cd. Note the BM25 index ix_chunks_bm25 IS built with Spanish stemming (language: Spanish), but ZENITH_LEXICAL_ENGINE is tsvector, so the correctly-configured index is not the one serving queries. Changing the analyser means rebuilding the generated tsv column, so this is a migration, not a setting."
+    },
+    {
+      "severity": "high",
+      "title": "Citation markers index into consulted[], not citations[]",
+      "detail": "12 of the 24 answered responses carry [N] markers that do not correspond to citations[] positions; all 24 resolve exactly against consulted[]. e10 cites 5 documents and its answer contains [8]; e14 cites 3 and contains [6]. Any reader or frontend resolving a marker against citations[] shows the wrong source or none."
+    },
+    {
+      "severity": "high",
+      "title": "An out-of-reach question can be answered from an unrelated in-reach document",
+      "detail": "x02 asked what paid leave the EBEP grants public employees. The EBEP is under 'Empleo y personas', outside juridico@'s labels. Rather than abstaining the system answered 'El Estatuto Basico del Empleado Publico reconoce permisos por parto, adopcion o guarda y paternidad', citing ley-35-2006-irpf.pdf p15 — a tax law. Same shape for secretaria@ on p07 (asked about erasing personal data, LOPDGDD out of reach; answered from ley-enjuiciamiento-criminal-1882.pdf about deleting records after a firm judgment). Isolation is NOT breached — the citation is inside the asker's reach — but invariant 5 is satisfied only in the letter: there is a citation, and it does not support the claim. This is the failure mode a narrow-reach demo user is most likely to hit."
+    },
+    {
+      "severity": "medium",
+      "title": "5 of 14 exact-term questions falsely abstained, all reproducibly",
+      "detail": "e04 (Ley 9/2017, 273 pages, in reach), e06 (IVA general rate, Ley 37/1992, in reach), e08 (Ley 34/2002), e09 (art. 66 LGT), e12 (LOSU art. on governing bodies) abstained on both passes. Paraphrase questions abstained 2 of 12. That the lexical-flavoured half is the weaker one is consistent with the english_stem finding above."
+    },
+    {
+      "severity": "low",
+      "title": "The abstention message is English on a Spanish installation",
+      "detail": "Every abstention returns 'The documents provided do not contain an answer to this question.' The corpus, the questions and every substantive answer are Spanish. On a demo to a Spanish buyer this is the one string they are guaranteed to see repeatedly."
+    },
+    {
+      "severity": "info",
+      "title": "No degraded responses; the reranker is up",
+      "detail": "degraded=false on all 45 calls, tei-rerank running, profile cpu (rerank_candidates=8)."
+    }
+  ]
+}
