@@ -281,9 +281,14 @@ describe("the source opens on its own", () => {
   it("opens the best passage without waiting to be clicked", async () => {
     const { onCitation } = await run(null);
 
+    // The third argument is not incidental: it is what separates this open from a citation
+    // the reader clicked. The shell reads it to collapse the sidebar, widen the panel and
+    // compose the passage in it — and doing any of that to a reader's own click would be the
+    // interface rearranging a screen they are already reading.
     expect(onCitation).toHaveBeenCalledWith(
       expect.objectContaining({ chunk_id: "one" }),
       "severance",
+      true,
     );
   });
 
@@ -394,5 +399,32 @@ describe("when the corpus has little or nothing to say", () => {
     await ask({ hits: [] });
 
     expect(await screen.findByText(/Nothing matched that query/)).toBeTruthy();
+  });
+});
+
+/**
+ * The corpus emptying out under a mounted screen.
+ *
+ * `searchable` is `status?.searchable ?? true` in the shell: true while `/tenant/status` is
+ * still in flight, and whatever the server says once it answers. So every session that
+ * reaches a corpus with nothing in it — a fresh installation, and a token left in a browser
+ * for a tenant that no longer exists — renders this screen once as searchable and again as
+ * not. That is a rerender, not a remount, and this screen used to run one fewer hook on the
+ * second pass: the prefill effect sat *below* the `if (!searchable)` return. React counts
+ * hooks, so it took the whole application down with "Rendered fewer hooks than expected"
+ * (#300 in a production build) rather than showing the empty-corpus notice.
+ */
+describe("when the corpus turns out to be empty after it has rendered", () => {
+  it("swaps to the notice instead of crashing", async () => {
+    const view = render(<Search token="t" onCitation={vi.fn()} searchable />);
+    await screen.findByLabelText("Search");
+
+    // The same component, told the corpus is empty. Throwing here is the bug.
+    view.rerender(<Search token="t" onCitation={vi.fn()} searchable={false} />);
+
+    expect(screen.getByText(/no documents to search yet/i)).toBeTruthy();
+    // And back again, because a document finishing ingestion is the same flip in reverse.
+    view.rerender(<Search token="t" onCitation={vi.fn()} searchable />);
+    expect(screen.getByLabelText("Search")).toBeTruthy();
   });
 });

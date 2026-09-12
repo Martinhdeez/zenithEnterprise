@@ -42,7 +42,16 @@ interface Props {
    * conversation about that document, and re-typing what you just searched for is the
    * seam this feature exists to remove.
    */
-  onCitation: (citation: Citation, question: string) => void;
+  /**
+   * `framed` marks the open the *search* performed, not one the reader asked for.
+   *
+   * The two want different things from the screen. A result that opens on its own, as the
+   * answer to a question just typed, is the moment the product makes its argument — so the
+   * shell gets out of the way and the passage is composed in the panel. A citation the reader
+   * clicked is navigation inside a screen they are already reading, and rearranging it under
+   * the cursor would be the interface fighting them.
+   */
+  onCitation: (citation: Citation, question: string, framed?: boolean) => void;
   /**
    * The chunk the PDF panel is currently showing, or null when it is closed.
    *
@@ -224,7 +233,7 @@ export function Search({
         //
         // The top hit only. Opening anything else would be choosing for the reader.
         const best = result.hits[0];
-        if (best) onCitation(citationOf(best, 0), q);
+        if (best) onCitation(citationOf(best, 0), q, true);
       } catch (error) {
         // An abort is the user cancelling, not a failure — `cancel` below already put the
         // state back to idle, and overwriting that with an error would fight it.
@@ -244,21 +253,32 @@ export function Search({
     setState({ phase: "idle" });
   }, []);
 
+  // A question routed here from the palette or from History. Mirrors what `Chat` did with
+  // the same value, for the same reason: the nonce is the trigger, so asking the same past
+  // question twice runs it twice.
+  //
+  // **Above the `searchable` return below, and that position is the fix for a crash.**
+  // `searchable` is `status?.searchable ?? true` in the shell — true while `/tenant/status`
+  // is in flight, then whatever the server says. Against an empty corpus it therefore flips
+  // true → false on a *mounted* screen, and with this effect sitting under the early return
+  // that second render ran one fewer hook: React counted them and threw "Rendered fewer
+  // hooks than expected", which is a blank page rather than the notice below. Every hook in
+  // this component now runs on every render, unconditionally.
+  useEffect(() => {
+    // Nothing to search against, so the question waits until there is. The notice below is
+    // what the reader sees, and firing a query behind it would spend a request on a result
+    // no screen is showing.
+    if (!prefill || !searchable) return;
+    setQuery(prefill.text);
+    void run(prefill.text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill?.nonce, searchable]);
+
   if (!searchable) {
     return (
       <p className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">{t("There are no documents to search yet. Upload one to get started.")}</p>
     );
   }
-
-  // A question routed here from the palette or from History. Mirrors what `Chat` did with
-  // the same value, for the same reason: the nonce is the trigger, so asking the same past
-  // question twice runs it twice.
-  useEffect(() => {
-    if (!prefill) return;
-    setQuery(prefill.text);
-    void run(prefill.text);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefill?.nonce]);
 
   const busy = state.phase === "loading";
 

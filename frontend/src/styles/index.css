@@ -14,8 +14,9 @@
   If we ever want to remove these styles, we need to add an explicit border
   color utility to any element that depends on these defaults.
 */
-/* The one recurring accent across every header/footer bar in the shell — sidebar top and
-   bottom, the chat header, the document preview header. A darker, solid navy rather than a
+/* The one recurring accent across the header bars of the inset panels — the workspace
+   header and the document preview header. Not the sidebar: it sits on the page ground rather
+   than in a panel, so it has no title bar to paint. A darker, solid navy rather than a
    translucent cyan wash: a tint that fades to transparent still reads as the same card with
    a highlight painted on it, and what was asked for is a genuinely darker surface — one
    that recedes a shade below `--card` the way a title bar sits below the rest of a window,
@@ -24,8 +25,35 @@
   background-image: linear-gradient(
     135deg,
     var(--zenith-navy),
-    color-mix(in oklab, var(--zenith-navy) 15%, var(--card)) 85%
+    color-mix(in oklab, var(--zenith-navy) 15%, var(--panel-accent-end, var(--card))) 85%
   );
+}
+
+/* The light workspace, inverted: white where the page ground is grey.
+
+   Light puts its brightest surface on the page, and the page is the workspace, so the panel
+   is white and the ground around it is `--background`. But `--card` is white too — the top of
+   the scale — and every filter, select, tile and chip inside the panel is painted with it, so
+   a white panel alone would leave all of them nowhere to go (the failure the ladder comment
+   in `:root` records). So inside the panel the two tokens trade places: the surface takes
+   white and what sits on it takes the grey the surface had. Every step keeps its size — 0.045
+   between a surface and a control on it — and only its direction turns, which is the device
+   light already uses for fields: a soft grey shape on white.
+
+   Tokens rather than per-component classes so it cannot be missed on one screen: a component
+   that paints `bg-background` to match its surface still matches it, and one that paints
+   `bg-card` still stands off it. The values are `:root`'s, crossed, and literal because a
+   property cannot read the value it is replacing. Dark is untouched, since there the workspace
+   already sits below the ground. Portalled menus and dialogs render outside this subtree and
+   keep the root values, which is what a floating surface wants.
+
+   `--panel-accent-end` keeps the header bar fading into white as it always has: it ends on
+   `--card`, which is now the grey, and ending on it turned the bar into a flat grey cap on a
+   white panel. */
+:root:not(.dark) .workspace {
+  --background: oklch(1.0000 0 0);
+  --card: oklch(0.9550 0.0075 273.8);
+  --panel-accent-end: oklch(1.0000 0 0);
 }
 
 /* The lit state of the ask control, once the conversation is open.
@@ -46,15 +74,6 @@
   box-shadow:
     0 0 0 3px color-mix(in oklab, var(--primary) 30%, transparent),
     0 0 14px 2px color-mix(in oklab, var(--primary) 55%, transparent);
-}
-
-.app-art {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
 }
 
 /* Scrolls, but never shows the scrollbar itself — the sidebar is short enough that the
@@ -314,17 +333,12 @@
      regions; light was doing the same job with 0.030 and read as one white field with a
      hairline through it. It is 0.045 now, with `--secondary` a further 0.040 below, so the
      two themes describe the same three surfaces with comparable force instead of one of them
-     whispering. */
+     whispering.
+
+     The shell later made the workspace itself white, on a ground of this `--background`.
+     These values stay as they are; inside the panel `.workspace` crosses `--background` and
+     `--card`, so the steps above keep their size and only turn direction there. */
   --background: oklch(0.9550 0.0075 273.8);
-  /* The six fields of the light backdrop: a ground, then five bands. Mixed towards white rather
-     than given their own values, so they stay tints of the palette instead of becoming a
-     sixth and seventh colour the product has to explain. */
-  --art-0: color-mix(in oklab, var(--primary) 30%, white);
-  --art-1: color-mix(in oklab, var(--primary) 14%, white);
-  --art-2: color-mix(in oklab, var(--zenith-cyan) 24%, white);
-  --art-3: color-mix(in oklab, var(--zenith-cyan) 40%, white);
-  --art-4: color-mix(in oklab, var(--primary) 32%, white);
-  --art-5: color-mix(in oklab, var(--zenith-cyan) 58%, white);
   --foreground: oklch(0.2000 0.0300 273.8);
   --card: oklch(1.0000 0 0);
   --card-foreground: oklch(0.2000 0.0300 273.8);
@@ -465,17 +479,6 @@
      The two that were complained about are now 0.062 and 0.124 apart instead of 0.050 and
      0.000. Text stays comfortable on every one of them: 9.27:1 on the brightest. */
   --background: oklch(0.1900 0.0400 257);
-  /* The same six fields as light, mixed towards `--background` instead of towards white.
-     That is the whole difference: one drawing, two sets of tints, so the two themes are the
-     same product in two lights rather than two different products. Dark needs a narrower
-     spread — the shell is already near-black, and a band that clears it by much stops being
-     ground and starts being an object. */
-  --art-0: color-mix(in oklab, var(--primary) 24%, var(--background));
-  --art-1: color-mix(in oklab, var(--primary) 13%, var(--background));
-  --art-2: color-mix(in oklab, var(--zenith-cyan) 16%, var(--background));
-  --art-3: color-mix(in oklab, var(--zenith-cyan) 26%, var(--background));
-  --art-4: color-mix(in oklab, var(--primary) 30%, var(--background));
-  --art-5: color-mix(in oklab, var(--zenith-cyan) 38%, var(--background));
   --foreground: oklch(0.9676 0.0075 243);
   --card: oklch(0.2520 0.0400 257);
   --card-foreground: oklch(0.9676 0.0075 243);
@@ -526,7 +529,7 @@
 
 /* The mark drawing itself while the chat is still retrieving, and the passage-shaped
    placeholders under it. Both live only for the length of a wait — F11 put retrieval at
-   1.2 s, and 4.5 s while somebody is uploading — so unlike the shell's backdrop these earn
+   1.2 s, and 4.5 s while somebody is uploading — so unlike the static shell these earn
    their frames: there is a question in flight and nothing else on screen to look at.
 
    `pathLength` is normalised to 100 in the markup, so the offsets here are percentages of

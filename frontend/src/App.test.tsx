@@ -15,6 +15,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
+import { ApiError } from "@/shared/api/http";
+
 const authenticated = vi.fn();
 const refreshTokens = vi.fn();
 const fetchMyProfile = vi.fn();
@@ -264,6 +266,48 @@ describe("a session that cannot be renewed", () => {
     expect(window.sessionStorage.getItem(TOKEN_KEY)).toBe("access-2");
     // Rotated, not reused: keeping the old refresh token would defeat rotation entirely.
     expect(window.sessionStorage.getItem(REFRESH_KEY)).toBe("refresh-2");
+  });
+});
+
+describe("a token whose user no longer exists", () => {
+  /**
+   * The database was rebuilt and `ZENITH_JWT_SECRET` was not. Every token minted before the
+   * rebuild still passes the signature check and names a `sub` that is gone, so the API
+   * answers `GET /auth/profile` with `404 no such user` rather than `401` — the credential
+   * was never in doubt, the person behind it was.
+   *
+   * The shell used to read that as "the avatar is unavailable", keep the token, and render a
+   * workspace in which nothing could ever load. It is a dead session and it gets the same
+   * treatment as a revoked one: the tokens go, and the login form is what is on screen.
+   */
+  it("clears the session and shows the login form", async () => {
+    signedIn();
+    fetchMyProfile.mockRejectedValue(new ApiError(404, "not_found", "no such user"));
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    expect(await screen.findByRole("button", { name: "sign in" })).toBeTruthy();
+    // Both halves. A refresh token left behind would renew a session for a user who is not
+    // there, and hand the next reload the same broken screen.
+    expect(window.sessionStorage.getItem(TOKEN_KEY)).toBeNull();
+    expect(window.sessionStorage.getItem(REFRESH_KEY)).toBeNull();
+  });
+
+  it("keeps the session when the profile merely could not be fetched", async () => {
+    // A timeout, a proxy, the API restarting. None of these say anything about who the token
+    // speaks for, and signing somebody out over a blip is a worse failure than a missing
+    // initial in the sidebar.
+    signedIn();
+    fetchMyProfile.mockRejectedValue(new Error("offline"));
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    expect(await screen.findByRole("button", { name: /^folders$/i })).toBeTruthy();
+    expect(window.sessionStorage.getItem(TOKEN_KEY)).toBe("access-1");
   });
 });
 

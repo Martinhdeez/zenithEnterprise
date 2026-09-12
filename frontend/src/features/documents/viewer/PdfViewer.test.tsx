@@ -96,12 +96,18 @@ const CANVAS_TOP = 16;
  * So the sizes are stubbed on the prototype before the render, where the effects will see
  * them, and `scrollTop` is replaced with an accessor that records what was written to it.
  */
-function stubGeometry(): { scrolledTo: () => number } {
-  let scrolledTo = 0;
+const CONTENT_WIDTH = 1000;
+
+function stubGeometry(): { scrolledTo: () => number; scrolledAcross: () => number } {
+  const at = { top: 0, left: 0 };
   for (const [name, value] of [
     ["clientHeight", PANEL_HEIGHT],
     ["clientWidth", PANEL_HEIGHT],
     ["offsetTop", CANVAS_TOP],
+    // The page is wider than the panel, which is the only case horizontal centring has an
+    // answer for. jsdom lays nothing out, so `scrollWidth` would otherwise be zero and the
+    // centring would be asserted against a page that fits.
+    ["scrollWidth", CONTENT_WIDTH],
   ] as const) {
     Object.defineProperty(HTMLElement.prototype, name, {
       configurable: true,
@@ -116,15 +122,16 @@ function stubGeometry(): { scrolledTo: () => number } {
     value: () => ({}),
   });
   for (const name of ["scrollTop", "scrollLeft"] as const) {
+    const axis = name === "scrollTop" ? "top" : "left";
     Object.defineProperty(HTMLElement.prototype, name, {
       configurable: true,
-      get: () => (name === "scrollTop" ? scrolledTo : 0),
+      get: () => at[axis],
       set: (value: number) => {
-        if (name === "scrollTop") scrolledTo = value;
+        at[axis] = value;
       },
     });
   }
-  return { scrolledTo: () => scrolledTo };
+  return { scrolledTo: () => at.top, scrolledAcross: () => at.left };
 }
 
 /** Render with the geometry stubbed, and report where the viewer asked to scroll to. */
@@ -375,6 +382,49 @@ describe("the ways to zoom", () => {
       await new Promise((resolve) => setTimeout(resolve, 250));
     });
     expect(asked.length).toBe(drawn + 1);
+  });
+});
+
+/**
+ * The composed open, which is what a search performs on its own.
+ *
+ * Three things have to happen together and none of them may happen to a citation the reader
+ * clicked: the page is zoomed until the highlighted column fills the panel, it is centred
+ * horizontally, and the whole passage is framed rather than merely reached.
+ */
+describe("the open a search composes", () => {
+  it("zooms so the highlighted column fills the panel", async () => {
+    // The box spans 0.8 of a 600px page — 480px — against 400px of panel less its 32px of
+    // padding. The column has to come *down* to fit, which is the direction a naive
+    // "zoom in to frame it" would get backwards.
+    const geometry = stubGeometry();
+    await act(async () => {
+      render(<PdfViewer citation={citation() as never} token="t" framed />);
+    });
+
+    expect(asked.at(-1)!).toBeCloseTo((BASE_SCALE * (368 * 0.97)) / 480, 2);
+    expect(geometry.scrolledAcross()).toBeCloseTo((CONTENT_WIDTH - PANEL_HEIGHT) / 2);
+  });
+
+  it("leaves the page alone when the reader opened the citation themselves", async () => {
+    // The same citation, unframed: the scale it has always drawn at, and no horizontal move.
+    const geometry = stubGeometry();
+    await act(async () => {
+      render(<PdfViewer citation={citation() as never} token="t" />);
+    });
+
+    expect(asked.at(-1)!).toBeCloseTo(BASE_SCALE);
+    expect(geometry.scrolledAcross()).toBe(0);
+  });
+
+  it("does not fit a citation that has no boxes to measure", async () => {
+    // Documents ingested before bounding boxes existed. There is no column to fill, and
+    // guessing one would zoom to an arbitrary number on a page nobody asked to be zoomed.
+    await act(async () => {
+      render(<PdfViewer citation={citation({ bboxes: [] }) as never} token="t" framed />);
+    });
+
+    expect(asked.at(-1)!).toBeCloseTo(BASE_SCALE);
   });
 });
 

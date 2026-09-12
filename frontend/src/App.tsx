@@ -57,6 +57,7 @@ import { tenantStatus, type TenantStatus } from "@/shared/api/tenant";
 import { CommandPalette } from "@/shared/ui/CommandPalette";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
+import { ApiError } from "@/shared/api/http";
 import { forget, read, write } from "@/shared/lib/storage";
 import { copy } from "@/shared/lib/clipboard";
 
@@ -190,8 +191,12 @@ function LanguageControl({ collapsed }: { collapsed: boolean }) {
   // this bar three stacked bands; at two letters the control fits beside the profile and
   // the row disappears. The full name stays in the tooltip and in the accessible name, so
   // nothing is lost to anyone who needs it spelled out.
+  //
+  // The track is a control on the ground, so it takes the control step: white `--card` on the
+  // grey light ground, the darker well in dark. `bg-background` alone was the ground's own
+  // colour in light, and the track vanished.
   return (
-    <div role="group" aria-label={t("Language")} className="flex gap-0.5 rounded-full bg-background p-0.5">
+    <div role="group" aria-label={t("Language")} className="flex gap-0.5 rounded-full bg-card p-0.5 dark:bg-background">
       {(["en", "es"] as const).map((value) => (
         <button
           key={value}
@@ -262,7 +267,8 @@ function ThemeControl({ collapsed }: { collapsed: boolean }) {
   }
 
   return (
-    <div role="group" aria-label={t("Theme")} className="flex gap-0.5 rounded-full bg-background p-0.5">
+    // Same track as the language control beside it, for the same reason.
+    <div role="group" aria-label={t("Theme")} className="flex gap-0.5 rounded-full bg-card p-0.5 dark:bg-background">
       {ORDER.map((value) => {
         const Icon = ICON[value];
         return (
@@ -373,11 +379,34 @@ export function App() {
   // preference store took down the entire product rather than one sidebar setting. `Search`
   // learned the same lesson where it cost a search result; this is the version that costs
   // everything.
-  const [collapsed, setCollapsed] = useState(() => read("local", SIDEBAR_KEY) === "true");
+  const [collapsedPreference, setCollapsedPreference] = useState(
+    () => read("local", SIDEBAR_KEY) === "true",
+  );
+
+  /**
+   * The rail a *search* asked for, which is not the same thing as the reader's preference and
+   * must never be written over it.
+   *
+   * A search that opens its best result composes the screen around the document: the bar goes
+   * to its rail so the passage has the width. That is a property of what is on screen right
+   * now, so it lives in ordinary state and dies when the document closes — where `collapsed`
+   * below is persisted, and someone who likes the bar open would otherwise find it collapsed
+   * for ever after one search.
+   */
+  const [autoCollapsed, setAutoCollapsed] = useState(false);
+  const collapsed = collapsedPreference || autoCollapsed;
 
   useEffect(() => {
-    write("local", SIDEBAR_KEY, String(collapsed));
-  }, [collapsed]);
+    write("local", SIDEBAR_KEY, String(collapsedPreference));
+  }, [collapsedPreference]);
+
+  /**
+   * Whether the open document was opened *by* a search rather than clicked.
+   *
+   * Read by two things that have to agree: the panel opens wider, and `PdfViewer` composes
+   * the passage inside it instead of merely scrolling to it.
+   */
+  const [framed, setFramed] = useState(false);
 
   // Changing section closes whatever document was open. The preview belongs to the screen
   // that opened it — a PDF left hanging beside the admin panel is a third of the viewport
@@ -388,6 +417,8 @@ export function App() {
     setView(next);
     setCitation(null);
     setPdfExpanded(false);
+    setFramed(false);
+    setAutoCollapsed(false);
     // The anchored conversation ends with the document it was about.
     //
     // This cleared the citation and left `panel`, `started` and `askQuestion` behind, which
@@ -463,11 +494,32 @@ export function App() {
     // than reading a prop, so it is never showing a stale one from before a change.
     void fetchMyProfile(token)
       .then((result) => !cancelled && setMe(result))
-      .catch(() => !cancelled && setMe(null));
+      .catch((failure) => {
+        if (cancelled) return;
+        // **This request is also the session's proof of life, and it is the only one.**
+        //
+        // A token whose signature still verifies is not the same thing as a session: rebuild
+        // the database with `ZENITH_JWT_SECRET` unchanged and every token minted before the
+        // rebuild still passes the signature check while naming a `sub` that no longer
+        // exists. The API answers that with `404 no such user` — not `401`, because the
+        // credential was never in doubt, the person behind it was — and this client used to
+        // read it as "the avatar is unavailable" and carry on into a workspace where nothing
+        // could ever load.
+        //
+        // Both statuses mean the same thing here and are treated the same way: whoever this
+        // token spoke for cannot be established, so the session is dead and the only honest
+        // screen is the login form. Anything else — a timeout, a proxy, the server being
+        // down — leaves the session alone and costs an initial in the sidebar.
+        if (failure instanceof ApiError && (failure.status === 401 || failure.status === 404)) {
+          signOut();
+          return;
+        }
+        setMe(null);
+      });
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, signOut]);
 
   useEffect(() => {
     // Ingestion is asynchronous, so the counts change without the user doing anything.
@@ -567,51 +619,29 @@ export function App() {
   const initial = (me?.name ?? me?.email ?? "").trim().charAt(0).toUpperCase() || "–";
 
   return (
-    // A gutter of plain background, and every region floats on it as its own rounded,
-    // bordered card — the sidebar, the workspace and the preview are three surfaces, not
-    // one shell with internal dividers, which is the difference between this and the flat
-    // edge-to-edge layout it replaced.
-    <div className="relative isolate flex h-screen overflow-hidden gap-6 bg-background p-6 text-foreground">
-      {/* The backdrop, and the same drawing in both themes — only the tints are restated,
-          in `--art-0` through `--art-5`. A photograph lived here for one afternoon and was
-          the wrong register: it depicted something, and chrome that depicts something puts a
-          buyer's attention on a decision somebody made rather than on the product. It also
-          made the two themes read as two different applications, one abstract and one scenic.
-
-          Flat bands in tints of the two brand hues, drawn here rather than shipped as a file:
-          a few kilobytes of markup instead of four hundred, it is ours so no licence travels
-          with it, and `fill` reads the same tokens as everything else, so it cannot drift
-          from the palette.
-
-          Only the frame and the gutter of it are ever visible, so the bands are wide and
-          smooth on purpose — what shows is which colour an edge happens to cross, and detail
-          finer than that would be work nobody can see. `slice` rather than `meet` so it
-          always covers, whatever the window is doing. */}
-      <svg
-        aria-hidden="true"
-        className="app-art"
-        viewBox="0 0 1600 1000"
-        preserveAspectRatio="xMidYMid slice"
-      >
-          {/* The ground the bands sit on. Without it the top strip was the page's own
-              white, which put no colour at all along the edge that frames the header —
-              the one place the eye starts. It is the most saturated of the six on
-              purpose, so the composition runs strong at the top into pale and then into
-              the greens, rather than fading out at both ends. */}
-          <rect x="-200" y="-400" width="2000" height="1800" fill="var(--art-0)" />
-          <path d="M-200 1400 L-200 140 L0 140 Q0 140 25 160 Q50 179 75 195 Q100 210 125 219 Q150 227 175 228 Q200 228 225 222 Q250 215 275 204 Q300 193 325 181 Q350 170 375 160 Q400 150 425 143 Q450 137 475 134 Q500 130 525 129 Q550 127 575 125 Q600 123 625 119 Q650 115 675 108 Q700 101 725 93 Q750 84 775 77 Q800 69 825 66 Q850 63 875 65 Q900 68 925 79 Q950 89 975 105 Q1000 121 1025 141 Q1050 161 1075 179 Q1100 198 1125 212 Q1150 226 1175 232 Q1200 238 1225 235 Q1250 232 1275 222 Q1300 212 1325 198 Q1350 184 1375 169 Q1400 155 1425 142 Q1450 130 1475 122 Q1500 115 1525 111 Q1550 108 1575 107 L1800 107 L1800 1400 Z" fill="var(--art-1)" />
-          <path d="M-200 1400 L-200 387 L0 387 Q0 387 25 374 Q50 361 75 349 Q100 337 125 328 Q150 319 175 312 Q200 306 225 303 Q250 300 275 299 Q300 298 325 297 Q350 297 375 296 Q400 295 425 292 Q450 290 475 286 Q500 282 525 276 Q550 271 575 265 Q600 259 625 255 Q650 251 675 250 Q700 248 725 251 Q750 254 775 262 Q800 270 825 283 Q850 296 875 312 Q900 328 925 346 Q950 364 975 381 Q1000 399 1025 413 Q1050 428 1075 437 Q1100 446 1125 449 Q1150 452 1175 449 Q1200 445 1225 436 Q1250 427 1275 413 Q1300 399 1325 384 Q1350 368 1375 352 Q1400 337 1425 323 Q1450 310 1475 300 Q1500 290 1525 284 Q1550 278 1575 276 L1800 274 L1800 1400 Z" fill="var(--art-2)" />
-          <path d="M-200 1400 L-200 480 L0 480 Q0 480 25 481 Q50 481 75 480 Q100 478 125 474 Q150 470 175 466 Q200 462 225 461 Q250 459 275 464 Q300 468 325 480 Q350 491 375 509 Q400 527 425 547 Q450 568 475 586 Q500 604 525 614 Q550 625 575 626 Q600 627 625 617 Q650 607 675 590 Q700 572 725 552 Q750 531 775 513 Q800 494 825 482 Q850 469 875 464 Q900 459 925 460 Q950 460 975 465 Q1000 469 1025 473 Q1050 477 1075 479 Q1100 481 1125 481 Q1150 481 1175 480 Q1200 479 1225 481 Q1250 483 1275 489 Q1300 496 1325 508 Q1350 521 1375 538 Q1400 554 1425 572 Q1450 589 1475 603 Q1500 616 1525 621 Q1550 626 1575 621 L1800 615 L1800 1400 Z" fill="var(--art-3)" />
-          <path d="M-200 1400 L-200 820 L0 820 Q0 820 25 817 Q50 814 75 807 Q100 799 125 789 Q150 778 175 766 Q200 754 225 742 Q250 730 275 720 Q300 710 325 702 Q350 693 375 688 Q400 683 425 680 Q450 677 475 675 Q500 674 525 673 Q550 672 575 671 Q600 669 625 667 Q650 664 675 660 Q700 655 725 649 Q750 644 775 637 Q800 631 825 625 Q850 618 875 614 Q900 610 925 609 Q950 608 975 611 Q1000 614 1025 622 Q1050 629 1075 642 Q1100 654 1125 669 Q1150 685 1175 703 Q1200 720 1225 738 Q1250 756 1275 772 Q1300 788 1325 800 Q1350 812 1375 819 Q1400 825 1425 827 Q1450 828 1475 823 Q1500 818 1525 809 Q1550 799 1575 786 L1800 773 L1800 1400 Z" fill="var(--art-4)" />
-          <path d="M-200 1400 L-200 842 L0 842 Q0 842 25 840 Q50 838 75 838 Q100 839 125 837 Q150 836 175 832 Q200 827 225 822 Q250 817 275 815 Q300 814 325 820 Q350 826 375 841 Q400 856 425 876 Q450 897 475 917 Q500 937 525 949 Q550 961 575 961 Q600 961 625 949 Q650 937 675 917 Q700 898 725 879 Q750 859 775 845 Q800 832 825 826 Q850 821 875 822 Q900 823 925 827 Q950 830 975 833 Q1000 835 1025 834 Q1050 834 1075 832 Q1100 831 1125 833 Q1150 834 1175 843 Q1200 851 1225 866 Q1250 882 1275 900 Q1300 919 1325 935 Q1350 950 1375 957 Q1400 963 1425 957 Q1450 950 1475 933 Q1500 916 1525 894 Q1550 872 1575 852 L1800 832 L1800 1400 Z" fill="var(--art-5)" />
-      </svg>
+    // The page ground *is* the sidebar: one surface from the window edge to the workspace,
+    // with the navigation drawn straight onto it. The workspace and the preview are the only
+    // things inset — rounded, bordered, a gutter clear of the ground — because they are where
+    // the work is, and the navigation is how you get there.
+    //
+    // It used to be three cards floating on a painted backdrop, the sidebar one of them. Three
+    // equal surfaces said the navigation mattered as much as the page it serves, and the
+    // backdrop was a fourth thing competing for the gutter.
+    //
+    // The two themes put the light in opposite places. Dark: the ground is `--card` and the
+    // workspace sinks to `--background`, the darkest step. Light: the ground is the grey
+    // `--background` and the workspace is the white surface, because in a light interface the
+    // brightest surface is the one the eye takes for the page. The inversion inside the panel
+    // is done with tokens rather than here — `.workspace` in `index.css` — so every screen in
+    // it keeps the separation it was tuned with.
+    <div className="relative isolate flex h-screen overflow-hidden gap-2 bg-background py-2 pr-2 text-foreground dark:bg-card">
       {/* Layout, not a workspace: Folders and Upload used to live here as their own
           sections, each with its own scroll, competing with navigation for the same
           narrow column. Both are full screens in the main panel now, reached the same way
           Chat or Admin are — this bar's only job left is getting you there and showing
           what's currently ready, which is why Status is the one thing that stayed. */}
       <nav
-        className={`flex shrink-0 flex-col rounded-xl border border-border bg-card shadow-sm transition-[width] duration-200 ${
+        className={`flex shrink-0 flex-col transition-[width] duration-200 ${
           collapsed ? "w-16" : "w-72"
         }`}
       >
@@ -621,8 +651,8 @@ export function App() {
             and the toggle takes its position — the way Gemini's rail does it — so the
             thing you click to get the sidebar back is exactly where the logo was. */}
         <div
-          className={`panel-accent flex shrink-0 items-center gap-2 rounded-t-xl border-b border-border py-3.5 ${
-            collapsed ? "justify-center px-2" : "px-4"
+          className={`mx-2 flex shrink-0 items-center gap-2 border-b border-border py-3.5 ${
+            collapsed ? "justify-center" : "px-2"
           }`}
         >
           {collapsed ? (
@@ -633,7 +663,12 @@ export function App() {
             // `display`: they occupy the same cell, so nothing shifts on hover.
             <button
               type="button"
-              onClick={() => setCollapsed(false)}
+              onClick={() => {
+                setCollapsedPreference(false);
+                // Reaching for the bar ends the search's claim on it. Without this the rail
+                // would spring back the moment anything else re-rendered.
+                setAutoCollapsed(false);
+              }}
               aria-label={t("Expand sidebar")}
               title={t("Expand sidebar")}
               className="group grid size-8 place-items-center rounded-md transition-colors hover:bg-secondary/60"
@@ -665,7 +700,7 @@ export function App() {
               </div>
               <button
                 type="button"
-                onClick={() => setCollapsed(true)}
+                onClick={() => setCollapsedPreference(true)}
                 aria-label={t("Collapse sidebar")}
                 title={t("Collapse sidebar")}
                 className="shrink-0 rounded-md p-1.5 text-muted-foreground/60 transition-colors hover:bg-secondary/60 hover:text-foreground"
@@ -754,13 +789,16 @@ export function App() {
             what makes the difference between them legible. It also stops a destructive
             action sitting permanently one stray click from the navigation. */}
         <div
-          // `rounded-b-xl` mirrors the `rounded-t-xl` on the brand header at the other end
-          // of this column. Both are `panel-accent`, which paints a gradient rather than
-          // inheriting the sidebar's fill, so a square corner here does not just fail to
-          // curve — it paints over the curve, and the sidebar reads as having one rounded
-          // corner and one blunt one.
-          className={`panel-accent flex shrink-0 flex-col gap-1 rounded-b-xl border-t border-border py-2 ${
-            collapsed ? "items-center px-2" : "px-2"
+          // No `panel-accent` here or on the brand row: that ledge is the title bar of an
+          // inset panel, and the sidebar is no longer one. On the open ground it painted a
+          // darker block at each end of a column that has no edges to hold it, which read as
+          // the remains of the card rather than as chrome.
+          //
+          // `mx-2` on both, so their rules are inset. A divider that runs from the window edge
+          // and stops at the gutter reads as a cut in the ground; one that stops short at both
+          // ends reads as what it is, a break between groups inside the navigation.
+          className={`mx-2 flex shrink-0 flex-col gap-1 border-t border-border py-2 ${
+            collapsed ? "items-center" : ""
           }`}
         >
           {collapsed && <LanguageControl collapsed />}
@@ -836,9 +874,15 @@ export function App() {
         <ResizablePanel
           // Only meaningful while the preview is mounted; with nothing beside it this
           // panel is the entire row regardless of the number.
-          defaultSize="62%"
+          //
+          // **The pair is normalised, so these two numbers are a ratio and not a pair of
+          // widths.** 62 beside the preview's 53 sums to 115, and the group scales both down
+          // to fit: the preview lands at 53/115 = 46% of the row, not the 53% it asked for.
+          // Measured that way before this line existed. The framed value is therefore the
+          // preview's complement rather than a second independent choice.
+          defaultSize={framed ? "47%" : "62%"}
           minSize="0%"
-          className="flex min-w-0 flex-col rounded-xl border border-border bg-card shadow-sm"
+          className="workspace flex min-w-0 flex-col rounded-xl border border-border bg-background shadow-sm dark:bg-card"
         >
           <header className="panel-accent flex h-12 shrink-0 items-center gap-1.5 rounded-t-xl border-b border-border px-6 text-sm">
             <span className="text-muted-foreground">Zenith</span>
@@ -909,10 +953,10 @@ export function App() {
               <button
                 type="button"
                 onClick={() => setFolderSelection(null)}
-                className="ml-auto flex items-center gap-1.5 rounded-full bg-primary/10 py-1 pl-2.5 pr-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
+                className="ml-auto flex items-center gap-1.5 rounded-full bg-primary/10 py-1 pl-3 pr-2 text-[0.8125rem] font-medium text-primary transition-colors hover:bg-primary/15"
               >
                 {folderSelection?.name ?? "filtered"}
-                <X className="size-3" />
+                <X className="size-3.5" />
               </button>
             )}
           </header>
@@ -955,9 +999,13 @@ export function App() {
               <div className={panel === "conversation" ? "hidden" : "flex flex-1 flex-col"}>
               <Search
                 token={token}
-                onCitation={(next, question) => {
+                onCitation={(next, question, opened) => {
                   setCitation(next);
                   setAskQuestion(question);
+                  // Only the search's own open composes the screen. A citation the reader
+                  // clicked leaves the bar, the panel width and the page exactly as they are.
+                  setFramed(opened === true);
+                  if (opened) setAutoCollapsed(true);
                   // A new document ends the previous conversation rather than silently
                   // re-pointing it: the thread that was on screen was about a different
                   // file, and carrying it over would attribute its answers to this one.
@@ -1097,13 +1145,18 @@ export function App() {
             porting the content to a portal/overlay, so `PdfViewer` never unmounts and the
             open document doesn't re-fetch or lose its scroll position on the way in or out. */}
         <ResizablePanel
-          defaultSize="35%"
+          // Wider when the search opened it. 35% is the width for a document consulted beside
+          // a list being read; the composed open is the document *being* the screen, and 53%
+          // is what a page needs before its text is read rather than recognised. The handle
+          // still moves it, and a reader who drags it keeps whatever they chose — this is the
+          // width it starts at, not one it is held to.
+          defaultSize={framed ? "53%" : "35%"}
           minSize="20%"
           maxSize="90%"
           className={
             pdfExpanded
-              ? "fixed inset-3 z-50 flex flex-col rounded-xl border border-border bg-card shadow-2xl"
-              : "flex flex-col rounded-xl border border-border bg-card shadow-sm"
+              ? "workspace fixed inset-3 z-50 flex flex-col rounded-xl border border-border bg-background shadow-2xl dark:bg-card"
+              : "workspace flex flex-col rounded-xl border border-border bg-background shadow-sm dark:bg-card"
           }
         >
           <header className="panel-accent flex h-12 shrink-0 items-center justify-between rounded-t-xl border-b border-border px-4 text-sm font-medium text-foreground">
@@ -1236,6 +1289,10 @@ export function App() {
                 onClick={() => {
                   setCitation(null);
                   setPdfExpanded(false);
+                  // The composition belonged to the document. Closing it gives the reader
+                  // back the bar they had before the search took it.
+                  setFramed(false);
+                  setAutoCollapsed(false);
                   // The conversation was about the document being closed. Leaving it on
                   // screen would leave answers with no source beside them to check.
                   setStarted(false);
@@ -1258,7 +1315,7 @@ export function App() {
               {citation && citation.media_type.startsWith("text/") ? (
                 <TextViewer citation={citation} token={token} />
               ) : (
-                <PdfViewer citation={citation} token={token} />
+                <PdfViewer citation={citation} token={token} framed={framed} />
               )}
             </Suspense>
           </div>

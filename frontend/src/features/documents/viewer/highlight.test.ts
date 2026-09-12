@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { boxesOnPage, scrollTargetFor, toRect, type Box } from "./highlight";
+import {
+  boxesOnPage,
+  centredScrollLeft,
+  frameTargetFor,
+  scrollTargetFor,
+  toRect,
+  unionRect,
+  zoomForColumn,
+  type Box,
+} from "./highlight";
 
 const box = (over: Partial<Box> = {}): Box => ({ x0: 0.1, y0: 0.2, x1: 0.9, y1: 0.25, ...over });
 
@@ -78,5 +87,83 @@ describe("bounding boxes on a rendered page", () => {
     const rect = toRect({ x0: 0, y0: 0, x1: 1, y1: 0.05 }, 1000, 2000);
 
     expect(scrollTargetFor(rect, 0, 900)).toBe(0);
+  });
+});
+
+describe("framing a passage rather than merely reaching it", () => {
+  it("takes the whole passage, not its first line", () => {
+    // A paragraph arrives as one box per line. Measured on a real citation: fourteen of them.
+    const rects = [
+      { left: 100, top: 800, width: 400, height: 20 },
+      { left: 50, top: 830, width: 700, height: 20 },
+      { left: 50, top: 860, width: 600, height: 20 },
+    ];
+
+    const union = unionRect(rects)!;
+
+    expect(union.left).toBe(50);
+    expect(union.top).toBe(800);
+    expect(union.width).toBe(700);
+    expect(union.height).toBe(80);
+  });
+
+  it("has nothing to frame when there are no boxes", () => {
+    expect(unionRect([])).toBeNull();
+  });
+
+  it("centres a passage that fits in the panel", () => {
+    // 900 tall panel, 80 tall passage: there is room for all of it, so it goes in the middle
+    // rather than a third down. (900 - 80) / 2 = 410.
+    const rect = { left: 0, top: 1000, width: 500, height: 80 };
+
+    expect(frameTargetFor(rect, 0, 900)).toBeCloseTo(1000 - 410);
+  });
+
+  it("falls back to a third down when the passage is taller than the panel", () => {
+    // Centring here would put the passage's first line above the top edge — the reader would
+    // arrive in the middle of the thing they clicked to read.
+    const rect = { left: 0, top: 1000, width: 500, height: 1200 };
+
+    expect(frameTargetFor(rect, 0, 900)).toBeCloseTo(1000 - 300);
+  });
+
+  it("never frames above the top of the document", () => {
+    const rect = { left: 0, top: 10, width: 500, height: 20 };
+
+    expect(frameTargetFor(rect, 0, 900)).toBe(0);
+  });
+});
+
+describe("centring the page horizontally", () => {
+  it("splits the overflow evenly", () => {
+    // The measured case: a 1169px content box in an 843px panel centres at 163.
+    expect(centredScrollLeft(1169, 843)).toBeCloseTo(163);
+  });
+
+  it("does not scroll a page that already fits", () => {
+    expect(centredScrollLeft(600, 843)).toBe(0);
+  });
+});
+
+describe("the zoom that fills the panel with the passage's column", () => {
+  it("grows the page until the column spans the panel", () => {
+    // A column drawn 400px wide at zoom 1, in 800px of panel, has to roughly double.
+    expect(zoomForColumn(400, 800, 1)).toBeCloseTo(1.94);
+  });
+
+  it("shrinks a column that overflows the panel", () => {
+    expect(zoomForColumn(1000, 500, 1)).toBeLessThan(1);
+  });
+
+  it("is relative to the zoom the column was measured at", () => {
+    // The column width comes off the rendered page, so it already carries whatever zoom that
+    // page was drawn at. Ignoring that would square the factor on the second call.
+    expect(zoomForColumn(400, 800, 2)).toBeCloseTo(zoomForColumn(400, 800, 1) * 2);
+  });
+
+  it("leaves the zoom alone when there is nothing to measure", () => {
+    // A citation with no bounding boxes, or a panel that has not been laid out yet.
+    expect(zoomForColumn(0, 800, 1.25)).toBe(1.25);
+    expect(zoomForColumn(400, 0, 1.25)).toBe(1.25);
   });
 });

@@ -14,7 +14,16 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Crosshair, Minus, Plus } from "lucide-react";
 
-import { boxesOnPage, scrollTargetFor, toRect, type Box } from "./highlight";
+import {
+  boxesOnPage,
+  centredScrollLeft,
+  frameTargetFor,
+  scrollTargetFor,
+  toRect,
+  unionRect,
+  zoomForColumn,
+  type Box,
+} from "./highlight";
 import type { Citation } from "@/features/chat";
 
 // The worker is loaded from the bundle rather than a CDN. This product is installed inside
@@ -71,16 +80,28 @@ const ZOOM_STOPS = [0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 2.5, 3, 4];
  */
 const SETTLE_MS = 140;
 
+/** The scroller's own `p-4`, as a number, because the fit has to subtract it. */
+const SCROLLER_PADDING = 32;
+
 interface Props {
   citation: Citation | null;
   token: string;
+  /**
+   * Compose the passage in the panel instead of merely scrolling to it.
+   *
+   * Set for the open a search performs on its own. The page is zoomed until the highlighted
+   * column fills the panel, centred horizontally, and the whole passage — not its first line
+   * — is framed vertically. A citation the reader clicked gets none of it: they are reading a
+   * screen already, and rearranging it under them would be the interface taking the wheel.
+   */
+  framed?: boolean;
 }
 
 function bounded(zoom: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
 }
 
-export function PdfViewer({ citation, token }: Props) {
+export function PdfViewer({ citation, token, framed = false }: Props) {
   const t = useT();
   const canvas = useRef<HTMLCanvasElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -156,9 +177,63 @@ export function PdfViewer({ citation, token }: Props) {
     if (!boxes.length) return;
 
     arrived.current = key;
-    const rect = toRect(boxes[0]!, size.width, size.height);
-    container.scrollTop = scrollTargetFor(rect, sheet.offsetTop, container.clientHeight);
-  }, [citation, page, size]);
+
+    if (!framed) {
+      const rect = toRect(boxes[0]!, size.width, size.height);
+      container.scrollTop = scrollTargetFor(rect, sheet.offsetTop, container.clientHeight);
+      return;
+    }
+
+    // The whole passage, and the page centred under it. `unionRect` cannot return null here —
+    // `boxes` is non-empty — but the null branch is the type's, not a guess about the data.
+    const whole = unionRect(boxes.map((box) => toRect(box, size.width, size.height)));
+    if (!whole) return;
+
+    container.scrollTop = frameTargetFor(whole, sheet.offsetTop, container.clientHeight);
+    container.scrollLeft = centredScrollLeft(container.scrollWidth, container.clientWidth);
+  }, [citation, framed, page, size]);
+
+  /**
+   * Zoom until the passage's own column fills the panel.
+   *
+   * Runs before the placement above rather than with it, because it changes the size the
+   * placement is computed from: the fit sets a new zoom, pdf.js redraws, `size` changes, and
+   * only then is there a page to centre. Clearing `arrived` is what lets the placement effect
+   * run a second time on that new size — without it the reader is framed against the page as
+   * it was *before* the zoom, which is the one arrangement that is wrong at both axes.
+   *
+   * Once per citation, keyed by chunk. Not once per page: stepping to the next page is the
+   * reader navigating, and re-fitting under them would undo whatever zoom they had chosen.
+   */
+  const fitted = useRef<string | null>(null);
+  useEffect(() => {
+    const container = scroller.current;
+    if (!framed || !citation || !size || !container) return;
+    if (fitted.current === citation.chunk_id) return;
+
+    const boxes = boxesOnPage(citation.bboxes as unknown as Box[], cited);
+    if (!boxes.length) return;
+
+    fitted.current = citation.chunk_id;
+
+    // The widest highlighted line stands in for the column. A short last line would ask for a
+    // zoom that puts the rest of the paragraph off both edges.
+    const column = Math.max(
+      ...boxes.map((box) => toRect(box, size.width, size.height).width),
+    );
+    const next = bounded(
+      zoomForColumn(column, container.clientWidth - SCROLLER_PADDING, zoom),
+    );
+    // A fit that lands where the page already is would clear `arrived` for a redraw that never
+    // comes, and the placement would never run at all.
+    if (Math.abs(next - zoom) < 0.01) return;
+
+    arrived.current = null;
+    anchor.current = null;
+    previewed.current = next;
+    setPreview(next);
+    setZoom(next);
+  }, [cited, citation, framed, size, zoom]);
 
   /**
    * Open the document. Once per citation — not once per page, and emphatically not once per

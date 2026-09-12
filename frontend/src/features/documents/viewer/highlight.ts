@@ -75,3 +75,86 @@ export function boxesOnPage(boxes: Box[], page: number): Box[] {
 export function scrollTargetFor(rect: Rect, pageTop: number, viewportHeight: number): number {
   return Math.max(0, pageTop + rect.top - viewportHeight / 3);
 }
+
+/**
+ * The whole passage on one page, as one rectangle.
+ *
+ * A chunk is highlighted line by line — a paragraph is fourteen boxes, not one — so every
+ * question about "where the passage is" has to be asked of their union. Framing on the first
+ * box alone puts a twenty-line passage's opening words in the middle of the panel with the
+ * rest of it below the fold, which is the same hunting problem `scrollTargetFor` was written
+ * to remove, one level up.
+ */
+export function unionRect(rects: Rect[]): Rect | null {
+  if (!rects.length) return null;
+
+  const left = Math.min(...rects.map((rect) => rect.left));
+  const top = Math.min(...rects.map((rect) => rect.top));
+  const right = Math.max(...rects.map((rect) => rect.left + rect.width));
+  const bottom = Math.max(...rects.map((rect) => rect.top + rect.height));
+
+  return { left, top, width: right - left, height: bottom - top };
+}
+
+/**
+ * Where to scroll so the *whole* passage is framed, rather than merely visible.
+ *
+ * Two cases, and they are different questions. A passage that fits in the panel should be
+ * centred: there is room to show all of it, and centring is what makes a reader see it as one
+ * block rather than as text that happens to start here. A passage taller than the panel cannot
+ * be centred — centring it would put its first line above the top edge — so it falls back to
+ * the same third-down rule `scrollTargetFor` uses, which keeps the opening line where reading
+ * starts.
+ *
+ * Separate from `scrollTargetFor` rather than replacing it. That one is what an ordinary
+ * citation click does, and it is deliberately gentler: it moves the page as little as it can.
+ * This one is for the framed open, where the point is composition.
+ */
+export function frameTargetFor(rect: Rect, pageTop: number, viewportHeight: number): number {
+  const centred = rect.height <= viewportHeight;
+  const offset = centred ? (viewportHeight - rect.height) / 2 : viewportHeight / 3;
+
+  return Math.max(0, pageTop + rect.top - offset);
+}
+
+/**
+ * Horizontally, the page is centred and that is the whole rule.
+ *
+ * A column of body text sits in the middle of its page in every document this product has
+ * been pointed at, so centring the page centres the text — and unlike a column-derived
+ * offset, it cannot be thrown off by a marginal note, a page number or a stamp that happens
+ * to be the widest box on the page.
+ *
+ * Clamped at zero because a page narrower than the panel has nothing to scroll: the negative
+ * half would be silently discarded by the browser, which is the right result reached by
+ * accident rather than on purpose.
+ */
+export function centredScrollLeft(contentWidth: number, viewportWidth: number): number {
+  return Math.max(0, (contentWidth - viewportWidth) / 2);
+}
+
+/**
+ * The zoom that makes the passage's own column fill the panel.
+ *
+ * Fitting the *page* to the panel is the obvious rule and it is the wrong one: it shows the
+ * margins, which nobody is reading, and leaves the text smaller than it was. What a reader
+ * is checking is the column the highlighted lines sit in, so that is what is fitted — measured
+ * from the widest highlighted line, which is the one piece of the page whose width is known
+ * without parsing the document's layout.
+ *
+ * `fill` leaves a hair of margin either side. At exactly 1 the column touches both edges,
+ * which reads as text that has been cropped rather than framed.
+ *
+ * Returns the caller's current zoom unchanged when there is nothing to measure — a citation
+ * with no boxes, or a page still being laid out at zero width.
+ */
+export function zoomForColumn(
+  columnWidth: number,
+  availableWidth: number,
+  currentZoom: number,
+  fill = 0.97,
+): number {
+  if (columnWidth <= 0 || availableWidth <= 0) return currentZoom;
+
+  return (currentZoom * (availableWidth * fill)) / columnWidth;
+}
