@@ -15,7 +15,19 @@ __pycache__/
 .ruff_cache/
 
 # environment
+#
+# `.env` alone was not enough. Anything that backs the file up beside itself —
+# `.env.bak`, `.env.local`, a timestamped copy made before editing — is untracked rather
+# than ignored, and an untracked file holding the JWT secret, the encryption key and every
+# database password is one `git add -A` away from being committed. That happened during
+# performance tuning and was caught by hand.
+#
+# The examples are re-admitted explicitly: they carry no secrets and are how a new
+# installation learns what to set.
 .env
+.env.*
+!.env.example
+!backend/.env.example
 
 # node
 # No trailing slash. `node_modules/` matches directories only, so a *symlink* named
