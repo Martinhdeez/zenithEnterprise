@@ -1,0 +1,47 @@
+Zenith Enterprise
+Copyright 2026 Martín Hernández González
+
+This product includes software developed by Martín Hernández González.
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+---
+
+THIRD-PARTY COMPONENTS
+
+This repository distributes no third-party code. It references the components below by
+package name or image tag, and they are fetched at install time under their own licences.
+Two of them carry obligations worth reading before you deploy or redistribute.
+
+ParadeDB / pg_search — AGPL-3.0
+    The database image (paradedb/paradedb) provides both pgvector and the BM25 index this
+    project's lexical half can use. It runs as a separate process, reached over the wire,
+    and no part of it is included here — so its copyleft does not extend to this project's
+    own code. Anyone who redistributes a bundled image, or modifies ParadeDB itself, takes
+    on ParadeDB's obligations rather than these.
+
+Hugging Face text-embeddings-inference (TEI) — HFOIL 1.0, NOT AN OPEN SOURCE LICENCE
+    The embedding and reranking servers run this image. HFOIL permits internal and
+    commercial use, and forbids offering TEI itself as a hosted or managed paid service
+    without a separate agreement with Hugging Face. This is the only component in the stack
+    that is not open source. If you intend to sell a hosted service built on this project,
+    read that licence first, or replace TEI with any server exposing the same embedding API.
+
+BAAI/bge-m3 — MIT
+    The embedding model. 1024 dimensions, multilingual.
+
+BAAI/bge-reranker-v2-m3 — Apache-2.0
+    The cross-encoder used for reranking. Optional at runtime: its absence degrades recall
+    visibly rather than failing.
+
+psycopg, psycopg-binary, psycopg-pool, psycopg2-binary — LGPL-3.0
+    Imported unmodified as libraries and replaceable, which is what makes them compatible
+    with an Apache-2.0 application.
+
+certifi — MPL-2.0
+    File-level copyleft on an unmodified dependency.
+
+Python and npm dependency closures
+    Predominantly MIT, ISC, BSD and Apache-2.0. `scripts/check-licences.sh` fails the build
+    on any GPL, AGPL or non-commercial licence entering the shipped Python closure; it has
+    no npm equivalent. Fonts arrive as @fontsource packages under OFL-1.1 and are not
+    vendored here.

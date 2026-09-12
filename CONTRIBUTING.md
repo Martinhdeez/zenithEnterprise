@@ -1,5 +1,14 @@
 # Contributing
 
+## Licence of contributions
+
+Inbound is outbound: anything you contribute is licensed under Apache-2.0, the licence in
+`LICENSE`, and you confirm you have the right to contribute it. There is no separate CLA to
+sign — opening a pull request is the whole ceremony.
+
+Apache-2.0 asks that modified files carry a notice of the change. A commit message that says
+what changed and why satisfies that, which is what `CONTRIBUTING` already asks for below.
+
 ## Language
 
 **Everything in this repository is in English, without exception**: identifiers, comments, docstrings, error messages, commit messages, branch names, documentation and CI text. See `.artifacts/specs/2026-07-27-mvp.md` §5.2 for the reasoning.
