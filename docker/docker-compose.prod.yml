@@ -16,14 +16,14 @@
 #      reachable only from inside it.
 #
 #   2. **Traefik labels on the frontend.** The proxy routes by `Host()` header and issues
-#      the certificate. It is Coolify's proxy, already running and already holding :80/:443,
+#      the certificate. It is the host's existing proxy, already running and holding :80/:443,
 #      so this joins its network rather than binding those ports itself.
 #
 #   3. **Restart policy.** The box reboots; the stack has to come back without a person.
 #
 # The hardware profile is *not* set here. It lives in `.env` beside the secrets, because it
 # is a property of the machine rather than of "production" — and this machine, measured, is
-# a 4-core 7.75 GB VPS with about 5 GB free after the 28 containers already on it. That is
+# a small 4-core host with a few GB free after whatever else it already runs. That is
 # `low-spec`: the cross-encoder alone wants 5 GB, which is why the reranker is off and why
 # the UI says "Degraded" on searches rather than pretending otherwise.
 
@@ -46,7 +46,7 @@ services:
   api:
     ports: !override []
     restart: unless-stopped
-    # Coolify removes untagged local images on stop/restart, and these are built here rather
+    # Some control planes remove untagged local images on stop/restart, and these are built here rather
     # than pulled from a registry. Without this the next restart tries to pull
     # `zenith-api:latest` from Docker Hub and fails on a stack that was working a moment ago.
     pull_policy: never
@@ -61,10 +61,10 @@ services:
     pull_policy: never
     networks:
       - default
-      - coolify
+      - proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=coolify"
+      - "traefik.docker.network=${ZENITH_PROXY_NETWORK:-proxy}"
       - "traefik.http.routers.zenith.rule=Host(`${ZENITH_DOMAIN:?set ZENITH_DOMAIN in .env}`)"
       - "traefik.http.routers.zenith.entrypoints=https"
       - "traefik.http.routers.zenith.tls=true"
@@ -78,5 +78,10 @@ services:
       - "traefik.http.middlewares.zenith-https.redirectscheme.scheme=https"
 
 networks:
-  coolify:
+  # Aliased inside this file, named outside it. A compose network's *key* cannot be
+  # interpolated — only its `name` can — so the file always calls it `proxy` and
+  # `ZENITH_PROXY_NETWORK` says what it is actually called on the host. Set it to whatever
+  # network the host's reverse proxy already runs on.
+  proxy:
     external: true
+    name: ${ZENITH_PROXY_NETWORK:-proxy}

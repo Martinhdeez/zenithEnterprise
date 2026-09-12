@@ -1,6 +1,6 @@
 """What the operator can send us when something is wrong.
 
-We sell on-premise. When a customer says "it's slow" or "it won't start", nobody on this
+This is installed on-premise. When a customer says "it's slow" or "it won't start", nobody on this
 team can SSH in and look — so the only diagnosis available is whatever they can run and
 paste into an email. That makes this file a support channel, and it has two properties it
 cannot lose.
@@ -964,7 +964,7 @@ def _model_service(name: str, url: str) -> Callable[[], Awaitable[tuple[Status, 
 #: Short on purpose too. `_scrub` truncates at 200 characters and this is the half an
 #: operator acts on, so it must never be the half that is cut.
 _RERANKER_COST: Final = (
-    "Search answers from the fused order, about 15 points of recall worse (F7). "
+    "Search answers from the fused order, measurably worse; see eval/rerank-depth.json. "
     "Start the `tei-rerank` container."
 )
 
@@ -1097,7 +1097,7 @@ async def _hardware() -> tuple[Status, str]:
     """The active profile, and everything it turned off.
 
     Degradations must be visible. `low-spec` runs without the reranker, and M0 measured
-    that at up to 20 points of Recall@8 — a customer should learn that from a diagnostic
+    that materially — a customer should learn it from a diagnostic
     they can run, not by inferring it from answers that are quietly worse.
     """
     from app.core.hardware import UNMEASURED, active

@@ -68,7 +68,7 @@ def test_low_spec_is_strictly_sequential() -> None:
 
 def test_low_spec_degradations_are_named() -> None:
     """`zenith diagnose` prints these. A customer running without the reranker is losing up
-    to 20 points of Recall@8 and must be able to find that out from a diagnostic rather
+    recall materially and must be able to find that out from a diagnostic rather
     than by noticing the answers are worse."""
     disabled = PROFILES["low-spec"].disabled
 

@@ -50,7 +50,7 @@
         "chunks": 19738
       },
       {
-        "tenant": "Grupo Ardena",
+        "tenant": "Organización Demo 2",
         "documents": 4,
         "pages": 171,
         "bytes": 1511892,
@@ -115,14 +115,14 @@
         "chunks": 0
       },
       {
-        "tenant": "Grupo Ardena",
+        "tenant": "Organización Demo 2",
         "label": "General",
         "documents": 4,
         "pages": 171,
         "chunks": 738
       },
       {
-        "tenant": "Grupo Ardena",
+        "tenant": "Organización Demo 2",
         "label": "Sin clasificar",
         "documents": 0,
         "pages": 0,
@@ -685,7 +685,7 @@
         "chunks": 25
       },
       {
-        "tenant": "Grupo Ardena",
+        "tenant": "Organización Demo 2",
         "filename": "ley-21-2013-evaluacion-ambiental.pdf",
         "pages": 88,
         "status": "ready",
@@ -695,7 +695,7 @@
         "chunks": 395
       },
       {
-        "tenant": "Grupo Ardena",
+        "tenant": "Organización Demo 2",
         "filename": "ley-37-2003-del-ruido.pdf",
         "pages": 23,
         "status": "ready",
@@ -705,7 +705,7 @@
         "chunks": 95
       },
       {
-        "tenant": "Grupo Ardena",
+        "tenant": "Organización Demo 2",
         "filename": "ley-38-1999-ordenacion-edificacion.pdf",
         "pages": 24,
         "status": "ready",
@@ -715,7 +715,7 @@
         "chunks": 99
       },
       {
-        "tenant": "Grupo Ardena",
+        "tenant": "Organización Demo 2",
         "filename": "rdl-1-2016-prevencion-control-contaminacion.pdf",
         "pages": 36,
         "status": "ready",
@@ -734,7 +734,7 @@
     "reach": {
       "juridico@empresademo.es": 42,
       "secretaria@empresademo.es": 20,
-      "direccion@ardena.es": 4
+      "direccion@demo2.es": 4
     },
     "passes": 2,
     "pass_of_record": 2,
@@ -3715,7 +3715,7 @@
     {
       "severity": "low",
       "title": "The abstention message is English on a Spanish installation",
-      "detail": "Every abstention returns 'The documents provided do not contain an answer to this question.' The corpus, the questions and every substantive answer are Spanish. On a demo to a Spanish buyer this is the one string they are guaranteed to see repeatedly."
+      "detail": "Every abstention returns 'The documents provided do not contain an answer to this question.' The corpus, the questions and every substantive answer are Spanish. On a demo to a Spanish-speaking audience this is the one string they are guaranteed to see repeatedly."
     },
     {
       "severity": "info",

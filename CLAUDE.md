@@ -5,7 +5,7 @@ deployed on-premise. Isolation between customers is the product; everything else
 negotiable.
 
 Process — branching, definition of done, commit format — is in `CONTRIBUTING.md` and is not
-repeated here. **The repository is written in English without exception**, including comments,
+repeated here. **The repository is written in English**, including comments,
 commit messages and this file.
 
 ---
@@ -108,7 +108,7 @@ backend/app/
   core/          config, database (the three session factories), hardware profiles, diagnostics
   features/<f>/  router, service, schemas, tests — one folder per feature, tests inside it
   cli.py         zenith <command>: tenants, users, passwords, diagnose
-backend/alembic/versions/   0001..0022, sequential, each with a downgrade that works
+backend/alembic/versions/   0001..0027, sequential, each with a downgrade that works
 backend/tests/integration/  only tests that cross features (isolation, RLS, BM25)
 backend/eval/               read-only measurement harness; writes JSON reports to disk
 frontend/src/
@@ -143,7 +143,8 @@ They are different questions and the second one is the one that has failed in fr
 - **A green suite does not mean the database is migrated.** Check `alembic current == head`
   against the running installation. A missing migration is a 500 in production with CI green.
 - **The product degrades rather than fails.** A missing reranker still answers, from the fused
-  order, roughly fifteen points of recall worse and without saying so. Start `tei-rerank`.
+  order, measurably worse and without saying so. How much depends on the corpus;
+  `backend/eval/rerank-depth.json` is where that number comes from. Start `tei-rerank`.
 - **Delete the row, then the file, never the reverse.** The worst case is an orphaned blob;
   the unacceptable case is a row pointing at a file that is gone.
 - **Storage is partitioned by tenant** (`root/<tenant_id>/<sha256>.pdf`), so blobs are never

@@ -31,7 +31,7 @@ ranked 5th by both                      →  2/65  = 0.0308   ← wins
 Identifier questions scored **0% at rank 8**. Two fixes: the candidate set became the
 **union** of both halves rather than the fused top-N (fusion was choosing candidates *and*
 ordering results, and is bad at the first), and each half's leader is guaranteed a place —
-a floor, not a weight. Recall@8 went 80% → 95%.
+a floor, not a weight. Recall@8 went 80% → 95% on one corpus of 13 public documents; not a benchmark.
 
 **Amendment 2 (F15) — the same failure one layer down, inside the lexical half.**
 

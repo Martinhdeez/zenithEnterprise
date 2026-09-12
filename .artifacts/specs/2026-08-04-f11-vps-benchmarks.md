@@ -1,7 +1,7 @@
 # F11 results — the first numbers from hardware a customer would buy
 
 Every latency this project has quoted came from a MacBook, one request at a time. This is
-the first measurement on the target: **OVH VPS, 4 cores, 7.6 GB RAM**, 19,500 chunks, the
+the first measurement on the target: **a 4-core, 7.6 GB VPS**, 19,500 chunks, the
 shipped code, real TEI.
 
 Three questions were open. All three are now answered, and one answer is a bug that was

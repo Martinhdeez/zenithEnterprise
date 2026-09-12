@@ -126,7 +126,8 @@ mean the same images.
 sense that `SearchService` catches its absence and answers anyway from the fused order,
 marked `degraded` — nothing crashes and no error is logged. It is not optional in the sense
 that matters: `docker/docker-compose.yml`'s own comment records that a reranker which never
-runs costs **about 15 points of recall**. Starting the stack without it is
+runs costs real recall — how much depends on the corpus, measured in
+`backend/eval/rerank-depth.json`. Starting the stack without it is
 how you demonstrate a number you cannot reproduce, with no symptom in front of you.
 `./scripts/demo-check.sh` fails on it for that reason.
 

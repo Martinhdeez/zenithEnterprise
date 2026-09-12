@@ -24,7 +24,7 @@ Also not measured: answer correctness, mechanical grounding faithfulness, ingest
 ## The corpus
 
 59 documents, 4,739 pages, 20,476 chunks, 20,476 embeddings, all `ready`, across two tenants.
-Empresa Demo holds 55 documents / 4,568 pages / 19,738 chunks over seven labels; Grupo Ardena
+Empresa Demo holds 55 documents / 4,568 pages / 19,738 chunks over seven labels; Organización Demo 2
 holds 4 environmental documents / 171 pages / 738 chunks. Largest label is *Normativa
 académica* (13 documents), heaviest is *General* (1,194 pages, carrying the Civil and Penal
 codes and the two procedural laws).
@@ -104,5 +104,5 @@ in reach: `e04` (Ley 9/2017, 273 pages), `e06` (the general VAT rate), `e08` (Le
 `e09` (art. 66 LGT), `e12` (LOSU governing bodies). These are the questions a buyer asks first.
 
 **The abstention message is in English.** Every abstention returns "The documents provided do
-not contain an answer to this question." on a Spanish corpus, in front of a Spanish buyer — and
+not contain an answer to this question." on a Spanish corpus, on a Spanish-language installation — and
 at a 40% abstention rate it is the string they will see most often.

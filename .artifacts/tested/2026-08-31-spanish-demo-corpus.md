@@ -8,7 +8,7 @@ disagrees with this file, one of the two is wrong and it is worth finding out wh
 
 ## What is being thrown away, and what was kept
 
-`./scripts/backup.sh ~/zenith-backups` was run first: **290 tables, 43 document rows, 42 PDF
+`./scripts/backup.sh <a path on other hardware>` was run first: **290 tables, 43 document rows, 42 PDF
 files, 83 MB of database and 55 MB of documents**, at `2026-08-31T11-34-06Z`. The backup
 reported one row without a file, which is `runbook.md` — a `.md`, so not counted by a check
 that counts `*.pdf`. Benign, and pre-existing.
@@ -30,8 +30,8 @@ Two steps are easy to forget after a fresh volume and both are silent-ish failur
 
 | Tenant | Why it exists |
 |---|---|
-| **the client** | the demo. Everything is driven here. |
-| **Grupo Ardena** | exists only to be a second tenant. Four documents, one user, never logged into during the demo — its whole purpose is that the same question returns nothing from it. |
+| **the demonstration tenant** | the demo. Everything is driven here. |
+| **Organización Demo 2** | exists only to be a second tenant. Four documents, one user, never logged into during the demo — its whole purpose is that the same question returns nothing from it. |
 
 ## The labels, and why these
 
@@ -41,7 +41,7 @@ A label is a permission, not a tag. So the taxonomy is chosen for what it lets a
 | Label | Docs | What it demonstrates |
 |---|---|---|
 | *(none — `General`, the default)* | ~20 | the tenant-wide floor: the big codes, readable by everyone |
-| `Normativa académica` | ~10 | the buyer asked for university requirements; this is that |
+| `Normativa académica` | ~10 | the demonstration called for university regulations; this is that |
 | `Empleo y personas` | ~8 | |
 | `Contratación y subvenciones` | ~5 | |
 | `Protección de datos y digital` | ~7 | |
@@ -130,7 +130,7 @@ made to agree**; that is a real inconsistency, not a papered-over one.
 
 **Four BOE identifiers I guessed for the second tenant were all wrong**, one of them off by a
 single digit (`BOE-A-1999-21568` where the law is `-21567`), and two silently resolved to
-laws the client already held. I had told the harvesting agent not to guess identifiers; I then
+laws the corpus already held. I had told the harvesting agent not to guess identifiers; I then
 guessed four. Every id in both tenants is now confirmed against `act.php` before download.
 
 ## A gap in the recovery story, found while rebuilding this
@@ -173,7 +173,7 @@ for documents somebody has decided about.
 
 | | |
 |---|---|
-| documents | **59** — 55 in Empresa Demo, 4 in Grupo Ardena |
+| documents | **59** — 55 in Empresa Demo, 4 in Organización Demo 2 |
 | pages | **4,739** |
 | chunks | **20,476** |
 | retrieval | **~0.9 s** |

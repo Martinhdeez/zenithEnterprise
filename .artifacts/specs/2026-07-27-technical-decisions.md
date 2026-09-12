@@ -67,7 +67,7 @@ It is a cross-encoder: it processes question and chunk together instead of compa
 
 This is deliberately the boring option. Reasons, in order of weight:
 
-**We sell on-premise.** Every additional service is operational load handed to the customer. Deploying a Postgres inside a company's infrastructure is trivial. Asking their IT team to also maintain a Redis cluster and watch its persistence is friction that eventually gets paid in support tickets.
+**The product is installed on-premise.** Every additional service is operational load handed to the customer. Deploying a Postgres inside a company's infrastructure is trivial. Asking their IT team to also maintain a Redis cluster and watch its persistence is friction that eventually gets paid in support tickets.
 
 **RF-04 lives there naturally.** Tenants, roles and ACLs are relational data. Keeping them in the same transactional database as the vectors means isolation can be enforced with Row-Level Security (§5) rather than with programming discipline.
 
@@ -367,7 +367,7 @@ named set of values — and nothing else in the system branches on hardware.
 ZENITH_HARDWARE = gpu | cpu | low-spec
 ```
 
-We sell on-premise. A customer with an A100 and a customer with a 4-core VPS get the same
+This is installed on-premise. A customer with an A100 and a customer with a 4-core VPS get the same
 artifact, and maintaining a branch per customer server is how a product becomes
 unsupportable. But the two cannot run the same batch sizes, and finding that out in
 production is expensive.

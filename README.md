@@ -70,14 +70,28 @@ which one it is.
 Requires Docker and about 8 GB of RAM free. The reranker wants more; see `docs/deployment.md`.
 
 ```bash
-cp .env.example .env          # then set ZENITH_JWT_SECRET and the database passwords
-make up && make up-models     # Postgres, then the embedding and reranking models
-make migrate                  # alembic upgrade head — nothing runs migrations automatically
+cp .env.example .env       # set ZENITH_JWT_SECRET, POSTGRES_PASSWORD,
+                           # ZENITH_APP_PASSWORD and ZENITH_PLATFORM_PASSWORD
+make up && make up-models  # Postgres, then the embedding and reranking models
+make up-app                # the API, the ingestion worker and the web client
 
-docker compose -f docker/docker-compose.yml exec api zenith install-queue
-docker compose -f docker/docker-compose.yml exec api zenith create-tenant "Your org" you@example.com
-docker compose -f docker/docker-compose.yml exec api zenith grant-system-admin you@example.com
+C="docker compose --env-file .env -f docker/docker-compose.yml"
+$C exec api alembic upgrade head   # nothing runs migrations automatically
+$C exec api zenith install-queue   # and this is the other half of the install
+$C exec db psql -U zenith -d zenith -c \
+  "ALTER ROLE zenith_app LOGIN PASSWORD '<ZENITH_APP_PASSWORD>'; \
+   ALTER ROLE zenith_platform LOGIN PASSWORD '<ZENITH_PLATFORM_PASSWORD>';"
+$C restart api worker
+
+$C exec api zenith create-tenant "Your org" you@example.com
+$C exec api zenith grant-system-admin you@example.com
 ```
+
+**`--env-file .env` is load-bearing.** Compose resolves `${VAR}` against its own directory,
+so without it every interpolated variable silently keeps the development default in
+`.env.example` while the API uses the real one — including both database passwords, on a
+service that publishes 5432. The two roles ship `NOLOGIN` and no code ever gives them a
+password, which is why the `ALTER ROLE` above is a step and not an afterthought.
 
 `install-queue` is not optional: the job queue manages its own schema outside the migrations, and
 without it the application accepts uploads and ingests none of them — 201, a row, and a status

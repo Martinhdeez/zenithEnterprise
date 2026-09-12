@@ -11,7 +11,7 @@ what changed and why satisfies that, which is what `CONTRIBUTING` already asks f
 
 ## Language
 
-**Everything in this repository is in English, without exception**: identifiers, comments, docstrings, error messages, commit messages, branch names, documentation and CI text. See `.artifacts/specs/2026-07-27-mvp.md` §5.2 for the reasoning.
+**Everything in this repository is written in English**: identifiers, comments, docstrings, commit messages, branch names, documentation and CI text. The one exception is the user-facing interface, which ships an English and a Spanish catalogue (`frontend/src/shared/i18n/`) — those strings are translations of the English keys, not a second language in the source. See `.artifacts/specs/2026-07-27-mvp.md` §5.2 for the reasoning.
 
 ---
 
@@ -72,7 +72,7 @@ A feature is not finished until all six hold:
 ### `make check`
 
 ```
-make check     # lint + format-check + types + tests + licenses
+make check     # lint + format-check + types + tests + licenses + web
 ```
 
 It mirrors the CI job exactly. A green `check` locally means a green pipeline — so run it before pushing, not after CI tells you.

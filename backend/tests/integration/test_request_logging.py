@@ -6,7 +6,7 @@ body of `del request` and a comment claiming the caller had already done it — 
 and `log_response` was written and called by nothing, so an installation nobody can SSH into
 had no access log at all.
 
-We sell on-premise. "It was slow this morning" is answered from whatever the customer can
+This is installed on-premise. "It was slow this morning" is answered from whatever the customer can
 paste into an email, and these are the lines that answer it.
 """
 

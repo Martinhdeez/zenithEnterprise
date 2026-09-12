@@ -1,13 +1,23 @@
-.PHONY: up up-models down logs migrate revision test lint format format-check types licenses \
+.PHONY: up up-app up-models down logs migrate revision test lint format format-check types licenses \
 	web-install web-types web-test web check demo-check backup
 
-COMPOSE := docker compose -f docker/docker-compose.yml
+# `--env-file .env` is not decoration. Compose resolves interpolation against the file's own
+# directory, so `docker/.env` — which does not exist — wins over the root `.env` and every
+# `${VAR}` in the compose file silently takes its default. That means POSTGRES_PASSWORD,
+# ZENITH_APP_PASSWORD and sixteen others quietly stay at their development values while
+# `api` and `worker`, which read the root file through `env_file:`, use the real ones.
+# Naming the file fixes interpolation and leaves `build.context: ..` resolving to the repo
+# root, which `--project-directory` would not.
+COMPOSE := docker compose --env-file .env -f docker/docker-compose.yml
 UV := cd backend && uv run
 WEB := cd frontend && npm
 
 up:
 	$(COMPOSE) up -d db
 	@echo "Postgres up. Models: make up-models"
+
+up-app:
+	$(COMPOSE) up -d --build api worker frontend
 
 up-models:
 	$(COMPOSE) up -d tei-embed tei-rerank

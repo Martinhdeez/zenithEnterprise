@@ -1,6 +1,6 @@
 """One codebase, three deployments.
 
-We sell on-premise. A customer with an A100 and a customer with a four-core VPS get the
+This is installed on-premise. A customer with an A100 and a customer with a four-core VPS get the
 same artifact, and maintaining a branch per customer server is how a product becomes
 unsupportable. But the two cannot run the same batch sizes, and M0 found out what happens
 when you assume otherwise: TEI serving BGE-M3 with default batching was killed by the
@@ -58,9 +58,10 @@ class Profile:
     # how `ocr=True` came to promise an engine that did not exist.
     ingestion_concurrency: int
 
-    # Off on `low-spec`. M0 measured what that costs: Recall@8 of 75% against a Recall@50
-    # ceiling of 95%, so up to 20 points. A customer running without it is getting a
-    # materially worse product and has to be able to tell.
+    # Off on `low-spec`. M0 measured what that cost on one corpus of its own — the gap
+    # between Recall@8 and the Recall@50 ceiling was wide enough to matter, and
+    # `eval/rerank-depth.json` is where the number for a given corpus comes from. A customer
+    # running without it is getting a materially worse product and has to be able to tell.
     reranker: bool
 
     # Off on `low-spec`: the OCR path loads a second model, and there is no room for it
@@ -103,7 +104,7 @@ class Profile:
     def disabled(self) -> list[str]:
         missing: list[str] = []
         if not self.reranker:
-            missing.append("reranker (costs up to 20 points of Recall@8)")
+            missing.append("reranker (a measurable Recall@8 loss; see eval/rerank-depth.json)")
         # The hardware flag alone was the wrong question. It says whether this *hardware* is
         # to run OCR, and `cpu` and `gpu` both say yes — so `zenith diagnose` reported them as
         # OCR-capable installations while routing refused every scanned page, because no
