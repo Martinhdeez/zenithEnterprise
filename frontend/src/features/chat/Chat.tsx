@@ -426,7 +426,7 @@ export function Chat({ token, onCitation, searchable, labels, prefill, anchor }:
             {scope.map((document) => (
               <span
                 key={document.id}
-                className="max-w-[16rem] truncate rounded-md border border-primary/40 bg-primary/15 px-1.5 py-0.5 text-foreground"
+                className="max-w-[16rem] truncate rounded-md border border-primary/40 bg-primary/15 px-2 py-0.5 text-[0.8125rem] font-medium text-foreground"
               >
                 {document.filename}
               </span>
