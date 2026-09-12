@@ -65,14 +65,14 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=coolify"
-      - "traefik.http.routers.zenith.rule=Host(`zenith.example.com`)"
+      - "traefik.http.routers.zenith.rule=Host(`${ZENITH_DOMAIN:?set ZENITH_DOMAIN in .env}`)"
       - "traefik.http.routers.zenith.entrypoints=https"
       - "traefik.http.routers.zenith.tls=true"
       - "traefik.http.routers.zenith.tls.certresolver=letsencrypt"
       - "traefik.http.services.zenith.loadbalancer.server.port=80"
       # Plain HTTP exists only to be redirected. A product that handles other people's
       # documents must not be reachable unencrypted even briefly.
-      - "traefik.http.routers.zenith-http.rule=Host(`zenith.example.com`)"
+      - "traefik.http.routers.zenith-http.rule=Host(`${ZENITH_DOMAIN:?set ZENITH_DOMAIN in .env}`)"
       - "traefik.http.routers.zenith-http.entrypoints=http"
       - "traefik.http.routers.zenith-http.middlewares=zenith-https"
       - "traefik.http.middlewares.zenith-https.redirectscheme.scheme=https"
