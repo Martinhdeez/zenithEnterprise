@@ -164,3 +164,34 @@ async def test_an_empty_query_is_rejected_by_the_schema(
     response = await client.get("/search?q=", headers=await headers(client, account.admin_email))
 
     assert response.status_code == 422
+
+
+async def test_explicit_modes_expose_coverage_without_changing_legacy_response(
+    client: AsyncClient, account: Account, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    await seed(account)
+    monkeypatch.setattr(settings, "direct_enabled", True)
+    monkeypatch.setattr(settings, "tei_embed_url", "http://127.0.0.1:1")
+    auth = await headers(client, account.admin_email)
+
+    legacy = await client.get("/search?q=holiday", headers=auth)
+    hybrid = await client.get("/search?q=holiday&mode=hybrid", headers=auth)
+    direct = await client.get("/search?q=holiday&mode=direct", headers=auth)
+    invalid = await client.get("/search?q=holiday&mode=unknown", headers=auth)
+
+    assert legacy.status_code == hybrid.status_code == direct.status_code == 200
+    assert invalid.status_code == 422
+    assert legacy.json()["receipt"] is None
+    assert hybrid.json()["receipt"]["coverage_method"] == "candidate_set"
+    assert not hybrid.json()["receipt"]["manifest_assessment_complete"]
+    assert direct.json()["receipt"]["coverage_method"] == "eligible_scope_manifest"
+
+
+async def test_operator_can_disable_direct_modes_over_http(
+    client: AsyncClient, account: Account, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "direct_enabled", False)
+    auth = await headers(client, account.admin_email)
+    assert (await client.get("/search?q=fact&mode=direct", headers=auth)).status_code == 409
+    assert (await client.get("/search?q=fact&mode=auto", headers=auth)).status_code == 409
+    assert (await client.get("/search?q=fact&mode=legacy", headers=auth)).status_code == 200
