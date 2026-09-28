@@ -60,3 +60,7 @@ class SearchResponse(BaseModel):
     #: tell a customer their installation is broken when their archive simply does not cover
     #: what they asked. `none` comes with an empty `hits`.
     relevance: str = "confident"
+    # Nullable when the profile disables reranking or the local model is unavailable.
+    judge_provider: str | None = None
+    judge_model: str | None = None
+    judge_score_kind: str | None = None
