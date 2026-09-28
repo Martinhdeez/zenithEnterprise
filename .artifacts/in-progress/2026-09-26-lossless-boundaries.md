@@ -1,0 +1,15 @@
+# R1 lossless grouping research
+
+The `Current state` paragraph below is a 2026-09-26 checkpoint, not today's
+release state or spending balance. R1 remains experimental: the active index
+and default segmentation did not change, and isolated grouping/packet trials
+did not justify promotion. The later additive branch passed its complete local
+engineering gate at `1862072`; current decisions and limits are in
+`backend/eval/reports/evidence-v3-final-qualification-2026-09-27.md` and
+`docs/evidence-v3/release-validation-2026-09-27.md`.
+
+Base: PR 05 `1867532d3f04c632bb932a03e9e573b118d7143b`. Branch: `experiment/lossless-semantic-boundaries`. The active ingestion chunker uses overlapping ~1,200-character chunks and trims display text, so its chunks cannot be concatenated to reconstruct every extracted character. The stored `pages.text` is the trial's declared extracted representation; text documents use a single stored page but citation offsets remain document-relative.
+
+Implement deterministic structural spans/groups with exact codepoint maps, versioned source IDs, forced splits and legacy-overlap mapping. The optional Jev boundary proposal reuses the validated Noul client only under `Purpose.SEGMENTATION` and the distinct `zenith-boundary-noul-v1` rubric. No production index, parser, chunk, or vector mutation in this research slice. Add equal-budget trials and a separate isolated re-embedding comparison before drawing model-quality conclusions. Public/synthetic inputs only; do not call a paid provider without the session's $0.50/1,000-call caps and purpose check.
+
+Current state: core grouping and HTTP-mocked boundary adapter implemented on this experimental branch. QASPER 206-question and ContractNLI 614-case isolated grouping/re-embedding trials, 40-paper matched TEI/Jev reranking trial, 206-question current-TEI baseline, and 40 public Jev boundary calls have run. The broad R1 and judge reports record methods, results, source hashes, and limitations. The cumulative session Jev ledger is 930 calls of the approved 1,000; do not rerun the 640-call judge trial. Focused R1 tests: 38 passed. A frozen 322-test retrieval/generation/HTTP/RLS/history suite passed on disposable PostgreSQL under `zenith_app`; full Ruff/format, Linux-target strict typing, and `uv build` passed. Plain Windows Pyright retains the clean-base `os.uname` error. An earlier broad run without the ignored Windows Selector bootstrap failed before database assertions; another run passed 322 tests but the checkout-write guard rejected a concurrent report edit. Both failures were corrected by the frozen passing run. No active production index was changed. M2, M3, and final integrated qualification remain open.

@@ -1,0 +1,264 @@
+{
+  "schema": "zenith-evidence-v3-local-exact-tip-gates-v1",
+  "generated_utc": "2026-09-28T13:33:40.121791+00:00",
+  "code_head": "910bc125bb6f731ca681f20ac8ae19d97a5e0874",
+  "code_tree": "93a088dbf604811b938e5e73b18566937d200626",
+  "passed": 13,
+  "failed": 0,
+  "pending": 0,
+  "slices": [
+    {
+      "slice": "foundation-prerequisite",
+      "base": "33b48812c95150348c52d2519159780252c92db2",
+      "head": "5592601d1f1cb44333685c898e065d17dd9d99a5",
+      "tree": "822420f2d4c58178f2fbcfbf221dea97555681de",
+      "status": "passed",
+      "exits": {
+        "make_check": 0,
+        "build": 0,
+        "production_audit": 0
+      },
+      "completed_utc": "2026-09-28T08:43:42.5107490Z",
+      "make_check_log_sha256": "243fb85cc73acadfbbe3518d50e05b34f0bfed6c21cfba2ee1eefac5dd033fe7",
+      "build_log_sha256": "1d9bd05f3bb30c537203ee692becd7b0efdab0d11051244951796aeec807c0cf",
+      "production_audit_log_sha256": "4b02d4a3c23d969c46bd2041360f80bfcb1fe760d9db864009acdd710f9de601",
+      "backend_passed": 883,
+      "backend_skipped": 11,
+      "frontend_passed": 437
+    },
+    {
+      "slice": "pr01-judge",
+      "base": "5592601d1f1cb44333685c898e065d17dd9d99a5",
+      "head": "98f7935c3beedb0d9aea0e128ee6bc5adc86a2bf",
+      "tree": "714fe8491afdf4101f617b31ca56da99f21e4f56",
+      "status": "passed",
+      "exits": {
+        "make_check": 0,
+        "build": 0,
+        "production_audit": 0
+      },
+      "completed_utc": "2026-09-28T08:58:32.5219791Z",
+      "make_check_log_sha256": "9a5738e747ea8ba1bfc852f122e346834cf46f33288565e433d09256ab673c0c",
+      "build_log_sha256": "a8e625821fc451d473b11c929894eab44377ca0919e847c7baa39e343da75922",
+      "production_audit_log_sha256": "4b02d4a3c23d969c46bd2041360f80bfcb1fe760d9db864009acdd710f9de601",
+      "backend_passed": 898,
+      "backend_skipped": 11,
+      "frontend_passed": 437
+    },
+    {
+      "slice": "pr02-jev",
+      "base": "98f7935c3beedb0d9aea0e128ee6bc5adc86a2bf",
+      "head": "9fa658f681ebde099cb0f641b432c1d5e620431d",
+      "tree": "a8bf28135d08f64c04acbedc7f0a769ca5c38559",
+      "status": "passed",
+      "exits": {
+        "make_check": 0,
+        "build": 0,
+        "production_audit": 0
+      },
+      "completed_utc": "2026-09-28T09:15:28.7331408Z",
+      "make_check_log_sha256": "e01004dbdca06ab7d51df532c88b375ddc9c5040f3cbeecd782e3ee91922825c",
+      "build_log_sha256": "7d19d67505defa64d3abd06743fd38558c4afc3631329b9d371d82d96fdf9c65",
+      "production_audit_log_sha256": "4b02d4a3c23d969c46bd2041360f80bfcb1fe760d9db864009acdd710f9de601",
+      "backend_passed": 919,
+      "backend_skipped": 11,
+      "frontend_passed": 437
+    },
+    {
+      "slice": "pr03-hybrid",
+      "base": "9fa658f681ebde099cb0f641b432c1d5e620431d",
+      "head": "f408e26e903a4c8aaf92c6c9b26c82bd6d5453ee",
+      "tree": "1855b457c083458f1c34aa64fb9af03a15100c66",
+      "status": "passed",
+      "exits": {
+        "make_check": 0,
+        "build": 0,
+        "production_audit": 0
+      },
+      "completed_utc": "2026-09-28T09:50:58.5374025Z",
+      "make_check_log_sha256": "c2d7de279174a22a20ff00f28fa5d865edfde1d3cec2e8185fcfe8b2805c4de1",
+      "build_log_sha256": "0c9c50a77402c5cd461a6b111241ba375c650bb14fc0746fd83afdca9039d8dc",
+      "production_audit_log_sha256": "4b02d4a3c23d969c46bd2041360f80bfcb1fe760d9db864009acdd710f9de601",
+      "backend_passed": 926,
+      "backend_skipped": 12,
+      "frontend_passed": 438
+    },
+    {
+      "slice": "pr04-direct",
+      "base": "f408e26e903a4c8aaf92c6c9b26c82bd6d5453ee",
+      "head": "e1feb7b758fffca07d71975d75f7cc9822e04de3",
+      "tree": "eee3f7d6cac723540ced392604eac1fa03e213f7",
+      "status": "passed",
+      "exits": {
+        "make_check": 0,
+        "build": 0,
+        "production_audit": 0
+      },
+      "completed_utc": "2026-09-28T10:29:58.0347497Z",
+      "make_check_log_sha256": "078350cc5c18f3524c7136eaa7560afaab0ef58f509b4c9c4c0fe9838ee0387f",
+      "build_log_sha256": "b4a8cbe9b3c5a4206300e55af201ec293f832ffdd104c9c8822d0451f879f8fa",
+      "production_audit_log_sha256": "4b02d4a3c23d969c46bd2041360f80bfcb1fe760d9db864009acdd710f9de601",
+      "backend_passed": 954,
+      "backend_skipped": 13,
+      "frontend_passed": 438
+    },
+    {
+      "slice": "proxy-prerequisite",
+      "base": "e1feb7b758fffca07d71975d75f7cc9822e04de3",
+      "head": "520d8e7c77b9408621c0d0db2c0d162ed17e1263",
+      "tree": "4e0dd7202f4684d597e5ee9d64a527422f15569e",
+      "status": "passed",
+      "exits": {
+        "make_check": 0,
+        "build": 0,
+        "production_audit": 0
+      },
+      "completed_utc": "2026-09-28T11:06:52.1367421Z",
+      "make_check_log_sha256": "46731164b39b2e2262b8d57edd59f4fd0037fd39ebba0a5b30cefaf27a26fec7",
+      "build_log_sha256": "0d71889ffae3830976a0705a77fda54e6403351c3358a1e2f95ad8ee6ae068aa",
+      "production_audit_log_sha256": "4b02d4a3c23d969c46bd2041360f80bfcb1fe760d9db864009acdd710f9de601",
+      "backend_passed": 956,
+      "backend_skipped": 13,
+      "frontend_passed": 438
+    },
+    {
+      "slice": "pr05-coverage-ui",
+      "base": "520d8e7c77b9408621c0d0db2c0d162ed17e1263",
+      "head": "146bbf48f9e0bc9eaa4759fd23a56e30dfbf348f",
+      "tree": "a6649a9e14c22d83f13f6f4c38b19baa2fa7a5eb",
+      "status": "passed",
+      "exits": {
+        "make_check": 0,
+        "build": 0,
+        "production_audit": 0
+      },
+      "completed_utc": "2026-09-28T13:32:58.6657334Z",
+      "make_check_log_sha256": "174423cc383fea14824dd5d3487a1950ec69b5b9cc154555b542b9e6b0139002",
+      "build_log_sha256": "7c9cd5be297ba8dd41ee64baf7451974072fa7edddff5063305be402953b8aa4",
+      "production_audit_log_sha256": "4b02d4a3c23d969c46bd2041360f80bfcb1fe760d9db864009acdd710f9de601",
+      "backend_passed": 957,
+      "backend_skipped": 13,
+      "frontend_passed": 447
+    },
+    {
+      "slice": "neutral-evaluation-prerequisite",
+      "base": "146bbf48f9e0bc9eaa4759fd23a56e30dfbf348f",
+      "head": "45d2b75e68c423fec8b5886add59b4c69c533b95",
+      "tree": "419ca603b0e88a69a408cd0e1f67ba4fca537f3e",
+      "status": "passed",
+      "exits": {
+        "make_check": 0,
+        "build": 0,
+        "production_audit": 0
+      },
+      "completed_utc": "2026-09-28T12:11:27.4472842Z",
+      "make_check_log_sha256": "676bf6ca51d3584d125e75817e3bf104fe711a65b153a441e810f37ca7ae3c3d",
+      "build_log_sha256": "0f086d57df3aa3e4a2b5c96d6b75665102661b51443688bf8a5de888e7641a84",
+      "production_audit_log_sha256": "4b02d4a3c23d969c46bd2041360f80bfcb1fe760d9db864009acdd710f9de601",
+      "backend_passed": 958,
+      "backend_skipped": 13,
+      "frontend_passed": 447
+    },
+    {
+      "slice": "pr06-packets",
+      "base": "45d2b75e68c423fec8b5886add59b4c69c533b95",
+      "head": "76f2ba442aecdd92b4b21474c6ae0aab092c406e",
+      "tree": "ece779fc904abecaae1f1af839921e606656bb05",
+      "status": "passed",
+      "exits": {
+        "make_check": 0,
+        "build": 0,
+        "production_audit": 0,
+        "npm_ci": 0
+      },
+      "completed_utc": "2026-09-28T08:44:34.9715034Z",
+      "make_check_log_sha256": "4e15e5aaff722309be0f4a2a1b928314cfcc8e1a0b45bdf5643d65f09ba41825",
+      "build_log_sha256": "d7fa7921f125e307e258571cbbbe7c4872dd37395883ecfded39ba5d9dd5744e",
+      "production_audit_log_sha256": "4b02d4a3c23d969c46bd2041360f80bfcb1fe760d9db864009acdd710f9de601",
+      "backend_passed": 973,
+      "backend_skipped": 13,
+      "frontend_passed": 447
+    },
+    {
+      "slice": "pr07-strict-support",
+      "base": "76f2ba442aecdd92b4b21474c6ae0aab092c406e",
+      "head": "c17d1090d17940965b3bdbc763c55f29d9e03f35",
+      "tree": "0925a01ff41fe735aaf980abeda89918f6cb2d0f",
+      "status": "passed",
+      "exits": {
+        "make_check": 0,
+        "build": 0,
+        "production_audit": 0,
+        "npm_ci": 0
+      },
+      "completed_utc": "2026-09-28T09:00:20.4165038Z",
+      "make_check_log_sha256": "3a53cdf196dc1b16da71618d3714593e59b154492c546c94a27f74b1b0c47276",
+      "build_log_sha256": "067f97aa020699f5496afd28ddcaa874c51d983d35e808d5b477d976dd1a025b",
+      "production_audit_log_sha256": "4b02d4a3c23d969c46bd2041360f80bfcb1fe760d9db864009acdd710f9de601",
+      "backend_passed": 988,
+      "backend_skipped": 14,
+      "frontend_passed": 449
+    },
+    {
+      "slice": "pr08-qualification-ui",
+      "base": "c17d1090d17940965b3bdbc763c55f29d9e03f35",
+      "head": "9a2f69ffa56d9190c362cb9d0a14cd6e4ce85cf7",
+      "tree": "b06532618c8bc7f1ac6a91fac714b4c61f251d4d",
+      "status": "passed",
+      "exits": {
+        "make_check": 0,
+        "build": 0,
+        "production_audit": 0,
+        "npm_ci": 0
+      },
+      "completed_utc": "2026-09-28T09:27:42.1529621Z",
+      "make_check_log_sha256": "d632e31e36ddb013222ca816eab90dd63512fb83b8d56d04325326e658368c48",
+      "build_log_sha256": "5ce6b970e0c88420c0ffff0c1efd79ed1c713ca4b7a2797d081a944822049cf0",
+      "production_audit_log_sha256": "4b02d4a3c23d969c46bd2041360f80bfcb1fe760d9db864009acdd710f9de601",
+      "backend_passed": 991,
+      "backend_skipped": 15,
+      "frontend_passed": 449
+    },
+    {
+      "slice": "release-validation-report",
+      "base": "9a2f69ffa56d9190c362cb9d0a14cd6e4ce85cf7",
+      "head": "1ba0239337bf762330ae48656cb1745af4085684",
+      "tree": "dd85a940276d8cd00cf90a88861acb43f352217f",
+      "status": "passed",
+      "exits": {
+        "make_check": 0,
+        "build": 0,
+        "production_audit": 0,
+        "npm_ci": 0
+      },
+      "completed_utc": "2026-09-28T10:08:38.4143499Z",
+      "make_check_log_sha256": "ed782e64f54613d0a98483cc345ecfcb147818e9e2e748bf79a1b85d3df4ebc4",
+      "build_log_sha256": "3323d92c14d7369b3b345cd7e5670009c3b6165e608c5742bca2360b5550ed4e",
+      "production_audit_log_sha256": "4b02d4a3c23d969c46bd2041360f80bfcb1fe760d9db864009acdd710f9de601",
+      "backend_passed": 996,
+      "backend_skipped": 14,
+      "frontend_passed": 450
+    },
+    {
+      "slice": "hardening-core",
+      "base": "1ba0239337bf762330ae48656cb1745af4085684",
+      "head": "910bc125bb6f731ca681f20ac8ae19d97a5e0874",
+      "tree": "93a088dbf604811b938e5e73b18566937d200626",
+      "status": "passed",
+      "exits": {
+        "make_check": 0,
+        "build": 0,
+        "production_audit": 0,
+        "npm_ci": 0
+      },
+      "completed_utc": "2026-09-28T12:47:18.2902063Z",
+      "make_check_log_sha256": "17160a19cfdf410d8ec32938def94c2cbad37355968aa1e5b30dfd227b4b02cd",
+      "build_log_sha256": "30e553e267b58664e1b654fe9c2d6eb770da31f37c0f1543833deb640c07e1c5",
+      "production_audit_log_sha256": "4b02d4a3c23d969c46bd2041360f80bfcb1fe760d9db864009acdd710f9de601",
+      "backend_passed": 1004,
+      "backend_skipped": 15,
+      "frontend_passed": 450
+    }
+  ],
+  "local_log_root": ".scratch/evidence-v3-hardening"
+}

@@ -104,6 +104,30 @@ describe("<Answer />", () => {
     expect(screen.queryByText(/documents provided do not contain/i)).toBeNull();
   });
 
+  it("distinguishes an unavailable strict check from a missing document answer", () => {
+    render(
+      <Answer
+        state={final({
+          abstained: true,
+          answer: "I could not verify an answer against the available sources.",
+          citations: [],
+          degraded: true,
+          reason: "support_unavailable",
+          support_status: "not_assessed",
+        })}
+        onCitation={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("A supported answer could not be verified.")).toBeTruthy();
+    expect(screen.getByText("The support check is unavailable; the draft was withheld.")).toBeTruthy();
+    expect(screen.queryByText(/No answer was found/)).toBeNull();
+  });
+
+  it("labels a supported answer as a model assessment", () => {
+    render(<Answer state={final({ support_status: "supported" })} onCitation={vi.fn()} />);
+    expect(screen.getByText("Cited claims passed the model support check.")).toBeTruthy();
+  });
+
   it("surfaces a degraded answer rather than swallowing it", () => {
     // F11 found a configuration where the reranker failed on every request for as long as
     // nobody looked. The UI is the last place that can make that visible.
@@ -129,5 +153,12 @@ describe("<Answer />", () => {
     );
 
     expect(screen.getByRole("alert").textContent).toBe("No model configured.");
+  });
+
+  it("distinguishes unverified source access from a confirmed permission change", () => {
+    render(<Answer state={final({ abstained: true, degraded: true, citations: [], consulted: [],
+      support_status: "not_assessed", reason: "support_source_unverified" })} onCitation={vi.fn()} />);
+    expect(screen.getByText("Current source access could not be verified; the draft was withheld.")).toBeTruthy();
+    expect(screen.queryByText("Source access changed while checking this answer.")).toBeNull();
   });
 });

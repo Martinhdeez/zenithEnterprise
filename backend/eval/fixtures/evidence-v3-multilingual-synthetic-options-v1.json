@@ -1,0 +1,73 @@
+{
+  "id": "evidence-v3-synthetic-options-v1",
+  "classification": "synthetic",
+  "label_provenance": "Agent-authored before option/packed Jev dispatch; exploratory; two translated scenario families across languages",
+  "scenario": "Fictional internal procedures with no customer, legal, or private content",
+  "groups": [
+    {
+      "language": "it",
+      "passages": [
+        "L'accesso remoto dei fornitori termina alla scadenza del contratto. Una proroga richiede una nuova verifica del team sicurezza.",
+        "I visitatori devono restituire il badge alla fine della giornata. Nelle sale riservate serve sempre un accompagnatore, anche con il badge.",
+        "L'esportazione dei dati dei clienti richiede l'approvazione del proprietario dei dati e del responsabile privacy. Per i soli dati aggregati interni basta il proprietario.",
+        "Le prove relative agli incidenti sono conservate per 180 giorni. Un blocco legale prolunga la conservazione fino alla sua revoca."
+      ],
+      "queries": [
+        {"text": "Un visitatore con badge può entrare da solo in una sala riservata?", "gold": 1},
+        {"text": "Basta il proprietario dei dati per esportare informazioni dei clienti?", "gold": 2}
+      ]
+    },
+    {
+      "language": "nl",
+      "passages": [
+        "De toegang op afstand voor leveranciers eindigt wanneer het contract afloopt. Een verlenging vereist een nieuwe beveiligingsbeoordeling.",
+        "Bezoekers leveren hun pas aan het eind van de dag in. Voor beveiligde ruimtes blijft begeleiding verplicht, ook met een pas.",
+        "Voor export van klantgegevens is toestemming van zowel de gegevenseigenaar als de privacyfunctionaris nodig. Voor interne geaggregeerde cijfers volstaat de eigenaar.",
+        "Incidentmateriaal blijft 180 dagen bewaard. Een juridische bewaarplicht verlengt die termijn totdat de plicht eindigt."
+      ],
+      "queries": [
+        {"text": "Mag een bezoeker met een pas zonder begeleiding een beveiligde ruimte in?", "gold": 1},
+        {"text": "Is alleen toestemming van de gegevenseigenaar voldoende voor export van klantgegevens?", "gold": 2}
+      ]
+    },
+    {
+      "language": "pl",
+      "passages": [
+        "Zdalny dostęp dostawcy kończy się wraz z wygaśnięciem umowy. Przedłużenie wymaga ponownej oceny bezpieczeństwa.",
+        "Goście oddają identyfikator pod koniec dnia. Wejście do pomieszczeń zastrzeżonych zawsze wymaga opiekuna, także z identyfikatorem.",
+        "Eksport danych klientów wymaga zgody właściciela danych i inspektora prywatności. Dla wewnętrznych danych zbiorczych wystarcza zgoda właściciela.",
+        "Dowody dotyczące incydentów przechowuje się przez 180 dni. Blokada prawna wydłuża ten okres do czasu jej zniesienia."
+      ],
+      "queries": [
+        {"text": "Czy gość z identyfikatorem może sam wejść do pomieszczenia zastrzeżonego?", "gold": 1},
+        {"text": "Czy sam właściciel może zatwierdzić eksport danych klientów?", "gold": 2}
+      ]
+    },
+    {
+      "language": "ca",
+      "passages": [
+        "L'accés remot dels proveïdors acaba quan venç el contracte. Una pròrroga requereix una nova revisió de seguretat.",
+        "Els visitants retornen la targeta al final del dia. Per entrar a sales restringides sempre cal acompanyant, fins i tot amb targeta.",
+        "Exportar dades de clients requereix l'aprovació del propietari de les dades i del responsable de privadesa. Per a mètriques agregades internes n'hi ha prou amb el propietari.",
+        "Les proves dels incidents es conserven durant 180 dies. Una retenció legal n'allarga el termini fins que s'aixeca."
+      ],
+      "queries": [
+        {"text": "Una persona visitant amb targeta pot entrar sola en una sala restringida?", "gold": 1},
+        {"text": "N'hi ha prou amb el propietari per exportar dades de clients?", "gold": 2}
+      ]
+    },
+    {
+      "language": "ja",
+      "passages": [
+        "委託先のリモートアクセスは契約終了時に停止する。延長にはセキュリティ部門による再審査が必要である。",
+        "訪問者は当日の終わりに入館証を返却する。入館証があっても制限区域には必ず同行者が必要である。",
+        "顧客データの輸出にはデータ管理者とプライバシー担当者の両方の承認が必要である。社内の集計値だけなら管理者の承認で足りる。",
+        "インシデントの証拠は180日間保存する。法的保全がある場合は解除されるまで保存期間を延長する。"
+      ],
+      "queries": [
+        {"text": "入館証を持つ訪問者は制限区域に一人で入れるか。", "gold": 1},
+        {"text": "顧客データの輸出はデータ管理者の承認だけで足りるか。", "gold": 2}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,247 @@
+{
+  "schema": "zenith-evidence-v3-local-publication-candidate-v2",
+  "date": "2026-09-28",
+  "remote_action": "none at this pre-push qualification snapshot",
+  "remote_publication_authorization": "User authorized push to Kripta-Studios fork, PR to fork main, CI validation, and merge with gh",
+  "upstream_baseline_read_only": "33b48812c95150348c52d2519159780252c92db2",
+  "origin_main_read_only": "33b48812c95150348c52d2519159780252c92db2",
+  "remote_heads_checked_utc": "2026-09-28T13:34:36Z",
+  "upstream_head_count": 1,
+  "origin_head_count": 1,
+  "remote_release_heads_found": false,
+  "historical_integration": "0a24cc34b05a1b055452069849ebea61a4d9aba6",
+  "historical_release_code": "1862072e55f3d79877334964b0e1b3a8f473a39f",
+  "historical_release_report": "5cd3f9ca917a5e14a2db8d448e712c9d45d69606",
+  "hardening_development": {
+    "branch": "fix/evidence-v3-hardening",
+    "head": "33950a3e8df7b012efe2c193c3fee0b2ec7672f2",
+    "contains_optional_r1": true
+  },
+  "local_review_series": [
+    {
+      "slice": "foundation-prerequisite",
+      "base": "33b48812c95150348c52d2519159780252c92db2",
+      "head": "5592601d1f1cb44333685c898e065d17dd9d99a5",
+      "tree": "822420f2d4c58178f2fbcfbf221dea97555681de",
+      "branch": "fix/evidence-v3-series-foundation-v10",
+      "validation": "passed"
+    },
+    {
+      "slice": "pr01-judge",
+      "base": "5592601d1f1cb44333685c898e065d17dd9d99a5",
+      "head": "98f7935c3beedb0d9aea0e128ee6bc5adc86a2bf",
+      "tree": "714fe8491afdf4101f617b31ca56da99f21e4f56",
+      "branch": "fix/evidence-v3-series-pr01-v10",
+      "validation": "passed"
+    },
+    {
+      "slice": "pr02-jev",
+      "base": "98f7935c3beedb0d9aea0e128ee6bc5adc86a2bf",
+      "head": "9fa658f681ebde099cb0f641b432c1d5e620431d",
+      "tree": "a8bf28135d08f64c04acbedc7f0a769ca5c38559",
+      "branch": "fix/evidence-v3-series-pr02-v10",
+      "validation": "passed"
+    },
+    {
+      "slice": "pr03-hybrid",
+      "base": "9fa658f681ebde099cb0f641b432c1d5e620431d",
+      "head": "f408e26e903a4c8aaf92c6c9b26c82bd6d5453ee",
+      "tree": "1855b457c083458f1c34aa64fb9af03a15100c66",
+      "branch": "fix/evidence-v3-series-pr03-v10",
+      "validation": "passed"
+    },
+    {
+      "slice": "pr04-direct",
+      "base": "f408e26e903a4c8aaf92c6c9b26c82bd6d5453ee",
+      "head": "e1feb7b758fffca07d71975d75f7cc9822e04de3",
+      "tree": "eee3f7d6cac723540ced392604eac1fa03e213f7",
+      "branch": "fix/evidence-v3-series-pr04-v10",
+      "validation": "passed"
+    },
+    {
+      "slice": "proxy-prerequisite",
+      "base": "e1feb7b758fffca07d71975d75f7cc9822e04de3",
+      "head": "520d8e7c77b9408621c0d0db2c0d162ed17e1263",
+      "tree": "4e0dd7202f4684d597e5ee9d64a527422f15569e",
+      "branch": "fix/evidence-v3-series-prerequisite-v10",
+      "validation": "passed"
+    },
+    {
+      "slice": "pr05-coverage-ui",
+      "base": "520d8e7c77b9408621c0d0db2c0d162ed17e1263",
+      "head": "146bbf48f9e0bc9eaa4759fd23a56e30dfbf348f",
+      "tree": "a6649a9e14c22d83f13f6f4c38b19baa2fa7a5eb",
+      "branch": "fix/evidence-v3-series-pr05-v10",
+      "validation": "passed"
+    },
+    {
+      "slice": "neutral-evaluation-prerequisite",
+      "base": "146bbf48f9e0bc9eaa4759fd23a56e30dfbf348f",
+      "head": "45d2b75e68c423fec8b5886add59b4c69c533b95",
+      "tree": "419ca603b0e88a69a408cd0e1f67ba4fca537f3e",
+      "branch": "fix/evidence-v3-series-neutral-v10",
+      "validation": "passed"
+    },
+    {
+      "slice": "pr06-packets",
+      "base": "45d2b75e68c423fec8b5886add59b4c69c533b95",
+      "head": "76f2ba442aecdd92b4b21474c6ae0aab092c406e",
+      "tree": "ece779fc904abecaae1f1af839921e606656bb05",
+      "branch": "fix/evidence-v3-series-pr06-v10",
+      "validation": "passed"
+    },
+    {
+      "slice": "pr07-strict-support",
+      "base": "76f2ba442aecdd92b4b21474c6ae0aab092c406e",
+      "head": "c17d1090d17940965b3bdbc763c55f29d9e03f35",
+      "tree": "0925a01ff41fe735aaf980abeda89918f6cb2d0f",
+      "branch": "fix/evidence-v3-series-pr07-v10",
+      "validation": "passed"
+    },
+    {
+      "slice": "pr08-qualification-ui",
+      "base": "c17d1090d17940965b3bdbc763c55f29d9e03f35",
+      "head": "9a2f69ffa56d9190c362cb9d0a14cd6e4ce85cf7",
+      "tree": "b06532618c8bc7f1ac6a91fac714b4c61f251d4d",
+      "branch": "fix/evidence-v3-series-pr08-v10",
+      "validation": "passed"
+    },
+    {
+      "slice": "release-validation-report",
+      "base": "9a2f69ffa56d9190c362cb9d0a14cd6e4ce85cf7",
+      "head": "1ba0239337bf762330ae48656cb1745af4085684",
+      "tree": "dd85a940276d8cd00cf90a88861acb43f352217f",
+      "branch": "fix/evidence-v3-series-release-v10",
+      "validation": "passed"
+    },
+    {
+      "slice": "hardening-core",
+      "base": "1ba0239337bf762330ae48656cb1745af4085684",
+      "head": "910bc125bb6f731ca681f20ac8ae19d97a5e0874",
+      "tree": "93a088dbf604811b938e5e73b18566937d200626",
+      "branch": "fix/evidence-v3-series-hardening-v10",
+      "validation": "passed"
+    }
+  ],
+  "series_integrity": {
+    "proposed_slices": 13,
+    "all_base_head_ancestry_verified": true,
+    "all_tree_hashes_verified": true,
+    "final_tree_identical_to_v9": true,
+    "pr06_import_order_correction_in_pr06": true
+  },
+  "slice_change_map": "slice-change-map.json",
+  "per_pr_gate_evidence": "per-pr-gate-evidence.json",
+  "optional_research": {
+    "r1_branch": "fix/evidence-v3-series-r1",
+    "r1_head": "0d0844ba236a08d4983bfc93cb98b76ab0497406",
+    "r1_disposition": "preserved_isolated",
+    "rag_multilingual": "frozen ES/EN public transfer; 24/24 top-1 ceiling for flat, structural, packets, counterevidence; no demonstrated gain",
+    "healthver": "frozen public relation-label transfer; broad Supports labels do not establish strict whole-claim entailment; calibration blocked"
+  },
+  "fork_main_integration_candidate": {
+    "base": "33b48812c95150348c52d2519159780252c92db2",
+    "branch": "fix/evidence-v3-series-hardening-v10",
+    "head": "910bc125bb6f731ca681f20ac8ae19d97a5e0874",
+    "tree": "93a088dbf604811b938e5e73b18566937d200626",
+    "eligible_for_remote_main": false
+  },
+  "report_branch": "fix/evidence-v3-series-report-v10",
+  "report_head": null,
+  "report_head_resolution": "git rev-parse refs/heads/fix/evidence-v3-series-report-v10; a commit cannot contain its own SHA",
+  "defaults": {
+    "judge": "tei",
+    "jev_enabled": false,
+    "strict_support_enabled": false,
+    "r1_enabled": false,
+    "external_processing_purposes_changed": false
+  },
+  "validation": {
+    "real_inference": "one approved narrow pass: application-role/RLS, real Jev Noul, local Ollama, cited answer, Jev support; synthetic embedder and no browser",
+    "v10_intermediate_gates": "13/13 passed, 0 failed, 0 pending at exact local heads; see per-pr-gate-evidence.json",
+    "v10_final_windows_make_check": "passed exact final head: 1004 backend, 15 conditional skips, 450 frontend",
+    "v10_linux_static": "passed exact final tree: Ruff, format, Pyright",
+    "v10_linux_backend": "passed exact final tree: make check, 1004 backend passed, 15 conditional skips, application-role PostgreSQL",
+    "v10_linux_frontend": "passed exact final tree: 450 Vitest passed in 43 files, lint, build and production audit 0 advisories",
+    "v10_full_npm_audit": "passed exact final lockfile: 0 advisories including development dependencies",
+    "v10_authenticated_browser": "passed exact final head: 11 default, 10 experimental with scripted generator, 12 local concurrent searches all 200 with no degradation; real auth/RLS/TEI",
+    "foundation_clean_install_and_production_audit": "passed; 0 advisories; full exact-tip Windows gate passed"
+  },
+  "exact_v10_local_evidence": {
+    "linux_make_check_log_sha256": "7bd2539a8dd18849843190cd6f66e5bee18692b43dc7a43e1ced911b7fd788f9",
+    "windows_final_passing_make_check_log_sha256": "17160a19cfdf410d8ec32938def94c2cbad37355968aa1e5b30dfd227b4b02cd",
+    "windows_final_first_worker_timeout_log_sha256": "016ac484ccc5af962908ba8b0a094d2b6a246736a024d2bfc92fed45b0e878e3",
+    "windows_final_isolated_vitest_pass_log_sha256": "9d3b1c2876164d9847bb98229ccdd31a480597f1c3263e072026b2bf2b48a5bd",
+    "windows_pr05_first_analytics_timeout_log_sha256": "3a11e93325e369a40e7b763c93958a1ec36b15e60b60ec703b8c256052f959e8",
+    "windows_pr05_passing_make_check_log_sha256": "174423cc383fea14824dd5d3487a1950ec69b5b9cc154555b542b9e6b0139002",
+    "browser_default_log_sha256": "3ae3d7794fcbbda6ea992f079fb6a8c2066f79ff4abe737090887cdcd14aab79",
+    "browser_experimental_log_sha256": "322059cd06ef72850c08f5ac6ba84758dc830b0161c7c39c46dfc99ab9cdbffd",
+    "browser_load_log_sha256": "4e8aab7da660610337d4f6f673c24606e0f2407e5787c0c2bc8c6677f1cc292d",
+    "full_npm_audit_log_sha256": "b3684c80cda6148ce13f29a0f90eddfa354f216343e563c659e640995b6df704",
+    "storage": "ignored .scratch/evidence-v3-hardening; browser fixture, screenshots and credentials remain private"
+  },
+  "live_pilots": {
+    "first": {
+      "provider": "TypeSafe Jev",
+      "approved_calls": 320,
+      "used_calls": 240,
+      "approved_input_tokens": 500000,
+      "accounted_input_tokens": 148136,
+      "approved_output_tokens": 30000,
+      "known_output_tokens": 6858,
+      "unknown_output_responses": 2,
+      "approved_usd": 3,
+      "invoiced_usd": null,
+      "raw_capture": "Score diagnostics only in ignored .scratch"
+    },
+    "combined": {
+      "provider": "TypeSafe Jev + local Ollama",
+      "approved_calls": 64,
+      "used_calls": 4,
+      "approved_input_tokens": 120000,
+      "accounted_input_tokens": 1701,
+      "approved_output_tokens": 8000,
+      "output_tokens": null,
+      "approved_usd": 1.5,
+      "invoiced_usd": null,
+      "run_manifest_sha256": "f55b01bc2adfd43ab02542d4f3b0d0a43c95bce936fa99cd9c220731a4e2096d",
+      "additional_paid_calls_without_reconciliation": false
+    }
+  },
+  "safe_publication_paths": [
+    ".env.example",
+    ".gitattributes",
+    "Makefile",
+    "README.md",
+    "backend/app/",
+    "backend/eval/",
+    "backend/tests/",
+    "frontend/",
+    "scripts/",
+    "docs/evidence-v3/",
+    "docs/evidence-v3-hardening/",
+    ".artifacts/"
+  ],
+  "safe_publication_paths_status": "Tracked public/synthetic files only; changed path inventory, example configuration, report and fixture provenance reviewed before fork push",
+  "history_screen": {
+    "scope": "46 prepublication commits from upstream baseline through report head 118c1e8b2068c925da32b1bcb1765dacf9ad4344; this later manifest-only update is reviewed in the diff",
+    "unique_text_blobs": 275,
+    "binary_or_large_blobs_skipped": 0,
+    "credential_or_sensitive_path_pattern_flags": 0,
+    "limitation": "Pattern screening plus targeted human provenance review does not prove that every narrative statement is correct"
+  },
+  "excluded_local_paths": [
+    ".scratch/",
+    "Zenith_v3_Remediation_and_Publication/",
+    "Zenith_v3_Remediation_and_Publication.zip"
+  ],
+  "remaining_gates": [
+    "Clarify Score HTTP contract with provider or retain typed failure",
+    "Independently label generated answers for strict whole-claim support calibration",
+    "Run an approved combined authenticated browser lane with real generation, Jev, support, and real embeddings before claiming full live E2E qualification",
+    "Obtain non-ceiling representative R1/packet evidence before activation",
+    "Sustained provider-capacity and shared admission/accounting design before any multiworker claim",
+    "Reconcile actual Jev billing and missing usage fields before additional paid calls",
+    "Before merging, verify CI and the actual PR merge ref, and recheck fork main for drift"
+  ]
+}

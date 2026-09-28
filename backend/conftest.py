@@ -23,6 +23,7 @@ os.environ.setdefault("ZENITH_DISABLE_INGESTION_QUEUE", "1")
 os.environ.setdefault("ZENITH_ENCRYPTION_KEY", "emVuaXRoLXRlc3QtZW5jcnlwdGlvbi1rZXktMzJieXQ=")
 
 import subprocess  # noqa: E402
+import tempfile  # noqa: E402
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -89,17 +90,27 @@ def migrated(postgres: PostgresContainer, owner_url: str) -> str:
     The migration creates `zenith_app` without login: it is the installer that gives
     it credentials. This does the same thing the installer will do.
     """
-    result = subprocess.run(
-        ["uv", "run", "alembic", "upgrade", "head"],
-        cwd=BACKEND_DIR,
-        env={**os.environ, "ZENITH_DATABASE_OWNER_URL": owner_url},
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode:
-        # Without this the failure surfaces as a bare CalledProcessError and every
-        # test in the run errors with no reason given.
-        pytest.fail(f"alembic upgrade failed:\n{result.stdout}\n{result.stderr}", pytrace=False)
+    # On Windows a spawned helper may inherit a pipe writer after Alembic exits.
+    # A regular temporary file keeps the useful failure log without waiting for
+    # every inheriting process to close a capture_output pipe.
+    with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as output:
+        try:
+            result = subprocess.run(
+                ["uv", "run", "alembic", "upgrade", "head"],
+                cwd=BACKEND_DIR,
+                env={**os.environ, "ZENITH_DATABASE_OWNER_URL": owner_url},
+                stdout=output,
+                stderr=subprocess.STDOUT,
+                check=False,
+                timeout=300,
+            )
+        except subprocess.TimeoutExpired:
+            output.seek(0)
+            pytest.fail(f"alembic upgrade exceeded 300s:\n{output.read()}", pytrace=False)
+        if result.returncode:
+            # Keep the migration's output on failure, including timeouts.
+            output.seek(0)
+            pytest.fail(f"alembic upgrade failed:\n{output.read()}", pytrace=False)
     engine = create_async_engine(owner_url)
 
     async def _grant_credentials() -> None:

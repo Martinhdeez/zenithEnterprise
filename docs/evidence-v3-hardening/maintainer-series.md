@@ -1,0 +1,13 @@
+# Local maintainer review series
+
+**Current remote proposals:** see the [upstream submission index](upstream-submission-2026-09-28.md). Fork integration `Kripta-Studios/zenithEnterprise#1` is merged; the logical provider-neutral PR 01 is `Martinhdeez/zenithEnterprise#2`. No upstream slice is merged at this snapshot.
+
+The original integration history and branches remain preserved. A review should use the current upstream baseline recorded in [current state](current-state.md), refetch before submission, and test each actual merge result. This local qualification phase ended before remote action; the user subsequently authorized a fork push, PR to fork main, CI validation, and merge with `gh`.
+
+1. `fix/evidence-v3-series-foundation-v10` (`5592601`) combines the compatible production lockfile patch with architecture detection, bounded diagnostics, the migration test harness, Windows selector bootstrap, Windows licence/frontend gates, and LF shell attributes. Its clean-install production audit found zero advisories.
+2. PR 01–04 are `98f7935`, `9fa658f`, `f408e26`, and `e1feb7b`. The proxy prerequisite `520d8e7` precedes PR 05 `146bbf4`; neutral evaluation helpers are `45d2b75`.
+3. PR 06 `76f2ba4` includes its own import-order correction. PR 07 `c17d109` carries the binary rubric contract at its consumer. PR 08 `9a2f69f` retains the audit report annotations without repeating the lockfile patch. Release reporting is `1ba0239`.
+4. Core hardening ends at `910bc12` in `fix/evidence-v3-series-hardening-v10`, tree `93a088dbf604811b938e5e73b18566937d200626`. The report branch is a docs-only descendant and is identified separately in [the manifest](publication-manifest.json).
+5. Optional R1 is preserved separately at `fix/evidence-v3-series-r1` (`0d0844b`) on an earlier neutral base; it is research, not an ancestor of this core integration. The one-file independent frontend security branch `c11755806dd4b6bd159bee37d8c7aae49f7f5d5f` and the local split security ancestor `bb22b36` remain available for review. Defaults remain off.
+
+These local boundaries are materialized. The [slice change map](slice-change-map.json) lists changed paths, dependencies, and rollback boundaries; [per-PR validation](per-pr-validation.md) records exact-tip results. Earlier full integration results do not qualify new tips by themselves. The fork PR was merged only after its merge ref and CI passed. Upstream Actions currently requires maintainer approval for each proposed merge candidate. Exact final-head browser acceptance passed in the local qualification phase. Component activation limits in the [qualification matrix](qualification-matrix.md) still apply after review.

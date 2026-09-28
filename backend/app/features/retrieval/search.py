@@ -77,6 +77,9 @@ class Hit:
     # Defaulted because it is a display concern. A test about prompt construction or
     # citation binding should not have to invent one to say what those functions do.
     label_ids: list[UUID] = field(default_factory=list[UUID])
+    # Internal source-version identity for dispatch/disclosure revalidation. Do not send
+    # this hash in the public hit schema: it is an implementation identity, not a citation.
+    source_sha256: str | None = None
 
 
 def scoped(clause: str, documents: list[UUID] | None) -> str:
@@ -110,7 +113,11 @@ async def lexical(
     The score comes back alongside the id and goes nowhere near fusion — it is logged, in
     `query_citations.score_bm25`, and that is the only thing it is for.
     """
-    if engine() == "bm25":
+    # The security-definer BM25 function ranks globally before its caller applies the
+    # document filter. A fixed over-fetch can miss the only scoped hit in a large archive.
+    # Scope inside the existing RLS-protected tsvector query instead; scoped workloads
+    # are deliberately narrow and correctness must not depend on a global cutoff.
+    if engine() == "bm25" and not documents:
         return await _bm25(session, question, limit, documents)
 
     query = await to_tsquery(session, question)
@@ -476,7 +483,7 @@ async def hydrate(
     rows = await session.execute(
         text(
             "SELECT c.id, c.document_id, d.filename, d.media_type, c.page_num, "
-            "       c.char_start, c.char_end, c.text, c.bboxes, d.label_ids "
+            "       c.char_start, c.char_end, c.text, c.bboxes, d.label_ids, d.sha256 "
             "FROM chunks c JOIN documents d ON d.id = c.document_id "
             "WHERE c.id = ANY(:ids)"
         ),
@@ -495,6 +502,7 @@ async def hydrate(
             text=row.text,
             bboxes=list(row.bboxes or []),
             label_ids=list(row.label_ids or []),
+            source_sha256=row.sha256,
             lexical_rank=lexical_positions.get(row.id),
             dense_rank=dense_positions.get(row.id),
             score=dict(ranked)[row.id],

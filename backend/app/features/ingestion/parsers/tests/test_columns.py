@@ -72,6 +72,7 @@ def test_every_box_stays_inside_its_column(two_column: list[ParsedPage]) -> None
     assert not straddling, f"{len(straddling)} word boxes cross the gutter at {gutter}"
 
 
+@pytest.mark.skipif(not (CORPUS / "gdpr.pdf").exists(), reason="pinned gdpr.pdf is unavailable")
 def test_a_single_column_page_is_not_split() -> None:
     """Cropping a page with no gutter would introduce error rather than remove it, so the
     single-column path has to stay the untouched one."""
@@ -94,6 +95,7 @@ def test_the_detector_and_the_extractor_agree(two_column: list[ParsedPage]) -> N
         assert is_multi_column(centres) == bool(gutters(centres))
 
 
+@pytest.mark.skipif(not (CORPUS / "gdpr.pdf").exists(), reason="pinned gdpr.pdf is unavailable")
 def test_parsing_a_long_document_does_not_hold_every_page(two_column: list[ParsedPage]) -> None:
     """pdfplumber caches every character, line and rectangle it decoded, on the page object,
     for the lifetime of the document. Without releasing that per page, parsing accumulates

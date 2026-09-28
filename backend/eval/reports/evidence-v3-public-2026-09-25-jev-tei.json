@@ -1,0 +1,1050 @@
+{
+  "fixture_id": "evidence-v3-public-v1",
+  "fixture_sha256": "f87123fa48e11495dbb9d19e63842d089651aaf885da28859e0c5d7e176b4bd8",
+  "label_provenance": "Agent-reviewed ordinal relevance labels from linked public primary pages; exploratory, not independent human adjudication",
+  "candidate_ids": [
+    "epa-lead-boiling",
+    "epa-lead-cold",
+    "usgs-magnitude",
+    "usgs-intensity",
+    "nws-tornado-watch",
+    "nws-tornado-warning",
+    "cdc-mmr-two",
+    "cdc-mmr-one"
+  ],
+  "query_ids": [
+    "lead-boiling",
+    "lead-formula",
+    "magnitude-location",
+    "shaking-location",
+    "tornado-possible",
+    "tornado-action",
+    "mmr-two-doses",
+    "mmr-comparison",
+    "pb-paraphrase",
+    "intensidad-es"
+  ],
+  "tei_endpoint": "http://127.0.0.1:18082",
+  "tei_reported_model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+  "jev_requested_model": "jev-1.13.0",
+  "jev_calls": 160,
+  "jev_input_tokens_reported": 73168,
+  "jev_output_tokens_reported": 3280,
+  "jev_input_tokens_reserved_or_reconciled": 73168,
+  "jev_estimated_usd_from_reported_usage": 0.003073056,
+  "jev_conservative_budget_usd": 0.003073056,
+  "approved_caps": {
+    "usd": 0.5,
+    "calls": 1000
+  },
+  "rows": [
+    {
+      "query_id": "lead-boiling",
+      "tei": {
+        "order": [
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "usgs-intensity",
+          "usgs-magnitude"
+        ],
+        "scores": [
+          0.99991906,
+          0.617709,
+          0.000751369,
+          0.00066619605,
+          0.0004531278,
+          0.0002933113,
+          0.00015315821,
+          8.104898e-05
+        ],
+        "elapsed_ms": 677,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        }
+      },
+      "jev_score6": {
+        "order": [
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "usgs-magnitude",
+          "usgs-intensity",
+          "nws-tornado-watch",
+          "nws-tornado-warning"
+        ],
+        "scores": [
+          4.98,
+          2.42,
+          0.01,
+          0.01,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "elapsed_ms": 2804,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-score6-v1",
+        "rubric_hash": "a92f8c743324675cee016f29dce551ff49c28a0754ce9010e27787b360073756",
+        "utility_map_id": "grade-index-linear-v1",
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 4016,
+        "output_tokens": 152
+      },
+      "jev_noul": {
+        "order": [
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "usgs-magnitude",
+          "usgs-intensity",
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "cdc-mmr-two",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          0.97,
+          0.42,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "elapsed_ms": 2602,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-noul-v1",
+        "rubric_hash": "ea794cf80e72da58ace8bae07b33ec9164aed4e274a5a941ced3329d2c625dac",
+        "utility_map_id": null,
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 3208,
+        "output_tokens": 176
+      }
+    },
+    {
+      "query_id": "lead-formula",
+      "tei": {
+        "order": [
+          "epa-lead-cold",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "usgs-intensity",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "usgs-magnitude"
+        ],
+        "scores": [
+          0.99945873,
+          0.00045602545,
+          3.9603674e-05,
+          3.6817048e-05,
+          3.3713906e-05,
+          3.2683653e-05,
+          3.203092e-05,
+          3.1165244e-05
+        ],
+        "elapsed_ms": 723,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        }
+      },
+      "jev_score6": {
+        "order": [
+          "epa-lead-cold",
+          "epa-lead-boiling",
+          "usgs-magnitude",
+          "usgs-intensity",
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "cdc-mmr-two",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          4.96,
+          2.98,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "elapsed_ms": 2193,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-score6-v1",
+        "rubric_hash": "a92f8c743324675cee016f29dce551ff49c28a0754ce9010e27787b360073756",
+        "utility_map_id": "grade-index-linear-v1",
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 4104,
+        "output_tokens": 152
+      },
+      "jev_noul": {
+        "order": [
+          "epa-lead-cold",
+          "epa-lead-boiling",
+          "usgs-magnitude",
+          "usgs-intensity",
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "cdc-mmr-two",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          0.96,
+          0.7,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "elapsed_ms": 2154,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-noul-v1",
+        "rubric_hash": "ea794cf80e72da58ace8bae07b33ec9164aed4e274a5a941ced3329d2c625dac",
+        "utility_map_id": null,
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 3296,
+        "output_tokens": 176
+      }
+    },
+    {
+      "query_id": "magnitude-location",
+      "tei": {
+        "order": [
+          "usgs-magnitude",
+          "usgs-intensity",
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "epa-lead-cold",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          0.9977514,
+          0.02462396,
+          0.0029203838,
+          0.0016438914,
+          0.00023208506,
+          7.179232e-05,
+          6.260372e-05,
+          5.8683247e-05
+        ],
+        "elapsed_ms": 620,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        }
+      },
+      "jev_score6": {
+        "order": [
+          "usgs-magnitude",
+          "usgs-intensity",
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "cdc-mmr-two",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          4.97,
+          3.53,
+          0.09,
+          0.08,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "elapsed_ms": 2295,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-score6-v1",
+        "rubric_hash": "a92f8c743324675cee016f29dce551ff49c28a0754ce9010e27787b360073756",
+        "utility_map_id": "grade-index-linear-v1",
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 4072,
+        "output_tokens": 152
+      },
+      "jev_noul": {
+        "order": [
+          "usgs-magnitude",
+          "usgs-intensity",
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "cdc-mmr-two",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          0.96,
+          0.67,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "elapsed_ms": 2161,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-noul-v1",
+        "rubric_hash": "ea794cf80e72da58ace8bae07b33ec9164aed4e274a5a941ced3329d2c625dac",
+        "utility_map_id": null,
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 3264,
+        "output_tokens": 176
+      }
+    },
+    {
+      "query_id": "shaking-location",
+      "tei": {
+        "order": [
+          "usgs-intensity",
+          "usgs-magnitude",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "epa-lead-cold"
+        ],
+        "scores": [
+          0.99309057,
+          0.0011333908,
+          0.0006334963,
+          0.00036705114,
+          0.00023344727,
+          8.057913e-05,
+          6.520191e-05,
+          6.02476e-05
+        ],
+        "elapsed_ms": 587,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        }
+      },
+      "jev_score6": {
+        "order": [
+          "usgs-intensity",
+          "usgs-magnitude",
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "epa-lead-cold",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          4.97,
+          2.09,
+          0.1,
+          0.08,
+          0.01,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "elapsed_ms": 2240,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-score6-v1",
+        "rubric_hash": "a92f8c743324675cee016f29dce551ff49c28a0754ce9010e27787b360073756",
+        "utility_map_id": "grade-index-linear-v1",
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 4056,
+        "output_tokens": 152
+      },
+      "jev_noul": {
+        "order": [
+          "usgs-intensity",
+          "usgs-magnitude",
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "cdc-mmr-two",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          0.96,
+          0.33,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "elapsed_ms": 2237,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-noul-v1",
+        "rubric_hash": "ea794cf80e72da58ace8bae07b33ec9164aed4e274a5a941ced3329d2c625dac",
+        "utility_map_id": null,
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 3248,
+        "output_tokens": 176
+      }
+    },
+    {
+      "query_id": "tornado-possible",
+      "tei": {
+        "order": [
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "usgs-magnitude",
+          "usgs-intensity",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "epa-lead-cold"
+        ],
+        "scores": [
+          0.07620378,
+          0.03764581,
+          0.0003997049,
+          0.00018772205,
+          0.00013022117,
+          0.000109937246,
+          8.804664e-05,
+          4.271369e-05
+        ],
+        "elapsed_ms": 751,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        }
+      },
+      "jev_score6": {
+        "order": [
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "usgs-intensity",
+          "usgs-magnitude",
+          "epa-lead-cold",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          4.819999999999999,
+          2.16,
+          0.07,
+          0.03,
+          0.02,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "elapsed_ms": 2209,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-score6-v1",
+        "rubric_hash": "a92f8c743324675cee016f29dce551ff49c28a0754ce9010e27787b360073756",
+        "utility_map_id": "grade-index-linear-v1",
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 4088,
+        "output_tokens": 152
+      },
+      "jev_noul": {
+        "order": [
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "usgs-magnitude",
+          "usgs-intensity",
+          "cdc-mmr-two",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          0.96,
+          0.23,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "elapsed_ms": 2078,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-noul-v1",
+        "rubric_hash": "ea794cf80e72da58ace8bae07b33ec9164aed4e274a5a941ced3329d2c625dac",
+        "utility_map_id": null,
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 3280,
+        "output_tokens": 176
+      }
+    },
+    {
+      "query_id": "tornado-action",
+      "tei": {
+        "order": [
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "epa-lead-cold",
+          "epa-lead-boiling",
+          "usgs-magnitude",
+          "cdc-mmr-two",
+          "usgs-intensity",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          0.19704142,
+          0.073513195,
+          0.0051082643,
+          0.0042649587,
+          0.0031121136,
+          0.00080341886,
+          0.00063494156,
+          0.00046743633
+        ],
+        "elapsed_ms": 582,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        }
+      },
+      "jev_score6": {
+        "order": [
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "usgs-intensity",
+          "epa-lead-cold",
+          "usgs-magnitude",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          3.8,
+          2.34,
+          0.22,
+          0.16999999999999998,
+          0.06,
+          0.02,
+          0.0,
+          0.0
+        ],
+        "elapsed_ms": 2224,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-score6-v1",
+        "rubric_hash": "a92f8c743324675cee016f29dce551ff49c28a0754ce9010e27787b360073756",
+        "utility_map_id": "grade-index-linear-v1",
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 4056,
+        "output_tokens": 152
+      },
+      "jev_noul": {
+        "order": [
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "epa-lead-cold",
+          "epa-lead-boiling",
+          "usgs-magnitude",
+          "usgs-intensity",
+          "cdc-mmr-two",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          0.87,
+          0.39,
+          0.02,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "elapsed_ms": 2104,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-noul-v1",
+        "rubric_hash": "ea794cf80e72da58ace8bae07b33ec9164aed4e274a5a941ced3329d2c625dac",
+        "utility_map_id": null,
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 3248,
+        "output_tokens": 176
+      }
+    },
+    {
+      "query_id": "mmr-two-doses",
+      "tei": {
+        "order": [
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "usgs-intensity",
+          "usgs-magnitude"
+        ],
+        "scores": [
+          0.9999298,
+          0.99691224,
+          0.0005004961,
+          0.00033205995,
+          0.00026286062,
+          0.00015316113,
+          6.797815e-05,
+          5.8425834e-05
+        ],
+        "elapsed_ms": 1354,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        }
+      },
+      "jev_score6": {
+        "order": [
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "epa-lead-cold",
+          "epa-lead-boiling",
+          "usgs-magnitude",
+          "usgs-intensity",
+          "nws-tornado-watch",
+          "nws-tornado-warning"
+        ],
+        "scores": [
+          4.92,
+          2.88,
+          0.01,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "elapsed_ms": 2125,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-score6-v1",
+        "rubric_hash": "a92f8c743324675cee016f29dce551ff49c28a0754ce9010e27787b360073756",
+        "utility_map_id": "grade-index-linear-v1",
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 4048,
+        "output_tokens": 152
+      },
+      "jev_noul": {
+        "order": [
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "usgs-magnitude",
+          "usgs-intensity",
+          "nws-tornado-watch",
+          "nws-tornado-warning"
+        ],
+        "scores": [
+          0.96,
+          0.45,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "elapsed_ms": 2041,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-noul-v1",
+        "rubric_hash": "ea794cf80e72da58ace8bae07b33ec9164aed4e274a5a941ced3329d2c625dac",
+        "utility_map_id": null,
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 3240,
+        "output_tokens": 176
+      }
+    },
+    {
+      "query_id": "mmr-comparison",
+      "tei": {
+        "order": [
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "nws-tornado-warning",
+          "usgs-magnitude",
+          "epa-lead-boiling",
+          "nws-tornado-watch",
+          "usgs-intensity",
+          "epa-lead-cold"
+        ],
+        "scores": [
+          0.97430193,
+          0.36699265,
+          0.0014952373,
+          0.0011214344,
+          0.00088805787,
+          0.000735733,
+          0.00052904437,
+          0.00049831806
+        ],
+        "elapsed_ms": 594,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        }
+      },
+      "jev_score6": {
+        "order": [
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "epa-lead-cold",
+          "usgs-magnitude",
+          "epa-lead-boiling",
+          "usgs-intensity",
+          "nws-tornado-watch",
+          "nws-tornado-warning"
+        ],
+        "scores": [
+          3.0100000000000002,
+          2.9899999999999998,
+          0.01,
+          0.01,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "elapsed_ms": 2173,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-score6-v1",
+        "rubric_hash": "a92f8c743324675cee016f29dce551ff49c28a0754ce9010e27787b360073756",
+        "utility_map_id": "grade-index-linear-v1",
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 4072,
+        "output_tokens": 152
+      },
+      "jev_noul": {
+        "order": [
+          "cdc-mmr-one",
+          "cdc-mmr-two",
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "usgs-magnitude",
+          "usgs-intensity",
+          "nws-tornado-watch",
+          "nws-tornado-warning"
+        ],
+        "scores": [
+          0.47,
+          0.4,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "elapsed_ms": 2101,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-noul-v1",
+        "rubric_hash": "ea794cf80e72da58ace8bae07b33ec9164aed4e274a5a941ced3329d2c625dac",
+        "utility_map_id": null,
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 3264,
+        "output_tokens": 176
+      }
+    },
+    {
+      "query_id": "pb-paraphrase",
+      "tei": {
+        "order": [
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "epa-lead-cold",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "usgs-intensity",
+          "usgs-magnitude"
+        ],
+        "scores": [
+          0.013821838,
+          0.000270123,
+          0.00022627704,
+          0.0001835639,
+          0.00015712119,
+          0.00011924512,
+          7.558889e-05,
+          7.089808e-05
+        ],
+        "elapsed_ms": 620,
+        "metrics": {
+          "ndcg_at_8": 0.9936690702088687,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        }
+      },
+      "jev_score6": {
+        "order": [
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "cdc-mmr-one",
+          "usgs-magnitude",
+          "usgs-intensity",
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "cdc-mmr-two"
+        ],
+        "scores": [
+          4.8999999999999995,
+          4.1499999999999995,
+          0.01,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "elapsed_ms": 2326,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-score6-v1",
+        "rubric_hash": "a92f8c743324675cee016f29dce551ff49c28a0754ce9010e27787b360073756",
+        "utility_map_id": "grade-index-linear-v1",
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 4032,
+        "output_tokens": 152
+      },
+      "jev_noul": {
+        "order": [
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "usgs-magnitude",
+          "usgs-intensity",
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "cdc-mmr-two",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          0.97,
+          0.84,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "elapsed_ms": 2087,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-noul-v1",
+        "rubric_hash": "ea794cf80e72da58ace8bae07b33ec9164aed4e274a5a941ced3329d2c625dac",
+        "utility_map_id": null,
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 3224,
+        "output_tokens": 176
+      }
+    },
+    {
+      "query_id": "intensidad-es",
+      "tei": {
+        "order": [
+          "usgs-magnitude",
+          "usgs-intensity",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "epa-lead-cold",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          0.7326009,
+          0.69475913,
+          0.0018474524,
+          0.0011344575,
+          0.0003310649,
+          9.165118e-05,
+          8.591925e-05,
+          8.019553e-05
+        ],
+        "elapsed_ms": 645,
+        "metrics": {
+          "ndcg_at_8": 0.6858288052712634,
+          "best_at_1": false,
+          "relevant_recall_at_2": 1.0
+        }
+      },
+      "jev_score6": {
+        "order": [
+          "usgs-intensity",
+          "usgs-magnitude",
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "cdc-mmr-two",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          4.99,
+          3.32,
+          0.16,
+          0.12,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "elapsed_ms": 2326,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-score6-v1",
+        "rubric_hash": "a92f8c743324675cee016f29dce551ff49c28a0754ce9010e27787b360073756",
+        "utility_map_id": "grade-index-linear-v1",
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 4080,
+        "output_tokens": 152
+      },
+      "jev_noul": {
+        "order": [
+          "usgs-intensity",
+          "usgs-magnitude",
+          "nws-tornado-warning",
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "nws-tornado-watch",
+          "cdc-mmr-two",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          0.97,
+          0.63,
+          0.02,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "elapsed_ms": 2282,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        },
+        "rubric_id": "zenith-contribution-noul-v1",
+        "rubric_hash": "ea794cf80e72da58ace8bae07b33ec9164aed4e274a5a941ced3329d2c625dac",
+        "utility_map_id": null,
+        "reported_model": "jev-1.13.0",
+        "input_tokens": 3272,
+        "output_tokens": 176
+      }
+    }
+  ],
+  "tei_summary": {
+    "mean_ndcg_at_8": 0.9679497875480132,
+    "best_at_1_count": 9,
+    "mean_relevant_recall_at_2": 1.0,
+    "median_elapsed_ms": 645
+  },
+  "jev_score6_summary": {
+    "mean_ndcg_at_8": 1.0,
+    "best_at_1_count": 10,
+    "mean_relevant_recall_at_2": 1.0,
+    "median_elapsed_ms": 2240
+  },
+  "jev_noul_summary": {
+    "mean_ndcg_at_8": 1.0,
+    "best_at_1_count": 10,
+    "mean_relevant_recall_at_2": 1.0,
+    "median_elapsed_ms": 2154
+  }
+}
