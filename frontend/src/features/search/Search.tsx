@@ -9,9 +9,16 @@
  * generation ever answers the second one.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { search, type Relevance, type SearchHit } from "./api";
+import {
+  search,
+  searchCapabilities,
+  type CoverageReceipt,
+  type Relevance,
+  type RetrievalMode,
+  type SearchHit,
+} from "./api";
 import { ApiError } from "@/shared/api/http";
 import type { Citation } from "@/features/chat";
 import { Clock, Search as SearchIcon, SearchX } from "lucide-react";
@@ -21,11 +28,13 @@ import { TagChips, labels as fetchLabels } from "@/features/labels";
 import { Button } from "@/components/ui/button";
 import { useAutoGrow } from "@/shared/ui/SearchField";
 import { ProgressBar } from "@/shared/components/ProgressBar";
-import { forget, read, write } from "@/shared/lib/storage";
+import { forget } from "@/shared/lib/storage";
 import { useT } from "@/shared/i18n/useT";
 
 interface Props {
   token: string;
+  /** Clear in-memory recent queries when this authenticated identity changes. */
+  recentScope?: string | null;
   /**
    * A question sent here from somewhere else — the command palette, or "ask again" in
    * History. Both used to open Chat; with that destination gone they run a search instead,
@@ -86,6 +95,8 @@ type State =
       reason: string | null;
       tookMs: number;
       relevance: Relevance;
+      mode: RetrievalMode;
+      receipt: CoverageReceipt | null;
     }
   | { phase: "error"; query: string; message: string };
 
@@ -94,12 +105,12 @@ type State =
     shown only until there is real history to offer instead. */
 const SUGGESTIONS = ["obligations", "deadlines", "definitions", "penalties"];
 
-const RECENT_KEY = "zenith.recent-searches";
+const LEGACY_RECENT_KEY = "zenith.recent-searches";
 const RECENT_LIMIT = 5;
 
 /**
- * Recent searches live in the browser, not on the server, and that is a decision rather
- * than a shortcut.
+ * Recent searches live only in this mounted session. They contain private query text,
+ * so retaining them in browser storage across account switches is not appropriate.
  *
  * `GET /query/history` exists and would have been the obvious source — but it records
  * *questions asked in Chat*. Search is deliberately not written to it: it runs retrieval
@@ -107,31 +118,13 @@ const RECENT_LIMIT = 5;
  * audited record. Reading chat history here would put a different kind of thing under a
  * heading that says "recent searches", which is worse than having no list.
  *
- * The trade-off is honest and worth stating: this is per-browser and per-device. If these
- * should follow a person between machines — or be visible to an auditor — that is a
+ * They do not follow a person between machines or become visible to an auditor. That is a
  * server-side feature and a separate decision about what Search owes the record.
  */
-function readRecent(): string[] {
-  try {
-    const raw: unknown = JSON.parse(read("local", RECENT_KEY) ?? "[]");
-    return Array.isArray(raw) ? raw.filter((item): item is string => typeof item === "string") : [];
-  } catch {
-    // Hand-edited or written by an older version. A broken preference is not worth an
-    // error on a screen whose job is to search. (`read` handles a browser that refuses
-    // storage; this handles a value that is there and is not JSON.)
-    return [];
-  }
-}
-
-function remember(query: string): string[] {
+function remember(query: string, current: string[]): string[] {
   // Most recent first, no duplicates: searching the same thing twice should move it to the
   // top rather than fill the list with one word.
-  const next = [query, ...readRecent().filter((item) => item !== query)].slice(0, RECENT_LIMIT);
-  // Guarded in `shared/lib/storage`, and the reason is recorded there: `setItem` throws when
-  // the quota is full or the browser refuses storage, and this call sits inside the `try`
-  // around the search itself. A search that worked perfectly once reported "The search
-  // failed", because a convenience nobody asked for could not save a string.
-  write("local", RECENT_KEY, JSON.stringify(next));
+  const next = [query, ...current.filter((item) => item !== query)].slice(0, RECENT_LIMIT);
   return next;
 }
 
@@ -158,6 +151,7 @@ function citationOf(hit: SearchHit, index: number): Citation {
 
 export function Search({
   token,
+  recentScope,
   onCitation,
   openChunkId,
   searchable,
@@ -173,8 +167,10 @@ export function Search({
   const [known, setKnown] = useState<Map<string, string>>(new Map());
   const [state, setState] = useState<State>({ phase: "idle" });
   const [query, setQuery] = useState("");
+  const [mode, setMode] = useState<RetrievalMode>("legacy");
+  const [directEnabled, setDirectEnabled] = useState(false);
   const { field, grown } = useAutoGrow(query);
-  const [recent, setRecent] = useState<string[]>(readRecent);
+  const [recent, setRecent] = useState<string[]>([]);
   // One switch for the whole list rather than one per result: the card itself is a
   // `<button>`, and an expander inside it would be an interactive element nested in another
   // — invalid, and unreachable by keyboard. It also matches how the detail is actually used:
@@ -187,6 +183,36 @@ export function Search({
     void fetchLabels(token)
       .then((all) => !cancelled && setKnown(new Map(all.map((l) => [l.id, l.name]))))
       .catch(() => !cancelled && setKnown(new Map()));
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  useLayoutEffect(() => {
+    // The old unscoped key could reveal one account's queries to the next signer-in.
+    forget("local", LEGACY_RECENT_KEY);
+    inflight.current?.abort();
+    inflight.current = null;
+    setState({ phase: "idle" });
+    setQuery("");
+    setRecent((current) => (current.length === 0 ? current : []));
+  }, [recentScope]);
+
+  useEffect(() => () => inflight.current?.abort(), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void searchCapabilities(token)
+      .then(({ direct_enabled }) => {
+        if (cancelled) return;
+        setDirectEnabled(direct_enabled);
+        if (!direct_enabled) setMode((current) => (current === "auto" || current === "direct" ? "legacy" : current));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDirectEnabled(false);
+        setMode((current) => (current === "auto" || current === "direct" ? "legacy" : current));
+      });
     return () => {
       cancelled = true;
     };
@@ -209,10 +235,13 @@ export function Search({
 
       setState({ phase: "loading", query: q });
       try {
-        const result = await search(token, q, labels, controller.signal);
+        const result = await search(token, q, labels, controller.signal, mode);
+        // A fetch mock, cache, or already-resolved response may settle after identity
+        // cleanup. Such a result cannot update this session or open its source panel.
+        if (controller.signal.aborted || inflight.current !== controller) return;
         // Recorded once the search came back, not when it was submitted: a query that
         // errored or was cancelled is not one worth offering again.
-        setRecent(remember(q));
+        setRecent((current) => remember(q, current));
         setState({
           phase: "done",
           query: q,
@@ -221,6 +250,8 @@ export function Search({
           relevance: result.relevance ?? "confident",
           reason: result.reason,
           tookMs: result.took_ms,
+          mode,
+          receipt: result.receipt ?? null,
         });
         // The best passage opens on its own, rather than waiting to be clicked.
         //
@@ -237,7 +268,7 @@ export function Search({
       } catch (error) {
         // An abort is the user cancelling, not a failure — `cancel` below already put the
         // state back to idle, and overwriting that with an error would fight it.
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || inflight.current !== controller) return;
         setState({
           phase: "error",
           query: q,
@@ -245,7 +276,7 @@ export function Search({
         });
       }
     },
-    [token, labels, onCitation],
+    [token, labels, onCitation, mode],
   );
 
   const cancel = useCallback(() => {
@@ -281,6 +312,12 @@ export function Search({
   }
 
   const busy = state.phase === "loading";
+  const modeNames: Record<RetrievalMode, string> = {
+    legacy: t("Standard search"),
+    hybrid: t("Hybrid shortlist"),
+    auto: t("Automatic coverage"),
+    direct: t("Direct scope"),
+  };
 
   return (
     // Idle, the field and the landing copy are one group sitting a little above centre — not
@@ -354,6 +391,33 @@ export function Search({
         </div>
       </form>
 
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-xs text-muted-foreground">
+        <label htmlFor="search-mode" className="font-medium text-foreground">
+          {t("Search mode")}
+        </label>
+        <select
+          id="search-mode"
+          value={mode}
+          onChange={(event) => setMode(event.target.value as RetrievalMode)}
+          disabled={busy}
+          className="rounded-md border border-input bg-card px-2 py-1 text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <option value="legacy">{modeNames.legacy}</option>
+          <option value="hybrid">{modeNames.hybrid}</option>
+          {directEnabled && <option value="auto">{modeNames.auto}</option>}
+          {directEnabled && <option value="direct">{modeNames.direct}</option>}
+        </select>
+        <span>
+          {mode === "direct"
+            ? t("Assess every eligible parsed passage within the configured limits.")
+            : mode === "auto"
+              ? t("Use full-scope assessment when it fits, otherwise a shortlist.")
+              : mode === "hybrid"
+                ? t("Rank a candidate shortlist.")
+                : t("Use the installed search behavior.")}
+        </span>
+      </div>
+
       {/* The screen used to be a lone input on an empty panel — nothing said what this
           searches, how it differs from Chat, or what to type. It is the landing screen, so
           it is the one place worth spending a few lines explaining the mechanism. */}
@@ -399,7 +463,6 @@ export function Search({
               <button
                 type="button"
                 onClick={() => {
-                  forget("local", RECENT_KEY);
                   setRecent([]);
                 }}
                 className="text-xs text-muted-foreground/60 transition-colors hover:text-foreground"
@@ -466,6 +529,58 @@ export function Search({
             )}
           </div>
 
+          <div className="rounded-lg border border-input bg-card px-4 py-3 text-sm" role="status">
+            <p className="font-medium text-foreground">
+              {t("Mode: {mode}", { mode: modeNames[state.mode] })}
+            </p>
+            {state.receipt ? (
+              <>
+                <p className="mt-1 text-muted-foreground">
+                  {state.receipt.manifest_assessment_complete
+                    ? state.receipt.eligible_units === 0
+                      ? t("No eligible ready passages were found in this scope.")
+                      : t("Every eligible parsed passage in this scope was assessed.")
+                    : state.receipt.strategy === "direct"
+                      ? t("The selected scope was not fully assessed.")
+                      : state.receipt.execution_status === "complete"
+                        ? t("The candidate shortlist was assessed; other passages may not have been considered.")
+                        : t("The candidate shortlist was not fully assessed.")}
+                </p>
+                {state.receipt.snapshot_status === "changed" && (
+                  <p className="mt-1 text-zenith-amber">{t("Sources changed during this search. Run it again.")}</p>
+                )}
+                {state.receipt.strategy === "direct" && typeof state.receipt.eligible_units === "number" && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("Passages assessed: {assessed} / {eligible}. Windows required: {windows}.", {
+                      assessed: state.receipt.assessed_units,
+                      eligible: state.receipt.eligible_units,
+                      windows: state.receipt.assessment_windows,
+                    })}
+                  </p>
+                )}
+                {state.receipt.strategy === "hybrid" && typeof state.receipt.assessed_units === "number" && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("Candidate passages assessed: {count}.", { count: state.receipt.assessed_units })}
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t("Coverage describes retrieval, not whether an answer is correct.")}
+                </p>
+              </>
+            ) : (
+              <p className="mt-1 text-muted-foreground">
+                {state.mode === "legacy"
+                  ? t("Standard search does not assess the whole source scope.")
+                  : t("Coverage details are unavailable from this server.")}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t("Returned documents: {count}", {
+                count: new Set(state.hits.map((hit) => hit.document_id)).size,
+              })}
+            </p>
+          </div>
+
           {/* **The notice has to be read before the results, and grey lost that race.**
               
               It was a muted line in a dashed box, and it was reported from the screen by
@@ -508,6 +623,15 @@ export function Search({
                   {t("What follows is the nearest thing in your documents, not an answer.")}
                 </p>
               </div>
+            </div>
+          )}
+
+          {state.relevance === "not_assessed" && state.hits.length > 0 && (
+            <div
+              role="status"
+              className="rounded-xl border border-primary/35 bg-primary/[0.08] px-4 py-3.5 text-sm text-foreground"
+            >
+              {t("These passages are ranked, but their answer coverage has not been assessed.")}
             </div>
           )}
 
