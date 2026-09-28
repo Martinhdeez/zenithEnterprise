@@ -46,9 +46,10 @@ vi.mock("@/features/chat", () => ({ Chat: () => <p>chat</p> }));
 // Emits a citation on demand, so the shell's own reaction to one can be tested. The button
 // is inert for every other test in this file, which still only assert that "search" renders.
 vi.mock("@/features/search", () => ({
-  Search: ({ onCitation }: { onCitation: (c: unknown, q: string) => void }) => (
+  Search: ({ onCitation, recentScope }: { onCitation: (c: unknown, q: string) => void; recentScope: string }) => (
     <p>
       search
+      <span data-testid="search-scope">{recentScope}</span>
       <button
         type="button"
         onClick={() =>
@@ -193,6 +194,28 @@ describe("signing out", () => {
     expect(window.sessionStorage.getItem(REFRESH_KEY)).toBeNull();
     expect(screen.getByRole("button", { name: "sign in" })).toBeTruthy();
   });
+
+  it("keeps account A's search and citation out of account B's loading session", async () => {
+    signedIn({ tenant_id: "tenant-a", user_id: "user-a" });
+    render(<App />);
+    expect((await screen.findByTestId("search-scope")).textContent).toBe("tenant-a:user-a");
+    fireEvent.click(screen.getByRole("button", { name: "emit citation" }));
+    fireEvent.click(screen.getByRole("button", { name: /Profile/i }));
+    fireEvent.click(screen.getByRole("button", { name: /sign out/i }));
+    expect(screen.queryByText("plazo máximo")).toBeNull();
+
+    let resolveProfile!: (value: Record<string, unknown>) => void;
+    fetchMyProfile.mockReturnValueOnce(new Promise((resolve) => { resolveProfile = resolve; }));
+    authenticated.mockReturnValue({ access_token: "access-b", refresh_token: "refresh-b" });
+    fireEvent.click(screen.getByRole("button", { name: "sign in" }));
+    expect(screen.queryByTestId("search-scope")).toBeNull();
+    expect(screen.queryByText("plazo máximo")).toBeNull();
+    await act(async () => {
+      resolveProfile({ tenant_id: "tenant-b", user_id: "user-b", email: "b@example.com", name: "B", is_system_admin: false });
+    });
+    expect((await screen.findByTestId("search-scope")).textContent).toBe("tenant-b:user-b");
+    expect(screen.queryByText("plazo máximo")).toBeNull();
+  });
 });
 
 describe("the system panel in the sidebar", () => {
@@ -231,6 +254,10 @@ describe("the system panel in the sidebar", () => {
     await screen.findByRole("button", { name: /^folders$/i });
 
     expect(screen.queryByRole("button", { name: /^system$/i })).toBeNull();
+    expect(await screen.findByText("Your profile could not be loaded. Search is paused.")).toBeTruthy();
+    fetchMyProfile.mockResolvedValue({ tenant_id: "t1", user_id: "u1", email: "someone@example.com", name: "Someone", is_system_admin: false });
+    fireEvent.click(screen.getByRole("button", { name: "Retry profile" }));
+    expect((await screen.findByTestId("search-scope")).textContent).toBe("t1:u1");
   });
 });
 
@@ -251,6 +278,62 @@ describe("a session that cannot be renewed", () => {
 
     expect(window.sessionStorage.getItem(TOKEN_KEY)).toBeNull();
     expect(window.sessionStorage.getItem(REFRESH_KEY)).toBeNull();
+  });
+
+  it("clears account A before account B signs in after a refresh rejection", async () => {
+    vi.useFakeTimers();
+    signedIn({ tenant_id: "tenant-a", user_id: "user-a" });
+    refreshTokens.mockRejectedValue(new Error("revoked"));
+    render(<App />);
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.getByTestId("search-scope").textContent).toBe("tenant-a:user-a");
+    fireEvent.click(screen.getByRole("button", { name: "emit citation" }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(10 * 60 * 1000 + 1_000); });
+    expect(screen.getByRole("button", { name: "sign in" })).toBeTruthy();
+
+    let resolveProfile!: (value: Record<string, unknown>) => void;
+    fetchMyProfile.mockReturnValueOnce(new Promise((resolve) => { resolveProfile = resolve; }));
+    authenticated.mockReturnValue({ access_token: "access-b", refresh_token: "refresh-b" });
+    fireEvent.click(screen.getByRole("button", { name: "sign in" }));
+    expect(screen.queryByTestId("search-scope")).toBeNull();
+    expect(screen.queryByText("plazo máximo")).toBeNull();
+    await act(async () => {
+      resolveProfile({ tenant_id: "tenant-b", user_id: "user-b", email: "b@example.com", name: "B", is_system_admin: false });
+    });
+    expect(screen.getByTestId("search-scope").textContent).toBe("tenant-b:user-b");
+  });
+
+  it.each(["resolve", "reject"])("ignores account A's late refresh %s after B signs in", async (outcome) => {
+    vi.useFakeTimers();
+    signedIn({ tenant_id: "tenant-a", user_id: "user-a" });
+    let resolveRefresh!: (value: { access_token: string; refresh_token: string }) => void;
+    let rejectRefresh!: (reason: Error) => void;
+    refreshTokens.mockReturnValueOnce(new Promise((resolve, reject) => {
+      resolveRefresh = resolve;
+      rejectRefresh = reject;
+    }));
+    render(<App />);
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.getByTestId("search-scope").textContent).toBe("tenant-a:user-a");
+    await act(async () => { await vi.advanceTimersByTimeAsync(10 * 60 * 1000 + 1_000); });
+    expect(refreshTokens).toHaveBeenCalledWith("refresh-1");
+
+    fireEvent.click(screen.getByRole("button", { name: /Profile/i }));
+    fireEvent.click(screen.getByRole("button", { name: /sign out/i }));
+    authenticated.mockReturnValue({ access_token: "access-b", refresh_token: "refresh-b" });
+    fetchMyProfile.mockResolvedValue({ tenant_id: "tenant-b", user_id: "user-b", email: "b@example.com", name: "B", is_system_admin: false });
+    fireEvent.click(screen.getByRole("button", { name: "sign in" }));
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.getByTestId("search-scope").textContent).toBe("tenant-b:user-b");
+
+    await act(async () => {
+      if (outcome === "resolve") resolveRefresh({ access_token: "access-a-late", refresh_token: "refresh-a-late" });
+      else rejectRefresh(new Error("account A revoked"));
+      await Promise.resolve();
+    });
+    expect(window.sessionStorage.getItem(TOKEN_KEY)).toBe("access-b");
+    expect(window.sessionStorage.getItem(REFRESH_KEY)).toBe("refresh-b");
+    expect(screen.getByTestId("search-scope").textContent).toBe("tenant-b:user-b");
   });
 
   it("keeps the new pair when renewal succeeds", async () => {

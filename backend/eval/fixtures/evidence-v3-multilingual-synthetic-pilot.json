@@ -1,0 +1,73 @@
+{
+  "id": "evidence-v3-hardening-synthetic-pilot-v1",
+  "classification": "synthetic",
+  "label_provenance": "Agent-authored before Jev dispatch; exploratory, with shared scenario families across languages",
+  "scenario": "Fictional enterprise procedures; not legal, medical, or customer policy",
+  "groups": [
+    {
+      "language": "en",
+      "passages": [
+        "Work from another country requires written manager approval before travel. Domestic temporary work needs only a calendar notice.",
+        "Expense claims must arrive within 30 days with receipts. Finance may approve a late claim as an exception.",
+        "Daily backups are deleted after 90 days. A legal hold suspends deletion until the hold is lifted.",
+        "Report incidents within 24 hours. Critical incidents must be reported within one hour."
+      ],
+      "queries": [
+        {"text": "Can I work abroad with only a calendar notice?", "gold": 0},
+        {"text": "Does a legal hold change the 90-day backup deletion rule?", "gold": 2}
+      ]
+    },
+    {
+      "language": "es",
+      "passages": [
+        "Trabajar desde otro país exige autorización escrita de la responsable antes del viaje. Para teletrabajar temporalmente dentro del país basta con avisar en el calendario.",
+        "Las dietas deben justificarse con recibos en un plazo de 30 días. Finanzas puede autorizar una excepción si se presentan tarde.",
+        "Las copias diarias se borran a los 90 días. Una retención legal suspende el borrado hasta que se levante.",
+        "Los incidentes se notifican en 24 horas. Si son críticos, el plazo es de una hora."
+      ],
+      "queries": [
+        {"text": "¿Me basta un aviso en el calendario para trabajar desde otro país?", "gold": 0},
+        {"text": "¿Se borra una copia a los 90 días si hay una retención legal?", "gold": 2}
+      ]
+    },
+    {
+      "language": "fr",
+      "passages": [
+        "Le travail depuis un autre pays exige une autorisation écrite du responsable avant le voyage. Pour un déplacement temporaire dans le pays, une mention au calendrier suffit.",
+        "Les notes de frais doivent être remises sous 30 jours avec les reçus. Le service financier peut autoriser une exception tardive.",
+        "Les sauvegardes quotidiennes sont effacées après 90 jours. Une obligation de conservation suspend cet effacement jusqu'à sa levée.",
+        "Les incidents sont signalés sous 24 heures. Les incidents critiques le sont sous une heure."
+      ],
+      "queries": [
+        {"text": "Une simple mention au calendrier suffit-elle pour travailler depuis l'étranger ?", "gold": 0},
+        {"text": "Une obligation de conservation suspend-elle l'effacement après 90 jours ?", "gold": 2}
+      ]
+    },
+    {
+      "language": "pt",
+      "passages": [
+        "Trabalhar a partir de outro país exige autorização escrita da chefia antes da viagem. Para trabalho temporário dentro do país, basta avisar no calendário.",
+        "As despesas devem ser entregues em 30 dias com recibos. A equipa financeira pode aprovar uma exceção para entregas tardias.",
+        "As cópias de segurança diárias são apagadas após 90 dias. Uma retenção legal suspende a eliminação até ser levantada.",
+        "Os incidentes devem ser comunicados em 24 horas. Os incidentes críticos exigem comunicação numa hora."
+      ],
+      "queries": [
+        {"text": "Um aviso no calendário basta para trabalhar noutro país?", "gold": 0},
+        {"text": "A retenção legal altera a eliminação das cópias após 90 dias?", "gold": 2}
+      ]
+    },
+    {
+      "language": "de",
+      "passages": [
+        "Arbeit aus einem anderen Land erfordert vor der Reise eine schriftliche Genehmigung der Führungskraft. Für vorübergehende Arbeit im Inland genügt ein Kalendereintrag.",
+        "Auslagen sind innerhalb von 30 Tagen mit Belegen einzureichen. Die Finanzabteilung kann eine verspätete Einreichung ausnahmsweise genehmigen.",
+        "Tägliche Sicherungen werden nach 90 Tagen gelöscht. Eine rechtliche Aufbewahrungspflicht setzt die Löschung bis zu ihrer Aufhebung aus.",
+        "Vorfälle sind innerhalb von 24 Stunden zu melden. Kritische Vorfälle müssen innerhalb einer Stunde gemeldet werden."
+      ],
+      "queries": [
+        {"text": "Reicht ein Kalendereintrag aus, um aus dem Ausland zu arbeiten?", "gold": 0},
+        {"text": "Werden Sicherungen trotz rechtlicher Aufbewahrung nach 90 Tagen gelöscht?", "gold": 2}
+      ]
+    }
+  ]
+}

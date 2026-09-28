@@ -57,6 +57,8 @@ export interface QueryResult {
   reason: string | null;
   took_retrieval_ms: number;
   took_generation_ms: number;
+  support_status?: "supported" | "contradicted" | "insufficient" | "not_assessed" | null;
+  took_support_ms?: number;
 }
 
 export interface StreamHandlers {

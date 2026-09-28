@@ -1,0 +1,68 @@
+{
+  "source": "AllenAI SciFact public development split",
+  "archive_sha256": "11c621288d41ac144d29b13b0f8503b3820b7d6e8b1f6ff24dff335c196d76be",
+  "claims_sha256": "86f0435d08fdb65d1aa41d1472684f57e6e71930626497bdf4d7a9ec1a632217",
+  "corpus_sha256": "b8d6c89624cb2ed74dee8938effc4f5d8bd2086887880af8110d64be4ceade62",
+  "trials": [
+    {
+      "trial_id": "zenith-scifact-support-oracle-dev-sha-24x2-v1",
+      "model": "jev-1.13.0",
+      "rubric_id": "zenith-claim-support-noul-v1",
+      "rubric_hash": "268504224418847ae38091b5aa08c0da10456fdf24e867d228be5f0904b7ff81",
+      "threshold": 0.8,
+      "processing_purpose": "claim_support",
+      "prior_calls": 930,
+      "calls_reserved": 48,
+      "summary": {
+        "SUPPORT": {
+          "planned": 24,
+          "completed": 24,
+          "assessed": 24,
+          "accepted": 12,
+          "accept_rate_among_assessed": 0.5,
+          "mean_noul_among_assessed": 0.6816666666666666
+        },
+        "CONTRADICT": {
+          "planned": 24,
+          "completed": 24,
+          "assessed": 24,
+          "accepted": 0,
+          "accept_rate_among_assessed": 0.0,
+          "mean_noul_among_assessed": 0.05333333333333333
+        }
+      }
+    },
+    {
+      "trial_id": "zenith-scifact-support-oracle-dev-sha-next-10x2-v1",
+      "model": "jev-1.13.0",
+      "rubric_id": "zenith-claim-support-noul-v1",
+      "rubric_hash": "268504224418847ae38091b5aa08c0da10456fdf24e867d228be5f0904b7ff81",
+      "threshold": 0.6,
+      "processing_purpose": "claim_support",
+      "prior_calls": 978,
+      "calls_reserved": 20,
+      "summary": {
+        "SUPPORT": {
+          "planned": 10,
+          "completed": 10,
+          "assessed": 10,
+          "accepted": 8,
+          "accept_rate_among_assessed": 0.8,
+          "mean_noul_among_assessed": 0.748
+        },
+        "CONTRADICT": {
+          "planned": 10,
+          "completed": 10,
+          "assessed": 10,
+          "accepted": 0,
+          "accept_rate_among_assessed": 0.0,
+          "mean_noul_among_assessed": 0.081
+        }
+      }
+    }
+  ],
+  "case_count": 68,
+  "total_input_tokens": 56072,
+  "total_output_tokens": 1496,
+  "sum_provider_elapsed_ms": 19081
+}

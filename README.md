@@ -184,6 +184,9 @@ cost, and the several occasions where the measurement contradicted the plan and 
 | Why a component may be absent | `docs/adr/0006-circuit-breaker-for-optional-components.md` |
 | Partitioning, and the lock budget it costs | `docs/adr/0009`, `docs/partitioning-modulus.md` |
 | Installing, backing up, restoring | `docs/deployment.md` |
+| Optional evidence retrieval v3: features, decisions and evidence | `docs/evidence-v3/README.md` |
+| Configuring and rolling back those modes | `docs/evidence-v3/operator-runbook.md` |
+| What the local v3 studies and acceptance did, and did not, qualify | `backend/eval/reports/evidence-v3-final-qualification-2026-09-27.md`, `docs/evidence-v3/release-validation-2026-09-27.md` |
 | Working on it | `CONTRIBUTING.md` |
 | Reporting something dangerous | `SECURITY.md` |
 

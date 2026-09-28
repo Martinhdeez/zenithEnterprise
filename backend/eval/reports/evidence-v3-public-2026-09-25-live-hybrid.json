@@ -1,0 +1,36 @@
+[
+  {
+    "query_id": "lead-boiling",
+    "baseline_top_text": null,
+    "baseline_relevance": "none",
+    "baseline_hits": 0,
+    "experimental_top_text": "Boiling drinking water does not remove lead from it.",
+    "experimental_relevance": "not_assessed",
+    "experimental_hits": 8,
+    "experimental_provider": "jev",
+    "experimental_model": "jev-1.13.0",
+    "experimental_fallback": null,
+    "experimental_reason": null,
+    "matched_candidate_count": 8,
+    "baseline_ms": 324,
+    "experimental_ms": 2803,
+    "jev_input_tokens": 4016
+  },
+  {
+    "query_id": "shaking-location",
+    "baseline_top_text": "Earthquake intensity describes shaking at a particular place and can differ between locations for the same event.",
+    "baseline_relevance": "confident",
+    "baseline_hits": 8,
+    "experimental_top_text": "Earthquake intensity describes shaking at a particular place and can differ between locations for the same event.",
+    "experimental_relevance": "not_assessed",
+    "experimental_hits": 8,
+    "experimental_provider": "jev",
+    "experimental_model": "jev-1.13.0",
+    "experimental_fallback": null,
+    "experimental_reason": null,
+    "matched_candidate_count": 8,
+    "baseline_ms": 150,
+    "experimental_ms": 2607,
+    "jev_input_tokens": 4056
+  }
+]

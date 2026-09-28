@@ -99,6 +99,8 @@ def _rendered(result: Answer) -> QueryResponse:
         reason=result.reason,
         took_retrieval_ms=result.took_retrieval_ms,
         took_generation_ms=result.took_generation_ms,
+        support_status=result.support_status,
+        took_support_ms=result.took_support_ms,
     )
 
 
