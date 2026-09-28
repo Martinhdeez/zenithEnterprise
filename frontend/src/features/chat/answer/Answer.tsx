@@ -65,7 +65,9 @@ export function Answer({ state, onCitation }: Props) {
     <div>
       {result?.abstained && (
         <p className="mb-2 text-sm font-medium text-zenith-amber">
-          {t("No answer was found in your documents.")}
+          {result.support_status
+            ? t("A supported answer could not be verified.")
+            : t("No answer was found in your documents.")}
         </p>
       )}
 
@@ -232,8 +234,24 @@ function Actions({ answer, result }: { answer: string; result: QueryResult }) {
 }
 
 function Footer({ result }: { result: QueryResult }) {
+  const t = useT();
+  const reason =
+    result.reason === "support_source_changed" || result.reason === "packet_source_changed"
+      ? t("Source access changed while checking this answer.")
+      : result.reason === "support_unavailable"
+        ? t("The support check is unavailable; the draft was withheld.")
+        : result.reason === "support_insufficient"
+          ? t("The cited sources did not establish every claim.")
+          : result.reason === "packet_unavailable"
+            ? t("Evidence context could not be checked.")
+            : result.reason === "packet_dependencies_unresolved"
+              ? t("Some required source context was unavailable.")
+              : result.reason;
   return (
     <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+      {result.support_status === "supported" && (
+        <p>{t("Cited claims passed the model support check.")}</p>
+      )}
       {result.degraded && (
         // Never swallowed. F11 found a configuration where the reranker was silently
         // failing on every request for as long as nobody looked; the UI is the last place
@@ -242,7 +260,7 @@ function Footer({ result }: { result: QueryResult }) {
         // `retrieval/degradation.py`. Prefixing it with "Answer quality reduced" says the
         // frightening half twice and the useful half once, and it is the frightening half
         // that makes somebody discard a correct answer.
-        <p className="text-zenith-amber">{result.reason}</p>
+        <p className="text-zenith-amber">{reason}</p>
       )}
       {result.abstained && result.consulted.length > 0 && (
         // mvp.md 2.10: an abstention says what it looked at. "I found nothing" and "I

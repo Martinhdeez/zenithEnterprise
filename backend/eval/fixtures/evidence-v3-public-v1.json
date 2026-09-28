@@ -1,0 +1,100 @@
+{
+  "id": "evidence-v3-public-v1",
+  "frozen_on": "2026-09-25",
+  "label_provenance": "Agent-reviewed ordinal relevance labels from linked public primary pages; exploratory, not independent human adjudication",
+  "text_kind": "Short source-grounded paraphrases; not production parser output",
+  "candidates": [
+    {
+      "id": "epa-lead-boiling",
+      "url": "https://www.epa.gov/lead/does-boiling-water-remove-lead",
+      "text": "Boiling drinking water does not remove lead from it."
+    },
+    {
+      "id": "epa-lead-cold",
+      "url": "https://www.epa.gov/lead/reduce-risk-lead-exposure-home",
+      "text": "Use only cold tap water for drinking, cooking, and preparing baby formula. Hot water can carry more lead from pipes and fixtures."
+    },
+    {
+      "id": "usgs-magnitude",
+      "url": "https://www.usgs.gov/faqs/what-difference-between-earthquake-magnitude-and-earthquake-intensity-what-modified-mercalli",
+      "text": "An earthquake has one magnitude measuring its size at the source; the value does not depend on where it is measured."
+    },
+    {
+      "id": "usgs-intensity",
+      "url": "https://www.usgs.gov/faqs/what-difference-between-earthquake-magnitude-and-earthquake-intensity-what-modified-mercalli",
+      "text": "Earthquake intensity describes shaking at a particular place and can differ between locations for the same event."
+    },
+    {
+      "id": "nws-tornado-watch",
+      "url": "https://www.weather.gov/safety/tornado-ww",
+      "text": "A tornado watch means tornadoes are possible in or near the watch area; prepare to act if a warning follows."
+    },
+    {
+      "id": "nws-tornado-warning",
+      "url": "https://www.weather.gov/safety/tornado-ww",
+      "text": "A tornado warning means a tornado is occurring or imminent in the warned area, so take shelter immediately."
+    },
+    {
+      "id": "cdc-mmr-two",
+      "url": "https://www.cdc.gov/measles/vaccines/",
+      "text": "Two MMR vaccine doses are about 97 percent effective at preventing measles."
+    },
+    {
+      "id": "cdc-mmr-one",
+      "url": "https://www.cdc.gov/measles/vaccines/",
+      "text": "One MMR vaccine dose is about 93 percent effective against measles."
+    }
+  ],
+  "queries": [
+    {
+      "id": "lead-boiling",
+      "text": "Will boiling tap water remove lead?",
+      "grades": [5, 2, 0, 0, 0, 0, 0, 0]
+    },
+    {
+      "id": "lead-formula",
+      "text": "Why use cold rather than hot tap water for baby formula when lead plumbing is a concern?",
+      "grades": [1, 5, 0, 0, 0, 0, 0, 0]
+    },
+    {
+      "id": "magnitude-location",
+      "text": "Can one earthquake have different magnitudes depending on where I stand?",
+      "grades": [0, 0, 5, 3, 0, 0, 0, 0]
+    },
+    {
+      "id": "shaking-location",
+      "text": "Does shaking severity change from place to place in one earthquake?",
+      "grades": [0, 0, 2, 5, 0, 0, 0, 0]
+    },
+    {
+      "id": "tornado-possible",
+      "text": "When tornadoes are possible but none has been seen, which alert applies?",
+      "grades": [0, 0, 0, 0, 5, 3, 0, 0]
+    },
+    {
+      "id": "tornado-action",
+      "text": "What should I do when a tornado is occurring near me?",
+      "grades": [0, 0, 0, 0, 2, 5, 0, 0]
+    },
+    {
+      "id": "mmr-two-doses",
+      "text": "About how effective are two measles vaccine doses?",
+      "grades": [0, 0, 0, 0, 0, 0, 5, 2]
+    },
+    {
+      "id": "mmr-comparison",
+      "text": "How does one dose compare with two doses for preventing measles?",
+      "grades": [0, 0, 0, 0, 0, 0, 5, 5]
+    },
+    {
+      "id": "pb-paraphrase",
+      "text": "Does heating Pb-containing water eliminate the metal?",
+      "grades": [5, 1, 0, 0, 0, 0, 0, 0]
+    },
+    {
+      "id": "intensidad-es",
+      "text": "¿Puede variar la intensidad de un terremoto según el lugar?",
+      "grades": [0, 0, 2, 5, 0, 0, 0, 0]
+    }
+  ]
+}

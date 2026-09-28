@@ -1,0 +1,11 @@
+# Search mode and coverage UI (PR 05)
+
+Base: PR 04 `92e42bde2ac5522950242ae06ed3834b46f5497a`. Keep legacy search as the default. Expose a permission-gated deployment capability so direct/automatic controls appear only when enabled; the existing `/search` frontend proxy covers both routes. Send the selected mode with the request and render the returned versioned coverage receipt without treating assessed retrieval as answer correctness. Keep source navigation unchanged and distinguish full eligible parsed scope from an assessed candidate shortlist or incomplete work.
+
+Translate every new user-facing string into the Spanish catalogue. Keep recent query suggestions in memory only, clear them on identity change, and remove the old shared browser key. Do not send recent search text to query history. Document exact `ZENITH_` settings, per-purpose Jev processing controls, quotas, model/rubric identities, installation and rollback.
+
+Verification: frontend interaction/i18n tests, TypeScript lint and build; real PostgreSQL/application-role HTTP capability/security tests; development and deployed proxy checks when a disposable stack is available. No migration or provider default change.
+
+Implemented locally on `feat/search-coverage-ui`. Search mode and receipt strings include assessed-passage counts, required-window count, and returned-document count. Recent queries are memory-only; sign-out and refresh failure clear account state, profile failure offers retry, and stale search responses cannot reopen a source. The development Vite proxy passed a public scripted routing smoke. The deployed proxy route was inspected in config but not exercised through a deployed frontend; no browser was available for rendered inspection.
+
+Validation: 203 backend retrieval/HTTP/RLS/history tests passed on disposable application-role PostgreSQL; frontend typing and build passed; 51 focused App/Search/i18n tests passed; all 447 frontend tests passed with one Vitest worker. The default parallel frontend command failed one unrelated 30-ms upload queue timing assertion twice, while its isolated run passed. The Windows-equivalent production dependency licence gate passed. Standard Windows `make check` remains stopped by the clean-base `os.uname` Pyright error. Final integrated qualification remains PR 08.

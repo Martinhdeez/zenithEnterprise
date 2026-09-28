@@ -70,7 +70,12 @@ def build_chat(thread: str, message: str) -> str:
     return f"Conversation:\n\n{thread}\n\nUser: {message}\n\nAssistant:"
 
 
-def build(question: str, hits: list[Hit], thread: str = "") -> str:
+def build(
+    question: str,
+    hits: list[Hit],
+    thread: str = "",
+    roles: tuple[str, ...] | None = None,
+) -> str:
     """Number the passages from 1, and keep that numbering as the only handle the model has.
 
     Chunk ids are never shown. A UUID in the prompt is 36 tokens of nothing the model can
@@ -86,11 +91,19 @@ def build(question: str, hits: list[Hit], thread: str = "") -> str:
         # filename looked like an aside. The triple quotes matter for the same reason
         # rule 7 exists: without a visible boundary the model treats passage prose as its
         # own voice and copies it out, first person and all.
-        f'[{number}] {hit.filename} — page {hit.page_num}\n"""\n{hit.text}\n"""'
+        f"[{number}] {hit.filename} — page {hit.page_num}"
+        f'{f" [context: {roles[number - 1]}]" if roles else ""}\n"""\n{hit.text}\n"""'
         for number, hit in enumerate(hits, start=1)
     )
+    packet_rule = (
+        "Context tags are selection hints, not proof that a condition or exception applies. "
+        "Compare the entity, version, date, and scope in the quoted source text. "
+        "If a needed qualification is absent, narrow the claim or say it is unresolved.\n\n"
+        if roles is not None
+        else ""
+    )
     if not thread:
-        return f"Passages:\n\n{passages}\n\nQuestion: {question}\n\nAnswer:"
+        return f"{packet_rule}Passages:\n\n{passages}\n\nQuestion: {question}\n\nAnswer:"
 
     # The thread goes first and is labelled as context, with the restriction restated after
     # it. A grounded turn that can see the conversation answers "and what about the other
@@ -100,5 +113,5 @@ def build(question: str, hits: list[Hit], thread: str = "") -> str:
     return (
         f"Conversation so far (for context only — every fact in your answer must still come "
         f"from the passages below and carry its marker):\n\n{thread}\n\n"
-        f"Passages:\n\n{passages}\n\nQuestion: {question}\n\nAnswer:"
+        f"{packet_rule}Passages:\n\n{passages}\n\nQuestion: {question}\n\nAnswer:"
     )

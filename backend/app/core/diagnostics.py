@@ -13,6 +13,7 @@ unreachable is useless at exactly the moment it is needed. Every check catches i
 failure and reports it as a result; the run always completes.
 """
 
+import asyncio
 import math
 import re
 import time
@@ -29,6 +30,7 @@ from app.core.config import settings
 from app.core.database import get_owner_session_factory, get_session_factory
 
 Status = Literal["ok", "warn", "fail"]
+CHECK_TIMEOUT_SECONDS = 10.0
 
 # Matches the password between `://user:` and the `@host`.
 #
@@ -228,7 +230,9 @@ def _scrub(detail: str) -> str:
 async def _timed(name: str, work: Callable[[], Awaitable[tuple[Status, str]]]) -> Check:
     started = time.perf_counter()
     try:
-        status, detail = await work()
+        status, detail = await asyncio.wait_for(work(), timeout=CHECK_TIMEOUT_SECONDS)
+    except TimeoutError:
+        status, detail = "fail", f"check exceeded {CHECK_TIMEOUT_SECONDS:g}s"
     except Exception as exc:  # noqa: BLE001 - reporting the failure *is* the job here
         status, detail = "fail", f"{type(exc).__name__}: {exc}"
     return Check(name, status, _scrub(detail), (time.perf_counter() - started) * 1000)

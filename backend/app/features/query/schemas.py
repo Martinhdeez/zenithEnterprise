@@ -94,6 +94,10 @@ class QueryResponse(BaseModel):
     reason: str | None
     took_retrieval_ms: int
     took_generation_ms: int
+    # Optional assessor verdict, never a probability of answer correctness. Missing on
+    # legacy and conversation-only routes; a strict failure withholds the draft.
+    support_status: str | None = None
+    took_support_ms: int = 0
 
 
 class HistoryEntryResponse(BaseModel):

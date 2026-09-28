@@ -3,6 +3,9 @@ import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
+// A disposable local API may use a distinct port; deployed routing is unaffected.
+const apiTarget = process.env.VITE_API_PROXY_TARGET || "http://localhost:8000";
+
 export default defineConfig({
   plugins: [react()],
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
@@ -10,21 +13,21 @@ export default defineConfig({
   // hard-coding a host anywhere in the source. Nothing in `src/` knows where the API lives.
   server: {
     proxy: {
-      "/auth": "http://localhost:8000",
-      "/query": "http://localhost:8000",
-      "/documents": "http://localhost:8000",
-      "/tenant": "http://localhost:8000",
-      "/search": "http://localhost:8000",
-      "/labels": "http://localhost:8000",
+      "/auth": apiTarget,
+      "/query": apiTarget,
+      "/documents": apiTarget,
+      "/tenant": apiTarget,
+      "/search": apiTarget,
+      "/labels": apiTarget,
       // M3 admin surfaces (F16), added once Admin.tsx actually exercised them in dev — until
       // then these silently fell through to Vite's own server and returned index.html,
       // which `request()` in api/client.ts saw as "Unexpected token '<'".
-      "/roles": "http://localhost:8000",
-      "/groups": "http://localhost:8000",
-      "/system": "http://localhost:8000",
-      "/analytics": "http://localhost:8000",
-      "/llm-config": "http://localhost:8000",
-      "/users": "http://localhost:8000",
+      "/roles": apiTarget,
+      "/groups": apiTarget,
+      "/system": apiTarget,
+      "/analytics": apiTarget,
+      "/llm-config": apiTarget,
+      "/users": apiTarget,
     },
   },
   test: { environment: "jsdom", globals: true },

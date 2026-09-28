@@ -1,0 +1,241 @@
+{
+  "trial_version": "zenith-contract-nli-packets-dev-v3",
+  "dataset_sha256": "310af7d661d2ab50ee3700169cef524c75f39fb296bbf5a515c229eb0f42e68e",
+  "source_ids": [
+    "3",
+    "7",
+    "9",
+    "10",
+    "12",
+    "13",
+    "14",
+    "15",
+    "16",
+    "17",
+    "19",
+    "20",
+    "27",
+    "28",
+    "29",
+    "32",
+    "33",
+    "35",
+    "37",
+    "39",
+    "44",
+    "45",
+    "54",
+    "56",
+    "61",
+    "63",
+    "64",
+    "69",
+    "70",
+    "71",
+    "72",
+    "73",
+    "75",
+    "79",
+    "81",
+    "82",
+    "152",
+    "205",
+    "381",
+    "398",
+    "405",
+    "406",
+    "411",
+    "435",
+    "440",
+    "456",
+    "478",
+    "482",
+    "486",
+    "488",
+    "507",
+    "547",
+    "563",
+    "575",
+    "582",
+    "586",
+    "590",
+    "595",
+    "598",
+    "605",
+    "610"
+  ],
+  "eligible_questions": 614,
+  "candidate_policy": "same dense top-8 current chunks; local TEI reorders the same shortlist",
+  "embedding_model": "BAAI/bge-m3@5617a9f61b028005a4858fdac845db406aefb181",
+  "tei_reported_model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+  "render_budget_source_tokens": 1100,
+  "tokenizer_endpoint": "http://127.0.0.1:18081",
+  "reranker_endpoint": "http://127.0.0.1:18083",
+  "label_provenance": "ContractNLI human hypothesis labels and character-index evidence spans",
+  "bootstrap_seed": 1729,
+  "bootstrap_samples": 2000,
+  "summary": {
+    "dense_topk": {
+      "cases": 614,
+      "complete_evidence_rate": 0.6905537459283387,
+      "mean_evidence_recall": 0.7730662840597694,
+      "mean_rendered_tokens": 1007.6384364820847,
+      "unresolved_cases": 0,
+      "counterevidence_candidates": 0
+    },
+    "tei_topk": {
+      "cases": 614,
+      "complete_evidence_rate": 0.7703583061889251,
+      "mean_evidence_recall": 0.8370223876738535,
+      "mean_rendered_tokens": 1009.2166123778502,
+      "unresolved_cases": 0,
+      "counterevidence_candidates": 0
+    },
+    "dense_packet": {
+      "cases": 614,
+      "complete_evidence_rate": 0.6905537459283387,
+      "mean_evidence_recall": 0.7730662840597694,
+      "mean_rendered_tokens": 1007.6384364820847,
+      "unresolved_cases": 22,
+      "counterevidence_candidates": 0
+    },
+    "tei_packet": {
+      "cases": 614,
+      "complete_evidence_rate": 0.7703583061889251,
+      "mean_evidence_recall": 0.8370223876738535,
+      "mean_rendered_tokens": 1009.2166123778502,
+      "unresolved_cases": 15,
+      "counterevidence_candidates": 0
+    },
+    "dense_packet_counter": {
+      "cases": 614,
+      "complete_evidence_rate": 0.6905537459283387,
+      "mean_evidence_recall": 0.7730662840597694,
+      "mean_rendered_tokens": 1009.3762214983714,
+      "unresolved_cases": 22,
+      "counterevidence_candidates": 6
+    },
+    "tei_packet_counter": {
+      "cases": 614,
+      "complete_evidence_rate": 0.7703583061889251,
+      "mean_evidence_recall": 0.8370223876738535,
+      "mean_rendered_tokens": 1010.4250814332247,
+      "unresolved_cases": 15,
+      "counterevidence_candidates": 4
+    }
+  },
+  "paired_paper_bootstrap": {
+    "dense_packet": {
+      "vs": "dense_topk",
+      "macro_paper_difference": 0.0,
+      "percentile_95_interval": [
+        0.0,
+        0.0
+      ],
+      "paper_clusters": 61
+    },
+    "tei_packet": {
+      "vs": "tei_topk",
+      "macro_paper_difference": 0.0,
+      "percentile_95_interval": [
+        0.0,
+        0.0
+      ],
+      "paper_clusters": 61
+    },
+    "dense_packet_counter": {
+      "vs": "dense_packet",
+      "macro_paper_difference": 0.0,
+      "percentile_95_interval": [
+        0.0,
+        0.0
+      ],
+      "paper_clusters": 61
+    },
+    "tei_packet_counter": {
+      "vs": "tei_packet",
+      "macro_paper_difference": 0.0,
+      "percentile_95_interval": [
+        0.0,
+        0.0
+      ],
+      "paper_clusters": 61
+    }
+  },
+  "archive_sha256": "e03fc77bbf8b53e2976a250e81d8a294bc3d5e5fb014521e477dee9340d6287b",
+  "expected_dataset_sha256": "310af7d661d2ab50ee3700169cef524c75f39fb296bbf5a515c229eb0f42e68e",
+  "label_counts": {
+    "Entailment": 519,
+    "NotMentioned": 423,
+    "Contradiction": 95
+  },
+  "blank_annotated_spans_skipped": 1,
+  "non_evidence_label_policy": "NotMentioned excluded from evidence recall",
+  "external_processing": false,
+  "summary_by_choice": {
+    "Entailment": {
+      "dense_topk": {
+        "cases": 519,
+        "complete_evidence_rate": 0.6955684007707129,
+        "mean_evidence_recall": 0.7784123925742423
+      },
+      "tei_topk": {
+        "cases": 519,
+        "complete_evidence_rate": 0.766859344894027,
+        "mean_evidence_recall": 0.8375370829128055
+      },
+      "dense_packet": {
+        "cases": 519,
+        "complete_evidence_rate": 0.6955684007707129,
+        "mean_evidence_recall": 0.7784123925742423
+      },
+      "tei_packet": {
+        "cases": 519,
+        "complete_evidence_rate": 0.766859344894027,
+        "mean_evidence_recall": 0.8375370829128055
+      },
+      "dense_packet_counter": {
+        "cases": 519,
+        "complete_evidence_rate": 0.6955684007707129,
+        "mean_evidence_recall": 0.7784123925742423
+      },
+      "tei_packet_counter": {
+        "cases": 519,
+        "complete_evidence_rate": 0.766859344894027,
+        "mean_evidence_recall": 0.8375370829128055
+      }
+    },
+    "Contradiction": {
+      "dense_topk": {
+        "cases": 95,
+        "complete_evidence_rate": 0.6631578947368421,
+        "mean_evidence_recall": 0.743859649122807
+      },
+      "tei_topk": {
+        "cases": 95,
+        "complete_evidence_rate": 0.7894736842105263,
+        "mean_evidence_recall": 0.8342105263157895
+      },
+      "dense_packet": {
+        "cases": 95,
+        "complete_evidence_rate": 0.6631578947368421,
+        "mean_evidence_recall": 0.743859649122807
+      },
+      "tei_packet": {
+        "cases": 95,
+        "complete_evidence_rate": 0.7894736842105263,
+        "mean_evidence_recall": 0.8342105263157895
+      },
+      "dense_packet_counter": {
+        "cases": 95,
+        "complete_evidence_rate": 0.6631578947368421,
+        "mean_evidence_recall": 0.743859649122807
+      },
+      "tei_packet_counter": {
+        "cases": 95,
+        "complete_evidence_rate": 0.7894736842105263,
+        "mean_evidence_recall": 0.8342105263157895
+      }
+    }
+  }
+}
