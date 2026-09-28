@@ -1,0 +1,304 @@
+{
+  "trial_version": "zenith-r1-qasper-boundary-8x4-v1",
+  "dataset_sha256": "2ae7ee62a65b1c4225791c70de80c2aad4e8998cf1fd4f09a53103db4f21af93",
+  "selection": "first 8 of frozen 40 hash-selected public QASPER papers; 4 evenly spaced structural boundaries each",
+  "rubric_id": "zenith-boundary-noul-v1",
+  "rubric_hash": "30d59ad6d5a7f17eaf15d437ce5a26312d88d9c8a0f229bbd1ac92bb470499cc",
+  "model": "jev-1.13.0",
+  "processing_purpose": "segmentation",
+  "prior_live_calls_recorded": 898,
+  "jev_calls": 32,
+  "input_tokens_reserved_or_reconciled": 20393,
+  "provider_input_tokens_reported": 20393,
+  "provider_output_tokens_reported": 704,
+  "rows": [
+    {
+      "paper_id": "1604.05372",
+      "selected_boundaries": 4,
+      "assessed": 4,
+      "failed_codes": [],
+      "structural_groups": 14,
+      "jev_groups": 14,
+      "changed_group_ids": 0,
+      "coverage_verified": true,
+      "selected_judgments": [
+        {
+          "boundary_id": "d243035a-10b3-5d42-9954-b484dea35860",
+          "status": "assessed",
+          "probability": 0.21,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "e905d0a6-39c7-541f-a23a-713f3e9eb08c",
+          "status": "assessed",
+          "probability": 0.6,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "901c03f2-9e28-5885-8428-ed7e5f11ebd3",
+          "status": "assessed",
+          "probability": 0.52,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "12e3752b-a997-54d1-a2cd-1763ddf04054",
+          "status": "assessed",
+          "probability": 0.08,
+          "failure_code": null
+        }
+      ]
+    },
+    {
+      "paper_id": "2002.01984",
+      "selected_boundaries": 4,
+      "assessed": 4,
+      "failed_codes": [],
+      "structural_groups": 37,
+      "jev_groups": 37,
+      "changed_group_ids": 0,
+      "coverage_verified": true,
+      "selected_judgments": [
+        {
+          "boundary_id": "7e2676b4-67be-5cf7-9faa-1f5d4029c681",
+          "status": "assessed",
+          "probability": 0.8,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "2f3e49e9-1696-5d0d-876c-a1a64a865d66",
+          "status": "assessed",
+          "probability": 0.89,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "0abf2f84-ddb6-534f-a8e3-bbacf48cb285",
+          "status": "assessed",
+          "probability": 0.79,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "f1e07e02-c7db-56d9-b8ec-452303af9f68",
+          "status": "assessed",
+          "probability": 0.62,
+          "failure_code": null
+        }
+      ]
+    },
+    {
+      "paper_id": "2002.07306",
+      "selected_boundaries": 4,
+      "assessed": 4,
+      "failed_codes": [],
+      "structural_groups": 21,
+      "jev_groups": 21,
+      "changed_group_ids": 0,
+      "coverage_verified": true,
+      "selected_judgments": [
+        {
+          "boundary_id": "91f1dfcd-8976-5f63-b2d3-d23d7c3ddbbd",
+          "status": "assessed",
+          "probability": 0.7,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "c35c6e49-7726-5e9b-8eca-423649b2979d",
+          "status": "assessed",
+          "probability": 0.77,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "95a33a30-c8f0-5b14-b15a-c0d229499984",
+          "status": "assessed",
+          "probability": 0.8,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "8da2d907-c01e-5781-ba25-f80aaa27e9af",
+          "status": "assessed",
+          "probability": 0.31,
+          "failure_code": null
+        }
+      ]
+    },
+    {
+      "paper_id": "2004.01853",
+      "selected_boundaries": 4,
+      "assessed": 4,
+      "failed_codes": [],
+      "structural_groups": 27,
+      "jev_groups": 27,
+      "changed_group_ids": 0,
+      "coverage_verified": true,
+      "selected_judgments": [
+        {
+          "boundary_id": "8338d95b-4bab-5533-9877-b423416e4673",
+          "status": "assessed",
+          "probability": 0.9,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "97997f20-9723-5c95-959b-80ba6120871d",
+          "status": "assessed",
+          "probability": 0.34,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "189656be-a2f8-5033-a0d2-07952fff3578",
+          "status": "assessed",
+          "probability": 0.4,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "e797c045-7769-5ead-a4ad-bd0caf4ea2d7",
+          "status": "assessed",
+          "probability": 0.82,
+          "failure_code": null
+        }
+      ]
+    },
+    {
+      "paper_id": "1910.06592",
+      "selected_boundaries": 4,
+      "assessed": 4,
+      "failed_codes": [],
+      "structural_groups": 12,
+      "jev_groups": 12,
+      "changed_group_ids": 0,
+      "coverage_verified": true,
+      "selected_judgments": [
+        {
+          "boundary_id": "1a2bb1df-284a-51ea-82f2-75bb34f37ca4",
+          "status": "assessed",
+          "probability": 0.21,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "41308f25-b4e3-53e2-91b1-a377fda65ad1",
+          "status": "assessed",
+          "probability": 0.47,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "a8908166-df62-5992-b30f-1e8ace08d969",
+          "status": "assessed",
+          "probability": 0.93,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "0fda80aa-7fd2-5451-9ef2-beac602bd78b",
+          "status": "assessed",
+          "probability": 0.85,
+          "failure_code": null
+        }
+      ]
+    },
+    {
+      "paper_id": "1909.00105",
+      "selected_boundaries": 4,
+      "assessed": 4,
+      "failed_codes": [],
+      "structural_groups": 15,
+      "jev_groups": 15,
+      "changed_group_ids": 0,
+      "coverage_verified": true,
+      "selected_judgments": [
+        {
+          "boundary_id": "9cf51737-815d-527c-aefd-08b1418db43d",
+          "status": "assessed",
+          "probability": 0.59,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "363a7162-73cf-5c18-82db-0d01397eae95",
+          "status": "assessed",
+          "probability": 0.81,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "72d24b0b-e621-5d3d-a5b9-a0b0d0c19870",
+          "status": "assessed",
+          "probability": 0.86,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "d9eedfd0-0da4-5572-86f3-228a29666068",
+          "status": "assessed",
+          "probability": 0.86,
+          "failure_code": null
+        }
+      ]
+    },
+    {
+      "paper_id": "1611.01576",
+      "selected_boundaries": 4,
+      "assessed": 4,
+      "failed_codes": [],
+      "structural_groups": 20,
+      "jev_groups": 20,
+      "changed_group_ids": 0,
+      "coverage_verified": true,
+      "selected_judgments": [
+        {
+          "boundary_id": "8366deaf-9da0-54d2-aa75-d648b12bd783",
+          "status": "assessed",
+          "probability": 0.73,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "ffd9e343-20a2-5202-8779-13fb94609886",
+          "status": "assessed",
+          "probability": 0.17,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "504e3a24-45db-5914-8313-5ed7913cbef3",
+          "status": "assessed",
+          "probability": 0.52,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "eb3036b7-f4cb-5c7a-b90d-49f3d6d5c4c2",
+          "status": "assessed",
+          "probability": 0.59,
+          "failure_code": null
+        }
+      ]
+    },
+    {
+      "paper_id": "1802.07862",
+      "selected_boundaries": 4,
+      "assessed": 4,
+      "failed_codes": [],
+      "structural_groups": 22,
+      "jev_groups": 22,
+      "changed_group_ids": 0,
+      "coverage_verified": true,
+      "selected_judgments": [
+        {
+          "boundary_id": "a61a4fed-435c-5728-8339-361b56fbf587",
+          "status": "assessed",
+          "probability": 0.3,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "e2c7f5aa-d8eb-554a-9efc-5095494544fb",
+          "status": "assessed",
+          "probability": 0.77,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "2630eb44-3304-51dc-9ce8-0d42a744010b",
+          "status": "assessed",
+          "probability": 0.39,
+          "failure_code": null
+        },
+        {
+          "boundary_id": "950363d3-7126-5cb7-9ace-89cd6f27beca",
+          "status": "assessed",
+          "probability": 0.59,
+          "failure_code": null
+        }
+      ]
+    }
+  ]
+}

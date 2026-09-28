@@ -7,7 +7,7 @@
  * exactly the comparison the whole feature exists to enable.
  */
 
-import { Suspense, lazy, useCallback, useEffect, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import {
   ChevronLeft,
   Building2,
@@ -320,6 +320,11 @@ export function App() {
   const [token, setToken] = useState<string | null>(() => read("session", TOKEN_KEY));
   const [status, setStatus] = useState<TenantStatus | null>(null);
   const [me, setMe] = useState<UserProfile | null>(null);
+  const [profileLoadState, setProfileLoadState] = useState<"loading" | "ready" | "error">("loading");
+  const [profileRetry, setProfileRetry] = useState(0);
+  const activeToken = useRef(token);
+  const sessionEpoch = useRef(0);
+  activeToken.current = token;
   const [citation, setCitation] = useState<Citation | null>(null);
   // The question that opened the citation, and whether its conversation is showing.
   //
@@ -448,9 +453,24 @@ export function App() {
   }, []);
 
   const signOut = useCallback(() => {
+    sessionEpoch.current += 1;
+    activeToken.current = null;
     forget("session", TOKEN_KEY);
     forget("session", REFRESH_KEY);
     setToken(null);
+    setMe(null);
+    setProfileLoadState("loading");
+    setStatus(null);
+    setCitation(null);
+    setAskQuestion(null);
+    setPrefill(null);
+    setFolderSelection(null);
+    setView("search");
+    setPanel("results");
+    setStarted(false);
+    setFramed(false);
+    setAutoCollapsed(false);
+    setCopied(false);
   }, []);
 
   // A tag chip anywhere — a document row, a search result — narrows the workspace to that
@@ -475,11 +495,12 @@ export function App() {
   const refresh = useCallback(async () => {
     if (!token) return;
     try {
-      setStatus(await tenantStatus(token));
+      const result = await tenantStatus(token);
+      if (activeToken.current === token) setStatus(result);
     } catch {
       // A failed status must not take the application down. Search still works, and
       // `StatusBadge` renders its loading state rather than an error nobody can act on.
-      setStatus(null);
+      if (activeToken.current === token) setStatus(null);
     }
   }, [token]);
 
@@ -490,10 +511,15 @@ export function App() {
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
+    setProfileLoadState("loading");
     // Only for the avatar and the sidebar; the profile screen fetches its own copy rather
     // than reading a prop, so it is never showing a stale one from before a change.
     void fetchMyProfile(token)
-      .then((result) => !cancelled && setMe(result))
+      .then((result) => {
+        if (cancelled) return;
+        setMe(result);
+        setProfileLoadState("ready");
+      })
       .catch((failure) => {
         if (cancelled) return;
         // **This request is also the session's proof of life, and it is the only one.**
@@ -515,11 +541,12 @@ export function App() {
           return;
         }
         setMe(null);
+        setProfileLoadState("error");
       });
     return () => {
       cancelled = true;
     };
-  }, [token, signOut]);
+  }, [token, signOut, profileRetry]);
 
   useEffect(() => {
     // Ingestion is asynchronous, so the counts change without the user doing anything.
@@ -540,22 +567,28 @@ export function App() {
     const timer = setInterval(() => {
       const held = read("session", REFRESH_KEY);
       if (!held) return;
+      const initiatingToken = token;
+      const initiatingEpoch = sessionEpoch.current;
+      const stillCurrent = () =>
+        sessionEpoch.current === initiatingEpoch &&
+        activeToken.current === initiatingToken &&
+        read("session", REFRESH_KEY) === held;
       void refreshTokens(held)
         .then((pair) => {
+          if (!stillCurrent()) return;
           write("session", TOKEN_KEY, pair.access_token);
           write("session", REFRESH_KEY, pair.refresh_token);
           setToken(pair.access_token);
         })
         .catch(() => {
+          if (!stillCurrent()) return;
           // The refresh token itself is gone or revoked — nothing left to do but ask the
           // user to sign in again, same as if the access token had simply run out.
-          forget("session", TOKEN_KEY);
-          forget("session", REFRESH_KEY);
-          setToken(null);
+          signOut();
         });
     }, REFRESH_INTERVAL_MS);
     return () => clearInterval(timer);
-  }, [token]);
+  }, [token, signOut]);
 
   // Checked before the token, and that order is the whole point: the people who need this
   // page either have no account yet or cannot get into the one they have. Rendering Login
@@ -569,6 +602,10 @@ export function App() {
     return (
       <Login
         onAuthenticated={(issued) => {
+          sessionEpoch.current += 1;
+          setMe(null);
+          setProfileLoadState("loading");
+          activeToken.current = issued.access_token;
           write("session", TOKEN_KEY, issued.access_token);
           write("session", REFRESH_KEY, issued.refresh_token);
           setToken(issued.access_token);
@@ -1002,10 +1039,22 @@ export function App() {
                 cost worth designing around. Lifting the state into this component instead
                 would move five pieces of state and their effects into the largest file in
                 the tree. */}
-            {view === "search" && (
+            {view === "search" && !me && (
+              <div role={profileLoadState === "error" ? "alert" : "status"} className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+                <p>{profileLoadState === "error" ? t("Your profile could not be loaded. Search is paused.") : t("Loading your profile…")}</p>
+                {profileLoadState === "error" && (
+                  <button type="button" className="mt-2 text-primary underline" onClick={() => setProfileRetry((current) => current + 1)}>
+                    {t("Retry profile")}
+                  </button>
+                )}
+              </div>
+            )}
+            {view === "search" && me && (
               <div className={panel === "conversation" ? "hidden" : "flex flex-1 flex-col"}>
               <Search
+                key={`${me.tenant_id}:${me.user_id}`}
                 token={token}
+                recentScope={`${me.tenant_id}:${me.user_id}`}
                 onCitation={(next, question, opened) => {
                   setCitation(next);
                   setAskQuestion(question);

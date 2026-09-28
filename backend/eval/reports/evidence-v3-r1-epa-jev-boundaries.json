@@ -1,0 +1,83 @@
+{
+  "trial": "zenith-r1-epa-boundary-v1",
+  "source_url": "https://www.epa.gov/ground-water-and-drinking-water/basic-information-about-lead-drinking-water",
+  "source_sha256": "94e65678ac85eb7aacbb351113021c29bda3a8b257e6a81b31b0e40f79176b5f",
+  "rubric_id": "zenith-boundary-noul-v1",
+  "rubric_hash": "30d59ad6d5a7f17eaf15d437ce5a26312d88d9c8a0f229bbd1ac92bb470499cc",
+  "model": "jev-1.13.0",
+  "embedding_model_for_later_matrix": "BAAI/bge-m3@5617a9f61b028005a4858fdac845db406aefb181",
+  "processing_purpose": "segmentation",
+  "selected_boundaries": 8,
+  "assessed": 8,
+  "failed_or_unavailable": [],
+  "judgments": [
+    {
+      "boundary_id": "886549fe-80c2-5795-9399-487da345db46",
+      "probability": 0.74,
+      "status": "assessed",
+      "model": "jev-1.13.0",
+      "rubric_id": "zenith-boundary-noul-v1",
+      "input_fingerprint": "2a07dfb445e610c2af6f978eb7cae26913cd460c1c98809b1a30770ce1559f75"
+    },
+    {
+      "boundary_id": "2d2ce9bc-84e6-5f14-84a9-f75323d09bf4",
+      "probability": 0.82,
+      "status": "assessed",
+      "model": "jev-1.13.0",
+      "rubric_id": "zenith-boundary-noul-v1",
+      "input_fingerprint": "49fbb9e3caee9062661996e5df82eb6e29f3db56bf1ea5d59e53a7053cccfba3"
+    },
+    {
+      "boundary_id": "5d0d7e8d-6a38-5cba-b809-f3170562e4d8",
+      "probability": 0.36,
+      "status": "assessed",
+      "model": "jev-1.13.0",
+      "rubric_id": "zenith-boundary-noul-v1",
+      "input_fingerprint": "aacd5ff605a020c201ed0b263b4b1b24549b7bc4ce4478b62a5a17dc10347b05"
+    },
+    {
+      "boundary_id": "3411ed61-fd1b-5089-b8cc-775fefc61bd7",
+      "probability": 0.54,
+      "status": "assessed",
+      "model": "jev-1.13.0",
+      "rubric_id": "zenith-boundary-noul-v1",
+      "input_fingerprint": "cb34e53cd5194826a2d97d8a720e3de67596c6dfc563217559fd1701592bbc88"
+    },
+    {
+      "boundary_id": "8c92cfd2-a5db-525e-a549-34a7b32b2574",
+      "probability": 0.82,
+      "status": "assessed",
+      "model": "jev-1.13.0",
+      "rubric_id": "zenith-boundary-noul-v1",
+      "input_fingerprint": "9814caa211827cec9448264d4ce6a22f517447801ecdeec0a209d11fb7812b92"
+    },
+    {
+      "boundary_id": "d25c36f3-d8fa-592e-b086-72ae092e6e3e",
+      "probability": 0.67,
+      "status": "assessed",
+      "model": "jev-1.13.0",
+      "rubric_id": "zenith-boundary-noul-v1",
+      "input_fingerprint": "11900b68a0ef10d806e523e43eab37449afbc5a66448c55d9edcef5aecd09335"
+    },
+    {
+      "boundary_id": "0babc04d-2b6a-56eb-a3b7-4370045050e6",
+      "probability": 0.57,
+      "status": "assessed",
+      "model": "jev-1.13.0",
+      "rubric_id": "zenith-boundary-noul-v1",
+      "input_fingerprint": "92d5748e40e77198932a8cd72359af0d1d1bc5deeecc776b2b37af4e09b1dfb1"
+    },
+    {
+      "boundary_id": "c7d3186b-a453-5e32-a624-e14d5fd6e39b",
+      "probability": 0.27,
+      "status": "assessed",
+      "model": "jev-1.13.0",
+      "rubric_id": "zenith-boundary-noul-v1",
+      "input_fingerprint": "04db43fdb2acde2a0cdc3968c83617f4b41d2b787b4d8f99781600ca2cd09836"
+    }
+  ],
+  "structural_group_count": 17,
+  "jev_preferred_group_count": 17,
+  "changed_group_ids": 0,
+  "source_coverage_verified": true
+}

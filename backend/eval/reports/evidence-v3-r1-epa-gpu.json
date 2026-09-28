@@ -1,0 +1,240 @@
+{
+  "trial_version": "zenith-r1-epa-lead-v1",
+  "source_url": "https://www.epa.gov/ground-water-and-drinking-water/basic-information-about-lead-drinking-water",
+  "source_text_sha256": "94e65678ac85eb7aacbb351113021c29bda3a8b257e6a81b31b0e40f79176b5f",
+  "label_provenance": "agent-reviewed exact extracted-line labels; exploratory",
+  "embedding_model": "BAAI/bge-m3@5617a9f61b028005a4858fdac845db406aefb181",
+  "embedding_endpoint": "http://127.0.0.1:18081",
+  "segmentation_version": "zenith-structural-v1",
+  "render_budget_tokens": 1100,
+  "tokenizer": "BAAI/bge-m3@5617a9f61b028005a4858fdac845db406aefb181",
+  "tokenization_ms": 228,
+  "top_k": 8,
+  "legacy_segments": 23,
+  "structural_segments": 17,
+  "legacy_embedding_ms": 292,
+  "structural_embedding_ms": 213,
+  "queries": [
+    {
+      "id": "boiling-and-formula",
+      "question": "Does boiling remove lead and which tap water should be used for baby formula?",
+      "gold_lines": [
+        93
+      ],
+      "routes": {
+        "legacy": {
+          "complete_gold_spans": true,
+          "top1_intersects_gold": true,
+          "rendered_characters": 4684,
+          "rendered_tokens": 1092,
+          "selected_segment_ids": [
+            "11",
+            "6",
+            "16",
+            "7"
+          ]
+        },
+        "grouped_from_legacy": {
+          "complete_gold_spans": true,
+          "top1_intersects_gold": true,
+          "rendered_characters": 4751,
+          "rendered_tokens": 1078,
+          "selected_segment_ids": [
+            "bc1bd7ef-d489-5909-ac64-6953516e5440",
+            "6534f183-7ed3-5f46-9c05-1458336fd80b",
+            "cb5c5c70-9c15-5be1-90b7-d96019fe5a39",
+            "6d1c27e9-65fb-5bcb-b053-654772729db9"
+          ]
+        },
+        "resegmented_reembedded": {
+          "complete_gold_spans": true,
+          "top1_intersects_gold": false,
+          "rendered_characters": 3729,
+          "rendered_tokens": 859,
+          "selected_segment_ids": [
+            "6c6eed40-145a-591b-89a1-3df14316062e",
+            "66596a1d-b3ce-5195-982b-a633541a568e",
+            "bc1bd7ef-d489-5909-ac64-6953516e5440"
+          ]
+        }
+      }
+    },
+    {
+      "id": "shower-qualification",
+      "question": "Can children shower in water containing lead, and when might advice differ?",
+      "gold_lines": [
+        68,
+        69
+      ],
+      "routes": {
+        "legacy": {
+          "complete_gold_spans": false,
+          "top1_intersects_gold": false,
+          "rendered_characters": 4594,
+          "rendered_tokens": 1062,
+          "selected_segment_ids": [
+            "5",
+            "7",
+            "16",
+            "6"
+          ]
+        },
+        "grouped_from_legacy": {
+          "complete_gold_spans": false,
+          "top1_intersects_gold": false,
+          "rendered_characters": 3668,
+          "rendered_tokens": 846,
+          "selected_segment_ids": [
+            "25985f5d-c74e-5243-b602-c0e0f998fafe",
+            "cb5c5c70-9c15-5be1-90b7-d96019fe5a39",
+            "66596a1d-b3ce-5195-982b-a633541a568e"
+          ]
+        },
+        "resegmented_reembedded": {
+          "complete_gold_spans": false,
+          "top1_intersects_gold": false,
+          "rendered_characters": 4726,
+          "rendered_tokens": 1086,
+          "selected_segment_ids": [
+            "cb5c5c70-9c15-5be1-90b7-d96019fe5a39",
+            "66596a1d-b3ce-5195-982b-a633541a568e",
+            "57901d0f-abf1-53ea-9b63-5a45d65e2f7d",
+            "6c6eed40-145a-591b-89a1-3df14316062e"
+          ]
+        }
+      }
+    },
+    {
+      "id": "filter-care",
+      "question": "What must a filter do to reduce lead and what water must not pass through it?",
+      "gold_lines": [
+        91
+      ],
+      "routes": {
+        "legacy": {
+          "complete_gold_spans": true,
+          "top1_intersects_gold": true,
+          "rendered_characters": 4511,
+          "rendered_tokens": 1040,
+          "selected_segment_ids": [
+            "11",
+            "4",
+            "2",
+            "21"
+          ]
+        },
+        "grouped_from_legacy": {
+          "complete_gold_spans": true,
+          "top1_intersects_gold": true,
+          "rendered_characters": 4288,
+          "rendered_tokens": 990,
+          "selected_segment_ids": [
+            "bc1bd7ef-d489-5909-ac64-6953516e5440",
+            "6534f183-7ed3-5f46-9c05-1458336fd80b",
+            "58357309-5e3a-50ad-9e93-b6f4a160be99",
+            "3814c282-9907-519a-9cbd-b70e2635200f"
+          ]
+        },
+        "resegmented_reembedded": {
+          "complete_gold_spans": true,
+          "top1_intersects_gold": true,
+          "rendered_characters": 3758,
+          "rendered_tokens": 853,
+          "selected_segment_ids": [
+            "bc1bd7ef-d489-5909-ac64-6953516e5440",
+            "48a8520b-384c-5eb5-9e98-3d60482d7a9a",
+            "58357309-5e3a-50ad-9e93-b6f4a160be99"
+          ]
+        }
+      }
+    },
+    {
+      "id": "children-exposure",
+      "question": "What blood lead level triggers public health action, and why can exposure have several sources?",
+      "gold_lines": [
+        43,
+        44
+      ],
+      "routes": {
+        "legacy": {
+          "complete_gold_spans": true,
+          "top1_intersects_gold": true,
+          "rendered_characters": 4456,
+          "rendered_tokens": 1025,
+          "selected_segment_ids": [
+            "5",
+            "6",
+            "16",
+            "15"
+          ]
+        },
+        "grouped_from_legacy": {
+          "complete_gold_spans": true,
+          "top1_intersects_gold": false,
+          "rendered_characters": 3668,
+          "rendered_tokens": 846,
+          "selected_segment_ids": [
+            "25985f5d-c74e-5243-b602-c0e0f998fafe",
+            "cb5c5c70-9c15-5be1-90b7-d96019fe5a39",
+            "66596a1d-b3ce-5195-982b-a633541a568e"
+          ]
+        },
+        "resegmented_reembedded": {
+          "complete_gold_spans": true,
+          "top1_intersects_gold": true,
+          "rendered_characters": 3753,
+          "rendered_tokens": 847,
+          "selected_segment_ids": [
+            "cb5c5c70-9c15-5be1-90b7-d96019fe5a39",
+            "efe2350e-29aa-5f45-858f-810b23bc8405",
+            "25985f5d-c74e-5243-b602-c0e0f998fafe"
+          ]
+        }
+      }
+    },
+    {
+      "id": "lead-free",
+      "question": "What does lead-free mean for pipe surfaces compared with solder and flux?",
+      "gold_lines": [
+        23
+      ],
+      "routes": {
+        "legacy": {
+          "complete_gold_spans": true,
+          "top1_intersects_gold": true,
+          "rendered_characters": 4177,
+          "rendered_tokens": 979,
+          "selected_segment_ids": [
+            "2",
+            "21",
+            "13",
+            "3"
+          ]
+        },
+        "grouped_from_legacy": {
+          "complete_gold_spans": true,
+          "top1_intersects_gold": true,
+          "rendered_characters": 4227,
+          "rendered_tokens": 976,
+          "selected_segment_ids": [
+            "1e070624-6289-513b-8d57-94e467a61535",
+            "58357309-5e3a-50ad-9e93-b6f4a160be99",
+            "b88b4e99-bade-5ba3-8578-137d76a71f55",
+            "3814c282-9907-519a-9cbd-b70e2635200f"
+          ]
+        },
+        "resegmented_reembedded": {
+          "complete_gold_spans": true,
+          "top1_intersects_gold": true,
+          "rendered_characters": 3854,
+          "rendered_tokens": 895,
+          "selected_segment_ids": [
+            "1e070624-6289-513b-8d57-94e467a61535",
+            "58357309-5e3a-50ad-9e93-b6f4a160be99",
+            "7b920d6a-56e6-50f0-a9df-3e2b515da801"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -65,11 +65,64 @@ def test_nginx_proxies_every_prefix_the_api_serves() -> None:
 def test_the_dev_proxy_matches_the_production_one() -> None:
     """Same gap, different file, and development is where it is found last: the two configs
     cannot import each other's route table, so they drift silently."""
-    proxied = set(re.findall(r'"/([a-z0-9-]+)":\s*"http', VITE.read_text()))
+    proxied = set(vite_proxy_targets(VITE.read_text()))
 
     missing = sorted(served_prefixes() - proxied)
 
     assert not missing, f"{missing} are served by the API and absent from vite.config.ts"
+
+
+def vite_proxy_targets(source: str) -> dict[str, str]:
+    """Accept the two intentional Vite forms and reject unparsed proxy entries."""
+    proxy = re.search(r"\bproxy:\s*\{(.*?)^\s*\}", source, re.MULTILINE | re.DOTALL)
+    assert proxy, "the Vite proxy object is not where this test expects it"
+    targets: dict[str, str] = {}
+    entry = re.compile(r'^\s*"/([a-z0-9-]+)":\s*(apiTarget|"https?://[^"]+"),?\s*$')
+    for line in proxy.group(1).splitlines():
+        if not line.strip() or line.lstrip().startswith("//"):
+            continue
+        match = entry.fullmatch(line)
+        assert match, f"unsupported Vite proxy entry: {line.strip()}"
+        prefix, target = match.groups()
+        assert prefix not in targets, f"duplicate Vite proxy prefix: {prefix}"
+        targets[prefix] = target
+    assert targets, "Vite proxy is empty"
+    if "apiTarget" in targets.values():
+        declaration = re.search(
+            r'^const apiTarget = process\.env\.VITE_API_PROXY_TARGET \|\| "https?://[^"]+";?$',
+            source,
+            re.MULTILINE,
+        )
+        assert declaration, "apiTarget must have the approved configurable API target"
+    assert len(set(targets.values())) == 1, "Vite API routes point to different targets"
+    return targets
+
+
+def test_vite_proxy_guard_accepts_literal_and_configured_targets() -> None:
+    assert vite_proxy_targets('proxy: {\n  "/search": "http://localhost:8000",\n}') == {
+        "search": '"http://localhost:8000"'
+    }
+    configured = (
+        'const apiTarget = process.env.VITE_API_PROXY_TARGET || "http://localhost:8000";\n'
+        'proxy: {\n  "/search": apiTarget,\n}'
+    )
+    assert vite_proxy_targets(configured) == {"search": "apiTarget"}
+
+
+def test_vite_proxy_guard_rejects_missing_misdirected_and_malformed_routes() -> None:
+    for source in (
+        'proxy: {\n  // "/search": "http://localhost:8000"\n}',
+        'proxy: {\n  "/search": wrongTarget,\n}',
+        'proxy: {\n  "/search": "http://localhost:8000",\n  "/query": "http://elsewhere",\n}',
+        'proxy: {\n  "/search": apiTarget,\n}',
+        'proxy: {\n  "/search": { target: "http://localhost:8000" },\n}',
+    ):
+        try:
+            vite_proxy_targets(source)
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError("malformed or misdirected proxy route passed guard")
 
 
 def test_no_route_repeats_its_router_prefix() -> None:
