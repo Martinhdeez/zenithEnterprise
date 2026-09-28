@@ -36,7 +36,7 @@ export interface SearchHit {
  * would tell a customer their installation is broken when their archive simply does not
  * cover what they asked.
  */
-export type Relevance = "confident" | "weak" | "none";
+export type Relevance = "confident" | "weak" | "none" | "not_assessed";
 
 export interface SearchResult {
   hits: SearchHit[];
@@ -45,6 +45,10 @@ export interface SearchResult {
   took_ms: number;
   /** Absent on an older server, and `confident` is the safe reading of silence. */
   relevance?: Relevance;
+  requested_judge_provider?: string;
+  fallback_provider?: string | null;
+  evidence_status?: string | null;
+  evidence_policy?: string | null;
 }
 
 /**

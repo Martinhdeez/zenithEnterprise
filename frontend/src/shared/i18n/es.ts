@@ -458,6 +458,8 @@ export const es: Catalogue = {
   "What follows is the nearest thing in your documents, not an answer.":
     "Lo que sigue es lo más parecido que hay en tus documentos, no una respuesta.",
   "Closest passages": "Lo más cercano",
+  "These passages are ranked, but their answer coverage has not been assessed.":
+    "Estos pasajes están ordenados, pero no se ha evaluado si bastan para responder.",
   "Nothing in your documents is about “{query}”.":
     "Ninguno de tus documentos trata sobre «{query}».",
   "This is not a wording problem — rephrasing will not help. The corpus does not cover this subject.":

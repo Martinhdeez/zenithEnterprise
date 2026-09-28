@@ -511,6 +511,15 @@ export function Search({
             </div>
           )}
 
+          {state.relevance === "not_assessed" && state.hits.length > 0 && (
+            <div
+              role="status"
+              className="rounded-xl border border-primary/35 bg-primary/[0.08] px-4 py-3.5 text-sm text-foreground"
+            >
+              {t("These passages are ranked, but their answer coverage has not been assessed.")}
+            </div>
+          )}
+
           {state.hits.length === 0 &&
             (state.relevance === "none" ? (
               <NotInTheCorpus query={state.query} />

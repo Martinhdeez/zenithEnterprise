@@ -1,3 +1,4 @@
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -41,6 +42,35 @@ class HitResponse(BaseModel):
     rerank_score: float | None = None
 
 
+class CoverageReceiptResponse(BaseModel):
+    """Versioned source-accounting contract; no field is a correctness probability."""
+
+    version: Literal["evidence-coverage-v1"]
+    strategy: Literal["direct", "hybrid"]
+    coverage_method: Literal["eligible_scope_manifest", "candidate_set"]
+    execution_status: Literal["complete", "partial", "unavailable", "canceled"]
+    scope_fingerprint: str
+    manifest_fingerprint: str | None
+    eligible_units: int | None
+    selected_units: int
+    attempted_units: int
+    assessed_units: int
+    failed_units: int
+    skipped_units: int
+    assessment_windows: int
+    manifest_assessment_complete: bool
+    source_representation: Literal["eligible_parsed_content"]
+    snapshot_status: Literal["unchanged", "changed", "unknown"]
+    evidence_status: str
+    provider: str | None
+    model: str | None
+    rubric_id: str | None
+    degraded: bool
+    fallback_provider: str | None
+    fallback_strategy: str | None
+    reason_codes: tuple[str, ...] = ()
+
+
 class SearchResponse(BaseModel):
     """`degraded` is part of the contract, not diagnostics.
 
@@ -60,3 +90,12 @@ class SearchResponse(BaseModel):
     #: tell a customer their installation is broken when their archive simply does not cover
     #: what they asked. `none` comes with an empty `hits`.
     relevance: str = "confident"
+    # Nullable when the profile disables reranking or the local model is unavailable.
+    judge_provider: str | None = None
+    judge_model: str | None = None
+    judge_score_kind: str | None = None
+    requested_judge_provider: str = "tei"
+    fallback_provider: str | None = None
+    evidence_status: str | None = None
+    evidence_policy: str | None = None
+    receipt: CoverageReceiptResponse | None = None

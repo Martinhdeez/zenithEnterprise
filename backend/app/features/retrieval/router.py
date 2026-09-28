@@ -1,11 +1,11 @@
 from dataclasses import asdict
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
 from app.features.auth.access.dependencies import CurrentProfile, requires
-from app.features.retrieval.schemas import HitResponse, SearchResponse
+from app.features.retrieval.schemas import CoverageReceiptResponse, HitResponse, SearchResponse
 from app.features.retrieval.service import DEFAULT_LIMIT, EXECUTE, MAX_LIMIT, SearchService
 
 router = APIRouter(tags=["search"])
@@ -22,6 +22,10 @@ async def search(
     documents: Annotated[
         list[UUID] | None, Query(description="Restrict the search to these documents.")
     ] = None,
+    mode: Annotated[
+        Literal["legacy", "auto", "direct", "hybrid"],
+        Query(description="Retrieval strategy; legacy remains the default."),
+    ] = "legacy",
 ) -> SearchResponse:
     """Hybrid search over the passages this caller is allowed to read.
 
@@ -33,11 +37,25 @@ async def search(
     `degraded` says so. That is the honest half-answer, and it is what makes the response
     trustworthy when the box is busy ingesting.
     """
-    result = await SearchService(profile).search(q, limit, labels, documents)
+    result = await SearchService(profile).search(q, limit, labels, documents, mode=mode)
     return SearchResponse(
         hits=[HitResponse(**asdict(hit)) for hit in result.hits],
         degraded=result.degraded,
         reason=result.reason,
         took_ms=result.took_ms,
         relevance=result.relevance.value,
+        judge_provider=result.assessment.provider if result.assessment else None,
+        judge_model=result.assessment.reported_model if result.assessment else None,
+        judge_score_kind=(
+            result.assessment.judgments[0].score_kind.value
+            if result.assessment
+            and result.assessment.judgments
+            and result.assessment.judgments[0].score_kind
+            else None
+        ),
+        requested_judge_provider=result.requested_provider,
+        fallback_provider=result.fallback_provider,
+        evidence_status=result.evidence_status.value if result.evidence_status else None,
+        evidence_policy=result.evidence_policy,
+        receipt=CoverageReceiptResponse(**asdict(result.receipt)) if result.receipt else None,
     )
