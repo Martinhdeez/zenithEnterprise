@@ -11,11 +11,11 @@
  * source of truth gets that right for free.
  */
 
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Search } from "./Search";
-import type { SearchHit } from "./api";
+import type { SearchHit, SearchResult } from "./api";
 
 const hit = (id: string, filename: string): SearchHit => ({
   chunk_id: id,
@@ -37,7 +37,13 @@ const hit = (id: string, filename: string): SearchHit => ({
 });
 
 const results = vi.fn();
-vi.mock("./api", () => ({ search: (...args: unknown[]) => results(...args) }));
+const capabilities = vi.fn();
+vi.mock("./api", () => ({
+  search: (...args: unknown[]) => results(...args),
+  searchCapabilities: (...args: unknown[]) => capabilities(...args),
+}));
+
+beforeEach(() => capabilities.mockResolvedValue({ direct_enabled: false }));
 
 // The label catalogue is fetched over the network by the real module. Stubbed so a hit can
 // carry a name and its chip renders as the *button* it becomes when a filter is offered —
@@ -267,7 +273,7 @@ describe("when a search fails", () => {
 
     expect(await screen.findByText(/1 passage/)).toBeTruthy();
     // The same query, not a blank one.
-    expect(results).toHaveBeenLastCalledWith("t", "severance", undefined, expect.anything());
+    expect(results).toHaveBeenLastCalledWith("t", "severance", undefined, expect.anything(), "legacy");
   });
 });
 
@@ -384,6 +390,14 @@ describe("when the corpus has little or nothing to say", () => {
     expect(screen.getByText(/handbook\.pdf/)).toBeTruthy();
   });
 
+  it("labels unassessed answer coverage without hiding ranked passages", async () => {
+    await ask({ hits: [hit("one", "handbook.pdf")], relevance: "not_assessed" });
+
+    expect(await screen.findByText(/answer coverage has not been assessed/)).toBeTruthy();
+    expect(screen.getByText(/handbook\.pdf/)).toBeTruthy();
+    expect(screen.queryByText(/Nothing matches this closely/)).toBeNull();
+  });
+
   it("says the corpus does not cover it, and does not suggest rewording", async () => {
     await ask({ hits: [], relevance: "none" });
 
@@ -400,6 +414,153 @@ describe("when the corpus has little or nothing to say", () => {
 
     expect(await screen.findByText(/Nothing matched that query/)).toBeTruthy();
   });
+});
+
+describe("retrieval mode and coverage", () => {
+  it("hides direct controls when the installation disables them and labels a shortlist", async () => {
+    results.mockResolvedValue({
+      hits: [hit("one", "handbook.pdf")],
+      degraded: false,
+      reason: null,
+      took_ms: 12,
+      receipt: {
+        strategy: "hybrid",
+        execution_status: "complete",
+        assessed_units: 1,
+        manifest_assessment_complete: false,
+        snapshot_status: "unknown",
+      },
+    });
+    const onCitation = vi.fn();
+    render(<Search token="t" onCitation={onCitation} searchable />);
+    expect(screen.queryByRole("option", { name: "Direct scope" })).toBeNull();
+    fireEvent.change(screen.getByLabelText("Search mode"), { target: { value: "hybrid" } });
+    const box = screen.getByLabelText("Search");
+    fireEvent.change(box, { target: { value: "severance" } });
+    fireEvent.submit(box.closest("form")!);
+    expect(await screen.findByText(/candidate shortlist was assessed/)).toBeTruthy();
+    expect(screen.getByText("Mode: Hybrid shortlist")).toBeTruthy();
+    expect(results).toHaveBeenLastCalledWith("t", "severance", undefined, expect.anything(), "hybrid");
+    expect(onCitation).toHaveBeenCalled();
+    expect(screen.getByText("Candidate passages assessed: 1.")).toBeTruthy();
+    expect(screen.getByText("Returned documents: 1")).toBeTruthy();
+  });
+
+  it("shows a complete parsed-scope receipt without calling it answer correctness", async () => {
+    capabilities.mockResolvedValue({ direct_enabled: true });
+    results.mockResolvedValue({
+      hits: [hit("one", "handbook.pdf")],
+      degraded: false,
+      reason: null,
+      took_ms: 12,
+      receipt: {
+        strategy: "direct",
+        execution_status: "complete",
+        eligible_units: 1,
+        assessed_units: 1,
+        assessment_windows: 1,
+        manifest_assessment_complete: true,
+        snapshot_status: "unchanged",
+      },
+    });
+    render(<Search token="t" onCitation={vi.fn()} searchable />);
+    await screen.findByRole("option", { name: "Direct scope" });
+    fireEvent.change(screen.getByLabelText("Search mode"), { target: { value: "direct" } });
+    const box = screen.getByLabelText("Search");
+    fireEvent.change(box, { target: { value: "severance" } });
+    fireEvent.submit(box.closest("form")!);
+    expect(await screen.findByText(/Every eligible parsed passage/)).toBeTruthy();
+    expect(screen.getByText(/not whether an answer is correct/)).toBeTruthy();
+    expect(screen.getByText("Passages assessed: 1 / 1. Windows required: 1.")).toBeTruthy();
+    expect(results).toHaveBeenLastCalledWith("t", "severance", undefined, expect.anything(), "direct");
+  });
+
+  it("shows incomplete and changed-snapshot states without claiming exhaustive coverage", async () => {
+    capabilities.mockResolvedValue({ direct_enabled: true });
+    results.mockResolvedValue({
+      hits: [],
+      degraded: true,
+      reason: "The selected sources changed.",
+      took_ms: 12,
+      receipt: {
+        strategy: "direct",
+        execution_status: "partial",
+        eligible_units: 1,
+        assessed_units: 0,
+        assessment_windows: 1,
+        manifest_assessment_complete: false,
+        snapshot_status: "changed",
+      },
+    });
+    render(<Search token="t" onCitation={vi.fn()} searchable />);
+    await screen.findByRole("option", { name: "Direct scope" });
+    fireEvent.change(screen.getByLabelText("Search mode"), { target: { value: "direct" } });
+    const box = screen.getByLabelText("Search");
+    fireEvent.change(box, { target: { value: "severance" } });
+    fireEvent.submit(box.closest("form")!);
+    expect(await screen.findByText(/selected scope was not fully assessed/)).toBeTruthy();
+    expect(screen.getByText(/Sources changed during this search/)).toBeTruthy();
+    expect(screen.getByText("Passages assessed: 0 / 1. Windows required: 1.")).toBeTruthy();
+    expect(screen.queryByText(/Every eligible parsed passage/)).toBeNull();
+  });
+});
+
+it("discards an old account's search response after identity changes", async () => {
+  let resolveOld!: (value: SearchResult) => void;
+  // The response deliberately ignores AbortSignal, like an already-settled cache entry.
+  const oldResponse = new Promise<SearchResult>((resolve) => {
+    resolveOld = resolve;
+  });
+  results.mockReturnValueOnce(oldResponse);
+  const onCitation = vi.fn();
+  const view = render(<Search token="a" recentScope="tenant-a:user-a" onCitation={onCitation} searchable />);
+  const box = screen.getByLabelText("Search");
+  fireEvent.change(box, { target: { value: "private question" } });
+  fireEvent.submit(box.closest("form")!);
+  view.rerender(<Search token="b" recentScope="tenant-b:user-b" onCitation={onCitation} searchable />);
+  await act(async () => {
+    resolveOld({ hits: [hit("old", "account-a.pdf")], degraded: false, reason: null, took_ms: 1 });
+    await oldResponse;
+  });
+  expect(screen.queryByText("account-a.pdf")).toBeNull();
+  expect(onCitation).not.toHaveBeenCalled();
+});
+
+it("keeps recent queries in memory and clears them on an identity change", async () => {
+  const values = new Map<string, string>([
+    ["zenith.recent-searches", JSON.stringify(["another user's query"])],
+  ]);
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
+  });
+  try {
+    results.mockResolvedValue({
+      hits: [hit("one", "handbook.pdf")],
+      degraded: false,
+      reason: null,
+      took_ms: 12,
+    });
+    const view = render(
+      <Search token="t" recentScope="tenant-a:user-a" onCitation={vi.fn()} searchable />,
+    );
+    const box = screen.getByLabelText("Search");
+    fireEvent.change(box, { target: { value: "severance" } });
+    fireEvent.submit(box.closest("form")!);
+    await screen.findByText(/1 passage/);
+    expect(values.has("zenith.recent-searches")).toBe(false);
+    expect([...values.keys()]).toEqual([]);
+    view.rerender(
+      <Search token="t2" recentScope="tenant-b:user-b" onCitation={vi.fn()} searchable />,
+    );
+    await waitFor(() => expect(screen.queryByText("handbook.pdf")).toBeNull());
+    expect((screen.getByLabelText("Search") as HTMLTextAreaElement).value).toBe("");
+    expect(screen.queryByRole("button", { name: "severance" })).toBeNull();
+    expect(values.has("zenith.recent-searches.tenant-b:user-b")).toBe(false);
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });
 
 /**

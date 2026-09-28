@@ -1,0 +1,168 @@
+{
+  "trial_version": "zenith-qasper-packets-fixed-legacy-206-v4",
+  "dataset_sha256": "2ae7ee62a65b1c4225791c70de80c2aad4e8998cf1fd4f09a53103db4f21af93",
+  "source_ids": [
+    "1604.05372",
+    "2002.01984",
+    "1904.03288",
+    "2002.07306",
+    "2004.01853",
+    "1910.06592",
+    "1909.00105",
+    "1611.01576",
+    "1802.07862",
+    "1604.00400",
+    "1805.06966",
+    "1908.05828",
+    "1603.01987",
+    "1804.05918",
+    "2004.04721",
+    "1801.06482",
+    "1810.04428",
+    "1910.07601",
+    "1908.10084",
+    "1912.08960",
+    "1912.06262",
+    "1811.08603",
+    "1809.06537",
+    "1809.01202",
+    "1806.03125",
+    "1606.02891",
+    "1803.09123",
+    "1701.05574",
+    "1803.05223",
+    "1806.05513",
+    "1907.09369",
+    "2003.11563",
+    "1810.12085",
+    "2003.04866",
+    "1909.03582",
+    "1809.02286",
+    "1712.00991",
+    "1807.07279",
+    "1503.00841",
+    "1908.06264",
+    "1912.00903",
+    "1909.08089",
+    "1908.01294",
+    "1912.04961",
+    "1912.10011",
+    "1905.12801",
+    "1808.09111",
+    "1802.06024",
+    "2001.01269",
+    "1706.01678",
+    "1705.05437",
+    "1801.07887",
+    "1810.04635",
+    "1909.13104",
+    "2001.02284",
+    "1805.04508",
+    "1909.00512",
+    "1801.10293",
+    "1703.10344",
+    "1802.08636",
+    "1603.08594",
+    "1612.08205",
+    "1603.01514",
+    "1809.09194"
+  ],
+  "eligible_questions": 206,
+  "candidate_policy": "same dense top-8 current chunks; local TEI reorders the same shortlist",
+  "embedding_model": "BAAI/bge-m3@5617a9f61b028005a4858fdac845db406aefb181",
+  "tei_reported_model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+  "render_budget_source_tokens": 1100,
+  "tokenizer_endpoint": "http://127.0.0.1:18081",
+  "reranker_endpoint": "http://127.0.0.1:18083",
+  "label_provenance": "QASPER practitioner source paragraphs with exact unique mapping",
+  "bootstrap_seed": 1729,
+  "bootstrap_samples": 2000,
+  "summary": {
+    "dense_topk": {
+      "cases": 206,
+      "complete_evidence_rate": 0.5339805825242718,
+      "mean_evidence_recall": 0.5801433194637078,
+      "mean_rendered_tokens": 1011.6893203883495,
+      "unresolved_cases": 0,
+      "counterevidence_candidates": 0
+    },
+    "tei_topk": {
+      "cases": 206,
+      "complete_evidence_rate": 0.5097087378640777,
+      "mean_evidence_recall": 0.5536292186777624,
+      "mean_rendered_tokens": 1020.504854368932,
+      "unresolved_cases": 0,
+      "counterevidence_candidates": 0
+    },
+    "dense_packet": {
+      "cases": 206,
+      "complete_evidence_rate": 0.5339805825242718,
+      "mean_evidence_recall": 0.5801433194637078,
+      "mean_rendered_tokens": 1011.6262135922331,
+      "unresolved_cases": 0,
+      "counterevidence_candidates": 0
+    },
+    "tei_packet": {
+      "cases": 206,
+      "complete_evidence_rate": 0.5048543689320388,
+      "mean_evidence_recall": 0.5487748497457235,
+      "mean_rendered_tokens": 1020.5291262135922,
+      "unresolved_cases": 0,
+      "counterevidence_candidates": 0
+    },
+    "dense_packet_counter": {
+      "cases": 206,
+      "complete_evidence_rate": 0.5339805825242718,
+      "mean_evidence_recall": 0.5801433194637078,
+      "mean_rendered_tokens": 1015.242718446602,
+      "unresolved_cases": 0,
+      "counterevidence_candidates": 4
+    },
+    "tei_packet_counter": {
+      "cases": 206,
+      "complete_evidence_rate": 0.5048543689320388,
+      "mean_evidence_recall": 0.5487748497457235,
+      "mean_rendered_tokens": 1022.2184466019418,
+      "unresolved_cases": 0,
+      "counterevidence_candidates": 2
+    }
+  },
+  "paired_paper_bootstrap": {
+    "dense_packet": {
+      "vs": "dense_topk",
+      "macro_paper_difference": 0.0,
+      "percentile_95_interval": [
+        0.0,
+        0.0
+      ],
+      "paper_clusters": 61
+    },
+    "tei_packet": {
+      "vs": "tei_topk",
+      "macro_paper_difference": -0.00819672131147541,
+      "percentile_95_interval": [
+        -0.02459016393442623,
+        0.0
+      ],
+      "paper_clusters": 61
+    },
+    "dense_packet_counter": {
+      "vs": "dense_packet",
+      "macro_paper_difference": 0.0,
+      "percentile_95_interval": [
+        0.0,
+        0.0
+      ],
+      "paper_clusters": 61
+    },
+    "tei_packet_counter": {
+      "vs": "tei_packet",
+      "macro_paper_difference": 0.0,
+      "percentile_95_interval": [
+        0.0,
+        0.0
+      ],
+      "paper_clusters": 61
+    }
+  }
+}

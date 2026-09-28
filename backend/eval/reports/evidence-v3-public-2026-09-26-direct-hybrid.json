@@ -1,0 +1,590 @@
+{
+  "fixture_id": "evidence-v3-public-v1",
+  "fixture_sha256": "f87123fa48e11495dbb9d19e63842d089651aaf885da28859e0c5d7e176b4bd8",
+  "label_provenance": "Agent-reviewed ordinal relevance labels from linked public primary pages; exploratory, not independent human adjudication",
+  "embedding_note": "Test-seeded vectors and deterministic WorkingEmbedder; not a real embedding model",
+  "source_scope": "One ready document with eight public source-grounded paraphrase chunks",
+  "tei_model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+  "tei_endpoint": "http://127.0.0.1:18083",
+  "rows": [
+    {
+      "query_id": "lead-boiling",
+      "hybrid": {
+        "ranked_candidate_ids": [
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "usgs-intensity",
+          "usgs-magnitude"
+        ],
+        "best_at_1": true,
+        "ndcg_at_8": 1.0,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 369,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "hybrid",
+          "execution_status": "complete",
+          "eligible_units": null,
+          "assessed_units": 8,
+          "manifest_assessment_complete": false
+        }
+      },
+      "direct": {
+        "ranked_candidate_ids": [
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "usgs-intensity",
+          "usgs-magnitude"
+        ],
+        "best_at_1": true,
+        "ndcg_at_8": 1.0,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 259,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "direct",
+          "execution_status": "complete",
+          "eligible_units": 8,
+          "assessed_units": 8,
+          "manifest_assessment_complete": true
+        }
+      }
+    },
+    {
+      "query_id": "lead-formula",
+      "hybrid": {
+        "ranked_candidate_ids": [
+          "epa-lead-cold",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "usgs-intensity",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "usgs-magnitude"
+        ],
+        "best_at_1": true,
+        "ndcg_at_8": 1.0,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 211,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "hybrid",
+          "execution_status": "complete",
+          "eligible_units": null,
+          "assessed_units": 8,
+          "manifest_assessment_complete": false
+        }
+      },
+      "direct": {
+        "ranked_candidate_ids": [
+          "epa-lead-cold",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "usgs-intensity",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "usgs-magnitude"
+        ],
+        "best_at_1": true,
+        "ndcg_at_8": 1.0,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 252,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "direct",
+          "execution_status": "complete",
+          "eligible_units": 8,
+          "assessed_units": 8,
+          "manifest_assessment_complete": true
+        }
+      }
+    },
+    {
+      "query_id": "magnitude-location",
+      "hybrid": {
+        "ranked_candidate_ids": [
+          "usgs-magnitude",
+          "usgs-intensity",
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "epa-lead-cold",
+          "cdc-mmr-one"
+        ],
+        "best_at_1": true,
+        "ndcg_at_8": 1.0,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 214,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "hybrid",
+          "execution_status": "complete",
+          "eligible_units": null,
+          "assessed_units": 8,
+          "manifest_assessment_complete": false
+        }
+      },
+      "direct": {
+        "ranked_candidate_ids": [
+          "usgs-magnitude",
+          "usgs-intensity",
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "epa-lead-cold",
+          "cdc-mmr-one"
+        ],
+        "best_at_1": true,
+        "ndcg_at_8": 1.0,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 226,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "direct",
+          "execution_status": "complete",
+          "eligible_units": 8,
+          "assessed_units": 8,
+          "manifest_assessment_complete": true
+        }
+      }
+    },
+    {
+      "query_id": "shaking-location",
+      "hybrid": {
+        "ranked_candidate_ids": [
+          "usgs-intensity",
+          "usgs-magnitude",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "epa-lead-cold"
+        ],
+        "best_at_1": true,
+        "ndcg_at_8": 1.0,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 205,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "hybrid",
+          "execution_status": "complete",
+          "eligible_units": null,
+          "assessed_units": 8,
+          "manifest_assessment_complete": false
+        }
+      },
+      "direct": {
+        "ranked_candidate_ids": [
+          "usgs-intensity",
+          "usgs-magnitude",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "epa-lead-cold"
+        ],
+        "best_at_1": true,
+        "ndcg_at_8": 1.0,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 237,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "direct",
+          "execution_status": "complete",
+          "eligible_units": 8,
+          "assessed_units": 8,
+          "manifest_assessment_complete": true
+        }
+      }
+    },
+    {
+      "query_id": "tornado-possible",
+      "hybrid": {
+        "ranked_candidate_ids": [
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "usgs-magnitude",
+          "usgs-intensity",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "epa-lead-cold"
+        ],
+        "best_at_1": true,
+        "ndcg_at_8": 1.0,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 196,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "hybrid",
+          "execution_status": "complete",
+          "eligible_units": null,
+          "assessed_units": 8,
+          "manifest_assessment_complete": false
+        }
+      },
+      "direct": {
+        "ranked_candidate_ids": [
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "usgs-magnitude",
+          "usgs-intensity",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "epa-lead-cold"
+        ],
+        "best_at_1": true,
+        "ndcg_at_8": 1.0,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 230,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "direct",
+          "execution_status": "complete",
+          "eligible_units": 8,
+          "assessed_units": 8,
+          "manifest_assessment_complete": true
+        }
+      }
+    },
+    {
+      "query_id": "tornado-action",
+      "hybrid": {
+        "ranked_candidate_ids": [
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "epa-lead-cold",
+          "epa-lead-boiling",
+          "usgs-magnitude",
+          "cdc-mmr-two",
+          "usgs-intensity",
+          "cdc-mmr-one"
+        ],
+        "best_at_1": true,
+        "ndcg_at_8": 1.0,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 212,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "hybrid",
+          "execution_status": "complete",
+          "eligible_units": null,
+          "assessed_units": 8,
+          "manifest_assessment_complete": false
+        }
+      },
+      "direct": {
+        "ranked_candidate_ids": [
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "epa-lead-cold",
+          "epa-lead-boiling",
+          "usgs-magnitude",
+          "cdc-mmr-two",
+          "usgs-intensity",
+          "cdc-mmr-one"
+        ],
+        "best_at_1": true,
+        "ndcg_at_8": 1.0,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 207,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "direct",
+          "execution_status": "complete",
+          "eligible_units": 8,
+          "assessed_units": 8,
+          "manifest_assessment_complete": true
+        }
+      }
+    },
+    {
+      "query_id": "mmr-two-doses",
+      "hybrid": {
+        "ranked_candidate_ids": [
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "usgs-intensity",
+          "usgs-magnitude"
+        ],
+        "best_at_1": true,
+        "ndcg_at_8": 1.0,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 197,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "hybrid",
+          "execution_status": "complete",
+          "eligible_units": null,
+          "assessed_units": 8,
+          "manifest_assessment_complete": false
+        }
+      },
+      "direct": {
+        "ranked_candidate_ids": [
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "usgs-intensity",
+          "usgs-magnitude"
+        ],
+        "best_at_1": true,
+        "ndcg_at_8": 1.0,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 153,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "direct",
+          "execution_status": "complete",
+          "eligible_units": 8,
+          "assessed_units": 8,
+          "manifest_assessment_complete": true
+        }
+      }
+    },
+    {
+      "query_id": "mmr-comparison",
+      "hybrid": {
+        "ranked_candidate_ids": [
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "nws-tornado-warning",
+          "usgs-magnitude",
+          "epa-lead-boiling",
+          "nws-tornado-watch",
+          "usgs-intensity",
+          "epa-lead-cold"
+        ],
+        "best_at_1": true,
+        "ndcg_at_8": 1.0,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 227,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "hybrid",
+          "execution_status": "complete",
+          "eligible_units": null,
+          "assessed_units": 8,
+          "manifest_assessment_complete": false
+        }
+      },
+      "direct": {
+        "ranked_candidate_ids": [
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "nws-tornado-warning",
+          "usgs-magnitude",
+          "epa-lead-boiling",
+          "nws-tornado-watch",
+          "usgs-intensity",
+          "epa-lead-cold"
+        ],
+        "best_at_1": true,
+        "ndcg_at_8": 1.0,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 206,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "direct",
+          "execution_status": "complete",
+          "eligible_units": 8,
+          "assessed_units": 8,
+          "manifest_assessment_complete": true
+        }
+      }
+    },
+    {
+      "query_id": "pb-paraphrase",
+      "hybrid": {
+        "ranked_candidate_ids": [
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "epa-lead-cold",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "usgs-intensity",
+          "usgs-magnitude"
+        ],
+        "best_at_1": true,
+        "ndcg_at_8": 0.9936690702088687,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 191,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "hybrid",
+          "execution_status": "complete",
+          "eligible_units": null,
+          "assessed_units": 8,
+          "manifest_assessment_complete": false
+        }
+      },
+      "direct": {
+        "ranked_candidate_ids": [
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "epa-lead-cold",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "usgs-intensity",
+          "usgs-magnitude"
+        ],
+        "best_at_1": true,
+        "ndcg_at_8": 0.9936690702088687,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 176,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "direct",
+          "execution_status": "complete",
+          "eligible_units": 8,
+          "assessed_units": 8,
+          "manifest_assessment_complete": true
+        }
+      }
+    },
+    {
+      "query_id": "intensidad-es",
+      "hybrid": {
+        "ranked_candidate_ids": [
+          "usgs-magnitude",
+          "usgs-intensity",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "epa-lead-cold",
+          "cdc-mmr-one"
+        ],
+        "best_at_1": false,
+        "ndcg_at_8": 0.6858288052712634,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 208,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "hybrid",
+          "execution_status": "complete",
+          "eligible_units": null,
+          "assessed_units": 8,
+          "manifest_assessment_complete": false
+        }
+      },
+      "direct": {
+        "ranked_candidate_ids": [
+          "usgs-magnitude",
+          "usgs-intensity",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "epa-lead-cold",
+          "cdc-mmr-one"
+        ],
+        "best_at_1": false,
+        "ndcg_at_8": 0.6858288052712634,
+        "relevant_recall_at_8": 1.0,
+        "latency_ms": 154,
+        "assessed_candidates": 8,
+        "returned_candidates": 8,
+        "provider": "tei",
+        "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "receipt": {
+          "strategy": "direct",
+          "execution_status": "complete",
+          "eligible_units": 8,
+          "assessed_units": 8,
+          "manifest_assessment_complete": true
+        }
+      }
+    }
+  ],
+  "missing_vector_probe": {
+    "query_kind": "agent-authored public paraphrase; no reviewed grade label",
+    "query": "Does increasing thermal energy eliminate dissolved Pb?",
+    "target_candidate_id": "epa-lead-boiling",
+    "target_in_hybrid": false,
+    "target_in_direct": true,
+    "hybrid_candidate_count": 7,
+    "direct_window_count": 8
+  }
+}

@@ -114,6 +114,22 @@ export const es: Catalogue = {
   "Answering from": "Respondiendo desde",
   only: "sólo",
   "No answer was found in your documents.": "No hay respuesta en tus documentos.",
+  "A supported answer could not be verified.":
+    "No se pudo verificar una respuesta respaldada por las fuentes.",
+  "Cited claims passed the model support check.":
+    "Las afirmaciones citadas superaron la comprobación de respaldo del modelo.",
+  "Source access changed while checking this answer.":
+    "Cambió el acceso a las fuentes durante la comprobación de la respuesta.",
+  "Current source access could not be verified; the draft was withheld.":
+    "No se pudo verificar el acceso actual a las fuentes; se ha ocultado el borrador.",
+  "The support check is unavailable; the draft was withheld.":
+    "La comprobación de respaldo no está disponible; se ha ocultado el borrador.",
+  "The cited sources did not establish every claim.":
+    "Las fuentes citadas no respaldan todas las afirmaciones.",
+  "Evidence context could not be checked.":
+    "No se pudo comprobar el contexto de las fuentes.",
+  "Some required source context was unavailable.":
+    "Faltaba parte del contexto necesario de las fuentes.",
   Documents: "Documentos",
   "No documents match that.": "Ningún documento coincide.",
   "{count} cited": { one: "{count} cita", other: "{count} citas" },
@@ -458,6 +474,45 @@ export const es: Catalogue = {
   "What follows is the nearest thing in your documents, not an answer.":
     "Lo que sigue es lo más parecido que hay en tus documentos, no una respuesta.",
   "Closest passages": "Lo más cercano",
+  "These passages are ranked, but their answer coverage has not been assessed.":
+    "Estos pasajes están ordenados, pero no se ha evaluado si bastan para responder.",
+  "Search mode": "Modo de búsqueda",
+  "Standard search": "Búsqueda estándar",
+  "Hybrid shortlist": "Selección híbrida",
+  "Automatic coverage": "Cobertura automática",
+  "Direct scope": "Ámbito directo",
+  "Assess every eligible parsed passage within the configured limits.":
+    "Evalúa todos los pasajes extraídos elegibles dentro de los límites configurados.",
+  "Use full-scope assessment when it fits, otherwise a shortlist.":
+    "Evalúa todo el ámbito si cabe; si no, usa una selección de pasajes.",
+  "Rank a candidate shortlist.": "Ordena una selección de pasajes candidatos.",
+  "Use the installed search behavior.": "Usa el comportamiento de búsqueda instalado.",
+  "Mode: {mode}": "Modo: {mode}",
+  "No eligible ready passages were found in this scope.":
+    "No hay pasajes elegibles y listos en este ámbito.",
+  "Every eligible parsed passage in this scope was assessed.":
+    "Se evaluaron todos los pasajes extraídos elegibles de este ámbito.",
+  "The selected scope was not fully assessed.": "No se evaluó por completo el ámbito seleccionado.",
+  "The candidate shortlist was assessed; other passages may not have been considered.":
+    "Se evaluó la selección de pasajes; puede que otros pasajes no se hayan considerado.",
+  "The candidate shortlist was not fully assessed.":
+    "No se evaluó por completo la selección de pasajes.",
+  "Sources changed during this search. Run it again.":
+    "Las fuentes cambiaron durante la búsqueda. Vuelve a ejecutarla.",
+  "Coverage describes retrieval, not whether an answer is correct.":
+    "La cobertura describe la recuperación, no si una respuesta es correcta.",
+  "Standard search does not assess the whole source scope.":
+    "La búsqueda estándar no evalúa todo el ámbito de las fuentes.",
+  "Coverage details are unavailable from this server.":
+    "Este servidor no ofrece detalles de cobertura.",
+  "Passages assessed: {assessed} / {eligible}. Windows required: {windows}.":
+    "Pasajes evaluados: {assessed} / {eligible}. Ventanas necesarias: {windows}.",
+  "Candidate passages assessed: {count}.": "Pasajes candidatos evaluados: {count}.",
+  "Returned documents: {count}": "Documentos devueltos: {count}",
+  "Your profile could not be loaded. Search is paused.":
+    "No se pudo cargar tu perfil. La búsqueda está en pausa.",
+  "Loading your profile…": "Cargando tu perfil…",
+  "Retry profile": "Reintentar cargar el perfil",
   "Nothing in your documents is about “{query}”.":
     "Ninguno de tus documentos trata sobre «{query}».",
   "This is not a wording problem — rephrasing will not help. The corpus does not cover this subject.":

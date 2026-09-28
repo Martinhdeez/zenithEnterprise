@@ -13,6 +13,7 @@ diff are exercised here against a tree built for the purpose — in `tmp_path`, 
 whole point.
 """
 
+import os
 from pathlib import Path
 
 from conftest import PERMITTED_WRITES, tree, written_between
@@ -47,6 +48,12 @@ def test_a_rewritten_file_is_seen_even_at_the_same_length(tmp_path: Path) -> Non
 
     (tmp_path / "corpus.toml").write_text("")
     (tmp_path / "corpus.toml").write_text(original)
+    # Windows can assign the same mtime to both writes within one clock tick.
+    # Give the rewritten file a distinct timestamp so this test checks the
+    # guard's size/mtime comparison deterministically on every filesystem.
+    rewritten = tmp_path / "corpus.toml"
+    original_mtime_ns = before[Path("corpus.toml")][1]
+    os.utime(rewritten, ns=(original_mtime_ns, original_mtime_ns + 1_000_000_000))
 
     assert written_between(before, tree(tmp_path)) == [Path("corpus.toml")]
 
