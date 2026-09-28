@@ -77,6 +77,9 @@ class Hit:
     # Defaulted because it is a display concern. A test about prompt construction or
     # citation binding should not have to invent one to say what those functions do.
     label_ids: list[UUID] = field(default_factory=list[UUID])
+    # Internal source-version identity for dispatch/disclosure revalidation. Do not send
+    # this hash in the public hit schema: it is an implementation identity, not a citation.
+    source_sha256: str | None = None
 
 
 def scoped(clause: str, documents: list[UUID] | None) -> str:
@@ -476,7 +479,7 @@ async def hydrate(
     rows = await session.execute(
         text(
             "SELECT c.id, c.document_id, d.filename, d.media_type, c.page_num, "
-            "       c.char_start, c.char_end, c.text, c.bboxes, d.label_ids "
+            "       c.char_start, c.char_end, c.text, c.bboxes, d.label_ids, d.sha256 "
             "FROM chunks c JOIN documents d ON d.id = c.document_id "
             "WHERE c.id = ANY(:ids)"
         ),
@@ -495,6 +498,7 @@ async def hydrate(
             text=row.text,
             bboxes=list(row.bboxes or []),
             label_ids=list(row.label_ids or []),
+            source_sha256=row.sha256,
             lexical_rank=lexical_positions.get(row.id),
             dense_rank=dense_positions.get(row.id),
             score=dict(ranked)[row.id],

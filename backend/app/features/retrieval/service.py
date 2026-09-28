@@ -12,6 +12,7 @@ which one they got. `degraded` is in the response for that reason — a silently
 is the failure mode this whole project keeps refusing.
 """
 
+import asyncio
 import time
 from dataclasses import dataclass, replace
 from uuid import UUID
@@ -20,16 +21,37 @@ import structlog
 from sqlalchemy import text
 
 from app.common.exceptions import PermissionDeniedError
+from app.core.config import settings
 from app.core.database import tenant_session
 from app.core.hardware import Profile
 from app.core.hardware import active as active_profile
 from app.features.auth.access.permissions import CATALOGUE
-from app.features.auth.service import AccessProfile
+from app.features.auth.service import AccessProfile, AuthService
 from app.features.embeddings.client import TeiClient
 from app.features.embeddings.space import active as active_space
 from app.features.retrieval.breaker import Breaker
-from app.features.retrieval.degradation import RERANKING_UNAVAILABLE, SEMANTIC_UNAVAILABLE
+from app.features.retrieval.degradation import (
+    EXTERNAL_JUDGE_UNAVAILABLE,
+    RERANKING_UNAVAILABLE,
+    SEMANTIC_UNAVAILABLE,
+    SOURCE_CHANGED,
+)
+from app.features.retrieval.evidence_policy import POLICY_ID, EvidenceStatusV1
 from app.features.retrieval.identifiers import exact
+from app.features.retrieval.judging.jev import (
+    JevFailure,
+    Purpose,
+    configured_jev_judge,
+)
+from app.features.retrieval.judging.protocol import (
+    AssessmentBatch,
+    Candidate,
+    CompletionState,
+    Judge,
+    Outcome,
+)
+from app.features.retrieval.judging.rubrics import Formulation
+from app.features.retrieval.judging.tei import TeiJudge
 from app.features.retrieval.relevance import Relevance, best_rerank, classify
 from app.features.retrieval.reranker import TeiReranker
 from app.features.retrieval.search import (
@@ -69,6 +91,11 @@ class SearchResult:
     #: Conflating them would tell a customer their installation is broken when their archive
     #: simply does not cover the question.
     relevance: Relevance = Relevance.CONFIDENT
+    assessment: AssessmentBatch | None = None
+    requested_provider: str = "tei"
+    fallback_provider: str | None = None
+    evidence_status: EvidenceStatusV1 | None = None
+    evidence_policy: str | None = None
 
 
 class SearchService:
@@ -79,6 +106,8 @@ class SearchService:
         hardware: Profile | None = None,
         reranker: TeiReranker | None = None,
         breaker: Breaker | None = None,
+        judge: Judge | None = None,
+        judge_mode: str | None = None,
     ) -> None:
         self.profile = profile
         # Injectable so a test can drive the states without waiting a minute of real time.
@@ -92,6 +121,14 @@ class SearchService:
             reranker
             if reranker is not None
             else (TeiReranker(profile=self.hardware) if self.hardware.reranker else None)
+        )
+        self.judge = (
+            judge
+            if judge is not None
+            else (TeiJudge(self.reranker) if self.reranker is not None else None)
+        )
+        self.judge_mode = judge_mode or (
+            "tei" if judge is not None else settings.evidence_judge_provider
         )
 
     async def search(
@@ -147,7 +184,7 @@ class SearchService:
             # The union goes to the reranker; the fused top-k is what answers without one.
             # Choosing candidates and ordering results are different jobs, and RRF is only
             # good at the second.
-            reranking = self.reranker is not None and self.hardware.rerank_candidates > 0
+            reranking = self.judge is not None and self.hardware.rerank_candidates > 0
             ranked = (
                 # The limit goes *into* `candidates`, not around it. Slicing afterwards
                 # discards the promoted leaders and turns this back into a plain RRF
@@ -161,8 +198,15 @@ class SearchService:
             )
 
         rerank_reason: str | None = None
+        assessment: AssessmentBatch | None = None
+        fallback_provider: str | None = None
         if reranking and hits:
-            hits, rerank_reason = await self._rerank(question, hits, limit)
+            if self.judge_mode.startswith("jev_"):
+                hits, rerank_reason, assessment, fallback_provider = await self._rerank_jev(
+                    question, hits, limit, context, documents
+                )
+            else:
+                hits, rerank_reason, assessment = await self._rerank(question, hits, limit)
         else:
             hits = hits[:limit]
 
@@ -170,10 +214,23 @@ class SearchService:
         # Read after reranking, from what is actually being returned. The best passage only:
         # a set whose top hit plainly answers the question is a good set even if the eighth
         # is noise, and averaging would let seven weak passages outvote the one that is right.
-        relevance = classify(
-            best_rerank([hit.rerank_score for hit in hits]),
-            sum(1 for hit in hits if hit.lexical_rank is not None),
-            len(hits),
+        provider_aware = assessment is not None and assessment.provider == "jev"
+        unassessed = (
+            provider_aware
+            or rerank_reason == SOURCE_CHANGED
+            or (
+                self.judge_mode.startswith("jev_")
+                and (assessment is None or assessment.provider != "tei")
+            )
+        )
+        relevance = (
+            Relevance.NOT_ASSESSED
+            if unassessed
+            else classify(
+                best_rerank([hit.rerank_score for hit in hits]),
+                sum(1 for hit in hits if hit.lexical_rank is not None),
+                len(hits),
+            )
         )
         if relevance is Relevance.NONE:
             # Withheld rather than ranked. Showing them under a notice saying they do not
@@ -189,6 +246,16 @@ class SearchService:
             returned=len(hits),
             degraded=bool(degraded_reason),
             relevance=relevance.value,
+            judge_provider=assessment.provider if assessment else None,
+            judge_model=assessment.reported_model if assessment else None,
+            judge_score_kind=(
+                assessment.judgments[0].score_kind.value
+                if assessment and assessment.judgments and assessment.judgments[0].score_kind
+                else None
+            ),
+            requested_judge_provider=self.judge_mode if reranking else "none",
+            fallback_provider=fallback_provider,
+            evidence_status=EvidenceStatusV1.NOT_ASSESSED.value if unassessed else None,
             took_ms=took,
         )
         return SearchResult(
@@ -197,21 +264,26 @@ class SearchService:
             reason=degraded_reason,
             took_ms=took,
             relevance=relevance,
+            assessment=assessment,
+            requested_provider=self.judge_mode if reranking else "none",
+            fallback_provider=fallback_provider,
+            evidence_status=EvidenceStatusV1.NOT_ASSESSED if unassessed else None,
+            evidence_policy=POLICY_ID if unassessed else None,
         )
 
     async def _rerank(
         self, question: str, hits: list[Hit], limit: int
-    ) -> tuple[list[Hit], str | None]:
+    ) -> tuple[list[Hit], str | None, AssessmentBatch | None]:
         """Reorder by what the cross-encoder read, or say why we could not.
 
         A reranker that is down must not take a working search away from the customer. The
         fused order is still a good order — it was the whole product one commit ago — so the
         answer degrades to it and the response says so.
         """
-        if self.reranker is None:
+        if self.judge is None:
             # Configured off. Not a degradation: the customer chose this profile and
             # `zenith diagnose` names what it disabled.
-            return hits[:limit], None
+            return hits[:limit], None, None
 
         if not self.breaker.allows():
             # F11 measured why this exists: a reranker that times out costs the full
@@ -227,22 +299,167 @@ class SearchService:
             # reader's results, so it goes to the log and the sentence they see says what
             # actually changed for them. See `degradation.py`.
             log.info("rerank_skipped", cause="circuit_open")
-            return hits[:limit], RERANKING_UNAVAILABLE
+            return hits[:limit], RERANKING_UNAVAILABLE, None
 
         try:
-            scored = await self.reranker.rank(question, [hit.text for hit in hits])
+            batch = await self.judge.assess(
+                question, [Candidate(hit.chunk_id, hit.text) for hit in hits]
+            )
         except Exception as exc:  # noqa: BLE001 - degrading is the point
             self.breaker.failed()
             # The exception name stays here, where somebody who can fix it will look. It used
             # to travel to the screen as well: `reranking unavailable (ReadTimeout)`.
             log.warning("rerank_failed", error=str(exc), cause=type(exc).__name__)
-            return hits[:limit], RERANKING_UNAVAILABLE
+            return hits[:limit], RERANKING_UNAVAILABLE, None
+
+        if batch.completion_state is not CompletionState.COMPLETE or any(
+            item.outcome is not Outcome.ASSESSED for item in batch.judgments
+        ):
+            self.breaker.failed()
+            log.warning("rerank_incomplete", provider=batch.provider)
+            return hits[:limit], RERANKING_UNAVAILABLE, batch
 
         self.breaker.succeeded()
 
         # `replace` rather than mutation: `Hit` is frozen, and the cross-encoder's score is
         # the fourth column `query_citations` was designed to hold.
-        return [replace(hits[item.index], rerank_score=item.score) for item in scored[:limit]], None
+        by_id = {hit.chunk_id: hit for hit in hits}
+        ordered = sorted(
+            batch.judgments,
+            key=lambda item: -item.rank_value if item.rank_value is not None else float("inf"),
+        )
+        return (
+            [
+                replace(by_id[item.candidate_id], rerank_score=item.rank_value)
+                for item in ordered[:limit]
+            ],
+            None,
+            batch,
+        )
+
+    async def _rerank_jev(
+        self,
+        question: str,
+        hits: list[Hit],
+        limit: int,
+        context: TenantContext,
+        documents: list[UUID] | None,
+    ) -> tuple[list[Hit], str | None, AssessmentBatch | None, str | None]:
+        """Rank one comparable set; any failure uses a complete local ordering."""
+        started = time.monotonic()
+        budget = settings.jev_total_deadline_seconds
+        jev_budget = max(0.1, budget - 5.0)
+        by_id = {hit.chunk_id: hit for hit in hits}
+
+        async def permitted(query: str, candidate: Candidate, purpose: Purpose) -> bool:
+            if query != question or purpose is not Purpose.RERANKING:
+                return False
+            hit = by_id.get(candidate.id)
+            if hit is None or hit.text != candidate.text:
+                return False
+            try:
+                # Fresh role/label resolution, then the *original narrowed* scope. This
+                # is a short application-role read, closed before inference starts.
+                current = await AuthService().profile(self.profile.user_id, context.tenant_id)
+                if EXECUTE not in current.permissions:
+                    return False
+                labels = set(context.label_ids).intersection(current.context.label_ids)
+                narrowed = TenantContext.for_tenant(context.tenant_id, labels)
+                async with tenant_session(narrowed) as session:
+                    row = await session.execute(
+                        text(
+                            "SELECT c.text, c.document_id, d.sha256 FROM chunks c "
+                            "JOIN documents d ON d.id = c.document_id "
+                            "WHERE c.id = :id AND d.status = 'ready'"
+                        ),
+                        {"id": candidate.id},
+                    )
+                    source = row.one_or_none()
+                return bool(
+                    source is not None
+                    and source.text == candidate.text
+                    and source.document_id == hit.document_id
+                    and hit.source_sha256 is not None
+                    and source.sha256 == hit.source_sha256
+                    and (not documents or source.document_id in documents)
+                )
+            except Exception:  # noqa: BLE001 - authorization errors deny export/disclosure
+                return False
+
+        batch: AssessmentBatch | None = None
+        try:
+            formulation = (
+                Formulation.SCORE6 if self.judge_mode == "jev_score6" else Formulation.NOUL
+            )
+            client = configured_jev_judge(
+                formulation=formulation,
+                purpose=Purpose.RERANKING,
+                authorize=permitted,
+                deadline_seconds=jev_budget,
+            )
+            try:
+                batch = await client.assess(
+                    question, [Candidate(hit.chunk_id, hit.text) for hit in hits]
+                )
+            finally:
+                await client.aclose()
+        except asyncio.CancelledError:
+            raise
+        except JevFailure as exc:
+            log.info("experimental_judge_unavailable", cause=exc.code)
+        except Exception:  # noqa: BLE001 - no source-bearing exception reaches the log
+            log.warning("experimental_judge_unavailable", cause="internal_error")
+
+        if (
+            batch is not None
+            and batch.completion_state is CompletionState.COMPLETE
+            and all(item.outcome is Outcome.ASSESSED for item in batch.judgments)
+        ):
+            ordered = sorted(
+                batch.judgments,
+                key=lambda item: -item.rank_value if item.rank_value is not None else float("inf"),
+            )
+            selected = [
+                replace(by_id[item.candidate_id], rerank_score=item.rank_value)
+                for item in ordered[:limit]
+            ]
+            if all(
+                [
+                    await permitted(question, Candidate(hit.chunk_id, hit.text), Purpose.RERANKING)
+                    for hit in selected
+                ]
+            ):
+                return selected, None, batch, None
+            return [], SOURCE_CHANGED, batch, None
+
+        remaining = budget - (time.monotonic() - started)
+        if self.judge is not None and remaining > 0:
+            try:
+                async with asyncio.timeout(remaining):
+                    fallback, reason, local_batch = await self._rerank(question, hits, limit)
+                if reason is None and local_batch is not None:
+                    # Recheck even local fallback because the Jev attempt may have queued.
+                    if all(
+                        [
+                            await permitted(
+                                question, Candidate(hit.chunk_id, hit.text), Purpose.RERANKING
+                            )
+                            for hit in fallback
+                        ]
+                    ):
+                        return fallback, EXTERNAL_JUDGE_UNAVAILABLE, local_batch, "tei"
+                    return [], SOURCE_CHANGED, local_batch, "tei"
+            except TimeoutError:
+                pass
+        selected = hits[:limit]
+        if not all(
+            [
+                await permitted(question, Candidate(hit.chunk_id, hit.text), Purpose.RERANKING)
+                for hit in selected
+            ]
+        ):
+            return [], SOURCE_CHANGED, batch, None
+        return selected, RERANKING_UNAVAILABLE, batch, None
 
     async def _embed(self, question: str) -> tuple[list[float], str | None]:
         """The dense half's input, or an honest admission that we could not get it.

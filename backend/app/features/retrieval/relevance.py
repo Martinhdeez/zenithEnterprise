@@ -59,6 +59,8 @@ class Relevance(StrEnum):
     CONFIDENT = "confident"
     WEAK = "weak"
     NONE = "none"
+    # Emitted only by the optional provider-aware route. Legacy classify() never returns it.
+    NOT_ASSESSED = "not_assessed"
 
 
 #: Below this, nothing is shown.

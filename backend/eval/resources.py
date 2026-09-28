@@ -15,6 +15,7 @@ output so nobody has to guess what was measured.
 
 import json
 import os
+import platform
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -128,7 +129,7 @@ def measure() -> dict[str, object]:
     per_100 = 100 / pages
     return {
         "host": {
-            "arch": os.uname().machine,
+            "arch": platform.machine(),
             "cores": os.cpu_count(),
             "embedder": type(embedder).__name__,
             "dimension": DIMENSION,

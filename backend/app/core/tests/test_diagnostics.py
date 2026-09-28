@@ -5,6 +5,7 @@ the installation is broken, so a check that raises instead of reporting is a dia
 that is absent exactly when it is needed.
 """
 
+import asyncio
 import json
 import re
 from pathlib import Path
@@ -21,6 +22,21 @@ from app.core.config import settings
 from app.core.diagnostics import redact, run_diagnostics
 
 runner = CliRunner()
+
+
+@pytest.mark.asyncio
+async def test_a_stalled_check_returns_a_bounded_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(diagnostics, "CHECK_TIMEOUT_SECONDS", 0.01)
+
+    async def stalled() -> tuple[Literal["ok", "warn", "fail"], str]:
+        await asyncio.sleep(3600)
+        return "ok", "unreachable"
+
+    check = await diagnostics._timed("stalled", stalled)  # pyright: ignore[reportPrivateUsage]
+    assert check.status == "fail"
+    assert check.detail == "check exceeded 0.01s"
 
 
 def test_redact_hides_the_password_and_keeps_the_rest() -> None:

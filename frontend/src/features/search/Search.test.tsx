@@ -384,6 +384,14 @@ describe("when the corpus has little or nothing to say", () => {
     expect(screen.getByText(/handbook\.pdf/)).toBeTruthy();
   });
 
+  it("labels unassessed answer coverage without hiding ranked passages", async () => {
+    await ask({ hits: [hit("one", "handbook.pdf")], relevance: "not_assessed" });
+
+    expect(await screen.findByText(/answer coverage has not been assessed/)).toBeTruthy();
+    expect(screen.getByText(/handbook\.pdf/)).toBeTruthy();
+    expect(screen.queryByText(/Nothing matches this closely/)).toBeNull();
+  });
+
   it("says the corpus does not cover it, and does not suggest rewording", async () => {
     await ask({ hits: [], relevance: "none" });
 
