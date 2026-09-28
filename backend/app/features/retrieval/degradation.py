@@ -41,3 +41,17 @@ RERANKING_UNAVAILABLE: Final = (
     "Advanced result ordering is temporarily unavailable — the same documents were "
     "found, but their order is less refined than usual."
 )
+
+EXTERNAL_JUDGE_UNAVAILABLE: Final = (
+    "Experimental result ordering was unavailable — results were ordered by the local "
+    "model instead."
+)
+
+SOURCE_CHANGED: Final = (
+    "Source access or content changed during this search — run the search again."
+)
+
+DIRECT_INCOMPLETE: Final = (
+    "The selected sources could not all be assessed within this search's limits — "
+    "narrow the scope or choose hybrid search."
+)
