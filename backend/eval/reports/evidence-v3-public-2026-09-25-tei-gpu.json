@@ -1,0 +1,358 @@
+{
+  "fixture_id": "evidence-v3-public-v1",
+  "fixture_sha256": "f87123fa48e11495dbb9d19e63842d089651aaf885da28859e0c5d7e176b4bd8",
+  "label_provenance": "Agent-reviewed ordinal relevance labels from linked public primary pages; exploratory, not independent human adjudication",
+  "candidate_ids": [
+    "epa-lead-boiling",
+    "epa-lead-cold",
+    "usgs-magnitude",
+    "usgs-intensity",
+    "nws-tornado-watch",
+    "nws-tornado-warning",
+    "cdc-mmr-two",
+    "cdc-mmr-one"
+  ],
+  "query_ids": [
+    "lead-boiling",
+    "lead-formula",
+    "magnitude-location",
+    "shaking-location",
+    "tornado-possible",
+    "tornado-action",
+    "mmr-two-doses",
+    "mmr-comparison",
+    "pb-paraphrase",
+    "intensidad-es"
+  ],
+  "tei_endpoint": "http://127.0.0.1:18083",
+  "tei_reported_model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+  "jev_requested_model": null,
+  "jev_calls": 0,
+  "jev_input_tokens_reported": null,
+  "jev_output_tokens_reported": null,
+  "jev_input_tokens_reserved_or_reconciled": null,
+  "jev_estimated_usd_from_reported_usage": null,
+  "jev_conservative_budget_usd": null,
+  "approved_caps": {
+    "usd": 0.5,
+    "calls": 1000
+  },
+  "rows": [
+    {
+      "query_id": "lead-boiling",
+      "tei": {
+        "order": [
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "usgs-intensity",
+          "usgs-magnitude"
+        ],
+        "scores": [
+          0.99991906,
+          0.6176856,
+          0.00074661145,
+          0.0006589401,
+          0.00044595622,
+          0.00028910325,
+          0.00015236755,
+          8.029784e-05
+        ],
+        "elapsed_ms": 445,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "lead-formula",
+      "tei": {
+        "order": [
+          "epa-lead-cold",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "usgs-intensity",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "usgs-magnitude"
+        ],
+        "scores": [
+          0.9994579,
+          0.00045121065,
+          3.9442588e-05,
+          3.676463e-05,
+          3.3737226e-05,
+          3.2699274e-05,
+          3.194182e-05,
+          3.120191e-05
+        ],
+        "elapsed_ms": 392,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "magnitude-location",
+      "tei": {
+        "order": [
+          "usgs-magnitude",
+          "usgs-intensity",
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "epa-lead-cold",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          0.9977743,
+          0.024845436,
+          0.002923543,
+          0.001648483,
+          0.00023413582,
+          7.197912e-05,
+          6.302759e-05,
+          5.874842e-05
+        ],
+        "elapsed_ms": 298,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "shaking-location",
+      "tei": {
+        "order": [
+          "usgs-intensity",
+          "usgs-magnitude",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "epa-lead-cold"
+        ],
+        "scores": [
+          0.9930962,
+          0.0011203773,
+          0.000621463,
+          0.00036259004,
+          0.00023231418,
+          8.029784e-05,
+          6.5028165e-05,
+          6.0141516e-05
+        ],
+        "elapsed_ms": 271,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "tornado-possible",
+      "tei": {
+        "order": [
+          "nws-tornado-watch",
+          "nws-tornado-warning",
+          "usgs-magnitude",
+          "usgs-intensity",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "epa-lead-cold"
+        ],
+        "scores": [
+          0.075858176,
+          0.037608635,
+          0.00040133507,
+          0.00018814208,
+          0.00013032975,
+          0.00010975091,
+          8.8189234e-05,
+          4.264747e-05
+        ],
+        "elapsed_ms": 308,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "tornado-action",
+      "tei": {
+        "order": [
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "epa-lead-cold",
+          "epa-lead-boiling",
+          "usgs-magnitude",
+          "cdc-mmr-two",
+          "usgs-intensity",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          0.19713514,
+          0.073164724,
+          0.0051196762,
+          0.0042812545,
+          0.0031115087,
+          0.00081038737,
+          0.0006361912,
+          0.0004691764
+        ],
+        "elapsed_ms": 272,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "mmr-two-doses",
+      "tei": {
+        "order": [
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "epa-lead-boiling",
+          "epa-lead-cold",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "usgs-intensity",
+          "usgs-magnitude"
+        ],
+        "scores": [
+          0.99993074,
+          0.99693656,
+          0.00050137425,
+          0.00033015275,
+          0.00026530237,
+          0.0001535624,
+          6.814872e-05,
+          5.874842e-05
+        ],
+        "elapsed_ms": 250,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "mmr-comparison",
+      "tei": {
+        "order": [
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "nws-tornado-warning",
+          "usgs-magnitude",
+          "epa-lead-boiling",
+          "nws-tornado-watch",
+          "usgs-intensity",
+          "epa-lead-cold"
+        ],
+        "scores": [
+          0.97409195,
+          0.36523023,
+          0.0014895174,
+          0.0011073389,
+          0.0008899655,
+          0.0007350449,
+          0.0005295418,
+          0.00049553596
+        ],
+        "elapsed_ms": 272,
+        "metrics": {
+          "ndcg_at_8": 1.0,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "pb-paraphrase",
+      "tei": {
+        "order": [
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "cdc-mmr-one",
+          "epa-lead-cold",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "usgs-intensity",
+          "usgs-magnitude"
+        ],
+        "scores": [
+          0.013636836,
+          0.00026738262,
+          0.00022516825,
+          0.00018093576,
+          0.00015598028,
+          0.000118667966,
+          7.543321e-05,
+          7.031184e-05
+        ],
+        "elapsed_ms": 240,
+        "metrics": {
+          "ndcg_at_8": 0.9936690702088687,
+          "best_at_1": true,
+          "relevant_recall_at_2": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "intensidad-es",
+      "tei": {
+        "order": [
+          "usgs-magnitude",
+          "usgs-intensity",
+          "nws-tornado-warning",
+          "nws-tornado-watch",
+          "epa-lead-boiling",
+          "cdc-mmr-two",
+          "epa-lead-cold",
+          "cdc-mmr-one"
+        ],
+        "scores": [
+          0.7329743,
+          0.68867785,
+          0.0018386652,
+          0.0011291547,
+          0.00033015275,
+          9.1701964e-05,
+          8.614651e-05,
+          8.029784e-05
+        ],
+        "elapsed_ms": 266,
+        "metrics": {
+          "ndcg_at_8": 0.6858288052712634,
+          "best_at_1": false,
+          "relevant_recall_at_2": 1.0
+        }
+      }
+    }
+  ],
+  "tei_summary": {
+    "mean_ndcg_at_8": 0.9679497875480132,
+    "best_at_1_count": 9,
+    "mean_relevant_recall_at_2": 1.0,
+    "median_elapsed_ms": 272
+  }
+}

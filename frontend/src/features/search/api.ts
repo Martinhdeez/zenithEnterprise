@@ -36,7 +36,25 @@ export interface SearchHit {
  * would tell a customer their installation is broken when their archive simply does not
  * cover what they asked.
  */
-export type Relevance = "confident" | "weak" | "none";
+export type Relevance = "confident" | "weak" | "none" | "not_assessed";
+export type RetrievalMode = "legacy" | "hybrid" | "auto" | "direct";
+
+export interface CoverageReceipt {
+  version: "evidence-coverage-v1";
+  strategy: "direct" | "hybrid";
+  coverage_method: "eligible_scope_manifest" | "candidate_set";
+  execution_status: "complete" | "partial" | "unavailable" | "canceled";
+  eligible_units: number | null;
+  selected_units: number;
+  assessed_units: number;
+  failed_units: number;
+  skipped_units: number;
+  assessment_windows: number;
+  manifest_assessment_complete: boolean;
+  snapshot_status: "unchanged" | "changed" | "unknown";
+  source_representation: "eligible_parsed_content";
+  reason_codes: string[];
+}
 
 export interface SearchResult {
   hits: SearchHit[];
@@ -45,6 +63,19 @@ export interface SearchResult {
   took_ms: number;
   /** Absent on an older server, and `confident` is the safe reading of silence. */
   relevance?: Relevance;
+  requested_judge_provider?: string;
+  fallback_provider?: string | null;
+  evidence_status?: string | null;
+  evidence_policy?: string | null;
+  receipt?: CoverageReceipt | null;
+}
+
+export interface SearchCapabilities {
+  direct_enabled: boolean;
+}
+
+export function searchCapabilities(token: string): Promise<SearchCapabilities> {
+  return request<SearchCapabilities>("/search/capabilities", token);
 }
 
 /**
@@ -58,8 +89,10 @@ export function search(
   q: string,
   labels?: string[],
   signal?: AbortSignal,
+  mode: RetrievalMode = "legacy",
 ): Promise<SearchResult> {
   const params = new URLSearchParams({ q });
   for (const label of labels ?? []) params.append("labels", label);
+  if (mode !== "legacy") params.set("mode", mode);
   return request<SearchResult>(`/search?${params}`, token, { signal });
 }

@@ -1,13 +1,26 @@
 """The reranker and the fusion correction it exposed."""
 
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from uuid import uuid4
 
 import httpx
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.hardware import PROFILES
 from app.features.auth.service import AccessProfile
 from app.features.retrieval.degradation import RERANKING_UNAVAILABLE
+from app.features.retrieval.judging.protocol import (
+    AssessmentBatch,
+    Candidate,
+    CompletionState,
+    Judge,
+    JudgeCapabilities,
+    Judgment,
+    Outcome,
+    ScoreKind,
+)
 from app.features.retrieval.reranker import RerankerUnavailable, TeiReranker
 from app.features.retrieval.search import RRF_K, candidates, fuse
 from app.features.retrieval.service import SearchService
@@ -95,6 +108,85 @@ async def test_a_reranker_that_is_down_degrades_to_the_fused_order(account: Acco
     assert result.hits, "the search must still answer"
     assert result.degraded is True
     assert result.reason == RERANKING_UNAVAILABLE
+
+
+async def test_a_partial_judgment_falls_back_to_the_whole_fused_order(account: Account) -> None:
+    await seed(account.tenant_id, account.default_label)
+    profile = await profile_for(account)
+
+    class PartialJudge(Judge):
+        capabilities = JudgeCapabilities()
+
+        async def assess(self, question: str, candidates: list[Candidate]) -> AssessmentBatch:
+            return AssessmentBatch(
+                requested_ids=tuple(item.id for item in candidates),
+                judgments=tuple(
+                    Judgment(
+                        candidate_id=item.id,
+                        outcome=Outcome.ASSESSED if index == 0 else Outcome.FAILED,
+                        rank_value=1.0 if index == 0 else None,
+                        score_kind=ScoreKind.RAW_RANK_SCORE if index == 0 else None,
+                        provider="test-partial",
+                        failure_code=None if index == 0 else "unavailable",
+                    )
+                    for index, item in enumerate(candidates)
+                ),
+                provider="test-partial",
+                elapsed_ms=1,
+                completion_state=CompletionState.PARTIAL,
+            )
+
+    fused = await SearchService(
+        profile,
+        embedder=WorkingEmbedder(),  # type: ignore[arg-type]
+        hardware=PROFILES["low-spec"],
+    ).search(QUERY, limit=50)
+    partial = await SearchService(
+        profile,
+        embedder=WorkingEmbedder(),  # type: ignore[arg-type]
+        hardware=PROFILES["cpu"],
+        judge=PartialJudge(),
+    ).search(QUERY, limit=50)
+
+    assert [hit.chunk_id for hit in partial.hits] == [hit.chunk_id for hit in fused.hits]
+    assert partial.degraded
+    assert partial.reason == RERANKING_UNAVAILABLE
+    assert partial.assessment is not None
+    assert partial.assessment.completion_state is CompletionState.PARTIAL
+
+
+async def test_remote_inference_runs_after_the_retrieval_transaction(
+    account: Account, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.features.retrieval import service as service_module
+
+    await seed(account.tenant_id, account.default_label)
+    original = service_module.tenant_session
+    in_transaction = False
+
+    @asynccontextmanager
+    async def tracked(context: TenantContext) -> AsyncGenerator[AsyncSession]:
+        nonlocal in_transaction
+        async with original(context) as session:
+            in_transaction = True
+            try:
+                yield session
+            finally:
+                in_transaction = False
+
+    async def inspect(request: httpx.Request) -> httpx.Response:
+        assert not in_transaction, "a connection remains checked out during inference"
+        return reverse_order(request)
+
+    monkeypatch.setattr(service_module, "tenant_session", tracked)
+    result = await SearchService(
+        await profile_for(account),
+        embedder=WorkingEmbedder(),  # type: ignore[arg-type]
+        hardware=PROFILES["cpu"],
+        reranker=reranker(inspect),
+    ).search(QUERY)
+    assert result.hits
+    assert not result.degraded
 
 
 async def test_a_profile_with_the_reranker_off_is_not_degraded(account: Account) -> None:

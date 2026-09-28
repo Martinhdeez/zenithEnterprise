@@ -7,6 +7,7 @@ blocks whatever `statement_timeout` was supposed to protect. Retrieval commits, 
 thinks, and the log is written afterwards in its own short transaction.
 """
 
+import asyncio
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, replace
@@ -17,13 +18,16 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.llm import BaseLLMProvider, ChunkCitation
+from app.core.config import settings
 from app.core.database import tenant_session
 from app.features.auth.access.permissions import CATALOGUE
 from app.features.auth.service import AccessProfile
 from app.features.generation.answering import citations as binding
 from app.features.generation.answering import conversation, prompt, routing
+from app.features.generation.answering.packet import EvidencePacket, build_packet
 from app.features.generation.answering.streaming import filtered
 from app.features.generation.connector.resolve import provider_for
+from app.features.retrieval.direct import verify_current
 from app.features.retrieval.search import Hit
 from app.features.retrieval.service import SearchResult, SearchService
 
@@ -101,6 +105,9 @@ class AnswerService:
             return await self._conversational(question, thread, provider)
 
         found = await self.search.search(intent.query or question, PASSAGES, labels, documents)
+        packet: EvidencePacket | None = None
+        if settings.evidence_packets_enabled and found.hits:
+            found, packet = await self._packetize(question, thread.rendered(), labels, found)
 
         if not found.hits:
             # Nothing retrieved, so nothing to ground an answer in. Calling the model here
@@ -114,12 +121,30 @@ class AnswerService:
         else:
             started = time.perf_counter()
             completion = await provider.complete(
-                prompt.SYSTEM, prompt.build(question, found.hits, thread.rendered())
+                prompt.SYSTEM,
+                prompt.build(
+                    question,
+                    found.hits,
+                    thread.rendered(),
+                    packet.reasons if packet is not None else None,
+                ),
             )
             generation_ms = int((time.perf_counter() - started) * 1000)
             model = completion.model
             bound = binding.bind(completion.text, found.hits)
             usage = (completion.prompt_tokens, completion.completion_tokens)
+            current = True
+            if packet is not None:
+                try:
+                    async with asyncio.timeout(settings.evidence_packet_deadline_seconds):
+                        current = await verify_current(
+                            self.profile, self.search.narrowed_context(labels), packet.hits
+                        )
+                except Exception:  # noqa: BLE001 - an unverifiable source must not be disclosed
+                    current = False
+            if not current:
+                found = replace(found, hits=[], degraded=True, reason="packet_source_changed")
+                bound = binding.Bound(prompt.ABSTENTION, [], abstained=True, fabricated=0)
 
         query_id = await self._record(
             question, bound, found.hits, model, found.took_ms, generation_ms, usage
@@ -166,6 +191,15 @@ class AnswerService:
         The log is written from the accumulated text, so a streamed query is as auditable as
         a buffered one — `queries` and `query_citations` cannot tell the difference.
         """
+        if settings.evidence_packets_enabled:
+            # A packet may add qualifications that must remain current through
+            # inference. Buffer this opt-in route until the post-inference
+            # source check completes; its final text is safe to disclose.
+            answered = await self.answer(question, labels, history, documents)
+            yield Streamed(token=answered.answer)
+            yield Streamed(result=answered)
+            return
+
         provider = self._provider or await self._resolve()
         thread = conversation.bounded(history or [])
         intent = await routing.resolve(thread, question, provider)
@@ -226,6 +260,46 @@ class AnswerService:
             fabricated=bound.fabricated,
         )
         yield Streamed(result=self._answer(query_id, bound, found, model, generation_ms))
+
+    async def _packetize(
+        self,
+        question: str,
+        thread: str,
+        labels: list[UUID] | None,
+        found: SearchResult,
+    ) -> tuple[SearchResult, EvidencePacket | None]:
+        started = time.perf_counter()
+        context = self.search.narrowed_context(labels)
+        try:
+            async with asyncio.timeout(settings.evidence_packet_deadline_seconds):
+                packet = await build_packet(
+                    context,
+                    question,
+                    found.hits,
+                    thread,
+                    token_budget=settings.evidence_packet_token_budget,
+                    max_extra=settings.evidence_packet_max_extra,
+                    counterevidence=settings.evidence_counterevidence_enabled,
+                    max_counterevidence=settings.evidence_counterevidence_max_candidates,
+                )
+                if packet.hits and not await verify_current(self.profile, context, packet.hits):
+                    raise ValueError("packet source changed or became inaccessible")
+        except Exception:  # noqa: BLE001 - an unsafe packet cannot feed generation
+            return (
+                replace(found, hits=[], degraded=True, reason="packet_unavailable"),
+                None,
+            )
+        elapsed = int((time.perf_counter() - started) * 1000)
+        return (
+            replace(
+                found,
+                hits=list(packet.hits),
+                degraded=found.degraded or not packet.complete,
+                reason="packet_dependencies_unresolved" if not packet.complete else found.reason,
+                took_ms=found.took_ms + elapsed,
+            ),
+            packet,
+        )
 
     async def _conversational(
         self, message: str, thread: conversation.Thread, provider: BaseLLMProvider
