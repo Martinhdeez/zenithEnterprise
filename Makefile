@@ -10,7 +10,17 @@
 # root, which `--project-directory` would not.
 COMPOSE := docker compose --env-file .env -f docker/docker-compose.yml
 UV := cd backend && uv run
-WEB := cd frontend && npm
+ifeq ($(OS),Windows_NT)
+LICENSE_CHECK := pwsh -NoProfile -File scripts/check-licences.ps1
+WEB_INSTALL := pwsh -NoProfile -File scripts/run-frontend.ps1 ci
+WEB_TYPES := pwsh -NoProfile -File scripts/run-frontend.ps1 lint
+WEB_TEST := pwsh -NoProfile -File scripts/run-frontend.ps1 test
+else
+LICENSE_CHECK := ./scripts/check-licences.sh
+WEB_INSTALL := cd frontend && npm ci
+WEB_TYPES := cd frontend && npm run lint
+WEB_TEST := cd frontend && npm run test
+endif
 
 up:
 	$(COMPOSE) up -d db
@@ -50,19 +60,19 @@ types:
 	$(UV) pyright
 
 licenses:
-	./scripts/check-licences.sh
+	$(LICENSE_CHECK)
 
 web-install:
-	$(WEB) ci
+	$(WEB_INSTALL)
 
 # The frontend's equivalent of `types` and `test`. Separate targets so a backend-only
 # change does not pay for a node_modules install, and one `web` target so `check` has a
 # single thing to call.
 web-types:
-	$(WEB) run lint
+	$(WEB_TYPES)
 
 web-test:
-	$(WEB) run test
+	$(WEB_TEST)
 
 web: web-types web-test
 

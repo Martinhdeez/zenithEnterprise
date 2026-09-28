@@ -1,7 +1,7 @@
 import secrets
 from pathlib import Path
 
-from pydantic import field_validator
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Values that must never reach an installation. Kept as data rather than as a single
@@ -55,6 +55,23 @@ class Settings(BaseSettings):
     )
     tei_embed_url: str = "http://localhost:8081"
     tei_rerank_url: str = "http://localhost:8082"
+
+    # Optional Jev assessment. A credential never grants processing permission by itself.
+    # Each purpose must be enabled independently and each source/query state still needs
+    # request-time authorization. A single API worker is required until a shared quota
+    # coordinator is installed; the explicit acknowledgment is checked by the factory.
+    jev_api_key: SecretStr | None = None
+    jev_model: str = "jev-1.13.0"
+    external_processing_for_reranking: bool = False
+    external_processing_for_segmentation: bool = False
+    external_processing_for_claim_support: bool = False
+    jev_single_worker_ack: bool = False
+    jev_max_requests: int = 0
+    jev_max_input_tokens: int = 0
+    jev_max_concurrency: int = 2
+    jev_max_pending: int = 8
+    jev_queue_timeout_seconds: float = 2.0
+    jev_total_deadline_seconds: float = 20.0
 
     # Empty is not a usable default — the validator rejects it. It exists only so the
     # failure is *our* message rather than Pydantic's "Field required", because the person

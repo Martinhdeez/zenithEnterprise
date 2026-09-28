@@ -40,4 +40,13 @@ async def search(
         reason=result.reason,
         took_ms=result.took_ms,
         relevance=result.relevance.value,
+        judge_provider=result.assessment.provider if result.assessment else None,
+        judge_model=result.assessment.reported_model if result.assessment else None,
+        judge_score_kind=(
+            result.assessment.judgments[0].score_kind.value
+            if result.assessment
+            and result.assessment.judgments
+            and result.assessment.judgments[0].score_kind
+            else None
+        ),
     )

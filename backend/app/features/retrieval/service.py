@@ -30,6 +30,14 @@ from app.features.embeddings.space import active as active_space
 from app.features.retrieval.breaker import Breaker
 from app.features.retrieval.degradation import RERANKING_UNAVAILABLE, SEMANTIC_UNAVAILABLE
 from app.features.retrieval.identifiers import exact
+from app.features.retrieval.judging.protocol import (
+    AssessmentBatch,
+    Candidate,
+    CompletionState,
+    Judge,
+    Outcome,
+)
+from app.features.retrieval.judging.tei import TeiJudge
 from app.features.retrieval.relevance import Relevance, best_rerank, classify
 from app.features.retrieval.reranker import TeiReranker
 from app.features.retrieval.search import (
@@ -69,6 +77,7 @@ class SearchResult:
     #: Conflating them would tell a customer their installation is broken when their archive
     #: simply does not cover the question.
     relevance: Relevance = Relevance.CONFIDENT
+    assessment: AssessmentBatch | None = None
 
 
 class SearchService:
@@ -79,6 +88,7 @@ class SearchService:
         hardware: Profile | None = None,
         reranker: TeiReranker | None = None,
         breaker: Breaker | None = None,
+        judge: Judge | None = None,
     ) -> None:
         self.profile = profile
         # Injectable so a test can drive the states without waiting a minute of real time.
@@ -92,6 +102,11 @@ class SearchService:
             reranker
             if reranker is not None
             else (TeiReranker(profile=self.hardware) if self.hardware.reranker else None)
+        )
+        self.judge = (
+            judge
+            if judge is not None
+            else (TeiJudge(self.reranker) if self.reranker is not None else None)
         )
 
     async def search(
@@ -147,7 +162,7 @@ class SearchService:
             # The union goes to the reranker; the fused top-k is what answers without one.
             # Choosing candidates and ordering results are different jobs, and RRF is only
             # good at the second.
-            reranking = self.reranker is not None and self.hardware.rerank_candidates > 0
+            reranking = self.judge is not None and self.hardware.rerank_candidates > 0
             ranked = (
                 # The limit goes *into* `candidates`, not around it. Slicing afterwards
                 # discards the promoted leaders and turns this back into a plain RRF
@@ -161,8 +176,9 @@ class SearchService:
             )
 
         rerank_reason: str | None = None
+        assessment: AssessmentBatch | None = None
         if reranking and hits:
-            hits, rerank_reason = await self._rerank(question, hits, limit)
+            hits, rerank_reason, assessment = await self._rerank(question, hits, limit)
         else:
             hits = hits[:limit]
 
@@ -189,6 +205,13 @@ class SearchService:
             returned=len(hits),
             degraded=bool(degraded_reason),
             relevance=relevance.value,
+            judge_provider=assessment.provider if assessment else None,
+            judge_model=assessment.reported_model if assessment else None,
+            judge_score_kind=(
+                assessment.judgments[0].score_kind.value
+                if assessment and assessment.judgments and assessment.judgments[0].score_kind
+                else None
+            ),
             took_ms=took,
         )
         return SearchResult(
@@ -197,21 +220,22 @@ class SearchService:
             reason=degraded_reason,
             took_ms=took,
             relevance=relevance,
+            assessment=assessment,
         )
 
     async def _rerank(
         self, question: str, hits: list[Hit], limit: int
-    ) -> tuple[list[Hit], str | None]:
+    ) -> tuple[list[Hit], str | None, AssessmentBatch | None]:
         """Reorder by what the cross-encoder read, or say why we could not.
 
         A reranker that is down must not take a working search away from the customer. The
         fused order is still a good order — it was the whole product one commit ago — so the
         answer degrades to it and the response says so.
         """
-        if self.reranker is None:
+        if self.judge is None:
             # Configured off. Not a degradation: the customer chose this profile and
             # `zenith diagnose` names what it disabled.
-            return hits[:limit], None
+            return hits[:limit], None, None
 
         if not self.breaker.allows():
             # F11 measured why this exists: a reranker that times out costs the full
@@ -227,22 +251,43 @@ class SearchService:
             # reader's results, so it goes to the log and the sentence they see says what
             # actually changed for them. See `degradation.py`.
             log.info("rerank_skipped", cause="circuit_open")
-            return hits[:limit], RERANKING_UNAVAILABLE
+            return hits[:limit], RERANKING_UNAVAILABLE, None
 
         try:
-            scored = await self.reranker.rank(question, [hit.text for hit in hits])
+            batch = await self.judge.assess(
+                question, [Candidate(hit.chunk_id, hit.text) for hit in hits]
+            )
         except Exception as exc:  # noqa: BLE001 - degrading is the point
             self.breaker.failed()
             # The exception name stays here, where somebody who can fix it will look. It used
             # to travel to the screen as well: `reranking unavailable (ReadTimeout)`.
             log.warning("rerank_failed", error=str(exc), cause=type(exc).__name__)
-            return hits[:limit], RERANKING_UNAVAILABLE
+            return hits[:limit], RERANKING_UNAVAILABLE, None
+
+        if batch.completion_state is not CompletionState.COMPLETE or any(
+            item.outcome is not Outcome.ASSESSED for item in batch.judgments
+        ):
+            self.breaker.failed()
+            log.warning("rerank_incomplete", provider=batch.provider)
+            return hits[:limit], RERANKING_UNAVAILABLE, batch
 
         self.breaker.succeeded()
 
         # `replace` rather than mutation: `Hit` is frozen, and the cross-encoder's score is
         # the fourth column `query_citations` was designed to hold.
-        return [replace(hits[item.index], rerank_score=item.score) for item in scored[:limit]], None
+        by_id = {hit.chunk_id: hit for hit in hits}
+        ordered = sorted(
+            batch.judgments,
+            key=lambda item: -item.rank_value if item.rank_value is not None else float("inf"),
+        )
+        return (
+            [
+                replace(by_id[item.candidate_id], rerank_score=item.rank_value)
+                for item in ordered[:limit]
+            ],
+            None,
+            batch,
+        )
 
     async def _embed(self, question: str) -> tuple[list[float], str | None]:
         """The dense half's input, or an honest admission that we could not get it.
