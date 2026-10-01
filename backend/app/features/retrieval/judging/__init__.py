@@ -1,0 +1,1 @@
+"""Local candidate assessment boundary."""

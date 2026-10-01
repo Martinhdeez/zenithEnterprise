@@ -14,7 +14,10 @@ batching, no `--max-concurrent-requests`, sequential requests. This one is addit
 the interactive path, so it never retries.
 """
 
+import asyncio
 from dataclasses import dataclass
+from math import isfinite
+from typing import cast
 
 import httpx
 import structlog
@@ -77,6 +80,13 @@ class TeiReranker:
         if not passages:
             return []
 
+        try:
+            async with asyncio.timeout(RERANK_TIMEOUT):
+                return await self._rank(question, passages)
+        except TimeoutError as exc:
+            raise RerankerUnavailable("reranker total deadline exceeded") from exc
+
+    async def _rank(self, question: str, passages: list[str]) -> list[Scored]:
         scores: list[Scored] = []
         async with httpx.AsyncClient(timeout=RERANK_TIMEOUT, transport=self.transport) as client:
             for start, batch in self.plan_batches(question, passages):
@@ -89,8 +99,28 @@ class TeiReranker:
                         f"the reranker returned {response.status_code}. Check that "
                         f"ZENITH_HARDWARE matches how the container was started."
                     )
-                for item in response.json():
-                    scores.append(Scored(index=start + int(item["index"]), score=item["score"]))
+                body: object = response.json()
+                if not isinstance(body, list):
+                    raise RerankerUnavailable("invalid reranker response")
+                entries = cast(list[object], body)
+                if len(entries) != len(batch):
+                    raise RerankerUnavailable("incomplete reranker response")
+                seen: set[int] = set()
+                for item in entries:
+                    if not isinstance(item, dict):
+                        raise RerankerUnavailable("invalid reranker item")
+                    entry = cast(dict[str, object], item)
+                    index, score = entry.get("index"), entry.get("score")
+                    if type(index) is not int or not 0 <= index < len(batch) or index in seen:
+                        raise RerankerUnavailable("invalid or duplicate reranker index")
+                    if (
+                        not isinstance(score, (int, float))
+                        or isinstance(score, bool)
+                        or not isfinite(score)
+                    ):
+                        raise RerankerUnavailable("invalid reranker score")
+                    seen.add(index)
+                    scores.append(Scored(index=start + index, score=float(score)))
 
         # Ties broken by the incoming order, which is the fused order — so where the
         # cross-encoder is indifferent, the two halves' agreement still decides.

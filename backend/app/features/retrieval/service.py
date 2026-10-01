@@ -30,6 +30,8 @@ from app.features.embeddings.space import active as active_space
 from app.features.retrieval.breaker import Breaker
 from app.features.retrieval.degradation import RERANKING_UNAVAILABLE, SEMANTIC_UNAVAILABLE
 from app.features.retrieval.identifiers import exact
+from app.features.retrieval.judging.protocol import Candidate, Judge, Outcome
+from app.features.retrieval.judging.tei import TeiJudge
 from app.features.retrieval.relevance import Relevance, best_rerank, classify
 from app.features.retrieval.reranker import TeiReranker
 from app.features.retrieval.search import (
@@ -79,6 +81,7 @@ class SearchService:
         hardware: Profile | None = None,
         reranker: TeiReranker | None = None,
         breaker: Breaker | None = None,
+        judge: Judge | None = None,
     ) -> None:
         self.profile = profile
         # Injectable so a test can drive the states without waiting a minute of real time.
@@ -92,6 +95,11 @@ class SearchService:
             reranker
             if reranker is not None
             else (TeiReranker(profile=self.hardware) if self.hardware.reranker else None)
+        )
+        self.judge = (
+            judge
+            if judge is not None
+            else (TeiJudge(self.reranker) if self.reranker is not None else None)
         )
 
     async def search(
@@ -147,7 +155,7 @@ class SearchService:
             # The union goes to the reranker; the fused top-k is what answers without one.
             # Choosing candidates and ordering results are different jobs, and RRF is only
             # good at the second.
-            reranking = self.reranker is not None and self.hardware.rerank_candidates > 0
+            reranking = self.judge is not None and self.hardware.rerank_candidates > 0
             ranked = (
                 # The limit goes *into* `candidates`, not around it. Slicing afterwards
                 # discards the promoted leaders and turns this back into a plain RRF
@@ -208,7 +216,7 @@ class SearchService:
         fused order is still a good order — it was the whole product one commit ago — so the
         answer degrades to it and the response says so.
         """
-        if self.reranker is None:
+        if self.judge is None:
             # Configured off. Not a degradation: the customer chose this profile and
             # `zenith diagnose` names what it disabled.
             return hits[:limit], None
@@ -230,7 +238,20 @@ class SearchService:
             return hits[:limit], RERANKING_UNAVAILABLE
 
         try:
-            scored = await self.reranker.rank(question, [hit.text for hit in hits])
+            batch = await self.judge.assess(
+                question, [Candidate(hit.chunk_id, hit.text) for hit in hits]
+            )
+            expected = tuple(hit.chunk_id for hit in hits)
+            if batch.requested_ids != expected:
+                raise ValueError("judge assessed a different candidate set")
+            if any(item.outcome is not Outcome.ASSESSED for item in batch.judgments):
+                raise ValueError("incomplete assessment")
+            by_id = {item.candidate_id: item.rank_value for item in batch.judgments}
+            # Incoming source order breaks ties regardless of provider response order.
+            ranked = sorted(
+                (replace(hit, rerank_score=by_id[hit.chunk_id]) for hit in hits),
+                key=lambda hit: -(hit.rerank_score if hit.rerank_score is not None else 0.0),
+            )
         except Exception as exc:  # noqa: BLE001 - degrading is the point
             self.breaker.failed()
             # The exception name stays here, where somebody who can fix it will look. It used
@@ -242,7 +263,7 @@ class SearchService:
 
         # `replace` rather than mutation: `Hit` is frozen, and the cross-encoder's score is
         # the fourth column `query_citations` was designed to hold.
-        return [replace(hits[item.index], rerank_score=item.score) for item in scored[:limit]], None
+        return ranked[:limit], None
 
     async def _embed(self, question: str) -> tuple[list[float], str | None]:
         """The dense half's input, or an honest admission that we could not get it.
