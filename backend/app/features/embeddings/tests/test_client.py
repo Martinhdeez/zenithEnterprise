@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from app.core.hardware import PROFILES
+from app.features.embeddings import client as embedding_client
 from app.features.embeddings.client import EmbeddingServiceError, TeiClient
 
 
@@ -93,6 +94,44 @@ async def test_a_server_still_loading_is_retried() -> None:
 
     assert calls == 3
     assert len(vectors[0]) == 1024
+
+
+@pytest.mark.parametrize(
+    "interactive, expected_calls, expected_delays", [(True, 1, []), (False, 3, [1, 2])]
+)
+@pytest.mark.parametrize("failure", ["timeout", "server"])
+async def test_exhausted_attempts_do_not_sleep_before_failing(
+    monkeypatch: pytest.MonkeyPatch,
+    interactive: bool,
+    expected_calls: int,
+    expected_delays: list[int],
+    failure: str,
+) -> None:
+    calls = 0
+    delays: list[int] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if failure == "timeout":
+            raise httpx.ReadTimeout("public fixture timeout", request=request)
+        return httpx.Response(503)
+
+    async def record_sleep(delay: int) -> None:
+        delays.append(delay)
+
+    monkeypatch.setattr(embedding_client.asyncio, "sleep", record_sleep)
+    client = TeiClient(
+        url="http://tei", profile=PROFILES["low-spec"], transport=httpx.MockTransport(handler)
+    )
+    with pytest.raises(EmbeddingServiceError, match=f"after {expected_calls} attempt"):
+        if interactive:
+            await client.embed_query("public fixture question")
+        else:
+            await client.embed(["public fixture passage"])
+
+    assert calls == expected_calls
+    assert delays == expected_delays
 
 
 async def test_batches_are_sent_one_at_a_time_and_in_order() -> None:

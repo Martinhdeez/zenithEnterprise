@@ -157,7 +157,8 @@ class TeiClient:
                 last = exc
             except RETRYABLE as exc:
                 last = exc
-            await asyncio.sleep(2**attempt)
+            if attempt + 1 < attempts:
+                await asyncio.sleep(2**attempt)
 
         raise EmbeddingServiceError(
             f"the embedding service at {self.url} did not respond after {attempts} attempt(s)"
