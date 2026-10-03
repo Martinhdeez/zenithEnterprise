@@ -16,7 +16,11 @@ never runs, on someone else's server, with no error anywhere. These tests are ch
 they close it.
 """
 
+import json
+import os
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -104,3 +108,71 @@ def test_the_compose_defaults_match_the_smallest_profile(service: str) -> None:
 
     assert declared["max-batch-tokens"] == profile.max_batch_tokens
     assert declared["max-client-batch-size"] == profile.max_client_batch_size
+
+
+def test_local_gpu_preset_reaches_both_processes_and_tei_services(tmp_path: Path) -> None:
+    """Render the real overlays: interpolation files do not become service env_file."""
+    root = COMPOSE.parent.parent
+    # Resolve real service env_file values against a disposable installation. Older
+    # Compose loaders still validate their paths with --no-env-resolution; never read
+    # or create a developer's private .env to make this test pass.
+    compose_dir = tmp_path / "docker"
+    compose_dir.mkdir()
+    for name in (
+        "docker-compose.yml",
+        "docker-compose.gpu.yml",
+        "docker-compose.blackwell.yml",
+        "ingestion-gpu-local.env",
+    ):
+        shutil.copyfile(root / "docker" / name, compose_dir / name)
+    preset = compose_dir / "ingestion-gpu-local.env"
+    values = dict(
+        line.split("=", 1)
+        for line in preset.read_text().splitlines()
+        if line and not line.startswith("#")
+    )
+    private = tmp_path / ".env"
+    private.write_text("POSTGRES_PASSWORD=configuration-test-only\n")
+    environment = dict(os.environ)
+    for key in values:
+        environment.pop(key, None)
+    environment["POSTGRES_PASSWORD"] = "configuration-test-only"
+    rendered = subprocess.run(
+        [
+            "docker",
+            "compose",
+            "--env-file",
+            str(private),
+            "--env-file",
+            str(preset),
+            "-f",
+            str(compose_dir / "docker-compose.yml"),
+            "-f",
+            str(compose_dir / "docker-compose.gpu.yml"),
+            "-f",
+            str(compose_dir / "docker-compose.blackwell.yml"),
+            "config",
+            "--format",
+            "json",
+        ],
+        capture_output=True,
+        check=False,
+        text=True,
+        encoding="utf-8",
+        env=environment,
+        timeout=30,
+    )
+    assert rendered.returncode == 0, rendered.stderr
+    services = json.loads(rendered.stdout)["services"]
+    profile = PROFILES[values["ZENITH_HARDWARE"]]
+    for name in ("api", "worker"):
+        assert services[name]["environment"]["ZENITH_HARDWARE"] == profile.name
+    for name in ("tei-embed", "tei-rerank"):
+        command = services[name]["command"]
+        assert int(command[command.index("--max-batch-tokens") + 1]) == profile.max_batch_tokens
+        assert (
+            int(command[command.index("--max-client-batch-size") + 1])
+            == profile.max_client_batch_size
+        )
+        assert services[name]["environment"]["MAX_CONCURRENT_REQUESTS"] == "8"
+        assert services[name]["environment"]["DTYPE"] == "float16"

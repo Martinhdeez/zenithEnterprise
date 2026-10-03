@@ -1,5 +1,7 @@
 """The embedding client, tested against the three ways M0 broke it on real hardware."""
 
+import json
+
 import httpx
 import pytest
 
@@ -169,3 +171,22 @@ async def test_batches_are_sent_one_at_a_time_and_in_order() -> None:
     assert peak == 1
     assert received == texts, "batches were reordered; embeddings would attach to the wrong chunk"
     assert len(vectors) == len(texts)
+
+
+async def test_local_gpu_batches_preserve_order_with_dense_and_short_inputs() -> None:
+    batches: list[list[str]] = []
+    texts = [f"original-{index} " + "x" * (2100 if index % 3 else 50) for index in range(41)]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        batch = json.loads(request.content)["inputs"]
+        batches.append(batch)
+        return httpx.Response(200, json=[[float(texts.index(value))] for value in batch])
+
+    profile = PROFILES["gpu-local"]
+    vectors = await TeiClient(
+        url="http://tei", profile=profile, transport=httpx.MockTransport(handler)
+    ).embed(texts)
+    assert [text for batch in batches for text in batch] == texts
+    assert vectors == [[float(index)] for index in range(len(texts))]
+    assert all(len(batch) <= 8 for batch in batches)
+    assert all(sum(len(value) // 3 + 1 for value in batch) <= 4096 for batch in batches)

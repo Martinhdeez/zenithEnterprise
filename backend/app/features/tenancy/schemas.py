@@ -19,7 +19,7 @@ class TenantStatusResponse(BaseModel):
     #: zero — sending every state with a 0 would imply this list is closed, and it is not.
     documents: dict[str, int]
     chunks: int
-    #: gpu | cpu | low-spec. A client showing "reranking disabled" needs to say why.
+    #: gpu | gpu-local | cpu | low-spec. A client showing "reranking disabled" needs a reason.
     hardware: str
     components: ComponentsResponse
     #: `chunks > 0`. Computed here so that every client agrees on what an empty corpus is.

@@ -84,7 +84,7 @@ class Settings(BaseSettings):
     llm_model: str = "llama3.1:8b-instruct-q4_K_M"
     llm_api_key: str = ""
 
-    # Selects a profile in `app/core/hardware.py`: gpu | cpu | low-spec. Not validated
+    # Selects a profile in `app/core/hardware.py`: gpu | gpu-local | cpu | low-spec. Not validated
     # here, because the profile table is what knows the valid names and importing it from
     # this module would be a cycle. `verify_hardware_profile()` runs at startup.
     hardware: str = "cpu"

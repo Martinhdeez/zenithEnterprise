@@ -119,6 +119,18 @@ class Profile:
 # when there is a GPU to measure on; until then it is marked as unmeasured rather than
 # presented as a finding.
 PROFILES: Final[dict[str, Profile]] = {
+    # Measured ingestion batches on RTX 5070 Ti 12 GiB with TEI 1.9.4/BGE-M3.
+    # Keep one worker and CPU's retrieval bounds; this is not an A100-sized profile.
+    "gpu-local": Profile(
+        name="gpu-local",
+        max_batch_tokens=4096,
+        max_client_batch_size=8,
+        ingestion_concurrency=1,
+        reranker=True,
+        ocr_capable_hardware=True,
+        hnsw_ef_search=100,
+        rerank_candidates=8,
+    ),
     "gpu": Profile(
         name="gpu",
         max_batch_tokens=16384,
@@ -291,7 +303,8 @@ PROFILES: Final[dict[str, Profile]] = {
     ),
 }
 
-UNMEASURED: Final[frozenset[str]] = frozenset({"gpu"})
+# Ingestion is qualified for gpu-local, not every retrieval/OCR deployment property.
+UNMEASURED: Final[frozenset[str]] = frozenset({"gpu", "gpu-local"})
 
 
 def active() -> Profile:

@@ -66,6 +66,25 @@ def test_low_spec_is_strictly_sequential() -> None:
     assert PROFILES["low-spec"].ingestion_concurrency == 1
 
 
+def test_local_gpu_preset_matches_runtime_and_server_bounds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A deployment preset must size the client and both services identically."""
+    from pathlib import Path
+
+    preset = Path(__file__).resolve().parents[4] / "docker" / "ingestion-gpu-local.env"
+    values = dict(
+        line.split("=", 1)
+        for line in preset.read_text().splitlines()
+        if line and not line.startswith("#")
+    )
+    monkeypatch.setattr(hardware.settings, "hardware", values["ZENITH_HARDWARE"])
+    profile = active()
+    assert profile.max_batch_tokens == int(values["TEI_MAX_BATCH_TOKENS"])
+    assert profile.max_client_batch_size == int(values["TEI_MAX_CLIENT_BATCH_SIZE"])
+    assert profile.ingestion_concurrency == int(values["ZENITH_WORKER_CONCURRENCY"]) == 1
+
+
 def test_low_spec_degradations_are_named() -> None:
     """`zenith diagnose` prints these. A customer running without the reranker is losing up
     recall materially and must be able to find that out from a diagnostic rather
