@@ -1,0 +1,50 @@
+{
+  "seed": 20261002,
+  "test_cases": 128,
+  "development_cases": 16,
+  "corpus_contexts": 650,
+  "corpus_sha256": "b1b7d0a5fc83e081b5e7bf141af74d1e41e47c635807f68adcf5f4ca9715263d",
+  "corpus_bytes": 844643,
+  "document_count": 14,
+  "document_layout": "target 64000 characters, split only between published contexts",
+  "retrieved_candidates": 32,
+  "generated_passages": 8,
+  "batch_tokens": 1024,
+  "batch_items": 2,
+  "source_sha256": {
+    "dev": "ec748f222626e5081a34193ca469bcf8112092837678a6948a2d6ae7d6629d1a",
+    "test": "af84d20d4afeba9a6936c3c7d8b5f577a15af5461c8f0e29f94286bb2205b18d"
+  },
+  "generator": {
+    "model": "llama3.1:8b-instruct-q4_K_M",
+    "model_digest": "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e",
+    "thinking": false,
+    "temperature": 0,
+    "seed": 20261002,
+    "num_ctx": 8192,
+    "num_predict": 256
+  },
+  "meaningful_gain": {
+    "mean": 0.02,
+    "lower_ci_above": 0
+  },
+  "clearly_larger_gain": {
+    "mean": 0.05,
+    "lower_ci_at_least": 0.02
+  },
+  "primary_metric": "entailed_grounded_reference_match",
+  "reference_span_metric": "grounded_reference_match",
+  "nli": {
+    "model": "MoritzLaurer/mDeBERTa-v3-base-mnli-xnli",
+    "revision": "8adb042d524ecd5c26d3e3ba0e3fbcf7e2d0864c",
+    "entailment_threshold": 0.8,
+    "maximum_tokens": 512,
+    "truncation": "none; split long premises into overlapping token windows",
+    "limits": "independent automatic multilingual NLI, not human claim adjudication"
+  },
+  "limits": [
+    "automatic reference/span proxies, not full semantic adjudication",
+    "staged model execution, not simultaneous online latency",
+    "experimental depth 32; production CPU depth is eight"
+  ]
+}

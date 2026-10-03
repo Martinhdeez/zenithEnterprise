@@ -1,0 +1,421 @@
+{
+  "bge": {
+    "entailed_grounded_reference_match": 0.265625,
+    "grounded_reference_match": 0.59375,
+    "answer_token_f1": 0.4912055995886031,
+    "cited_answer_token_f1": 0.4310621294674544,
+    "reference_match": 0.703125,
+    "nli_supported_sentence_fraction": 0.3313802083333333,
+    "sentence_citation_coverage": 0.8834635416666666,
+    "reference_source_citation_precision": 0.66953125,
+    "ndcg8": 0.8441538844867598,
+    "gold_span_recall8": 0.890625,
+    "gold_span_hit8": 0.90625,
+    "abstained": 0.0859375,
+    "raw_fabricated_markers": 0.0,
+    "invalid_citations": 0.0,
+    "generation": {
+      "called_cases": 120,
+      "reused_identical_prompts": 43,
+      "maximum_prompt_tokens": 3161,
+      "length_limited_completions": 1,
+      "median_original_generation_seconds": 2.918390522999971
+    }
+  },
+  "jev": {
+    "entailed_grounded_reference_match": 0.2421875,
+    "grounded_reference_match": 0.625,
+    "answer_token_f1": 0.5198924731993896,
+    "cited_answer_token_f1": 0.44910742329119685,
+    "reference_match": 0.71875,
+    "nli_supported_sentence_fraction": 0.3103236607142857,
+    "sentence_citation_coverage": 0.9435453869047619,
+    "reference_source_citation_precision": 0.6901041666666666,
+    "ndcg8": 0.883364495822756,
+    "gold_span_recall8": 0.8984375,
+    "gold_span_hit8": 0.9140625,
+    "abstained": 0.0390625,
+    "raw_fabricated_markers": 0.0,
+    "invalid_citations": 0.0,
+    "generation": {
+      "called_cases": 128,
+      "reused_identical_prompts": 76,
+      "maximum_prompt_tokens": 3190,
+      "length_limited_completions": 3,
+      "median_original_generation_seconds": 2.814997036475688
+    }
+  },
+  "paired_jev_minus_bge": {
+    "entailed_grounded_reference_match": {
+      "delta": -0.0234375,
+      "ci95": [
+        -0.09022556390977443,
+        0.03968253968253968
+      ],
+      "article_clusters": 114,
+      "samples": 128
+    },
+    "grounded_reference_match": {
+      "delta": 0.03125,
+      "ci95": [
+        -0.038461538461538464,
+        0.10077519379844961
+      ],
+      "article_clusters": 114,
+      "samples": 128
+    },
+    "answer_token_f1": {
+      "delta": 0.028686873610786468,
+      "ci95": [
+        -0.014714541015229574,
+        0.07502818716147716
+      ],
+      "article_clusters": 114,
+      "samples": 128
+    },
+    "cited_answer_token_f1": {
+      "delta": 0.01804529382374239,
+      "ci95": [
+        -0.029275554882853418,
+        0.06712919854888
+      ],
+      "article_clusters": 114,
+      "samples": 128
+    },
+    "reference_match": {
+      "delta": 0.015625,
+      "ci95": [
+        -0.03968253968253968,
+        0.07692307692307693
+      ],
+      "article_clusters": 114,
+      "samples": 128
+    },
+    "nli_supported_sentence_fraction": {
+      "delta": -0.02105654761904762,
+      "ci95": [
+        -0.09625850340136054,
+        0.05
+      ],
+      "article_clusters": 114,
+      "samples": 128
+    },
+    "sentence_citation_coverage": {
+      "delta": 0.06008184523809524,
+      "ci95": [
+        0.009129967776584319,
+        0.11362433862433863
+      ],
+      "article_clusters": 114,
+      "samples": 128
+    },
+    "reference_source_citation_precision": {
+      "delta": 0.020572916666666666,
+      "ci95": [
+        -0.04285714285714286,
+        0.08072916666666667
+      ],
+      "article_clusters": 114,
+      "samples": 128
+    },
+    "ndcg8": {
+      "delta": 0.039210611335996244,
+      "ci95": [
+        0.013230694590622948,
+        0.069049948935573
+      ],
+      "article_clusters": 114,
+      "samples": 128
+    },
+    "gold_span_recall8": {
+      "delta": 0.0078125,
+      "ci95": [
+        0.0,
+        0.024193548387096774
+      ],
+      "article_clusters": 114,
+      "samples": 128
+    },
+    "gold_span_hit8": {
+      "delta": 0.0078125,
+      "ci95": [
+        0.0,
+        0.024193548387096774
+      ],
+      "article_clusters": 114,
+      "samples": 128
+    },
+    "abstained": {
+      "delta": -0.046875,
+      "ci95": [
+        -0.09558823529411764,
+        0.0
+      ],
+      "article_clusters": 114,
+      "samples": 128
+    },
+    "raw_fabricated_markers": {
+      "delta": 0.0,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "article_clusters": 114,
+      "samples": 128
+    },
+    "invalid_citations": {
+      "delta": 0.0,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "article_clusters": 114,
+      "samples": 128
+    }
+  },
+  "meaningful_gain_met": false,
+  "clearly_larger_gain_met": false,
+  "protocol": {
+    "seed": 20261002,
+    "test_cases": 128,
+    "development_cases": 16,
+    "corpus_contexts": 650,
+    "corpus_sha256": "b1b7d0a5fc83e081b5e7bf141af74d1e41e47c635807f68adcf5f4ca9715263d",
+    "corpus_bytes": 844643,
+    "document_count": 14,
+    "document_layout": "target 64000 characters, split only between published contexts",
+    "retrieved_candidates": 32,
+    "generated_passages": 8,
+    "batch_tokens": 1024,
+    "batch_items": 2,
+    "source_sha256": {
+      "dev": "ec748f222626e5081a34193ca469bcf8112092837678a6948a2d6ae7d6629d1a",
+      "test": "af84d20d4afeba9a6936c3c7d8b5f577a15af5461c8f0e29f94286bb2205b18d"
+    },
+    "generator": {
+      "model": "llama3.1:8b-instruct-q4_K_M",
+      "model_digest": "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e",
+      "thinking": false,
+      "temperature": 0,
+      "seed": 20261002,
+      "num_ctx": 8192,
+      "num_predict": 256
+    },
+    "meaningful_gain": {
+      "mean": 0.02,
+      "lower_ci_above": 0
+    },
+    "clearly_larger_gain": {
+      "mean": 0.05,
+      "lower_ci_at_least": 0.02
+    },
+    "primary_metric": "entailed_grounded_reference_match",
+    "reference_span_metric": "grounded_reference_match",
+    "nli": {
+      "model": "MoritzLaurer/mDeBERTa-v3-base-mnli-xnli",
+      "revision": "8adb042d524ecd5c26d3e3ba0e3fbcf7e2d0864c",
+      "entailment_threshold": 0.8,
+      "maximum_tokens": 512,
+      "truncation": "none; split long premises into overlapping token windows",
+      "limits": "independent automatic multilingual NLI, not human claim adjudication"
+    },
+    "limits": [
+      "automatic reference/span proxies, not full semantic adjudication",
+      "staged model execution, not simultaneous online latency",
+      "experimental depth 32; production CPU depth is eight"
+    ]
+  },
+  "upload": {
+    "documents": [
+      {
+        "document_id": "566788e5-94e1-46ba-a3a3-5ba0cc0cfcad",
+        "filename": "sqac-public-000.txt",
+        "ack_seconds": 3.713385795010254,
+        "bytes": 63995,
+        "http_status": 201,
+        "pending": "pending"
+      },
+      {
+        "document_id": "9406dc13-4c79-4ba8-ae76-fcb05d55af43",
+        "filename": "sqac-public-001.txt",
+        "ack_seconds": 4.139962091983762,
+        "bytes": 65243,
+        "http_status": 201,
+        "pending": "pending"
+      },
+      {
+        "document_id": "d31aa791-2451-43ce-8973-dd049a09427a",
+        "filename": "sqac-public-002.txt",
+        "ack_seconds": 4.592415034014266,
+        "bytes": 65251,
+        "http_status": 201,
+        "pending": "pending"
+      },
+      {
+        "document_id": "25529f57-166b-404e-99d7-c12587a9417a",
+        "filename": "sqac-public-003.txt",
+        "ack_seconds": 4.9987688030232675,
+        "bytes": 64228,
+        "http_status": 201,
+        "pending": "pending"
+      },
+      {
+        "document_id": "23845768-8ef5-460b-a4e7-980106ccb6ac",
+        "filename": "sqac-public-004.txt",
+        "ack_seconds": 5.386959112016484,
+        "bytes": 64908,
+        "http_status": 201,
+        "pending": "pending"
+      },
+      {
+        "document_id": "e11ff1b9-82a1-4a04-87a3-7477f0160187",
+        "filename": "sqac-public-005.txt",
+        "ack_seconds": 6.0409980560070835,
+        "bytes": 64632,
+        "http_status": 201,
+        "pending": "pending"
+      },
+      {
+        "document_id": "f8135ceb-17b5-4bca-a484-6e0438899a3d",
+        "filename": "sqac-public-006.txt",
+        "ack_seconds": 6.397701899986714,
+        "bytes": 64885,
+        "http_status": 201,
+        "pending": "pending"
+      },
+      {
+        "document_id": "499939a5-ae80-4c28-a9b9-29d9e9c5ba02",
+        "filename": "sqac-public-007.txt",
+        "ack_seconds": 6.744773679005448,
+        "bytes": 64418,
+        "http_status": 201,
+        "pending": "pending"
+      },
+      {
+        "document_id": "d5f83bea-76f5-42af-8d7f-1bad57c05c58",
+        "filename": "sqac-public-008.txt",
+        "ack_seconds": 7.10345029697055,
+        "bytes": 64501,
+        "http_status": 201,
+        "pending": "pending"
+      },
+      {
+        "document_id": "9a2eafed-3574-4651-99fd-05ce5684bdc8",
+        "filename": "sqac-public-009.txt",
+        "ack_seconds": 7.481577010999899,
+        "bytes": 64748,
+        "http_status": 201,
+        "pending": "pending"
+      },
+      {
+        "document_id": "4c21b294-79ea-44d3-b379-5e79228e1023",
+        "filename": "sqac-public-010.txt",
+        "ack_seconds": 7.841478754009586,
+        "bytes": 64925,
+        "http_status": 201,
+        "pending": "pending"
+      },
+      {
+        "document_id": "338fa461-a1e9-4509-9a48-b54f973625ac",
+        "filename": "sqac-public-011.txt",
+        "ack_seconds": 8.236744422989432,
+        "bytes": 64209,
+        "http_status": 201,
+        "pending": "pending"
+      },
+      {
+        "document_id": "5ae33671-2566-445f-9da4-cff974df22c4",
+        "filename": "sqac-public-012.txt",
+        "ack_seconds": 8.596264766005334,
+        "bytes": 63921,
+        "http_status": 201,
+        "pending": "pending"
+      },
+      {
+        "document_id": "1dea5652-a64d-437b-9412-54d9a2953bb7",
+        "filename": "sqac-public-013.txt",
+        "ack_seconds": 8.920179983018897,
+        "bytes": 4753,
+        "http_status": 201,
+        "pending": "pending"
+      }
+    ],
+    "corpus_sha256": "b1b7d0a5fc83e081b5e7bf141af74d1e41e47c635807f68adcf5f4ca9715263d",
+    "ready_seconds": 199.38509184500435,
+    "chunks": 939
+  },
+  "paid_accounting": {
+    "cumulative_calls": 15175,
+    "cumulative_dollars": 0.385689192,
+    "new_calls": 0,
+    "new_dollars": 0
+  },
+  "test_pairs": 128,
+  "limits": [
+    "reference matching misses valid paraphrases and does not alone establish correctness",
+    "automatic NLI can make mistakes; no new human adjudication of generated claims",
+    "test is public Spanish QA, not client contracts or legal accuracy",
+    "staged real services with response caches; no simultaneous deployment latency claim",
+    "depth 32 is experimental in both arms; it does not change product defaults"
+  ],
+  "diagnostics": {
+    "bge": {
+      "strict_successes": 34,
+      "answered": 117,
+      "reference_matches": 90,
+      "grounded_reference_matches": 76,
+      "grounded_but_failed_nli": 42.0,
+      "pre_generation_abstentions": 8,
+      "generation_calls": 120,
+      "reused_identical_prompts": 43,
+      "new_local_completions": 77,
+      "independent_claim_checks": 140
+    },
+    "jev": {
+      "strict_successes": 31,
+      "answered": 123,
+      "reference_matches": 92,
+      "grounded_reference_matches": 80,
+      "grounded_but_failed_nli": 49.0,
+      "pre_generation_abstentions": 0,
+      "generation_calls": 128,
+      "reused_identical_prompts": 76,
+      "new_local_completions": 52,
+      "independent_claim_checks": 158
+    }
+  },
+  "paired_outcomes": {
+    "both_success": 23,
+    "bge_only_success": 11,
+    "jev_only_success": 8,
+    "both_fail": 86
+  },
+  "code": {
+    "head": "ec84211741dd57601885d0aab4b503195e40bafd",
+    "tree": "c910a4d820a6c082e6a78eee8515379623d8ad58",
+    "archive_sha256": "2d4bcda8046cfde6aa26229d41e26a0b07076ea7d2bec8856a53666aafe79cb7",
+    "runner_image": "sha256:906ce21d27968f6b2ec1d5d83601bec84f875d74bef5cbfaf8eafee948458d88"
+  },
+  "actual_checks": [
+    {
+      "command": "uv run python -m pytest -q --tb=short eval/tests/test_spanish_e2e_pipeline.py",
+      "exit": 0,
+      "timeout_seconds": 21600.0,
+      "cleanup": null,
+      "seconds": 859.36,
+      "log": "spanish-e2e-docker-tests.log",
+      "log_sha256": "a7e365df92b0050042eb85ac5d1801708d5ce87e176dbb926471af4352598d58"
+    }
+  ],
+  "new_paid_calls": 0,
+  "repeat_design": "same frozen public cohort; corrected shared gate; exact cached scoring inputs; not an unseen holdout or online latency test",
+  "artifacts": {
+    "candidates.json": "f189be892b735ae1ff1e68570a80adec5fbfa34e797dc78a13fed88f9c175ab5",
+    "bge-scores.json": "21c272583083a0ca1f4177746281676fe2d914a9fb52a33ee36ff07cc7b4c28d",
+    "jev-scores.json": "71a9061b2e08c3a1f26fd6d476d75c91dfefd5bd74ae0b8329657eb03ffde2b6",
+    "generated-results.json": "09b1673492c9f760a2e198f9c0df6c12caf66ad6d8cedeb6805a49f934d4e777",
+    "independently-graded.json": "ced93abbaf5b601127d822c24c9961950a36e062d2f6287d807469779efb844a",
+    "e2e-summary.json": "7ae11c04babedbea73aa6df5e34bf1da46936d55cfa1858152252eefb882e8c2",
+    "spanish-e2e-docker-checks.json": "45be063501a5f386f7a24771fc2d5ab705ec48e6e91c9de8e35d5ea25c69da01"
+  }
+}
