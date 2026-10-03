@@ -1,0 +1,715 @@
+{
+  "persistence": {
+    "fixture_sha256": "e758fa43ba86e5279bef214a27fc1fd107d5b0bdc55f50bcc444ef066c02f743",
+    "baseline_source_sha256": "982746cf88738367c717419edee93beb3608363a2fb8496571f2ee33c02a6d43",
+    "chunks": 938,
+    "dimensions": 1024,
+    "database_cpus": 2,
+    "database_memory_mib": 768,
+    "mode": "paired",
+    "trials": [
+      {
+        "pair": 0,
+        "arm": "baseline",
+        "seconds": 101.66517054600035,
+        "sql": {
+          "select": {
+            "seconds": 0.05636261699964962,
+            "calls": 3,
+            "dbapi_executemany_calls": 0
+          },
+          "set": {
+            "seconds": 0.011355845000252884,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "delete_chunks": {
+            "seconds": 0.015277698999852873,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "delete_pages": {
+            "seconds": 0.015007595000042784,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_embedding_spaces": {
+            "seconds": 0.015145212999868818,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_chunks": {
+            "seconds": 79.42677927400746,
+            "calls": 938,
+            "dbapi_executemany_calls": 938
+          },
+          "insert_pages": {
+            "seconds": 0.2882037969998237,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_chunk_embeddings": {
+            "seconds": 16.930036248000306,
+            "calls": 15,
+            "dbapi_executemany_calls": 15
+          },
+          "update": {
+            "seconds": 0.013836230999913823,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          }
+        },
+        "first_insert": true
+      },
+      {
+        "pair": 0,
+        "arm": "candidate",
+        "seconds": 19.772152700999868,
+        "sql": {
+          "select": {
+            "seconds": 0.06199902199978169,
+            "calls": 3,
+            "dbapi_executemany_calls": 0
+          },
+          "set": {
+            "seconds": 0.012773231000210217,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "delete_chunks": {
+            "seconds": 0.9094138279997424,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "delete_pages": {
+            "seconds": 0.01814306000005672,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_pages": {
+            "seconds": 0.26969893499972386,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_chunks": {
+            "seconds": 4.20101740500013,
+            "calls": 8,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_chunk_embeddings": {
+            "seconds": 8.61421675200063,
+            "calls": 15,
+            "dbapi_executemany_calls": 15
+          }
+        },
+        "first_insert": false
+      },
+      {
+        "pair": 1,
+        "arm": "candidate",
+        "seconds": 21.162687194000227,
+        "sql": {
+          "select": {
+            "seconds": 0.06281712299960418,
+            "calls": 3,
+            "dbapi_executemany_calls": 0
+          },
+          "set": {
+            "seconds": 0.023329459999786195,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "delete_chunks": {
+            "seconds": 0.6085843239998212,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "delete_pages": {
+            "seconds": 0.01830612799994924,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_pages": {
+            "seconds": 0.37135591700007353,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_chunks": {
+            "seconds": 4.113101266999365,
+            "calls": 8,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_chunk_embeddings": {
+            "seconds": 9.455050033000589,
+            "calls": 15,
+            "dbapi_executemany_calls": 15
+          }
+        },
+        "first_insert": false
+      },
+      {
+        "pair": 1,
+        "arm": "baseline",
+        "seconds": 101.67052699499982,
+        "sql": {
+          "select": {
+            "seconds": 0.0592657010001858,
+            "calls": 3,
+            "dbapi_executemany_calls": 0
+          },
+          "set": {
+            "seconds": 0.012443789999906585,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "delete_chunks": {
+            "seconds": 0.6331816649999382,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "delete_pages": {
+            "seconds": 0.018737370000053488,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_chunks": {
+            "seconds": 83.08164450600452,
+            "calls": 938,
+            "dbapi_executemany_calls": 938
+          },
+          "insert_pages": {
+            "seconds": 0.327522191999833,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_chunk_embeddings": {
+            "seconds": 11.068482273999052,
+            "calls": 15,
+            "dbapi_executemany_calls": 15
+          }
+        },
+        "first_insert": false
+      },
+      {
+        "pair": 2,
+        "arm": "baseline",
+        "seconds": 136.19976558300004,
+        "sql": {
+          "select": {
+            "seconds": 0.053584758000397414,
+            "calls": 3,
+            "dbapi_executemany_calls": 0
+          },
+          "set": {
+            "seconds": 0.011692088000017975,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "delete_chunks": {
+            "seconds": 0.4462066300002334,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "delete_pages": {
+            "seconds": 0.016811858999972173,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_chunks": {
+            "seconds": 115.81821145799768,
+            "calls": 938,
+            "dbapi_executemany_calls": 938
+          },
+          "insert_pages": {
+            "seconds": 0.2980225530000098,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_chunk_embeddings": {
+            "seconds": 11.87105903200063,
+            "calls": 15,
+            "dbapi_executemany_calls": 15
+          }
+        },
+        "first_insert": false
+      },
+      {
+        "pair": 2,
+        "arm": "candidate",
+        "seconds": 29.572153882999828,
+        "sql": {
+          "select": {
+            "seconds": 0.10799309100002574,
+            "calls": 3,
+            "dbapi_executemany_calls": 0
+          },
+          "set": {
+            "seconds": 0.016083322999747907,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "delete_chunks": {
+            "seconds": 1.0154695449996325,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "delete_pages": {
+            "seconds": 0.03707513600011225,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_pages": {
+            "seconds": 0.28515217099993606,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_chunks": {
+            "seconds": 6.484627097000157,
+            "calls": 8,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_chunk_embeddings": {
+            "seconds": 13.087638634999621,
+            "calls": 15,
+            "dbapi_executemany_calls": 15
+          }
+        },
+        "first_insert": false
+      },
+      {
+        "pair": 3,
+        "arm": "candidate",
+        "seconds": 26.826970429000085,
+        "sql": {
+          "select": {
+            "seconds": 0.08471575400017173,
+            "calls": 3,
+            "dbapi_executemany_calls": 0
+          },
+          "set": {
+            "seconds": 0.012087202999737201,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "delete_chunks": {
+            "seconds": 0.6749276209998243,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "delete_pages": {
+            "seconds": 0.018361065000135568,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_pages": {
+            "seconds": 0.32868572300003507,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_chunks": {
+            "seconds": 6.528917930999796,
+            "calls": 8,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_chunk_embeddings": {
+            "seconds": 10.393477584999346,
+            "calls": 15,
+            "dbapi_executemany_calls": 15
+          }
+        },
+        "first_insert": false
+      },
+      {
+        "pair": 3,
+        "arm": "baseline",
+        "seconds": 111.08292812899981,
+        "sql": {
+          "select": {
+            "seconds": 0.055432075999760855,
+            "calls": 3,
+            "dbapi_executemany_calls": 0
+          },
+          "set": {
+            "seconds": 0.013684501000170712,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "delete_chunks": {
+            "seconds": 0.8747492709999278,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "delete_pages": {
+            "seconds": 0.0220574189997933,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_chunks": {
+            "seconds": 94.11279615799958,
+            "calls": 938,
+            "dbapi_executemany_calls": 938
+          },
+          "insert_pages": {
+            "seconds": 0.20793325099975846,
+            "calls": 1,
+            "dbapi_executemany_calls": 0
+          },
+          "insert_chunk_embeddings": {
+            "seconds": 10.172419891000573,
+            "calls": 15,
+            "dbapi_executemany_calls": 15
+          }
+        },
+        "first_insert": false
+      }
+    ],
+    "scope": "isolated application-role atomic replacement; first pair is warmup",
+    "summary": {
+      "baseline": {
+        "median_seconds": 111.08292812899981
+      },
+      "candidate": {
+        "median_seconds": 26.826970429000085
+      }
+    },
+    "measured_summary": {
+      "baseline": {
+        "median_seconds": 111.08292812899981,
+        "sql_stage_median_seconds": {
+          "insert_chunks": 94.11279615799958,
+          "insert_chunk_embeddings": 11.068482273999052
+        }
+      },
+      "candidate": {
+        "median_seconds": 26.826970429000085,
+        "sql_stage_median_seconds": {
+          "insert_chunks": 6.484627097000157,
+          "insert_chunk_embeddings": 10.393477584999346
+        }
+      },
+      "speedup": 4.140718327587174,
+      "reduction_percent": 75.84960094151812
+    },
+    "checks": {
+      "head": "989478a340ba173673ed181ae6755842eca71357",
+      "tree": "fdd23885abd606ab6dc8699ea05cfd906796667e",
+      "runner_image": "sha256:906ce21d27968f6b2ec1d5d83601bec84f875d74bef5cbfaf8eafee948458d88",
+      "archive_sha256": "d1101ebfa623cacf1f280fa241b816b28c987410052740e6d322f3070fc06552",
+      "excluded_offline_wheels": [
+        "torch",
+        "nvidia",
+        "triton"
+      ],
+      "dependency_volume": "zenith-lf-check-env-lean",
+      "commands": [
+        {
+          "command": "uv run python -m pytest -q --tb=short eval/tests/test_persistence_benchmark.py",
+          "exit": 0,
+          "timeout_seconds": 1800.0,
+          "cleanup": null,
+          "seconds": 758.562,
+          "log": "persist-paired-docker-tests.log",
+          "log_sha256": "7fadbbee4848f85688883b5a57db08371d482a84be438523d73cada7ea98a373"
+        }
+      ]
+    }
+  },
+  "fresh_upload": {
+    "bytes": 844643,
+    "corpus_sha256": "b1b7d0a5fc83e081b5e7bf141af74d1e41e47c635807f68adcf5f4ca9715263d",
+    "http_status": 201,
+    "ack_from_experiment_start_seconds": 5.27249970999992,
+    "ready_observed_seconds": 136.0129360410001,
+    "timing": {
+      "chunks": 938,
+      "persist_succeeded": true,
+      "persist_seconds": 35.7409576480004,
+      "status": "ready",
+      "ingest_seconds": 129.09040495599993,
+      "finished_after_upload_start_seconds": 134.79844462300025
+    },
+    "non_persistence_ingest_seconds": 93.34944730799953,
+    "embedding": {
+      "info": {
+        "model_id": "/data/models--BAAI--bge-m3/snapshots/5617a9f61b028005a4858fdac845db406aefb181",
+        "model_sha": null,
+        "model_dtype": "float16",
+        "served_model_name": "/data/models--BAAI--bge-m3/snapshots/5617a9f61b028005a4858fdac845db406aefb181",
+        "model_type": {
+          "embedding": {
+            "pooling": "cls"
+          }
+        },
+        "max_concurrent_requests": 8,
+        "max_input_length": 1024,
+        "max_batch_tokens": 1024,
+        "max_batch_requests": null,
+        "max_client_batch_size": 2,
+        "auto_truncate": true,
+        "tokenization_workers": 3,
+        "version": "1.9.4",
+        "sha": "e80ef225ed0e6cb1717ce632a6a84b6cf211bb67",
+        "docker_label": "sha-e80ef22"
+      },
+      "ready_seconds": 51.29700000002049
+    },
+    "checks": {
+      "head": "33011ec1505002a5b9b04df8b11ace3d1282dde0",
+      "tree": "86851134a307504e428c9cf0526f09cc26ebcdc8",
+      "runner_image": "sha256:906ce21d27968f6b2ec1d5d83601bec84f875d74bef5cbfaf8eafee948458d88",
+      "archive_sha256": "bef20e859bd2615768a69a2c60f337b0e8593f94bb65c047e714ffc5e728c459",
+      "excluded_offline_wheels": [
+        "torch",
+        "nvidia",
+        "triton"
+      ],
+      "dependency_volume": "zenith-lf-check-env-lean",
+      "commands": [
+        {
+          "command": "uv run python -m pytest -q --tb=short eval/tests/test_spanish_e2e_pipeline.py",
+          "exit": 0,
+          "timeout_seconds": 900.0,
+          "cleanup": null,
+          "seconds": 286.766,
+          "log": "upload-ready-docker-tests.log",
+          "log_sha256": "24ed5b2ba969a8bcf5f4e284db84adff769e41b352d508bf486fc1e220551e7b"
+        }
+      ]
+    },
+    "scope": "one fresh public upload; not paired against historical multi-file upload"
+  },
+  "mcp": {
+    "sdk_transport": "in-process",
+    "sources": 8,
+    "trials": [
+      {
+        "trial": 1,
+        "mode": "single",
+        "seconds": 3.3512208229999487,
+        "sql_calls": 104
+      },
+      {
+        "trial": 1,
+        "mode": "batch",
+        "seconds": 0.4740235239996764,
+        "sql_calls": 13
+      },
+      {
+        "trial": 2,
+        "mode": "batch",
+        "seconds": 0.503405310999824,
+        "sql_calls": 13
+      },
+      {
+        "trial": 2,
+        "mode": "single",
+        "seconds": 3.694100070999866,
+        "sql_calls": 104
+      },
+      {
+        "trial": 3,
+        "mode": "single",
+        "seconds": 2.8066956060001758,
+        "sql_calls": 104
+      },
+      {
+        "trial": 3,
+        "mode": "batch",
+        "seconds": 0.4828482050002094,
+        "sql_calls": 13
+      },
+      {
+        "trial": 4,
+        "mode": "batch",
+        "seconds": 0.541254022999965,
+        "sql_calls": 13
+      },
+      {
+        "trial": 4,
+        "mode": "single",
+        "seconds": 3.5612110810002378,
+        "sql_calls": 104
+      },
+      {
+        "trial": 5,
+        "mode": "single",
+        "seconds": 3.137736582999878,
+        "sql_calls": 104
+      },
+      {
+        "trial": 5,
+        "mode": "batch",
+        "seconds": 0.5420087990000866,
+        "sql_calls": 13
+      },
+      {
+        "trial": 6,
+        "mode": "batch",
+        "seconds": 0.4540415420001409,
+        "sql_calls": 13
+      },
+      {
+        "trial": 6,
+        "mode": "single",
+        "seconds": 3.533690519999709,
+        "sql_calls": 104
+      },
+      {
+        "trial": 7,
+        "mode": "single",
+        "seconds": 2.857626386999982,
+        "sql_calls": 104
+      },
+      {
+        "trial": 7,
+        "mode": "batch",
+        "seconds": 0.7595022999998946,
+        "sql_calls": 13
+      },
+      {
+        "trial": 8,
+        "mode": "batch",
+        "seconds": 0.48170133800022086,
+        "sql_calls": 13
+      },
+      {
+        "trial": 8,
+        "mode": "single",
+        "seconds": 3.137663807000081,
+        "sql_calls": 104
+      },
+      {
+        "trial": 9,
+        "mode": "single",
+        "seconds": 3.0975722890002544,
+        "sql_calls": 104
+      },
+      {
+        "trial": 9,
+        "mode": "batch",
+        "seconds": 0.8041140230002384,
+        "sql_calls": 13
+      },
+      {
+        "trial": 10,
+        "mode": "batch",
+        "seconds": 0.6125282630000584,
+        "sql_calls": 13
+      },
+      {
+        "trial": 10,
+        "mode": "single",
+        "seconds": 3.6921486040000673,
+        "sql_calls": 104
+      },
+      {
+        "trial": 11,
+        "mode": "single",
+        "seconds": 3.114870167999925,
+        "sql_calls": 104
+      },
+      {
+        "trial": 11,
+        "mode": "batch",
+        "seconds": 0.4437602030002381,
+        "sql_calls": 13
+      },
+      {
+        "trial": 12,
+        "mode": "batch",
+        "seconds": 0.38803016299971205,
+        "sql_calls": 13
+      },
+      {
+        "trial": 12,
+        "mode": "single",
+        "seconds": 3.8389989920001426,
+        "sql_calls": 104
+      },
+      {
+        "trial": 13,
+        "mode": "single",
+        "seconds": 4.529592537000099,
+        "sql_calls": 104
+      },
+      {
+        "trial": 13,
+        "mode": "batch",
+        "seconds": 0.8625449000001026,
+        "sql_calls": 13
+      },
+      {
+        "trial": 14,
+        "mode": "batch",
+        "seconds": 0.5126092030000109,
+        "sql_calls": 13
+      },
+      {
+        "trial": 14,
+        "mode": "single",
+        "seconds": 4.05123534500035,
+        "sql_calls": 104
+      },
+      {
+        "trial": 15,
+        "mode": "single",
+        "seconds": 4.22219625300022,
+        "sql_calls": 104
+      },
+      {
+        "trial": 15,
+        "mode": "batch",
+        "seconds": 0.6629142530000536,
+        "sql_calls": 13
+      }
+    ],
+    "summary": {
+      "single": {
+        "median_seconds": 3.533690519999709,
+        "sql_calls": [
+          104
+        ]
+      },
+      "batch": {
+        "median_seconds": 0.5126092030000109,
+        "sql_calls": [
+          13
+        ]
+      }
+    },
+    "checks": {
+      "head": "1da270498817176a12ba0d035064d0d314f5497f",
+      "tree": "2439ae3fde544d757f88bf2d44ead78c70cb3ec1",
+      "runner_image": "sha256:906ce21d27968f6b2ec1d5d83601bec84f875d74bef5cbfaf8eafee948458d88",
+      "archive_sha256": "7ead8674e6891c5c10e997d2b257185877ac8daa72da1aded94aea0cf900679a",
+      "excluded_offline_wheels": [
+        "torch",
+        "nvidia",
+        "triton"
+      ],
+      "dependency_volume": "zenith-lf-mcp-check-env",
+      "commands": [
+        {
+          "command": "uv run python -m pytest -q --tb=short app/features/mcp/tests/test_agent_reads.py::test_batch_read_benchmark",
+          "exit": 0,
+          "timeout_seconds": 900.0,
+          "cleanup": null,
+          "seconds": 245.782,
+          "log": "mcp-batch-docker-tests.log",
+          "log_sha256": "7a963e64db27f47a74f63505e068a40cbe4732c5e70cfa8c9464a63284df45f0"
+        }
+      ]
+    }
+  },
+  "artifact_sha256": {
+    "persistence/paired-values/persistence.json": "9f0df7da765b91557237811c3ffbfd374e0d1721284f5f2d9bc17dba747fea9d",
+    "persistence/paired-values/persist-paired-docker-checks.json": "eba7eb36180094b9e0909c05f895b15b036c3d70aff80bf9d849724d81068f07",
+    "upload-ready-values/capture-results.json": "4c49f80479fd9800f8245b1ea09cb9782792bd7c2a5de7d3e8a7070be491626d",
+    "upload-ready-values/ingestion-telemetry.json": "9df2a05603379ee09ad7dd40a503baa7f47b2f82324c2c7a3e8fafc8c4de85ea",
+    "upload-ready-values/upload-ready-docker-checks.json": "0762489c81e683dc4e16e263cc747430cd7ba8aeac4d3f604f6b54e8061b7a7c",
+    "upload-ready-values/embed-ready.json": "7cbac27dbbc640d31de940465ddd55c6070435888e20abbaf7366c8792d85fdb",
+    "mcp-benchmark/mcp-batch.json": "58957ccc42a9a98e94f559de8119432afbd220a5cd098bf7a9c365e54b6858ba",
+    "mcp-benchmark/mcp-batch-docker-checks.json": "bbd74bb05ffd0d73148e4b1307abce4803a1b24d41e4ec36085150158deb3bfc"
+  },
+  "new_paid_calls": 0
+}

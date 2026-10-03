@@ -19,11 +19,12 @@ writes the new ones.
 """
 
 from dataclasses import dataclass
+from itertools import batched
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import structlog
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, insert, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -47,6 +48,11 @@ from app.features.labels.repository import LabelRepository
 from app.features.tenancy.context import TenantContext
 
 log = structlog.get_logger()
+
+# Bound each vector INSERT without weakening atomic replacement or the DB timeout.
+# The complete 939-vector public corpus exceeded the statement budget in one flush.
+_EMBEDDING_INSERT_BATCH = 64
+_CHUNK_INSERT_BATCH = 128
 
 #: What the document's status says when the classifier named nothing and it was released
 #: into the tenant default. One sentence per ending, because they have one remedy each and a
@@ -491,6 +497,8 @@ class IngestionPipeline:
 
             rows = [
                 ChunkRow(
+                    # Preserve source/vector identities without ordered ORM RETURNING.
+                    id=uuid4(),
                     document_id=document_id,
                     tenant_id=self.context.tenant_id,
                     page_num=chunk.page_num,
@@ -502,22 +510,45 @@ class IngestionPipeline:
                 )
                 for chunk in chunks
             ]
-            session.add_all(rows)
-            # Flushed before the embeddings so the chunk ids exist. `label_ids` is filled
-            # by the trigger from migration 0003 at INSERT time — a chunk born with an
-            # empty array would be retrievable by the whole tenant.
-            await session.flush()
-
-            session.add_all(
-                ChunkEmbedding(
-                    chunk_id=row.id,
-                    tenant_id=self.context.tenant_id,
-                    embedding_model=MODEL,
-                    embedding_version=VERSION,
-                    embedding=vector,
+            # The composite primary key plus ordered ORM RETURNING otherwise generates
+            # one INSERT per chunk. Explicit IDs and bulk INSERT need no returned defaults.
+            # Keep a bounded statement and preserve server-side label/tsvector triggers.
+            for group in batched(rows, _CHUNK_INSERT_BATCH):
+                await session.execute(
+                    insert(ChunkRow).values(
+                        [
+                            {
+                                "id": row.id,
+                                "document_id": row.document_id,
+                                "tenant_id": row.tenant_id,
+                                "page_num": row.page_num,
+                                "char_start": row.char_start,
+                                "char_end": row.char_end,
+                                "bboxes": row.bboxes,
+                                "section": row.section,
+                                "text": row.text,
+                            }
+                            for row in group
+                        ]
+                    ),
                 )
-                for row, vector in zip(rows, vectors, strict=True)
-            )
+            # Page writes autoflush before the bulk inserts. Chunk labels are filled by
+            # migration 0003's trigger before embeddings reference these explicit IDs.
+
+            for pairs in batched(zip(rows, vectors, strict=True), _EMBEDDING_INSERT_BATCH):
+                session.add_all(
+                    ChunkEmbedding(
+                        chunk_id=row.id,
+                        tenant_id=self.context.tenant_id,
+                        embedding_model=MODEL,
+                        embedding_version=VERSION,
+                        embedding=vector,
+                    )
+                    for row, vector in pairs
+                )
+                # Flush is not commit: a later failure restores the previous complete
+                # document, including any chunks deleted at the start of this transaction.
+                await session.flush()
 
             document = await session.get(Document, document_id)
             if document is not None:
