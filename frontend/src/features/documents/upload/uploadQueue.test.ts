@@ -127,15 +127,23 @@ describe("running the batch", () => {
     // Fixed slices would hold two finished uploads behind one slow one in the same group.
     // Workers pull from a shared cursor, so a worker that finishes early moves on.
     const order: string[] = [];
-    const durations = [30, 1, 1, 1];
+    let releaseSlow!: () => void;
+    let finishFast!: () => void;
+    const slow = new Promise<void>((resolve) => { releaseSlow = resolve; });
+    const fast = new Promise<void>((resolve) => { finishFast = resolve; });
 
-    await pooled([0, 1, 2, 3], 2, async (index) => {
-      await new Promise((resolve) => setTimeout(resolve, durations[index]));
+    const running = pooled([0, 1, 2, 3], 2, async (index) => {
+      if (index === 0) await slow;
       order.push(String(index));
+      if (index === 3) finishFast();
     });
 
-    // Item 0 is slow; 2 and 3 are taken by the worker that finished 1, so 0 lands last.
-    expect(order[order.length - 1]).toBe("0");
+    await fast;
+    // Prove the free worker advances while the first item is still blocked.
+    expect(order).toEqual(["1", "2", "3"]);
+    releaseSlow();
+    await running;
+    expect(order).toEqual(["1", "2", "3", "0"]);
   });
 
   it("does not spawn more workers than there are items", async () => {

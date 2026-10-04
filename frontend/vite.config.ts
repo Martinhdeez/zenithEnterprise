@@ -27,5 +27,5 @@ export default defineConfig({
       "/users": "http://localhost:8000",
     },
   },
-  test: { environment: "jsdom", globals: true },
+  test: { environment: "jsdom", globals: true, minWorkers: 1, maxWorkers: 2 },
 });
