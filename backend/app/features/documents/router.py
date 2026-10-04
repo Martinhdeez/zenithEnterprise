@@ -58,6 +58,7 @@ async def upload_document(
         chunks=_stream(file),
         label_ids=labels,
         description=description,
+        source_filename=file.filename or "document.pdf",
     )
     if result.deduplicated:
         response.status_code = status.HTTP_200_OK

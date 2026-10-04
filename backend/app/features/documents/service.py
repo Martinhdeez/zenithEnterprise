@@ -96,8 +96,12 @@ class DocumentService:
         chunks: AsyncIterator[bytes],
         label_ids: list[UUID] | None = None,
         description: str | None = None,
+        *,
+        source_filename: str | None = None,
     ) -> Upload:
-        media_type = intended_media_type(filename)
+        # The optional display title does not choose the parser. HTTP supplies the original
+        # file name; direct callers keep their existing filename-based validation.
+        media_type = intended_media_type(source_filename or filename)
         staged = await self.storage.stash(_of_type(chunks, media_type))
 
         try:
@@ -169,6 +173,9 @@ class DocumentService:
             # migration 0003 mirrors them into `documents.label_ids`, which is what RLS
             # reads, so the document is never committed in a visible-to-everyone state.
             await labels.set_document_labels(document.id, sorted(wanted))
+            # Trigger-written fields do not update an already-loaded ORM instance. Read
+            # through the same RLS session before serialising the upload response.
+            await session.refresh(document, attribute_names=["label_ids"])
             return Upload(document=document, labels=sorted(wanted), deduplicated=False)
 
     async def _merge(
@@ -198,6 +205,7 @@ class DocumentService:
             union = union - {quarantine.id}
         if union != current:
             await labels.set_document_labels(existing.id, sorted(union))
+            await documents.session.refresh(existing, attribute_names=["label_ids"])
         return Upload(document=existing, labels=sorted(union), deduplicated=True)
 
     async def _resolve_labels(

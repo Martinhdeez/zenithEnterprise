@@ -131,7 +131,7 @@ async function chooseOne() {
   // same map to name a proposed id.
   await screen.findByText("tick finance");
   await act(async () => {
-    fireEvent.change(screen.getByLabelText("Upload PDFs"), { target: { files: [pdf()] } });
+    fireEvent.change(screen.getByLabelText("Upload documents"), { target: { files: [pdf()] } });
   });
 }
 

@@ -79,6 +79,8 @@ export interface QueueItem {
   stage?: string;
   /** The document id, once the server has one. */
   documentId?: string;
+  /** The server already held these bytes; successful completion is not a new document. */
+  deduplicated?: boolean;
   message?: string;
 }
 

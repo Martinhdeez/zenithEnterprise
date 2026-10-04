@@ -49,6 +49,9 @@ export const es: Catalogue = {
   Cancel: "Cancelar",
   Save: "Guardar",
   Done: "Hecho",
+  "Already present": "Ya existe",
+  "Upload documents": "Subir documentos",
+  "Choose PDFs, TXT or Markdown": "Elige PDF, TXT o Markdown",
   Delete: "Eliminar",
   "Load more": "Cargar más",
   "Manage": "Gestión",
@@ -120,8 +123,6 @@ export const es: Catalogue = {
   "found nothing": "sin resultados",
 
   // --- upload -------------------------------------------------------------------------
-  "Upload PDFs": "Subir PDFs",
-  "Choose PDFs": "Elige PDFs",
   "or drop them here": "o suéltalos aquí",
   "Drop several to tag them together before anything is sent.":
     "Suelta varios para etiquetarlos juntos antes de enviar nada.",

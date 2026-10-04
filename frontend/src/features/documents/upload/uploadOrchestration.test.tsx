@@ -75,7 +75,7 @@ beforeEach(() => {
 /** Drop `count` files on the input and confirm the staging table. */
 async function drop(count: number) {
   const files = Array.from({ length: count }, (_, index) => pdf(`f${index}.pdf`));
-  const input = screen.getByLabelText("Upload PDFs");
+  const input = screen.getByLabelText("Upload documents");
   await act(async () => {
     fireEvent.change(input, { target: { files } });
   });

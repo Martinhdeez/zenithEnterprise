@@ -332,10 +332,13 @@ export function Upload({ token, onUploaded }: Props) {
               phase: "processing",
               percent: 100,
               documentId: uploaded.document.id,
+              deduplicated: uploaded.deduplicated,
               stage: PROCESSING.stage,
             }),
           );
-          setRecent((current) => [uploaded.document, ...current].slice(0, 10));
+          setRecent((current) =>
+            [uploaded.document, ...current.filter((row) => row.id !== uploaded.document.id)].slice(0, 10),
+          );
 
           // **Started, not awaited, and that is the whole point of this line.** Awaiting it
           // here kept the pool slot for the length of the *server's* work, so three files
@@ -435,8 +438,11 @@ export function Upload({ token, onUploaded }: Props) {
 
   const choose = useCallback((files: FileList | null) => {
     if (!files?.length) return;
-    const file = files[0];
-    if (files.length === 1 && file && staging.length === 0) {
+    // FileList is live: clearing the input after this callback empties it. React may defer
+    // a state updater until then, so take the snapshot before scheduling any update.
+    const chosen = Array.from(files);
+    const file = chosen[0];
+    if (chosen.length === 1 && file && staging.length === 0) {
       // One file, nothing staged: the review step that lets somebody rename it and write a
       // description. A batch has no single filename to prefill against, and nobody is going
       // to write a description a thousand times.
@@ -445,7 +451,7 @@ export function Upload({ token, onUploaded }: Props) {
     }
     // Everything else stages. Uploading on drop is what put a thousand documents under the
     // default label before anybody had said what any of them were.
-    setStaging((current) => stage(Array.from(files), current));
+    setStaging((current) => stage(chosen, current));
   }, [staging.length]);
 
   const confirmStaged = useCallback(() => {
@@ -626,10 +632,10 @@ export function Upload({ token, onUploaded }: Props) {
             <input
               ref={fileInput}
               type="file"
-              accept="application/pdf"
+              accept="application/pdf,text/plain,text/markdown,.pdf,.txt,.text,.md,.markdown"
               multiple
               className="sr-only"
-              aria-label={t("Upload PDFs")}
+              aria-label={t("Upload documents")}
               onChange={(event) => {
                 choose(event.target.files);
                 if (fileInput.current) fileInput.current.value = "";
@@ -644,7 +650,7 @@ export function Upload({ token, onUploaded }: Props) {
                 since it was written, and people believed it: nobody tries to drag five
                 files at something that asks for one. */}
             <p className="text-sm">
-              <span className="font-semibold text-primary">{t("Choose PDFs")}</span>
+              <span className="font-semibold text-primary">{t("Choose PDFs, TXT or Markdown")}</span>
               <span className="text-muted-foreground"> {t("or drop them here")}</span>
             </p>
             {/* The line here used to read "Several files at once upload immediately", which
@@ -842,7 +848,7 @@ function UploadQueue({
               {item.phase === "queued" && t("Queued")}
               {item.phase === "uploading" && <Transferring item={item} />}
               {item.phase === "processing" && stageLabel(item.stage, t)}
-              {item.phase === "done" && t("Done")}
+              {item.phase === "done" && (item.deduplicated ? t("Already present") : t("Done"))}
               {item.phase === "unresolved" && (item.message ?? t("Still processing"))}
               {item.phase === "error" && (item.message ?? t("Failed"))}
               {item.phase === "cancelled" && t("Cancelled")}

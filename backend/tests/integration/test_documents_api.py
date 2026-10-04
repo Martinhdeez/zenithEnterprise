@@ -46,10 +46,11 @@ async def headers(client: AsyncClient, email: str) -> dict[str, str]:
 
 
 async def test_upload_returns_201_and_the_document(client: AsyncClient, account: Account) -> None:
+    auth = await headers(client, account.admin_email)
     response = await client.post(
         "/documents",
         files={"file": ("report.pdf", PDF, "application/pdf")},
-        headers=await headers(client, account.admin_email),
+        headers=auth,
     )
 
     assert response.status_code == 201
@@ -61,6 +62,120 @@ async def test_upload_returns_201_and_the_document(client: AsyncClient, account:
     # since 0017 unfiled means "readable by an administrator and by whoever sent it" instead
     # of "readable by everybody" for the length of the ingestion.
     assert body["labels"] == [str(account.quarantine_label)]
+    assert body["document"]["label_ids"] == body["labels"]
+    fetched = await client.get(f"/documents/{body['document']['id']}", headers=auth)
+    assert fetched.status_code == 200
+    assert fetched.json()["label_ids"] == body["document"]["label_ids"]
+
+
+async def test_upload_returns_the_selected_labels(client: AsyncClient, account: Account) -> None:
+    """The trigger-backed document metadata agrees with the upload's explicit labels."""
+    auth = await headers(client, account.admin_email)
+    response = await client.post(
+        "/documents",
+        files={"file": ("finance.pdf", PDF, "application/pdf")},
+        data={"labels": [str(account.finance_label)]},
+        headers=auth,
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["labels"] == [str(account.finance_label)]
+    assert body["document"]["label_ids"] == body["labels"]
+    fetched = await client.get(f"/documents/{body['document']['id']}", headers=auth)
+    assert fetched.status_code == 200
+    assert fetched.json()["label_ids"] == body["document"]["label_ids"]
+
+
+async def test_deduplication_returns_the_merged_labels(
+    client: AsyncClient, account: Account
+) -> None:
+    """A duplicate adds a reachable label without returning the pre-trigger metadata."""
+    auth = await headers(client, account.admin_email)
+    original = await client.post(
+        "/documents",
+        files={"file": ("finance.pdf", PDF, "application/pdf")},
+        data={"labels": [str(account.finance_label)]},
+        headers=auth,
+    )
+    assert original.status_code == 201
+    response = await client.post(
+        "/documents",
+        files={"file": ("shared-finance.pdf", PDF, "application/pdf")},
+        data={"labels": [str(account.finance_label), str(account.hr_label)]},
+        headers=auth,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["deduplicated"] is True
+    assert body["document"]["id"] == original.json()["document"]["id"]
+    expected = {str(account.finance_label), str(account.hr_label)}
+    assert set(body["labels"]) == expected
+    assert set(body["document"]["label_ids"]) == expected
+    fetched = await client.get(f"/documents/{body['document']['id']}", headers=auth)
+    assert fetched.status_code == 200
+    assert fetched.json()["label_ids"] == body["document"]["label_ids"]
+
+
+@pytest.mark.parametrize(
+    ("source_filename", "display_filename", "content", "media_type"),
+    [
+        ("notes.txt", "Public report title", b"Public UTF-8 notes", "text/plain"),
+        ("notes.md", "Report.pdf", b"# Public Markdown notes", "text/markdown"),
+        ("report.pdf", "Report.txt", PDF, "application/pdf"),
+        ("report.pdf", "Public report title", PDF, "application/pdf"),
+    ],
+)
+async def test_display_title_does_not_change_the_source_type(
+    client: AsyncClient,
+    account: Account,
+    source_filename: str,
+    display_filename: str,
+    content: bytes,
+    media_type: str,
+) -> None:
+    """An optional title is metadata, including a title with another suffix or none."""
+    auth = await headers(client, account.admin_email)
+    uploaded = await client.post(
+        "/documents",
+        files={"file": (source_filename, content, media_type)},
+        data={"filename": display_filename},
+        headers=auth,
+    )
+
+    assert uploaded.status_code == 201
+    document = uploaded.json()["document"]
+    assert document["filename"] == display_filename
+    assert document["media_type"] == media_type
+    downloaded = await client.get(f"/documents/{document['id']}/file", headers=auth)
+    assert downloaded.status_code == 200
+    assert downloaded.headers["content-type"].split(";")[0] == media_type
+    assert downloaded.content == content
+
+
+@pytest.mark.parametrize(
+    ("source_filename", "display_filename", "content"),
+    [("disguised.txt", "Report.pdf", PDF), ("disguised.pdf", "Notes.txt", b"Plain text")],
+)
+async def test_display_title_cannot_bypass_original_file_validation(
+    client: AsyncClient,
+    account: Account,
+    source_filename: str,
+    display_filename: str,
+    content: bytes,
+) -> None:
+    """The bytes must still agree with the original file's declared format."""
+    auth = await headers(client, account.admin_email)
+    response = await client.post(
+        "/documents",
+        files={"file": (source_filename, content)},
+        data={"filename": display_filename},
+        headers=auth,
+    )
+
+    assert response.status_code == 415
+    assert (await client.get("/documents", headers=auth)).json()["items"] == []
 
 
 async def test_a_duplicate_returns_200_not_201(client: AsyncClient, account: Account) -> None:
