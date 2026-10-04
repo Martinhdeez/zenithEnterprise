@@ -46,13 +46,13 @@ export function SetPassword({ token }: { token: string }) {
 
   const submit = useCallback(async () => {
     if (password.length < MINIMUM) {
-      setMessage(`Use at least ${MINIMUM} characters.`);
+      setMessage(t("Use at least {count} characters.", { count: MINIMUM }));
       return;
     }
     if (password !== again) {
       // Checked before sending, because the link is spent on the server's first success and
       // a typo that burned it would leave somebody locked out holding a dead link.
-      setMessage("The two passwords are not the same.");
+      setMessage(t("The two passwords are not the same."));
       return;
     }
     setBusy(true);
@@ -68,7 +68,7 @@ export function SetPassword({ token }: { token: string }) {
     } finally {
       setBusy(false);
     }
-  }, [token, password, again]);
+  }, [token, password, again, t]);
 
   return (
     <div className="flex min-h-full items-center justify-center p-6">
@@ -85,8 +85,7 @@ export function SetPassword({ token }: { token: string }) {
           <div className="space-y-2">
             <h1 className="text-lg font-medium text-foreground">{t("This link no longer works")}</h1>
             <p className="text-sm text-muted-foreground">
-              Links can be used once and expire on their own. Ask your administrator to send
-              a new one.
+              {t("Links can be used once and expire on their own. Ask your administrator to send a new one.")}
             </p>
           </div>
         )}
@@ -116,7 +115,7 @@ export function SetPassword({ token }: { token: string }) {
               {/* Naming the account matters most on a reset: somebody with two addresses
                   needs to know which one this link is about before they commit a password
                   to it. */}
-              <p className="text-sm text-muted-foreground">{t("Setting the password for")}<span className="text-foreground">{state.email}</span>.
+              <p className="text-sm text-muted-foreground">{t("Setting the password for")}{" "}<span className="text-foreground">{state.email}</span>.
               </p>
             </div>
 
@@ -138,14 +137,13 @@ export function SetPassword({ token }: { token: string }) {
               className="rounded-md"
             />
 
-            {message && <p className="text-sm text-destructive">{message}</p>}
+            {message && <p role="alert" className="text-sm text-destructive">{message}</p>}
 
             <Button type="submit" disabled={busy} className="w-full rounded-md">
               {busy ? t("Setting…") : t("Set password")}
             </Button>
             <p className="text-xs text-muted-foreground">
-              At least {MINIMUM} characters. Nobody else ever sees it — not even the
-              administrator who invited you.
+              {t("At least {count} characters. Nobody else ever sees it — not even the administrator who invited you.", { count: MINIMUM })}
             </p>
           </form>
         )}

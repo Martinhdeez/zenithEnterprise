@@ -289,8 +289,7 @@ function PasswordForm({ token, onChanged }: { token: string; onChanged: () => vo
       </div>
       {/* Said before the button is pressed, not after: it changes what the action means. */}
       <p className="text-xs text-muted-foreground">
-        Your other sessions stop being able to renew themselves. One that is already open
-        keeps working until its access token expires.
+        {t("Your other sessions stop being able to renew themselves. One that is already open keeps working until its access token expires.")}
       </p>
       {error && (
         <p role="alert" className="text-sm text-destructive">
@@ -340,8 +339,7 @@ function Sessions({ token, onSignedOut }: { token: string; onSignedOut: () => vo
           to *renew* a session rather than killing it mid-flight. Promising more than that
           on a security control would be the worst place to overstate. */}
       <p className="max-w-prose text-sm text-muted-foreground">
-        Ends every session, including this one. Sessions already open stop working once
-        their access token expires; none of them can renew itself after this.
+        {t("Ends every session, including this one. Sessions already open stop working once their access token expires; none of them can renew itself after this.")}
       </p>
       {error && (
         <p role="alert" className="text-sm text-destructive">

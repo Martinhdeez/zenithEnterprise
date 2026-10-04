@@ -285,6 +285,16 @@ export const es: Catalogue = {
   "Your password is set": "Contraseña establecida",
   "You can sign in now.": "Ya puedes entrar.",
   "Go to sign in": "Ir a la entrada",
+  "Your other sessions stop being able to renew themselves. One that is already open keeps working until its access token expires.":
+    "Tus otras sesiones dejarán de poder renovarse. Las que ya estén abiertas seguirán funcionando hasta que caduque su token de acceso.",
+  "Ends every session, including this one. Sessions already open stop working once their access token expires; none of them can renew itself after this.":
+    "Cierra todas las sesiones, incluida ésta. Las que ya estén abiertas dejarán de funcionar cuando caduque su token de acceso; ninguna podrá renovarse después.",
+  "Links can be used once and expire on their own. Ask your administrator to send a new one.":
+    "Los enlaces sólo se pueden usar una vez y caducan. Pide a tu administrador que envíe uno nuevo.",
+  "Use at least {count} characters.": "Usa al menos {count} caracteres.",
+  "The two passwords are not the same.": "Las dos contraseñas no coinciden.",
+  "At least {count} characters. Nobody else ever sees it — not even the administrator who invited you.":
+    "Al menos {count} caracteres. Nadie más la ve, ni siquiera el administrador que te invitó.",
 
   // --- system -------------------------------------------------------------------------
   "Loading organisations…": "Cargando organizaciones…",
