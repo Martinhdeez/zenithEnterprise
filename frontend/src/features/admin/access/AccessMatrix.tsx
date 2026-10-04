@@ -18,7 +18,7 @@
  * of intermediate states that are each briefly real.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, Loader2, ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -30,15 +30,17 @@ import { useT } from "@/shared/i18n/useT";
 interface Props {
   token: string;
   labels: Label[];
+  /** Refresh the catalog after another administration panel changes a group. */
+  groupsRevision?: number;
   /** So the parent can refetch labels after a clearance changes under it. */
   onLabelsChanged?: () => void;
 }
 
-export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
+export function AccessMatrix({ token, labels, groupsRevision = 0, onLabelsChanged }: Props) {
   const t = useT();
   const [groups, setGroups] = useState<Group[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Set<string> | null>(null);
+  const [draft, setDraft] = useState<{ groupId: string; labels: Set<string> } | null>(null);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -49,23 +51,27 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
   // Save button.
   const [justSaved, setJustSaved] = useState<string | null>(null);
 
-  const load = useCallback(() => {
+  useEffect(() => {
+    let active = true;
     void fetchGroups(token)
       .then((result) => {
+        if (!active) return;
         setGroups(result);
-        setSelected((current) => current ?? result[0]?.id ?? null);
+        setSelected((current) => result.some((one) => one.id === current) ? current : result[0]?.id ?? null);
+        setDraft((current) => current && result.some((one) => one.id === current.groupId) ? current : null);
+        setError(null);
       })
-      .catch((problem: Error) => setError(problem.message))
-      .finally(() => setLoading(false));
-  }, [token]);
-
-  useEffect(load, [load]);
+      .catch((problem: Error) => { if (active) setError(problem.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [token, groupsRevision]);
 
   const group = groups.find((one) => one.id === selected) ?? null;
   // The draft exists only while there are unsaved ticks. Absent means "showing what the
   // server said", which is what makes the Save button's presence meaningful.
-  const held = draft ?? new Set(group?.label_ids ?? []);
-  const dirty = draft !== null;
+  const pending = draft?.groupId === group?.id ? draft : null;
+  const held = pending?.labels ?? new Set(group?.label_ids ?? []);
+  const dirty = pending !== null;
 
   const shown = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -80,18 +86,19 @@ export function AccessMatrix({ token, labels, onLabelsChanged }: Props) {
   }, [labels, search, held]);
 
   function toggle(labelId: string) {
+    if (!group) return;
     const next = new Set(held);
     if (next.has(labelId)) next.delete(labelId);
     else next.add(labelId);
-    setDraft(next);
+    setDraft({ groupId: group.id, labels: next });
   }
 
   async function save() {
-    if (!group || !draft) return;
+    if (!group || !pending) return;
     setSaving(true);
     setError(null);
     try {
-      const updated = await setGroupLabels(token, group.id, [...draft]);
+      const updated = await setGroupLabels(token, group.id, [...pending.labels]);
       setGroups((current) => current.map((one) => (one.id === group.id ? updated : one)));
       setDraft(null);
     } catch (problem) {

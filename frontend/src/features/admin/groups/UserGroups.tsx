@@ -12,7 +12,7 @@
  * happens.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { KeyRound, Loader2, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,7 @@ import { ApiError } from "@/shared/api/http";
 import { SingleUseLink } from "../invite/SingleUseLink";
 import { useT } from "@/shared/i18n/useT";
 
-export function UserGroups({ token }: { token: string }) {
+export function UserGroups({ token, groupsRevision = 0 }: { token: string; groupsRevision?: number }) {
   const t = useT();
   const [members, setMembers] = useState<Member[]>([]);
   // The endpoint has existed and been tested since the credential links shipped, and no
@@ -45,20 +45,32 @@ export function UserGroups({ token }: { token: string }) {
   /** Unsaved ticks, keyed by user. Absent means "no pending edit for this person". */
   const [draft, setDraft] = useState<Record<string, string[]>>({});
   const [saving, setSaving] = useState<string | null>(null);
+  const requestVersion = useRef(0);
 
   const load = useCallback(() => {
+    const version = ++requestVersion.current;
     setLoading(true);
     void Promise.all([fetchUsers(token), fetchGroups(token)])
       .then(([people, allGroups]) => {
+        if (version !== requestVersion.current) return;
         setMembers(people);
         setGroups(allGroups);
-        // Dropped on reload: what came back from the server is now the truth, and keeping
-        // a draft over it would show an edit that has already been applied as pending.
-        setDraft({});
+        // Catalog edits must not discard other people's pending membership edits. Remove
+        // deleted groups and settled drafts so Save never submits an obsolete group ID.
+        const validGroups = new Set(allGroups.map((group) => group.id));
+        setDraft((current) => Object.fromEntries(people.flatMap((person) => {
+          const pending = current[person.id];
+          if (!pending) return [];
+          const valid = pending.filter((id) => validGroups.has(id));
+          const settled = valid.length === person.group_ids.length &&
+            valid.every((id) => person.group_ids.includes(id));
+          return settled ? [] : [[person.id, valid]];
+        })));
+        setError(null);
       })
-      .catch((problem: Error) => setError(problem.message))
-      .finally(() => setLoading(false));
-  }, [token]);
+      .catch((problem: Error) => { if (version === requestVersion.current) setError(problem.message); })
+      .finally(() => { if (version === requestVersion.current) setLoading(false); });
+  }, [token, groupsRevision]);
 
   useEffect(load, [load]);
 
@@ -78,6 +90,10 @@ export function UserGroups({ token }: { token: string }) {
     setError(null);
     try {
       await setUserGroups(token, member.id, held(member));
+      setDraft((all) => {
+        const { [member.id]: _saved, ...rest } = all;
+        return rest;
+      });
       // Re-read rather than patching local state: the server is what decides membership,
       // and a screen that congratulates itself without asking is a screen that can be
       // wrong about who has access.

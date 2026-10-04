@@ -8,7 +8,7 @@
  * here follow the request through to what the server says afterwards.
  */
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UserGroups } from "./UserGroups";
@@ -43,6 +43,60 @@ beforeEach(() => {
 });
 
 describe("the list", () => {
+  it("loads newly created groups without remounting", async () => {
+    groups.mockResolvedValue([]);
+    const view = render(<UserGroups token="t" groupsRevision={0} />);
+    await screen.findByText(/No groups yet/);
+    groups.mockResolvedValue(GROUPS);
+    view.rerender(<UserGroups token="t" groupsRevision={1} />);
+    expect(await screen.findByLabelText("Ana in Finance")).toBeTruthy();
+  });
+
+  it("preserves pending membership edits when the group catalog changes", async () => {
+    const view = render(<UserGroups token="t" groupsRevision={0} />);
+    fireEvent.click(await screen.findByLabelText("Ana in Legal"));
+    groups.mockResolvedValue([GROUPS[0], { ...GROUPS[1], name: "Contracts" }]);
+    view.rerender(<UserGroups token="t" groupsRevision={1} />);
+    expect((await screen.findByLabelText("Ana in Contracts")).getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(setUserGroups).toHaveBeenCalledWith("t", "u1", ["g1", "g2"]));
+  });
+
+  it("removes a deleted group from pending membership saves", async () => {
+    const view = render(<UserGroups token="t" groupsRevision={0} />);
+    fireEvent.click(await screen.findByLabelText("Ana in Legal"));
+    fireEvent.click(screen.getByLabelText("Ana in Finance"));
+    groups.mockResolvedValue([GROUPS[0]]);
+    view.rerender(<UserGroups token="t" groupsRevision={1} />);
+    await screen.findByLabelText("Ana in Finance");
+    expect(screen.queryByLabelText("Ana in Legal")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(setUserGroups).toHaveBeenCalledWith("t", "u1", []));
+  });
+
+  it("keeps another person's unsaved membership while re-reading a saved person", async () => {
+    render(<UserGroups token="t" />);
+    fireEvent.click(await screen.findByLabelText("Ana in Legal"));
+    fireEvent.click(screen.getByLabelText("ben@example.com in Finance"));
+    users.mockResolvedValue([{ ...ANA, group_ids: ["g1", "g2"] }, BEN]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Save" })[0]!);
+    await waitFor(() => expect(users).toHaveBeenCalledTimes(2));
+    expect((await screen.findByLabelText("ben@example.com in Finance")).getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(setUserGroups).toHaveBeenCalledWith("t", "u2", ["g1"]));
+  });
+
+  it("ignores an older catalog response after a later refresh", async () => {
+    let oldResponse!: (value: typeof GROUPS) => void;
+    groups.mockReturnValueOnce(new Promise<typeof GROUPS>((resolve) => { oldResponse = resolve; }));
+    const view = render(<UserGroups token="t" groupsRevision={0} />);
+    groups.mockResolvedValue([GROUPS[0]]);
+    view.rerender(<UserGroups token="t" groupsRevision={1} />);
+    await screen.findByLabelText("Ana in Finance");
+    await act(async () => { oldResponse(GROUPS); });
+    expect(screen.queryByLabelText("Ana in Legal")).toBeNull();
+  });
+
   it("shows everybody, by the name they chose or the address they have", async () => {
     render(<UserGroups token="t" />);
 

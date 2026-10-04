@@ -46,6 +46,55 @@ beforeEach(() => {
 });
 
 describe("choosing a group", () => {
+  it("loads a newly created first group without remounting", async () => {
+    groups.mockResolvedValue([]);
+    const view = render(<AccessMatrix token="t" labels={LABELS} groupsRevision={0} />);
+    await screen.findByText(/No groups yet/);
+    groups.mockResolvedValue(GROUPS);
+    view.rerender(<AccessMatrix token="t" labels={LABELS} groupsRevision={1} />);
+    expect(await screen.findByLabelText("Human Resources may reach hr/payroll")).toBeTruthy();
+  });
+
+  it("refreshes renamed groups while preserving a valid unsaved mapping", async () => {
+    const view = render(<AccessMatrix token="t" labels={LABELS} groupsRevision={0} />);
+    fireEvent.click(await screen.findByLabelText("Human Resources may reach finance/routine"));
+    groups.mockResolvedValue([{ ...GROUPS[0], name: "People" }, GROUPS[1]]);
+    view.rerender(<AccessMatrix token="t" labels={LABELS} groupsRevision={1} />);
+    expect((await screen.findByLabelText("People may reach finance/routine")).getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(setGroupLabels).toHaveBeenCalledWith("t", "g1", ["l1", "l2"]));
+  });
+
+  it("discards a deleted group's draft before selecting a surviving group", async () => {
+    const view = render(<AccessMatrix token="t" labels={LABELS} groupsRevision={0} />);
+    fireEvent.click(await screen.findByLabelText("Human Resources may reach finance/routine"));
+    groups.mockResolvedValue([GROUPS[1]]);
+    view.rerender(<AccessMatrix token="t" labels={LABELS} groupsRevision={1} />);
+    expect((await screen.findByLabelText("Engineering may reach finance/routine")).getAttribute("aria-checked")).toBe("false");
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+    expect(setGroupLabels).not.toHaveBeenCalled();
+  });
+
+  it("shows an empty catalog after the last group is deleted", async () => {
+    const view = render(<AccessMatrix token="t" labels={LABELS} groupsRevision={0} />);
+    await screen.findByLabelText("Human Resources may reach hr/payroll");
+    groups.mockResolvedValue([]);
+    view.rerender(<AccessMatrix token="t" labels={LABELS} groupsRevision={1} />);
+    expect(await screen.findByText(/No groups yet/)).toBeTruthy();
+    expect(screen.queryByRole("tab")).toBeNull();
+  });
+
+  it("ignores an older catalog response that completes after a refresh", async () => {
+    let oldResponse!: (value: typeof GROUPS) => void;
+    groups.mockReturnValueOnce(new Promise<typeof GROUPS>((resolve) => { oldResponse = resolve; }));
+    const view = render(<AccessMatrix token="t" labels={LABELS} groupsRevision={0} />);
+    groups.mockResolvedValue([GROUPS[1]]);
+    view.rerender(<AccessMatrix token="t" labels={LABELS} groupsRevision={1} />);
+    await screen.findByLabelText("Engineering may reach hr/payroll");
+    await act(async () => { oldResponse(GROUPS); });
+    expect(screen.queryByRole("tab", { name: /Human Resources/ })).toBeNull();
+  });
+
   it("starts on the first one rather than on nothing", async () => {
     // An empty right-hand pane on load is a screen that looks broken.
     await act(async () => {

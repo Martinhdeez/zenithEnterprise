@@ -56,6 +56,7 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
 export function Admin({ token }: { token: string }) {
   const t = useT();
   const [labels, setLabels] = useState<LabelType[]>([]);
+  const [groupsRevision, setGroupsRevision] = useState(0);
   // Reloaded rather than mutated in place: a label's clearance is edited from inside the
   // matrix, and the matrix is drawn from this list, so the change has to come back through
   // the same fetch everything else reads.
@@ -84,13 +85,13 @@ export function Admin({ token }: { token: string }) {
         <InvitePanel token={token} />
       </Panel>
       <Panel title={t("Groups")}>
-        <GroupManager token={token} onChanged={reloadLabels} />
+        <GroupManager token={token} onChanged={() => setGroupsRevision((revision) => revision + 1)} />
       </Panel>
       <Panel title={t("People and groups")}>
-        <UserGroups token={token} />
+        <UserGroups token={token} groupsRevision={groupsRevision} />
       </Panel>
       <Panel title={t("Access matrix")}>
-        <AccessMatrix token={token} labels={labels} onLabelsChanged={reloadLabels} />
+        <AccessMatrix token={token} labels={labels} groupsRevision={groupsRevision} onLabelsChanged={reloadLabels} />
       </Panel>
       <Panel title={t("Roles")}>
         <RolePanel token={token} />
