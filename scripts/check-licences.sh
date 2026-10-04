@@ -14,8 +14,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../backend"
 
-# The shipped closure: production dependencies with their transitive dependencies.
-shipped=$(uv export --no-dev --no-hashes --no-emit-project |
+# The shipped closure includes optional MCP installations and their transitive dependencies.
+shipped=$(uv export --no-dev --all-extras --no-hashes --no-emit-project |
     grep -E '^[a-zA-Z0-9]' | sed 's/[=;[].*//' | tr '\n' ' ')
 
 # shellcheck disable=SC2086  # deliberately word-split into one argument per package

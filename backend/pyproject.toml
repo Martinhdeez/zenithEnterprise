@@ -26,6 +26,9 @@ dependencies = [
 [project.scripts]
 zenith = "app.cli:app"
 
+[project.optional-dependencies]
+mcp = ["mcp==2.2.0"]
+
 [dependency-groups]
 # Measurement-only. `eval/dimensions.py` fits a PCA on the corpus's own embeddings, which is a
 # covariance and a symmetric eigendecomposition of a 1024x1024 matrix — seconds of BLAS, and
@@ -45,6 +48,7 @@ dev = [
     "pip-licenses>=5.0",
     "sentence-transformers>=5.6.1",
     "reportlab>=5.0.0",
+    "mcp==2.2.0",
 ]
 
 [tool.ruff]
