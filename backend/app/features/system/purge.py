@@ -13,7 +13,7 @@ from uuid import UUID
 import structlog
 from sqlalchemy import text
 
-from app.core.database import platform_session
+from app.core.database import owner_session, platform_session
 from app.features.documents.storage import DocumentStorage
 from app.features.tenancy.model import PURGED
 
@@ -80,7 +80,10 @@ async def _cancel_queued_jobs(tenant_id: UUID) -> int:
     Only `todo` jobs are touched. A job already running cannot be recalled; it will fail
     against the deleted rows, which is the correct outcome and is visible in the log.
     """
-    async with platform_session() as session:
+    # The installer and worker own the queue connection (`build_app`). The platform
+    # connection has no queue-table grants. Use that existing owner boundary only for
+    # jobs; customer rows above still use the restricted platform connection.
+    async with owner_session() as session:
         # Checked, not assumed. Procrastinate's tables are installed by `zenith
         # install-queue`, not by Alembic, so an installation that has never queued anything
         # does not have them — and a purge that crashed on a missing queue would refuse to
