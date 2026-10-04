@@ -23,14 +23,41 @@ export function LlmPanel({ token }: { token: string }) {
   const [model, setModel] = useState("");
   const [key, setKey] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
-    void llmConfig(token).then((loaded) => {
-      setConfig(loaded);
-      setEndpoint(loaded.endpoint_url);
-      setModel(loaded.model_name);
-    });
-  }, [token]);
+    let cancelled = false;
+    setConfig(null);
+    setLoadError(null);
+    setKey("");
+    setMessage(null);
+    void llmConfig(token)
+      .then((loaded) => {
+        if (cancelled) return;
+        setConfig(loaded);
+        setEndpoint(loaded.endpoint_url);
+        setModel(loaded.model_name);
+      })
+      .catch((caught: unknown) => {
+        if (cancelled) return;
+        setLoadError(caught instanceof ApiError ? caught.message : t("The request failed."));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, retry]);
+
+  if (loadError) {
+    return (
+      <div className="space-y-3">
+        <p role="alert" className="text-sm text-destructive">{loadError}</p>
+        <Button type="button" variant="outline" onClick={() => setRetry((value) => value + 1)}>
+          {t("Try again")}
+        </Button>
+      </div>
+    );
+  }
 
   if (!config) return null;
 
