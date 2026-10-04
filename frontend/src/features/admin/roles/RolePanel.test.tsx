@@ -38,7 +38,7 @@ const role = (overrides: Record<string, unknown> = {}) => ({
   name: "editor",
   is_system: false,
   permissions: ["query.execute"],
-  priority_level: 0,
+  priority_level: 1,
   ...overrides,
 });
 
@@ -139,7 +139,7 @@ describe("making a role", () => {
     expect(createRole.mock.calls[0]?.[1]).toMatchObject({
       name: "reviewer",
       permissions: [],
-      priority_level: 0,
+      priority_level: 1,
     });
   });
 
@@ -179,6 +179,18 @@ describe("removing a role", () => {
 });
 
 describe("clearance", () => {
+  it("offers only the API's one-to-ten role levels", async () => {
+    roles.mockResolvedValue([role()]);
+
+    render(<RolePanel token="t" />);
+    const select = await screen.findByLabelText("Clearance of editor") as HTMLSelectElement;
+
+    expect(Array.from(select.options, (option) => Number(option.value))).toEqual(
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    );
+    expect(select.value).toBe("1");
+  });
+
   it("can be set on an ordinary role", async () => {
     roles.mockResolvedValue([role()]);
     setRoleClearance.mockResolvedValue(role({ priority_level: 5 }));

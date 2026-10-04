@@ -94,8 +94,8 @@ export function RolePanel({ token }: { token: string }) {
         </p>
       )}
 
-      {/* A role starts with no permissions and no clearance, which is the safe end to start
-          from: the panel below is where it is given anything, one deliberate click at a time.
+      {/* A role starts with no permissions and the API's minimum clearance of one. It has no
+          label grants or group membership, so creating it opens no documents.
           A form that offered permissions at creation would be a role granted in a single
           gesture nobody reviews. */}
       <form
@@ -104,7 +104,7 @@ export function RolePanel({ token }: { token: string }) {
           event.preventDefault();
           setCreating(true);
           void attempt("new", async () => {
-            await createRole(token, { name: name.trim(), permissions: [], priority_level: 0 });
+            await createRole(token, { name: name.trim(), permissions: [], priority_level: 1 });
             setName("");
           }).finally(() => setCreating(false));
         }}
@@ -135,9 +135,8 @@ export function RolePanel({ token }: { token: string }) {
                 )}
               </p>
               <span className="flex items-center gap-3 text-xs text-muted-foreground">
-                {/* Clearance is the vertical half of the access model and had no control at
-                    all. 0 is a compartment — no clearance reaches anything through a group,
-                    only an outright grant does — which is the default and the safe one. */}
+                {/* Role clearance follows the API's one-to-ten range. A label can separately
+                    demand zero clearance; that does not make zero a valid role level. */}
                 <label className="flex items-center gap-1.5">{t("clearance")}<select
                     aria-label={t("Clearance of {role}", { role: role.name })}
                     disabled={role.is_system || busy === role.id}
@@ -149,7 +148,7 @@ export function RolePanel({ token }: { token: string }) {
                     }
                     className="rounded border border-border bg-card px-1.5 py-0.5 text-foreground disabled:opacity-50"
                   >
-                    {Array.from({ length: 11 }, (_, level) => (
+                    {Array.from({ length: 10 }, (_, index) => index + 1).map((level) => (
                       <option key={level} value={level}>
                         {level}
                       </option>
